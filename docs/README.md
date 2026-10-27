@@ -58,3 +58,5 @@ Engines and Python minima: [versions](local-setup.md#versions).
 `docs/public-plugin/` is a template copied into a compiled plugin archive by `plugin/scripts/export-public.mjs`. It is not a source-tree guide, and this index does not link to it.
 
 `docs/standalone-install.md`, `docs/standalone-permissions.md`, `docs/standalone-cursor.md`, `docs/standalone-panel.md`, `docs/standalone-t3.md`, and `docs/package-names.md` are short stubs copied into the source-development archive. The guides they point at are above.
+
+- [Readable boundary names release (2026-10-27)](release-boundary-names-2026-10-27.md)

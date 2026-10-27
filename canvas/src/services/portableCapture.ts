@@ -28,15 +28,23 @@ function index<T extends { id: string }>(items: T[]): Map<string, T> {
   requireCaptureFact(map.size === items.length);
   return map;
 }
-export function argumentLeaves(tree: Argument | null, path: Array<string | number> = []): Array<{ path: Array<string | number>; argument: Argument }> {
+export function argumentLeaves(tree: Argument | null, path: Array<string | number> = [], name = ''): Array<{ path: Array<string | number>; argument: Argument; displayName: string }> {
   if (tree === null) return [];
-  if ((tree.kind === 'list' || tree.kind === 'tuple') && tree.items.length) return tree.items.flatMap((item, i) => argumentLeaves(item, [...path, 'items', i]));
-  if (tree.kind === 'dict' && tree.entries.length) return tree.entries.flatMap((entry, i) => argumentLeaves(entry.value, [...path, 'entries', i, 'value']));
-  return [{ path, argument: tree }];
+  if ((tree.kind === 'list' || tree.kind === 'tuple') && tree.items.length) return tree.items.flatMap((item, i) =>
+    argumentLeaves(item, [...path, 'items', i], name ? `${name}[${i}]` : `${i + 1}`));
+  if (tree.kind === 'dict' && tree.entries.length) return tree.entries.flatMap((entry, i) => {
+    const key = entry.key;
+    const literal = key.kind === 'none' ? 'None' : key.kind === 'bool' ? (key.value ? 'True' : 'False')
+      : key.kind === 'int' ? key.value : JSON.stringify(key.value);
+    const child = key.kind === 'str' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(key.value)
+      ? `${name ? `${name}.` : ''}${key.value}` : `${name}[${literal}]`;
+    return argumentLeaves(entry.value, [...path, 'entries', i, 'value'], child);
+  });
+  return [{ path, argument: tree, displayName: name }];
 }
 export const inputLeaves = (inputs: Arguments, field: string) => [
-  ...inputs.args.flatMap((argument, i) => argumentLeaves(argument, [field, 'args', i])),
-  ...Object.entries(inputs.kwargs).flatMap(([key, argument]) => argumentLeaves(argument, [field, 'kwargs', key])),
+  ...inputs.args.flatMap((argument, i) => argumentLeaves(argument, [field, 'args', i], `${i + 1}`)),
+  ...Object.entries(inputs.kwargs).flatMap(([key, argument]) => argumentLeaves(argument, [field, 'kwargs', key], key)),
 ];
 
 function validateRelations(capture: CaptureSnapshot): void {

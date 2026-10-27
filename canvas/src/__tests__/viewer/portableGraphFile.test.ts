@@ -2,7 +2,7 @@ import fixture from '../../test/fixtures/canvas/capture-document.json';
 import portable from '../../../../tests/fixtures/contracts/portable-capture.json';
 import type { GraphDocumentV2 } from '../../types/graphDocument';
 import { createGraphFile, parseGraphFile } from '../../services/graphFile';
-import { requirePortableCapture } from '../../services/portableCapture';
+import { argumentLeaves, requirePortableCapture } from '../../services/portableCapture';
 import { graphDocumentV2ToModelGraph, modelGraphToDocumentV2 } from '../../services/graphDocumentAdapter';
 import { initialGraphFileView, revealGraphNode } from '../../viewer/graphFileView';
 import { reconcileModuleView } from '../../services/canvasLayout';
@@ -15,6 +15,48 @@ import initializerFixture from '../../../../tests/fixtures/contracts/initializer
 
 const clone = <T,>(item: T): T => JSON.parse(JSON.stringify(item));
 const graph = () => graphDocumentV2ToModelGraph(clone(fixture) as GraphDocumentV2);
+
+it('recovers dictionary names from an older file and ignores unverified saved labels', () => {
+  const file = capturedFile();
+  const capture = file.capture!.capture;
+  const output = { kind: 'dict' as const, entries: [
+    { key: { kind: 'str' as const, value: 'patch_tokens' }, value: capture.output! },
+  ] };
+  capture.output = output;
+  capture.invocations[0].output = clone(output);
+  for (const node of file.document.semantic.nodes) {
+    for (const port of node.metadata.capturePorts as any[]) {
+      delete port.displayName;
+      if ((node.kind === 'output' || node.kind === 'module') && port.paths[0]?.[0] === 'output') {
+        port.paths = [['output', 'entries', 0, 'value']];
+        port.displayName = 'invented_name';
+      }
+    }
+    if (node.kind === 'output' || node.kind === 'module') {
+      delete node.metadata.outputShape;
+      delete node.metadata.outputTensor;
+    }
+  }
+  const imported = parseGraphFile(JSON.stringify(file));
+  const names = imported.document.semantic.nodes.filter(node => node.kind === 'output' || node.kind === 'module')
+    .flatMap(node => (node.metadata.capturePorts as any[]).filter(port => port.paths[0]?.[0] === 'output').map(port => port.displayName));
+  expect(names).toEqual(['patch_tokens', 'patch_tokens']);
+  expect(imported.document.semantic.edges).toEqual(file.document.semantic.edges);
+  expect(imported.capture).toEqual(file.capture);
+});
+
+it('keeps nested sequence positions, typed dictionary keys, and empty containers in readable names', () => {
+  const leaves = argumentLeaves({ kind: 'dict', entries: [
+    { key: { kind: 'str', value: 'states' }, value: { kind: 'tuple', items: [{ kind: 'value', id: 'v' }, { kind: 'none' }] } },
+    { key: { kind: 'str', value: 'extra.key' }, value: { kind: 'dict', entries: [
+      { key: { kind: 'int', value: '2' }, value: { kind: 'list', items: [] } },
+      { key: { kind: 'bool', value: false }, value: { kind: 'none' } },
+      { key: { kind: 'none' }, value: { kind: 'dict', entries: [] } },
+    ] } },
+  ] }, ['output']);
+  expect(leaves.map(leaf => leaf.displayName)).toEqual(['states[0]', 'states[1]', '["extra.key"][2]', '["extra.key"][False]', '["extra.key"][None]']);
+  expect(leaves[2].path).toEqual(['output', 'entries', 1, 'value', 'entries', 0, 'value']);
+});
 
 function initializerCapture() {
   const value = clone(portable) as any, capture = value.capture;

@@ -22,6 +22,7 @@ Engines and Python minima: [versions](local-setup.md#versions).
 - [Model libraries](graph-libraries.md)
 - [Canvas](canvas.md)
 - [Canvas block families](canvas-block-families.md)
+- [Input and output names](capture-boundary-names.md)
 - [Semantic capture contract](semantic-capture-contract.md)
 - [Code focus](code-focus.md)
 - [Source proposals](source-editing.md)

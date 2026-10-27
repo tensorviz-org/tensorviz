@@ -700,6 +700,11 @@ export interface components {
              * @enum {string}
              */
             direction: "in" | "out";
+            /**
+             * Displayname
+             * @default null
+             */
+            displayName?: string | null;
             /** Dtype */
             dtype: string | null;
             /** Id */

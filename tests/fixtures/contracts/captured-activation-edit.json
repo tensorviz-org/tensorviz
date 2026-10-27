@@ -630,7 +630,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": "1"
               }
             ],
             "capturedOperationCount": 0,
@@ -696,7 +697,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": null
               }
             ],
             "capturedOperationCount": 0,
@@ -762,7 +764,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": "1"
               },
               {
                 "id": "port:6f698148227f93582e85986348c460de1b11cb42c8fb2e15aaae27485f142c48",
@@ -781,7 +784,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": null
               }
             ],
             "capturedOperationCount": 3,
@@ -865,7 +869,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": "1"
               },
               {
                 "id": "port:cbbf7698c4f25115f9ca65932b8806e201896349457ad4c37bd0b8a7c3c31563",
@@ -883,7 +888,8 @@
                 "memberPortId": null,
                 "shape": null,
                 "dtype": null,
-                "device": null
+                "device": null,
+                "displayName": "2"
               },
               {
                 "id": "port:9e563ab62c6c8d28e7ae75a61d24d056c17fd1974343ef7592a877e92b911de3",
@@ -902,7 +908,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": null
               }
             ],
             "capturedOperationCount": 1,
@@ -1205,7 +1212,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": "1"
               },
               {
                 "id": "port:4508b7aa90bc2500f30e224bbfee2d3a1c352b74ac0497d24f8bf046d8fef888",
@@ -1224,7 +1232,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": null
               }
             ],
             "capturedOperationCount": 1,
@@ -1369,7 +1378,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": "1"
               },
               {
                 "id": "port:0a03ac08b9baf747fabec8eeb6ab664298b0c1aff304941ed22b6ffa193586d9",
@@ -1390,7 +1400,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": "2"
               },
               {
                 "id": "port:0ff30253402519398e59e493ac8d780a178af6e5d6653643d926add9ba4c9272",
@@ -1409,7 +1420,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": null
               }
             ],
             "capturedOperationCount": 1,

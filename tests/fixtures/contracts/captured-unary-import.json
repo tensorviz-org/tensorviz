@@ -659,7 +659,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": "1"
               }
             ],
             "capturedOperationCount": 0,
@@ -725,7 +726,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": null
               }
             ],
             "capturedOperationCount": 0,
@@ -791,7 +793,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": "1"
               },
               {
                 "id": "port:425d39b4e9e49f991aaa655cf2fb0f0e7597f68bb3e3acf4af4c7c4a34978e84",
@@ -810,7 +813,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": null
               }
             ],
             "capturedOperationCount": 3,
@@ -894,7 +898,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": "1"
               },
               {
                 "id": "port:2dd4baa689077fc122cf3dfd503296606bda72d8aa895e0b763a7b4f4b8f61ab",
@@ -912,7 +917,8 @@
                 "memberPortId": null,
                 "shape": null,
                 "dtype": null,
-                "device": null
+                "device": null,
+                "displayName": "2"
               },
               {
                 "id": "port:7c5c74820f023fd98ca2836c862e28829aff54e0f009086d3d01db37647019fa",
@@ -931,7 +937,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": null
               }
             ],
             "capturedOperationCount": 1,
@@ -1235,7 +1242,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": "1"
               },
               {
                 "id": "port:7c7d0ebaba65f16dce404fcf3c1c7f9c083cc95e7d2079c97e03539d05184375",
@@ -1256,7 +1264,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": "2"
               },
               {
                 "id": "port:6f4d4fc804bbd36be05ae6bf649ed4f611fb40395227f9293a1a5f82134da44b",
@@ -1275,7 +1284,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": null
               }
             ],
             "capturedOperationCount": 1,
@@ -1729,7 +1739,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": "1"
               },
               {
                 "id": "port:0887618e56c78c2b23210521653e093647fbf0d4d6a458faa8b2a823bb6b1cdb",
@@ -1747,7 +1758,8 @@
                 "memberPortId": null,
                 "shape": null,
                 "dtype": null,
-                "device": null
+                "device": null,
+                "displayName": "2"
               },
               {
                 "id": "port:b643ffdaa54bf22403cb46ba2c3ee3f2dc49a0f71a9806e016cba4f33e0ceee0",
@@ -1766,7 +1778,8 @@
                   4
                 ],
                 "dtype": "torch.float32",
-                "device": "cpu"
+                "device": "cpu",
+                "displayName": null
               }
             ],
             "capturedOperationCount": 1,

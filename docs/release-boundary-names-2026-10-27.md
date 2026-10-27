@@ -14,7 +14,8 @@ version table and generated reference.
 
 - Package: `tensorviz-0.1.19.vsix`, 5,317,949 bytes.
 - SHA-256: `f7772e62e5983c121f00398c95e276b4b44ab2287f2072c8330cc132f1199e4f`.
-- GitHub reports the same digest for the uploaded artifact.
+- GitHub reports the same digest for the uploaded artifact. A fresh download
+  from the published release also matched the tested package byte for byte.
 - The canonical VSIX build passed compilation, backend staging and archive checks.
 - Both bundled renderers carry a valid signed all-host trial license expiring
   2026-12-26, supplied in memory from the existing TensorViz release. No key value

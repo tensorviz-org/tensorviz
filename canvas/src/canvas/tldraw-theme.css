@@ -1,0 +1,598 @@
+/**
+ * tldraw theme overrides — makes the tldraw canvas match our
+ * existing VS Code-inspired dark palette from index.css.
+ *
+ * These CSS custom properties override tldraw's built-in tokens
+ * so edges, selection boxes, and the canvas background all
+ * feel native to our app.
+ */
+
+/* Override tldraw's canvas background and selection colors */
+.tldraw-canvas-wrapper {
+  /* Contain tldraw's internal stacking. tldraw layers its own subtree with
+     z-index 100 (.tl-background__wrapper), 200, 300 …, and .tl-container is
+     `position: relative; z-index: auto`, so it creates no stacking context of
+     its own — those values were competing directly against the app's chrome in
+     the stage's context. Every piece of that chrome sits below 100: the
+     inspector panel at 28, the builder toolbar at 30, the dialog and quick-jump
+     backdrops at 60, the toast stack at 70. The toolbar's ⋯ More menu was the
+     visible casualty: the toolbar sets `transform: translateX(-50%)`, which
+     makes it a stacking context capped at 30, so the menu's own z-index 50 could
+     not lift it out and about ten controls painted underneath the canvas —
+     unclickable. `isolation: isolate` creates the stacking context .tl-container
+     doesn't, so tldraw's 100+ is 100 *within the canvas* and never outranks the
+     chrome again. Safe here specifically because every tldraw UI surface is
+     disabled in hiddenComponents (TldrawCanvas.tsx) — nothing inside this
+     wrapper is meant to float above the app. */
+  isolation: isolate;
+  --tl-color-background: var(--bg-canvas, #030303);
+  --tl-color-brush-fill: color-mix(in srgb, var(--tv-text) 6%, transparent);
+  --tl-color-brush-stroke: color-mix(in srgb, var(--tv-text) 18%, transparent);
+  --tl-color-selection-fill: color-mix(in srgb, var(--tv-text) 4%, transparent);
+  --tl-color-selection-stroke: var(--tv-accent);
+  --tl-color-text: var(--text-primary, #f2f2f3);
+  --tl-color-grid: var(--canvas-grid, rgba(255, 255, 255, 0.035));
+}
+
+/* Make the tldraw editor fill its container */
+.tldraw-canvas-wrapper .tl-container {
+  background: var(--bg-canvas, #030303) !important;
+
+  /* ── Overview minimap palette ──────────────────────────────────────────────
+     MinimapManager paints its canvas from exactly four computed properties —
+     background, shape fill, selected fill, viewport fill — so without these the
+     mini graph drew in tldraw's stock theme while the panel around it wore ours.
+
+     They MUST be declared here and not on .tldraw-canvas-wrapper above. tldraw
+     puts `tl-theme__dark` on the SAME element as `tl-container`, and that block
+     declares all four; a custom property set ON an element always beats one
+     inherited from an ancestor, so an override on the wrapper is silently inert.
+     This selector is (0,2,0) against .tl-theme__dark's (0,1,0), so it wins — and
+     MinimapManager reads getComputedStyle(editor.getContainer()), which is this
+     element. (Several of the wrapper's other --tl-color-* overrides are inert for
+     exactly this reason; they are left alone because every tldraw UI surface that
+     consumes them is disabled in hiddenComponents.)
+
+     Mapped onto graphite Canvas paint: neutral node blobs, accent selection,
+     and a restrained viewport wash. */
+  --tl-color-low: var(--bg-canvas, #030303);
+  --tl-color-text-3: var(--tv-text-3);
+  --tl-color-selected: var(--tv-selection);
+  /* tldraw's stock focus/selection blues, also re-declared by .tl-theme__dark. */
+  --tl-color-focus: var(--tv-accent);
+  --tl-color-selection-stroke: var(--tv-accent);
+  --tl-color-muted-1: var(--tv-minimap-node);
+
+  /* Native cursors stay visible when CSS optimization strips the SVG filters
+     from tldraw's static cursor images, and honor OS pointer preferences. */
+  --tl-cursor-default: default;
+  --tl-cursor-pointer: pointer;
+  --tl-cursor-cross: crosshair;
+  --tl-cursor-move: move;
+  --tl-cursor-grab: grab;
+  --tl-cursor-grabbing: grabbing;
+  --tl-cursor-text: text;
+  --tl-cursor-zoom-in: zoom-in;
+  --tl-cursor-zoom-out: zoom-out;
+}
+
+/* Model graph edges are custom connected strokes, not tldraw arrow shapes. */
+.tldraw-canvas-wrapper .model-edge-svg {
+  overflow: visible;
+}
+
+.tldraw-canvas-wrapper .model-edge-path {
+  fill: none;
+  stroke: #cbd5e1;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.86;
+}
+
+.tldraw-canvas-wrapper .model-edge-path-glow {
+  stroke: rgba(203, 213, 225, 0.18);
+  stroke-width: 7;
+  opacity: 1;
+}
+
+/* A project graph draws its pipeline and its call graph on one canvas. `builds`
+   is true of nearly every pair of definitions in a codebase and says nothing about
+   sequence, so drawn alike the two become a mesh with no line to follow. This is
+   the quiet half: thinner, dimmer, dashed and without the glow that makes a line
+   read as lit — still there, still clickable, no longer competing with the spine.
+   The layout makes the same distinction with edge weight; see
+   canvasLayout.edgeLayoutWeight. */
+.tldraw-canvas-wrapper .model-edge-path-quiet {
+  stroke: #6b7280;
+  stroke-width: 1.25;
+  stroke-dasharray: 4 4;
+  opacity: 0.5;
+}
+
+/* Selection still wins: a quiet edge you have clicked is an edge you are looking
+   at, and the whole point of the class is to be quiet until then. */
+.tldraw-canvas-wrapper .model-edge-path-quiet.selected {
+  stroke-dasharray: none;
+  opacity: 1;
+}
+
+.tldraw-canvas-wrapper .model-edge-terminal {
+  fill: var(--bg-canvas, #030303);
+  stroke: #cbd5e1;
+  stroke-width: 1.6;
+}
+
+/* Selection indicator ring */
+.tldraw-canvas-wrapper .tl-overlays .tl-selection__fg {
+  stroke: var(--tv-accent);
+}
+
+/* A clicked edge. It is not in tldraw's selection (edges are locked and
+   unhittable by design), so it cannot use the standard selection ring — the
+   stroke itself carries the state, and Delete removes it. */
+.tldraw-canvas-wrapper .model-edge-path.selected {
+  stroke: var(--tv-selection);
+  stroke-width: 2.2;
+  opacity: 1;
+}
+
+.tldraw-canvas-wrapper .model-edge-path-glow.selected {
+  stroke: color-mix(in srgb, var(--tv-accent) 28%, transparent);
+  stroke-width: 10;
+}
+
+.tldraw-canvas-wrapper .model-edge-terminal.selected {
+  stroke: var(--tv-selection);
+}
+
+/* AI Preview Diffing */
+.tldraw-canvas-wrapper .model-edge-path.diff-added {
+  stroke: var(--success, #22c55e);
+}
+.tldraw-canvas-wrapper .model-edge-path-glow.diff-added {
+  stroke: rgba(34, 197, 94, 0.18);
+}
+.tldraw-canvas-wrapper .model-edge-terminal.diff-added {
+  stroke: var(--success, #22c55e);
+}
+
+.tldraw-canvas-wrapper .model-edge-path.diff-removed {
+  stroke: var(--danger, #ef4444);
+  stroke-dasharray: 4 4;
+  opacity: 0.6;
+}
+.tldraw-canvas-wrapper .model-edge-path-glow.diff-removed {
+  stroke: rgba(239, 68, 68, 0.1);
+}
+.tldraw-canvas-wrapper .model-edge-terminal.diff-removed {
+  stroke: var(--danger, #ef4444);
+  opacity: 0.6;
+}
+
+.tldraw-canvas-wrapper .model-edge-path.diff-modified {
+  stroke: var(--warning, #eab308);
+}
+.tldraw-canvas-wrapper .model-edge-path-glow.diff-modified {
+  stroke: rgba(234, 179, 8, 0.18);
+}
+.tldraw-canvas-wrapper .model-edge-terminal.diff-modified {
+  stroke: var(--warning, #eab308);
+}
+
+/* There is deliberately no rule here hiding tldraw's attribution or watermark.
+   A `.tlui-attribution { display: none }` block used to sit at this spot. It was
+   dead — that is not the element tldraw 5 renders — and had it worked it would
+   have been exactly what tldraw's licence forbids. The compliant way to remove
+   the watermark is to buy a key and set REACT_APP_TLDRAW_LICENSE_KEY; see the
+   licenseKey prop in TldrawCanvas.tsx. */
+
+/* Override tldraw's snap line colors */
+.tldraw-canvas-wrapper .tl-snap-line {
+  stroke: var(--tv-accent);
+}
+
+.tldraw-canvas-wrapper .tl-snap-point {
+  fill: var(--tv-accent);
+}
+
+/* ── Drag-to-connect ─────────────────────────────────────── */
+
+/* React-flow-style handles: always visible, ~8px, crosshair. Sized through
+   tldraw's published --tl-scale (1 / zoom, set on .tl-container) so they hold a
+   constant SCREEN size instead of ballooning as the camera zooms in.
+   `crosshair` here is a CSS cursor value — tldraw's own cursor vocabulary calls
+   it `cross` and would throw on this name. */
+/* Design v2: a 6.5px page-space dot that scales with zoom (hidden at overview
+   tier, see graphAppearance.css). Centres are unchanged: side ports offset by
+   half the dot, captured ports keep their inline point and translate(-50%). */
+.tldraw-canvas-wrapper .model-node-port {
+  position: absolute;
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  background: var(--tv-canvas);
+  border: 1.5px solid var(--tv-wire);
+  box-sizing: border-box;
+  pointer-events: auto;
+  cursor: crosshair;
+  transition: border-color var(--tv-quick) var(--tv-ease), background-color var(--tv-quick) var(--tv-ease);
+}
+
+/* A port sits at the middle of its side. Four side classes, because a card can
+   now carry an edge on any of them; a captured port overrides with an inline
+   left/top and the floating class. */
+.tldraw-canvas-wrapper .model-node-port-left {
+  top: 50%;
+  left: -3.25px;
+  margin-top: -3.25px;
+}
+
+.tldraw-canvas-wrapper .model-node-port-right {
+  top: 50%;
+  right: -3.25px;
+  margin-top: -3.25px;
+}
+
+.tldraw-canvas-wrapper .model-node-port-top {
+  left: 50%;
+  top: -3.25px;
+  margin-left: -3.25px;
+}
+
+.tldraw-canvas-wrapper .model-node-port-bottom {
+  left: 50%;
+  bottom: -3.25px;
+  margin-left: -3.25px;
+}
+
+/* A captured-computation port: positioned from its own inline left/top (the
+   card projects it), so the side classes must not also place it. */
+.tldraw-canvas-wrapper .model-node-port-floating {
+  top: auto;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  margin: 0;
+}
+
+/* A 9px dot is a small target for a real hand, so the pressable area is grown
+   without growing the dot. */
+.tldraw-canvas-wrapper .model-node-port::after {
+  content: '';
+  position: absolute;
+  /* The pressable area stays a constant ~16px on screen around the small dot. */
+  inset: calc(3.25px - 8px * var(--tl-scale));
+  border-radius: 50%;
+}
+
+.tldraw-canvas-wrapper .model-node-port:hover {
+  border-color: var(--tv-accent);
+  background: var(--tv-accent);
+}
+
+/* The read-only local page: a port is a topology fact (where an edge lands),
+   not an affordance. No crosshair, no hover growth, no pointer capture — the
+   component drops its handlers in this mode, and the CSS finishes the claim. */
+.tldraw-canvas-wrapper .model-node-port-inert {
+  pointer-events: none;
+  cursor: default;
+}
+
+.tldraw-canvas-wrapper .model-node-port-inert:hover {
+  transform: none;
+  border-color: var(--tv-wire);
+  background: var(--tv-canvas);
+}
+
+/* The in-flight connection. Dashed so it reads as a proposal rather than a
+   committed edge, and drawn from the same curve the renderer uses. */
+.tldraw-canvas-wrapper .model-connect-path {
+  fill: none;
+  stroke: var(--tv-accent);
+  stroke-width: calc(2px * var(--tl-scale));
+  stroke-linecap: round;
+  stroke-dasharray: calc(7px * var(--tl-scale)) calc(5px * var(--tl-scale));
+}
+
+/* An invalid drop recolours the band. It must NOT change the cursor: tldraw's
+   TL_CURSOR_TYPES has no `not-allowed` and setCursor would throw on it. */
+.tldraw-canvas-wrapper .model-connect-path.invalid {
+  stroke: var(--error, #ef4444);
+}
+
+.tldraw-canvas-wrapper .model-connect-path.valid {
+  stroke-dasharray: none;
+}
+
+.tldraw-canvas-wrapper .model-connect-ring {
+  width: calc(18px * var(--tl-scale));
+  height: calc(18px * var(--tl-scale));
+  margin-left: calc(-9px * var(--tl-scale));
+  margin-top: calc(-9px * var(--tl-scale));
+  border-radius: 50%;
+  border: calc(2px * var(--tl-scale)) solid var(--tv-accent);
+  pointer-events: none;
+}
+
+.tldraw-canvas-wrapper .model-connect-ring.invalid {
+  border-color: var(--error, #ef4444);
+}
+
+/* ── Insert on the wire ──────────────────────────────────────────────────────
+   These live in the InFrontOfTheCanvas slot, which renders AFTER the shapes and
+   OUTSIDE the camera transform. So: screen space, plain pixels, and no
+   --tl-scale arithmetic — the component projects page points itself. They used to
+   sit in OnTheCanvas, which is inside the transform but painted beneath every
+   card, so the picker disappeared behind whatever node it overlapped. */
+.tldraw-canvas-wrapper .model-edge-insert-plus {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  /* The accent-tinted control pair from the token file (--ui2-accent-border over
+     --ui2-accent-wash) rather than a one-off #0a1620 navy — the same device
+     .ui2-node-expand-row uses for an accented control on a card. */
+  border: 1px solid var(--ui2-accent-border, rgba(103, 217, 255, 0.45));
+  background: var(--tv-popover);
+  box-shadow: inset 0 0 0 20px var(--ui2-accent-wash, rgba(103, 217, 255, 0.09));
+  color: var(--ui2-accent, #67d9ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 0 1px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.tldraw-canvas-wrapper .model-edge-insert-plus:hover {
+  border-color: var(--ui2-accent, #67d9ff);
+  background: var(--ui2-accent, #67d9ff);
+  box-shadow: none;
+  /* The popover surface reads on the accent fill in both Ink and Paper. */
+  color: var(--tv-popover);
+}
+.tldraw-canvas-wrapper .model-edge-insert-plus:focus-visible {
+  outline: 2px solid var(--ui2-accent, #67d9ff);
+  outline-offset: 3px;
+}
+
+.tldraw-canvas-wrapper .model-edge-insert-picker {
+  position: absolute;
+  width: 224px;
+  margin: 14px 0 0 -112px;
+  /* The shared solid popover treatment. */
+  background: var(--tv-popover);
+  backdrop-filter: none;
+  border: 1px solid var(--tv-edge);
+  border-radius: var(--ui2-radius-float, 12px);
+  box-shadow: var(--tv-popover-shadow);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+/* Input and close button share one row, so the × sits on the search field's
+   baseline rather than floating over the list. */
+.tldraw-canvas-wrapper .model-edge-insert-head {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--ui2-rule, rgba(255, 255, 255, 0.09));
+}
+
+.tldraw-canvas-wrapper .model-edge-insert-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  border: 0;
+  color: var(--ui2-text, #f3f3f4);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 8px 10px;
+  outline: none;
+}
+.tldraw-canvas-wrapper .model-edge-insert-input::placeholder {
+  color: var(--ui2-text-dim, #a8a8b0);
+}
+/* Dim at rest, near-white on the level-2 hover fill — the same treatment every
+   other icon-only control in the system gets (.ui2-icon-button, .ui2-tool). */
+.tldraw-canvas-wrapper .model-edge-insert-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  border: 0;
+  background: transparent;
+  color: var(--ui2-text-dim, #a8a8b0);
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.tldraw-canvas-wrapper .model-edge-insert-close:hover {
+  background: var(--ui2-level-2-hover, rgba(255, 255, 255, 0.13));
+  color: var(--ui2-text, #f3f3f4);
+}
+.tldraw-canvas-wrapper .model-edge-insert-close:focus-visible {
+  outline: 2px solid var(--ui2-accent, #67d9ff);
+  outline-offset: -2px;
+}
+
+/* Says why these five and not the catalogue's first five. */
+.tldraw-canvas-wrapper .model-edge-insert-hint {
+  padding: 6px 10px 2px;
+  font-family: var(--font-mono);
+  /* The shared eyebrow step. 9.5px at 0.04em was a third micro-label size and a
+     seventh tracking value; the token file keeps exactly one of each. */
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: var(--ui2-tracking-eyebrow, 0.1em);
+  text-transform: uppercase;
+  color: var(--ui2-text-dim, #a8a8b0);
+}
+
+.tldraw-canvas-wrapper .model-edge-insert-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  /* Muted at rest so the selected row has contrast to jump into — see the
+     .on rule below for why this mirrors the edge treatment. */
+  color: var(--ui2-text-dim, #a8a8b0);
+  cursor: pointer;
+}
+/* The category swatch. Every row carries the colour of the block it will insert,
+   so the palette is readable before anything is selected — not only on the row
+   the keyboard happens to be on. */
+.tldraw-canvas-wrapper .model-edge-insert-swatch {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--row-accent, var(--cat-utility, #9da7b3));
+  opacity: 0.55;
+  transition: opacity 120ms ease-out;
+}
+/* Active row, built to read like a SELECTED EDGE. An edge's brightness comes from
+   contrast, not from one colour: at rest it is #8290a9 at .8 opacity, selected it
+   jumps to #ded5ff at full opacity and 3px. The picker had no such headroom —
+   every row already sat at --ui2-text, so the selected row could not get brighter
+   than its neighbours. So the resting rows step down to --ui2-text-dim (documented
+   AA-safe on this surface) and the selected row goes to near-white, which is the
+   same rest-muted / selected-brilliant relationship. The 2px inset marker and the
+   swatch still carry the block colour, so state is never colour-only. */
+.tldraw-canvas-wrapper .model-edge-insert-row.on {
+  background: color-mix(in srgb, var(--row-accent, var(--ui2-accent, #67d9ff)) 20%, transparent);
+  box-shadow: inset 2px 0 0 var(--row-accent, var(--ui2-accent, #67d9ff));
+}
+.tldraw-canvas-wrapper .model-edge-insert-row.on .model-edge-insert-swatch {
+  opacity: 1;
+}
+/* Near-white with only a whisper of the block hue left in it — the hue that
+   identifies the layer is the swatch's job; this text's job is to be the
+   brightest thing in the list. */
+.tldraw-canvas-wrapper .model-edge-insert-row.on .model-edge-insert-name {
+  color: var(--tv-text);
+  font-weight: 600;
+}
+/* The op name lifts with its row, so the whole selected row brightens as one
+   unit rather than the label alone. */
+.tldraw-canvas-wrapper .model-edge-insert-row.on .model-edge-insert-op {
+  color: var(--ui2-text, #f3f3f4);
+}
+.tldraw-canvas-wrapper .model-edge-insert-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tldraw-canvas-wrapper .model-edge-insert-op {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ui2-text-dim, #a8a8b0);
+}
+
+.tldraw-canvas-wrapper .model-edge-insert-empty,
+.tldraw-canvas-wrapper .model-edge-insert-foot {
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ui2-text-dim, #a8a8b0);
+}
+.tldraw-canvas-wrapper .model-edge-insert-foot {
+  border-top: 1px solid var(--ui2-rule, rgba(255, 255, 255, 0.09));
+}
+
+/* ── Parameters, on the node ─────────────────────────────────────────────────
+   The Inspector's Properties tab, re-homed beside the card it edits. Same slot
+   and same space as the insert picker above: screen pixels, projected by the
+   component. 260px wide with the 12px gap the component adds as a margin, so it
+   clears the card without covering its ports; capped in height because a
+   catalogue op can carry a dozen fields and the popover must not run off the
+   viewport it floats in. */
+.tldraw-canvas-wrapper .model-node-params {
+  position: absolute;
+  width: 260px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--tv-popover);
+  border: 1px solid var(--tv-edge);
+  border-radius: 8px;
+  box-shadow: var(--tv-popover-shadow);
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.tldraw-canvas-wrapper .model-node-params-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px 7px 10px;
+  border-bottom: 1px solid var(--tv-hairline);
+}
+
+.tldraw-canvas-wrapper .model-node-params-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ui2-text, #f3f3f4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tldraw-canvas-wrapper .model-node-params-close {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ui2-muted, #9aa0a6);
+  cursor: pointer;
+}
+.tldraw-canvas-wrapper .model-node-params-close:hover {
+  background: var(--tv-face-hi);
+  color: var(--ui2-text, #f3f3f4);
+}
+
+/* The fields scroll, the header and the Reset chip do not: an op with twelve
+   parameters must not push its own Reset out of reach. */
+.tldraw-canvas-wrapper .model-node-params-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 9px 10px;
+  font-size: 12px;
+}
+
+.tldraw-canvas-wrapper .model-node-params-foot {
+  padding: 0 10px 9px;
+}
+
+/* The collapsed frame's own border, brighter on hover — see .ui2-node-card.hovered. */
+.tldraw-canvas-wrapper .module-node.collapsed.hovered {
+  border-color: var(--tv-edge-hi) !important;
+}
+
+/* ── No tldraw hover outline on cards ───────────────────────────────────────
+   The hover indicator is tldraw's, drawn from the shape's STORED box, which a
+   card's rendered height only approximates. The card carries `.hovered` and
+   brightens its own border instead. (The SELECTED box and handles are an overlay
+   util; each card util opts out of those itself — see hideSelectionBoundsFg.) */
+.tldraw-canvas-wrapper .tl-shape-indicator { display: none; }
+
+.canvas-dot-grid { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(var(--tv-dot) 1px, transparent 1.4px); }

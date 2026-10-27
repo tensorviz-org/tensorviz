@@ -1,0 +1,20 @@
+[
+  {
+    "file": "radix-primitives.txt",
+    "source": "https://github.com/radix-ui/primitives/blob/fcef0668a5c827e5a4baac405474d75680f9a4eb/LICENSE",
+    "license": "MIT",
+    "packages": ["@radix-ui/react-compose-refs@1.1.2", "@radix-ui/react-context@1.1.2", "@radix-ui/react-use-callback-ref@1.1.1", "@radix-ui/react-id@1.1.1", "@radix-ui/react-use-layout-effect@1.1.1", "@radix-ui/react-use-size@1.1.1", "@radix-ui/react-direction@1.1.1", "@radix-ui/number@1.1.1", "@radix-ui/react-use-previous@1.1.1", "@radix-ui/react-use-escape-keydown@1.1.1"]
+  },
+  {
+    "file": "react-remove-scroll-bar.txt",
+    "source": "https://api.github.com/repos/theKashey/react-remove-scroll-bar/git/blobs/7c08c3990396ecefd90f99ff5d9a34f26f5b5616",
+    "license": "MIT",
+    "packages": ["react-remove-scroll-bar@2.3.8"]
+  },
+  {
+    "file": "cfworker-json-schema.txt",
+    "source": "https://github.com/cfworker/cfworker/blob/53401039978aaacc5961d6fc0f2c64f7927ea260/LICENSE.md",
+    "license": "MIT",
+    "packages": ["@cfworker/json-schema@4.1.1"]
+  }
+]

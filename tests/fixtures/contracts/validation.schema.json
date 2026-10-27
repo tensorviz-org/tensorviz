@@ -1,0 +1,2716 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "AutocastContext": {
+      "additionalProperties": false,
+      "properties": {
+        "dtype": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Dtype"
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "enabled",
+        "dtype"
+      ],
+      "title": "AutocastContext",
+      "type": "object"
+    },
+    "Binding": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "discriminator": {
+                  "mapping": {
+                    "dict": "#/definitions/DictValue",
+                    "float": "#/definitions/FloatValue",
+                    "list": "#/definitions/SequenceValue",
+                    "none": "#/definitions/NoneValue",
+                    "tensor": "#/definitions/TensorValue",
+                    "tuple": "#/definitions/SequenceValue"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/definitions/FloatValue"
+                  },
+                  {
+                    "$ref": "#/definitions/NoneValue"
+                  },
+                  {
+                    "$ref": "#/definitions/SequenceValue"
+                  },
+                  {
+                    "$ref": "#/definitions/DictValue"
+                  },
+                  {
+                    "$ref": "#/definitions/TensorValue"
+                  }
+                ]
+              }
+            ]
+          },
+          "maxItems": 64,
+          "title": "Args",
+          "type": "array"
+        },
+        "kwargs": {
+          "maxProperties": 64,
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]{0,63}(?![\\s\\S])": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 4096,
+                  "type": "string"
+                },
+                {
+                  "discriminator": {
+                    "mapping": {
+                      "dict": "#/definitions/DictValue",
+                      "float": "#/definitions/FloatValue",
+                      "list": "#/definitions/SequenceValue",
+                      "none": "#/definitions/NoneValue",
+                      "tensor": "#/definitions/TensorValue",
+                      "tuple": "#/definitions/SequenceValue"
+                    },
+                    "propertyName": "kind"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/definitions/FloatValue"
+                    },
+                    {
+                      "$ref": "#/definitions/NoneValue"
+                    },
+                    {
+                      "$ref": "#/definitions/SequenceValue"
+                    },
+                    {
+                      "$ref": "#/definitions/DictValue"
+                    },
+                    {
+                      "$ref": "#/definitions/TensorValue"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "title": "Kwargs",
+          "type": "object"
+        }
+      },
+      "required": [
+        "args",
+        "kwargs"
+      ],
+      "title": "Binding",
+      "type": "object"
+    },
+    "CallContext": {
+      "additionalProperties": false,
+      "properties": {
+        "autocast": {
+          "maxProperties": 16,
+          "patternProperties": {
+            "^(?:cpu|mps|cuda:(?:0|[1-9][0-9]*))(?![\\s\\S])": {
+              "$ref": "#/definitions/AutocastContext"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64
+          },
+          "title": "Autocast",
+          "type": "object"
+        },
+        "gradEnabled": {
+          "title": "Gradenabled",
+          "type": "boolean"
+        },
+        "inferenceMode": {
+          "title": "Inferencemode",
+          "type": "boolean"
+        },
+        "training": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Training"
+        }
+      },
+      "required": [
+        "training",
+        "gradEnabled",
+        "inferenceMode",
+        "autocast"
+      ],
+      "title": "CallContext",
+      "type": "object"
+    },
+    "CaptureComplete": {
+      "additionalProperties": false,
+      "properties": {
+        "rootInvocationId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Rootinvocationid",
+          "type": "string"
+        },
+        "state": {
+          "const": "complete",
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "rootInvocationId"
+      ],
+      "title": "CaptureComplete",
+      "type": "object"
+    },
+    "CaptureIncomplete": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "enum": [
+            "target_not_observed",
+            "unsupported",
+            "event_limit",
+            "tensor_limit",
+            "byte_limit",
+            "timeout",
+            "cancelled",
+            "recorder_error",
+            "transport_error"
+          ],
+          "title": "Reason",
+          "type": "string"
+        },
+        "rootInvocationId": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rootinvocationid"
+        },
+        "state": {
+          "const": "incomplete",
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "rootInvocationId",
+        "reason"
+      ],
+      "title": "CaptureIncomplete",
+      "type": "object"
+    },
+    "CaptureOpen": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "waiting",
+            "recording"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "title": "CaptureOpen",
+      "type": "object"
+    },
+    "CaptureSelector": {
+      "additionalProperties": false,
+      "properties": {
+        "call": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Call",
+          "type": "integer"
+        },
+        "model": {
+          "maxLength": 512,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*:[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*(?![\\s\\S])",
+          "title": "Model",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model",
+        "call"
+      ],
+      "title": "CaptureSelector",
+      "type": "object"
+    },
+    "DictEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            }
+          ],
+          "title": "Key"
+        },
+        "value": {
+          "discriminator": {
+            "mapping": {
+              "dict": "#/definitions/DictPort",
+              "list": "#/definitions/SequencePort",
+              "opaque": "#/definitions/OpaquePort",
+              "tensor": "#/definitions/TensorPort",
+              "tuple": "#/definitions/SequencePort",
+              "value": "#/definitions/ValuePort"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/definitions/TensorPort"
+            },
+            {
+              "$ref": "#/definitions/ValuePort"
+            },
+            {
+              "$ref": "#/definitions/OpaquePort"
+            },
+            {
+              "$ref": "#/definitions/SequencePort"
+            },
+            {
+              "$ref": "#/definitions/DictPort"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "title": "DictEntry",
+      "type": "object"
+    },
+    "DictPort": {
+      "additionalProperties": false,
+      "properties": {
+        "entries": {
+          "items": {
+            "$ref": "#/definitions/DictEntry"
+          },
+          "maxItems": 256,
+          "title": "Entries",
+          "type": "array"
+        },
+        "kind": {
+          "const": "dict",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "entries"
+      ],
+      "title": "DictPort",
+      "type": "object"
+    },
+    "DictValue": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "discriminator": {
+                  "mapping": {
+                    "dict": "#/definitions/DictValue",
+                    "float": "#/definitions/FloatValue",
+                    "list": "#/definitions/SequenceValue",
+                    "none": "#/definitions/NoneValue",
+                    "tensor": "#/definitions/TensorValue",
+                    "tuple": "#/definitions/SequenceValue"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/definitions/FloatValue"
+                  },
+                  {
+                    "$ref": "#/definitions/NoneValue"
+                  },
+                  {
+                    "$ref": "#/definitions/SequenceValue"
+                  },
+                  {
+                    "$ref": "#/definitions/DictValue"
+                  },
+                  {
+                    "$ref": "#/definitions/TensorValue"
+                  }
+                ]
+              }
+            ]
+          },
+          "maxProperties": 64,
+          "propertyNames": {
+            "maxLength": 128
+          },
+          "title": "Items",
+          "type": "object"
+        },
+        "kind": {
+          "const": "dict",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "title": "DictValue",
+      "type": "object"
+    },
+    "ExecutionRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "capture": {
+          "discriminator": {
+            "mapping": {
+              "complete": "#/definitions/CaptureComplete",
+              "incomplete": "#/definitions/CaptureIncomplete",
+              "recording": "#/definitions/CaptureOpen",
+              "waiting": "#/definitions/CaptureOpen"
+            },
+            "propertyName": "state"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/definitions/CaptureOpen"
+            },
+            {
+              "$ref": "#/definitions/CaptureComplete"
+            },
+            {
+              "$ref": "#/definitions/CaptureIncomplete"
+            }
+          ],
+          "title": "Capture"
+        },
+        "context": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ObservedContext"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "edges": {
+          "items": {
+            "$ref": "#/definitions/TensorEdge"
+          },
+          "maxItems": 100000,
+          "title": "Edges",
+          "type": "array"
+        },
+        "identity": {
+          "$ref": "#/definitions/RunIdentity"
+        },
+        "invocations": {
+          "items": {
+            "$ref": "#/definitions/Invocation"
+          },
+          "maxItems": 100000,
+          "title": "Invocations",
+          "type": "array"
+        },
+        "limits": {
+          "$ref": "#/definitions/Limits"
+        },
+        "modules": {
+          "items": {
+            "$ref": "#/definitions/ModuleInstance"
+          },
+          "maxItems": 100000,
+          "title": "Modules",
+          "type": "array"
+        },
+        "process": {
+          "discriminator": {
+            "mapping": {
+              "cancelled": "#/definitions/ProcessStopped",
+              "exited": "#/definitions/ProcessExited",
+              "failed": "#/definitions/ProcessStopped",
+              "running": "#/definitions/ProcessRunning",
+              "timed_out": "#/definitions/ProcessStopped"
+            },
+            "propertyName": "state"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/definitions/ProcessRunning"
+            },
+            {
+              "$ref": "#/definitions/ProcessExited"
+            },
+            {
+              "$ref": "#/definitions/ProcessStopped"
+            }
+          ],
+          "title": "Process"
+        },
+        "requirements": {
+          "items": {
+            "$ref": "#/definitions/Requirement"
+          },
+          "maxItems": 256,
+          "title": "Requirements",
+          "type": "array"
+        },
+        "sequence": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "tensors": {
+          "items": {
+            "$ref": "#/definitions/TensorFact"
+          },
+          "maxItems": 100000,
+          "title": "Tensors",
+          "type": "array"
+        },
+        "version": {
+          "const": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "identity",
+        "sequence",
+        "limits",
+        "process",
+        "capture",
+        "context",
+        "modules",
+        "invocations",
+        "tensors",
+        "edges",
+        "requirements"
+      ],
+      "title": "ExecutionRecord",
+      "type": "object"
+    },
+    "ExecutionUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "freshness": {
+          "$ref": "#/definitions/Freshness"
+        },
+        "record": {
+          "$ref": "#/definitions/ExecutionRecord"
+        },
+        "type": {
+          "const": "executionUpdate",
+          "title": "Type",
+          "type": "string"
+        },
+        "version": {
+          "const": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "workspaceSessionId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Workspacesessionid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "type",
+        "workspaceSessionId",
+        "record",
+        "freshness"
+      ],
+      "title": "ExecutionUpdate",
+      "type": "object"
+    },
+    "Failure": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "phase": {
+          "enum": [
+            "setup",
+            "construction",
+            "forward",
+            "script",
+            "recorder",
+            "transport",
+            "resource"
+          ],
+          "title": "Phase",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SourceLocation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "phase",
+        "code",
+        "source"
+      ],
+      "title": "Failure",
+      "type": "object"
+    },
+    "FileIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+          "title": "Digest",
+          "type": "string"
+        },
+        "documentVersion": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Documentversion"
+        },
+        "path": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*//)(?!.*/$)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\\\:\\x00-\\x1f]+(?![\\s\\S])",
+          "title": "Path",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "config",
+            "source",
+            "native"
+          ],
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "digest",
+        "documentVersion",
+        "role"
+      ],
+      "title": "FileIdentity",
+      "type": "object"
+    },
+    "FloatValue": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "float",
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "FloatValue",
+      "type": "object"
+    },
+    "Freshness": {
+      "additionalProperties": false,
+      "properties": {
+        "reasons": {
+          "items": {
+            "enum": [
+              "source",
+              "config",
+              "native_file",
+              "profile",
+              "environment",
+              "cancelled",
+              "session",
+              "dependency_scope"
+            ],
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Reasons",
+          "type": "array"
+        },
+        "state": {
+          "enum": [
+            "current",
+            "stale"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "reasons"
+      ],
+      "title": "Freshness",
+      "type": "object"
+    },
+    "Full": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "full",
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "number"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "Full",
+      "type": "object"
+    },
+    "InputFactory": {
+      "additionalProperties": false,
+      "properties": {
+        "factory": {
+          "$ref": "#/definitions/ModelFactory"
+        }
+      },
+      "required": [
+        "factory"
+      ],
+      "title": "InputFactory",
+      "type": "object"
+    },
+    "InterpreterIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "environmentDigest": {
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+          "title": "Environmentdigest",
+          "type": "string"
+        },
+        "executable": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Executable",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "executable",
+        "version",
+        "environmentDigest"
+      ],
+      "title": "InterpreterIdentity",
+      "type": "object"
+    },
+    "Invocation": {
+      "additionalProperties": false,
+      "properties": {
+        "context": {
+          "$ref": "#/definitions/CallContext"
+        },
+        "failure": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Failure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "inputs": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "dict": "#/definitions/DictPort",
+                "list": "#/definitions/SequencePort",
+                "opaque": "#/definitions/OpaquePort",
+                "tensor": "#/definitions/TensorPort",
+                "tuple": "#/definitions/SequencePort",
+                "value": "#/definitions/ValuePort"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/definitions/TensorPort"
+              },
+              {
+                "$ref": "#/definitions/ValuePort"
+              },
+              {
+                "$ref": "#/definitions/OpaquePort"
+              },
+              {
+                "$ref": "#/definitions/SequencePort"
+              },
+              {
+                "$ref": "#/definitions/DictPort"
+              }
+            ]
+          },
+          "maxItems": 64,
+          "title": "Inputs",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "module",
+            "function",
+            "opaque"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "kwargs": {
+          "maxProperties": 64,
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]{0,63}(?![\\s\\S])": {
+              "discriminator": {
+                "mapping": {
+                  "dict": "#/definitions/DictPort",
+                  "list": "#/definitions/SequencePort",
+                  "opaque": "#/definitions/OpaquePort",
+                  "tensor": "#/definitions/TensorPort",
+                  "tuple": "#/definitions/SequencePort",
+                  "value": "#/definitions/ValuePort"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/definitions/TensorPort"
+                },
+                {
+                  "$ref": "#/definitions/ValuePort"
+                },
+                {
+                  "$ref": "#/definitions/OpaquePort"
+                },
+                {
+                  "$ref": "#/definitions/SequencePort"
+                },
+                {
+                  "$ref": "#/definitions/DictPort"
+                }
+              ]
+            }
+          },
+          "title": "Kwargs",
+          "type": "object"
+        },
+        "moduleId": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Moduleid"
+        },
+        "name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "outcome": {
+          "enum": [
+            "succeeded",
+            "failed",
+            "unsupported"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "dict": "#/definitions/DictPort",
+                  "list": "#/definitions/SequencePort",
+                  "opaque": "#/definitions/OpaquePort",
+                  "tensor": "#/definitions/TensorPort",
+                  "tuple": "#/definitions/SequencePort",
+                  "value": "#/definitions/ValuePort"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/definitions/TensorPort"
+                },
+                {
+                  "$ref": "#/definitions/ValuePort"
+                },
+                {
+                  "$ref": "#/definitions/OpaquePort"
+                },
+                {
+                  "$ref": "#/definitions/SequencePort"
+                },
+                {
+                  "$ref": "#/definitions/DictPort"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Output"
+        },
+        "parentId": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parentid"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SourceLocation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "parentId",
+        "moduleId",
+        "kind",
+        "name",
+        "source",
+        "context",
+        "inputs",
+        "kwargs",
+        "outcome",
+        "output",
+        "failure"
+      ],
+      "title": "Invocation",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "Limits": {
+      "additionalProperties": false,
+      "properties": {
+        "max_capture_bytes": {
+          "anyOf": [
+            {
+              "maximum": 16777216,
+              "minimum": 1024,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Capture Bytes"
+        },
+        "max_events": {
+          "default": 10000,
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Max Events",
+          "type": "integer"
+        },
+        "max_record_bytes": {
+          "default": 4194304,
+          "maximum": 4194304,
+          "minimum": 1024,
+          "title": "Max Record Bytes",
+          "type": "integer"
+        },
+        "max_tensors": {
+          "default": 10000,
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Max Tensors",
+          "type": "integer"
+        },
+        "timeout_ms": {
+          "default": 60000,
+          "maximum": 86400000,
+          "minimum": 100,
+          "title": "Timeout Ms",
+          "type": "integer"
+        }
+      },
+      "title": "Limits",
+      "type": "object"
+    },
+    "ModelFactory": {
+      "additionalProperties": false,
+      "properties": {
+        "callable": {
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}(?![\\s\\S])",
+          "title": "Callable",
+          "type": "string"
+        },
+        "file": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*//)(?!.*/$)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\\\:\\x00-\\x1f]+(?![\\s\\S])",
+          "title": "File",
+          "type": "string"
+        },
+        "kwargs": {
+          "maxProperties": 64,
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]{0,63}(?![\\s\\S])": {
+              "$ref": "#/definitions/JsonValue"
+            }
+          },
+          "title": "Kwargs",
+          "type": "object"
+        }
+      },
+      "required": [
+        "file",
+        "callable"
+      ],
+      "title": "ModelFactory",
+      "type": "object"
+    },
+    "ModelProfile": {
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "factory": {
+              "type": "null"
+            },
+            "init": {
+              "not": {
+                "type": "null"
+              }
+            }
+          },
+          "required": [
+            "init"
+          ]
+        },
+        {
+          "properties": {
+            "factory": {
+              "not": {
+                "type": "null"
+              }
+            },
+            "init": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "factory"
+          ]
+        }
+      ],
+      "properties": {
+        "cwd": {
+          "anyOf": [
+            {
+              "const": ".",
+              "type": "string"
+            },
+            {
+              "maxLength": 1024,
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*//)(?!.*/$)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\\\:\\x00-\\x1f]+(?![\\s\\S])",
+              "type": "string"
+            }
+          ],
+          "default": ".",
+          "title": "Cwd"
+        },
+        "deterministic": {
+          "default": true,
+          "title": "Deterministic",
+          "type": "boolean"
+        },
+        "device": {
+          "maxLength": 64,
+          "pattern": "^(?:cpu|mps|cuda:(?:0|[1-9][0-9]*))(?![\\s\\S])",
+          "title": "Device",
+          "type": "string"
+        },
+        "factory": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ModelFactory"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "framework": {
+          "anyOf": [
+            {
+              "const": "jax",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Framework"
+        },
+        "grad_enabled": {
+          "title": "Grad Enabled",
+          "type": "boolean"
+        },
+        "init": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Binding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "inputs": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Binding"
+            },
+            {
+              "$ref": "#/definitions/InputFactory"
+            }
+          ],
+          "title": "Inputs"
+        },
+        "kind": {
+          "const": "model",
+          "title": "Kind",
+          "type": "string"
+        },
+        "limits": {
+          "$ref": "#/definitions/Limits"
+        },
+        "mode": {
+          "enum": [
+            "train",
+            "eval"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "model": {
+          "maxLength": 512,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*:[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*(?![\\s\\S])",
+          "title": "Model",
+          "type": "string"
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seed"
+        },
+        "tracked_files": {
+          "items": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*//)(?!.*/$)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\\\:\\x00-\\x1f]+(?![\\s\\S])",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "title": "Tracked Files",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "model",
+        "mode",
+        "device",
+        "grad_enabled",
+        "inputs"
+      ],
+      "title": "ModelProfile",
+      "type": "object"
+    },
+    "ModuleInstance": {
+      "additionalProperties": false,
+      "properties": {
+        "classSymbol": {
+          "maxLength": 512,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*:[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*(?![\\s\\S])",
+          "title": "Classsymbol",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SourceLocation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "classSymbol",
+        "source"
+      ],
+      "title": "ModuleInstance",
+      "type": "object"
+    },
+    "NeedsSetup": {
+      "additionalProperties": false,
+      "properties": {
+        "requirements": {
+          "items": {
+            "$ref": "#/definitions/Requirement"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "title": "Requirements",
+          "type": "array"
+        },
+        "status": {
+          "const": "needs_setup",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "requirements"
+      ],
+      "title": "NeedsSetup",
+      "type": "object"
+    },
+    "NoneValue": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "none",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "NoneValue",
+      "type": "object"
+    },
+    "Normal": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "normal",
+          "title": "Kind",
+          "type": "string"
+        },
+        "mean": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "number"
+            }
+          ],
+          "title": "Mean"
+        },
+        "seed": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "std": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "title": "Std"
+        }
+      },
+      "required": [
+        "kind",
+        "mean",
+        "std",
+        "seed"
+      ],
+      "title": "Normal",
+      "type": "object"
+    },
+    "ObservedContext": {
+      "additionalProperties": false,
+      "properties": {
+        "autocast": {
+          "maxProperties": 16,
+          "patternProperties": {
+            "^(?:cpu|mps|cuda:(?:0|[1-9][0-9]*))(?![\\s\\S])": {
+              "$ref": "#/definitions/AutocastContext"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64
+          },
+          "title": "Autocast",
+          "type": "object"
+        },
+        "devices": {
+          "items": {
+            "maxLength": 64,
+            "pattern": "^(?:cpu|mps|cuda:(?:0|[1-9][0-9]*))(?![\\s\\S])",
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Devices",
+          "type": "array"
+        },
+        "gradEnabled": {
+          "title": "Gradenabled",
+          "type": "boolean"
+        },
+        "inferenceMode": {
+          "title": "Inferencemode",
+          "type": "boolean"
+        },
+        "torchVersion": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Torchversion",
+          "type": "string"
+        },
+        "training": {
+          "title": "Training",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "training",
+        "gradEnabled",
+        "inferenceMode",
+        "autocast",
+        "torchVersion",
+        "devices"
+      ],
+      "title": "ObservedContext",
+      "type": "object"
+    },
+    "OpaquePort": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "opaque",
+          "title": "Kind",
+          "type": "string"
+        },
+        "reason": {
+          "enum": [
+            "unsupported_type",
+            "depth_limit",
+            "item_limit"
+          ],
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "reason"
+      ],
+      "title": "OpaquePort",
+      "type": "object"
+    },
+    "PortRef": {
+      "additionalProperties": false,
+      "properties": {
+        "invocationId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Invocationid",
+          "type": "string"
+        },
+        "path": {
+          "items": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "maxLength": 128,
+                "type": "string"
+              }
+            ]
+          },
+          "maxItems": 32,
+          "title": "Path",
+          "type": "array"
+        },
+        "slot": {
+          "enum": [
+            "args",
+            "kwargs",
+            "output"
+          ],
+          "title": "Slot",
+          "type": "string"
+        }
+      },
+      "required": [
+        "invocationId",
+        "slot",
+        "path"
+      ],
+      "title": "PortRef",
+      "type": "object"
+    },
+    "ProcessExited": {
+      "additionalProperties": false,
+      "properties": {
+        "exitCode": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "title": "Exitcode",
+          "type": "integer"
+        },
+        "state": {
+          "const": "exited",
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "exitCode"
+      ],
+      "title": "ProcessExited",
+      "type": "object"
+    },
+    "ProcessRunning": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "const": "running",
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "title": "ProcessRunning",
+      "type": "object"
+    },
+    "ProcessStopped": {
+      "additionalProperties": false,
+      "properties": {
+        "failure": {
+          "$ref": "#/definitions/Failure"
+        },
+        "state": {
+          "enum": [
+            "cancelled",
+            "timed_out",
+            "failed"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "failure"
+      ],
+      "title": "ProcessStopped",
+      "type": "object"
+    },
+    "RandInt": {
+      "additionalProperties": false,
+      "properties": {
+        "high": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "title": "High",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "randint",
+          "title": "Kind",
+          "type": "string"
+        },
+        "low": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "title": "Low",
+          "type": "integer"
+        },
+        "seed": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "low",
+        "high",
+        "seed"
+      ],
+      "title": "RandInt",
+      "type": "object"
+    },
+    "Requirement": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "missing",
+            "invalid",
+            "invalid_source",
+            "unknown_key",
+            "ambiguous",
+            "unsupported",
+            "unsaved",
+            "missing_file",
+            "environment",
+            "signature",
+            "removed_format"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "field": {
+          "items": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            ]
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Field",
+          "type": "array"
+        },
+        "phase": {
+          "enum": [
+            "static",
+            "runtime"
+          ],
+          "title": "Phase",
+          "type": "string"
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}(?![\\s\\S])",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Profile"
+        },
+        "reason": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "remedy": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Remedy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "field",
+        "phase",
+        "code",
+        "reason",
+        "remedy"
+      ],
+      "title": "Requirement",
+      "type": "object"
+    },
+    "Resolved": {
+      "additionalProperties": false,
+      "properties": {
+        "spec": {
+          "$ref": "#/definitions/RunSpec"
+        },
+        "status": {
+          "const": "resolved",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "spec"
+      ],
+      "title": "Resolved",
+      "type": "object"
+    },
+    "ResultChannel": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "const": "127.0.0.1",
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        },
+        "token": {
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+          "title": "Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "host",
+        "port",
+        "token"
+      ],
+      "title": "ResultChannel",
+      "type": "object"
+    },
+    "RunIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "configDigest": {
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+          "title": "Configdigest",
+          "type": "string"
+        },
+        "environmentDigest": {
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+          "title": "Environmentdigest",
+          "type": "string"
+        },
+        "generation": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "profile": {
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}(?![\\s\\S])",
+          "title": "Profile",
+          "type": "string"
+        },
+        "profileDigest": {
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+          "title": "Profiledigest",
+          "type": "string"
+        },
+        "runId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Runid",
+          "type": "string"
+        },
+        "sourceDigest": {
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+          "title": "Sourcedigest",
+          "type": "string"
+        },
+        "workspaceId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Workspaceid",
+          "type": "string"
+        },
+        "workspaceSessionId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Workspacesessionid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceSessionId",
+        "workspaceId",
+        "runId",
+        "generation",
+        "profile",
+        "configDigest",
+        "profileDigest",
+        "sourceDigest",
+        "environmentDigest"
+      ],
+      "title": "RunIdentity",
+      "type": "object"
+    },
+    "RunSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "dependencyScope": {
+          "enum": [
+            "complete",
+            "partial"
+          ],
+          "title": "Dependencyscope",
+          "type": "string"
+        },
+        "files": {
+          "items": {
+            "$ref": "#/definitions/FileIdentity"
+          },
+          "maxItems": 100000,
+          "minItems": 1,
+          "title": "Files",
+          "type": "array"
+        },
+        "identity": {
+          "$ref": "#/definitions/RunIdentity"
+        },
+        "interpreter": {
+          "$ref": "#/definitions/InterpreterIdentity"
+        },
+        "profile": {
+          "discriminator": {
+            "mapping": {
+              "model": "#/definitions/ModelProfile",
+              "script": "#/definitions/ScriptProfile"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/definitions/ScriptProfile"
+            },
+            {
+              "$ref": "#/definitions/ModelProfile"
+            }
+          ],
+          "title": "Profile"
+        },
+        "version": {
+          "const": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "identity",
+        "profile",
+        "files",
+        "dependencyScope",
+        "interpreter"
+      ],
+      "title": "RunSpec",
+      "type": "object"
+    },
+    "ScriptProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 256,
+          "title": "Args",
+          "type": "array"
+        },
+        "capture": {
+          "$ref": "#/definitions/CaptureSelector"
+        },
+        "cwd": {
+          "anyOf": [
+            {
+              "const": ".",
+              "type": "string"
+            },
+            {
+              "maxLength": 1024,
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*//)(?!.*/$)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\\\:\\x00-\\x1f]+(?![\\s\\S])",
+              "type": "string"
+            }
+          ],
+          "default": ".",
+          "title": "Cwd"
+        },
+        "kind": {
+          "const": "script",
+          "title": "Kind",
+          "type": "string"
+        },
+        "limits": {
+          "$ref": "#/definitions/Limits"
+        },
+        "script": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*//)(?!.*/$)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\\\:\\x00-\\x1f]+(?![\\s\\S])",
+          "title": "Script",
+          "type": "string"
+        },
+        "tracked_files": {
+          "items": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*//)(?!.*/$)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\\\:\\x00-\\x1f]+(?![\\s\\S])",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "title": "Tracked Files",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "script",
+        "args",
+        "capture"
+      ],
+      "title": "ScriptProfile",
+      "type": "object"
+    },
+    "SequencePort": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "dict": "#/definitions/DictPort",
+                "list": "#/definitions/SequencePort",
+                "opaque": "#/definitions/OpaquePort",
+                "tensor": "#/definitions/TensorPort",
+                "tuple": "#/definitions/SequencePort",
+                "value": "#/definitions/ValuePort"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/definitions/TensorPort"
+              },
+              {
+                "$ref": "#/definitions/ValuePort"
+              },
+              {
+                "$ref": "#/definitions/OpaquePort"
+              },
+              {
+                "$ref": "#/definitions/SequencePort"
+              },
+              {
+                "$ref": "#/definitions/DictPort"
+              }
+            ]
+          },
+          "maxItems": 256,
+          "title": "Items",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "list",
+            "tuple"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "title": "SequencePort",
+      "type": "object"
+    },
+    "SequenceValue": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "discriminator": {
+                  "mapping": {
+                    "dict": "#/definitions/DictValue",
+                    "float": "#/definitions/FloatValue",
+                    "list": "#/definitions/SequenceValue",
+                    "none": "#/definitions/NoneValue",
+                    "tensor": "#/definitions/TensorValue",
+                    "tuple": "#/definitions/SequenceValue"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/definitions/FloatValue"
+                  },
+                  {
+                    "$ref": "#/definitions/NoneValue"
+                  },
+                  {
+                    "$ref": "#/definitions/SequenceValue"
+                  },
+                  {
+                    "$ref": "#/definitions/DictValue"
+                  },
+                  {
+                    "$ref": "#/definitions/TensorValue"
+                  }
+                ]
+              }
+            ]
+          },
+          "maxItems": 64,
+          "title": "Items",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "list",
+            "tuple"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "title": "SequenceValue",
+      "type": "object"
+    },
+    "SourceLocation": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Column",
+          "type": "integer"
+        },
+        "file": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*//)(?!.*/$)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\\\:\\x00-\\x1f]+(?![\\s\\S])",
+          "title": "File",
+          "type": "string"
+        },
+        "line": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Line",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "file",
+        "line",
+        "column"
+      ],
+      "title": "SourceLocation",
+      "type": "object"
+    },
+    "TensorEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "consumer": {
+          "$ref": "#/definitions/PortRef"
+        },
+        "producer": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PortRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tensorId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Tensorid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tensorId",
+        "producer",
+        "consumer"
+      ],
+      "title": "TensorEdge",
+      "type": "object"
+    },
+    "TensorFact": {
+      "additionalProperties": false,
+      "properties": {
+        "aliasOf": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Aliasof"
+        },
+        "device": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Device",
+          "type": "string"
+        },
+        "dtype": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Dtype",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "objectId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Objectid",
+          "type": "string"
+        },
+        "previousVersion": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Previousversion"
+        },
+        "requiresGrad": {
+          "title": "Requiresgrad",
+          "type": "boolean"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "items": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "maxItems": 32,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Shape"
+        },
+        "storageId": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Storageid"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Version"
+        }
+      },
+      "required": [
+        "id",
+        "objectId",
+        "storageId",
+        "version",
+        "shape",
+        "dtype",
+        "device",
+        "requiresGrad",
+        "aliasOf",
+        "previousVersion"
+      ],
+      "title": "TensorFact",
+      "type": "object"
+    },
+    "TensorPort": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "tensor",
+          "title": "Kind",
+          "type": "string"
+        },
+        "tensorId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Tensorid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "tensorId"
+      ],
+      "title": "TensorPort",
+      "type": "object"
+    },
+    "TensorValue": {
+      "additionalProperties": false,
+      "properties": {
+        "dtype": {
+          "enum": [
+            "bool",
+            "uint8",
+            "int8",
+            "int16",
+            "int32",
+            "int64",
+            "float16",
+            "bfloat16",
+            "float32",
+            "float64"
+          ],
+          "title": "Dtype",
+          "type": "string"
+        },
+        "generator": {
+          "discriminator": {
+            "mapping": {
+              "full": "#/definitions/Full",
+              "normal": "#/definitions/Normal",
+              "randint": "#/definitions/RandInt",
+              "uniform": "#/definitions/Uniform",
+              "values": "#/definitions/Values"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/definitions/Normal"
+            },
+            {
+              "$ref": "#/definitions/Uniform"
+            },
+            {
+              "$ref": "#/definitions/RandInt"
+            },
+            {
+              "$ref": "#/definitions/Full"
+            },
+            {
+              "$ref": "#/definitions/Values"
+            }
+          ],
+          "title": "Generator"
+        },
+        "kind": {
+          "const": "tensor",
+          "title": "Kind",
+          "type": "string"
+        },
+        "requires_grad": {
+          "title": "Requires Grad",
+          "type": "boolean"
+        },
+        "shape": {
+          "items": {
+            "maximum": 2147483647,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 32,
+          "title": "Shape",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "shape",
+        "dtype",
+        "requires_grad",
+        "generator"
+      ],
+      "title": "TensorValue",
+      "type": "object"
+    },
+    "Uniform": {
+      "additionalProperties": false,
+      "properties": {
+        "high": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "number"
+            }
+          ],
+          "title": "High"
+        },
+        "kind": {
+          "const": "uniform",
+          "title": "Kind",
+          "type": "string"
+        },
+        "low": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "number"
+            }
+          ],
+          "title": "Low"
+        },
+        "seed": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "low",
+        "high",
+        "seed"
+      ],
+      "title": "Uniform",
+      "type": "object"
+    },
+    "ValidationConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "profiles": {
+          "maxProperties": 64,
+          "minProperties": 1,
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]{0,63}(?![\\s\\S])": {
+              "discriminator": {
+                "mapping": {
+                  "model": "#/definitions/ModelProfile",
+                  "script": "#/definitions/ScriptProfile"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/definitions/ScriptProfile"
+                },
+                {
+                  "$ref": "#/definitions/ModelProfile"
+                }
+              ]
+            }
+          },
+          "title": "Profiles",
+          "type": "object"
+        },
+        "version": {
+          "const": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "profiles"
+      ],
+      "title": "ValidationConfig",
+      "type": "object"
+    },
+    "ValuePort": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "value",
+          "title": "Kind",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "none",
+            "bool",
+            "int",
+            "float",
+            "str",
+            "dtype",
+            "device",
+            "layout",
+            "memory_format"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "type"
+      ],
+      "title": "ValuePort",
+      "type": "object"
+    },
+    "Values": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "values",
+          "title": "Kind",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 4096,
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "values"
+      ],
+      "title": "Values",
+      "type": "object"
+    },
+    "WorkerBootstrap": {
+      "additionalProperties": false,
+      "properties": {
+        "resultChannel": {
+          "$ref": "#/definitions/ResultChannel"
+        },
+        "spec": {
+          "$ref": "#/definitions/RunSpec"
+        },
+        "version": {
+          "const": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "workspaceRoot": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Workspaceroot",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceRoot",
+        "version",
+        "spec",
+        "resultChannel"
+      ],
+      "title": "WorkerBootstrap",
+      "type": "object"
+    },
+    "WorkerHello": {
+      "additionalProperties": false,
+      "properties": {
+        "runId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Runid",
+          "type": "string"
+        },
+        "token": {
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+          "title": "Token",
+          "type": "string"
+        },
+        "type": {
+          "const": "hello",
+          "title": "Type",
+          "type": "string"
+        },
+        "version": {
+          "const": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "type",
+        "runId",
+        "token"
+      ],
+      "title": "WorkerHello",
+      "type": "object"
+    },
+    "WorkerRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "dependenciesCurrent": {
+          "title": "Dependenciescurrent",
+          "type": "boolean"
+        },
+        "record": {
+          "$ref": "#/definitions/ExecutionRecord"
+        },
+        "type": {
+          "const": "record",
+          "title": "Type",
+          "type": "string"
+        },
+        "version": {
+          "const": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "dependenciesCurrent",
+        "version",
+        "type",
+        "record"
+      ],
+      "title": "WorkerRecord",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "bootstrap": {
+      "$ref": "#/definitions/WorkerBootstrap"
+    },
+    "config": {
+      "$ref": "#/definitions/ValidationConfig"
+    },
+    "execution": {
+      "$ref": "#/definitions/ExecutionUpdate"
+    },
+    "resolution": {
+      "discriminator": {
+        "mapping": {
+          "needs_setup": "#/definitions/NeedsSetup",
+          "resolved": "#/definitions/Resolved"
+        },
+        "propertyName": "status"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/definitions/Resolved"
+        },
+        {
+          "$ref": "#/definitions/NeedsSetup"
+        }
+      ],
+      "title": "Resolution"
+    },
+    "state": {
+      "enum": [
+        "not_run",
+        "needs_setup",
+        "running",
+        "completed_for_input",
+        "execution_failed",
+        "capture_incomplete",
+        "cancelled",
+        "stale"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "worker": {
+      "discriminator": {
+        "mapping": {
+          "hello": "#/definitions/WorkerHello",
+          "record": "#/definitions/WorkerRecord"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/definitions/WorkerHello"
+        },
+        {
+          "$ref": "#/definitions/WorkerRecord"
+        }
+      ],
+      "title": "Worker"
+    }
+  },
+  "required": [
+    "state",
+    "config",
+    "resolution",
+    "execution",
+    "worker",
+    "bootstrap"
+  ],
+  "title": "ValidationContracts",
+  "type": "object"
+}

@@ -1,0 +1,29 @@
+version = 1
+
+[profiles.audit_small]
+kind = "model"
+model = "audit_models:GoodNet"
+mode = "eval"
+device = "cpu"
+grad_enabled = false
+timeout_ms = 30000
+[profiles.audit_small.init]
+args = []
+kwargs = {}
+[profiles.audit_small.inputs]
+args = [{kind="tensor", shape=[2,4], dtype="float32", requires_grad=false, generator={kind="full", value=1}}]
+kwargs = {}
+
+[profiles.audit_large]
+kind = "model"
+model = "audit_models:GoodNet"
+mode = "eval"
+device = "cpu"
+grad_enabled = false
+timeout_ms = 30000
+[profiles.audit_large.init]
+args = []
+kwargs = {}
+[profiles.audit_large.inputs]
+args = [{kind="tensor", shape=[3,4], dtype="float32", requires_grad=false, generator={kind="full", value=1}}]
+kwargs = {}

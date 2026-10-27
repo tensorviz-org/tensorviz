@@ -1,0 +1,1190 @@
+{
+  "before": {
+    "cls": "Net",
+    "document": {
+      "schemaVersion": 2,
+      "semantic": {
+        "graph_id": "git-review:ide:fada037ad086#Net:246a6237ee10c2c5fb5133805753d8a5895723a57b030d2314b604d79c0f4d49",
+        "name": "Net",
+        "revision": 0,
+        "inputs": [
+          {
+            "name": "input",
+            "shape": "1,4"
+          }
+        ],
+        "nodes": [
+          {
+            "node_id": "input",
+            "kind": "input",
+            "op": "Input",
+            "params": {
+              "shape": "1,4",
+              "_review_scopes": [
+                {
+                  "file": "model.py",
+                  "scope": [
+                    "Net",
+                    "forward"
+                  ]
+                },
+                {
+                  "file": "model.py",
+                  "scope": [
+                    "Net",
+                    "forward",
+                    "self.features(*args, **kwargs)"
+                  ]
+                },
+                {
+                  "file": "model.py",
+                  "scope": [
+                    "Net",
+                    "forward",
+                    "self.features(*args, **kwargs)",
+                    "self.prepare(x, masks=masks)"
+                  ]
+                }
+              ],
+              "_shape_provenance": "static"
+            },
+            "in_ports": [],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "patch",
+            "kind": "layer",
+            "op": "Linear",
+            "params": {
+              "in_features": 4,
+              "out_features": 4,
+              "_review_call": {
+                "target": "Linear",
+                "arguments": {
+                  "in_features": 4,
+                  "out_features": 4,
+                  "bias": true,
+                  "device": null,
+                  "dtype": null
+                }
+              },
+              "_source_file": "model.py",
+              "_lineno": 5,
+              "_end_lineno": 5,
+              "_col_offset": 8,
+              "_end_col_offset": 36,
+              "_raw_call": "nn.Linear(4, 4)",
+              "_stmt_hash": "80f333a8ba39",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "add@Net#0",
+            "kind": "layer",
+            "op": "torch.add",
+            "params": {
+              "other": 1,
+              "_scalar_side": "right",
+              "_review_scope": [
+                "Net",
+                "forward",
+                "self.features(*args, **kwargs)",
+                "self.prepare(x, masks=masks)"
+              ],
+              "_review_order": 1,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=BinOp(left=Name(id='x', ctx=Load()), op=Add(), right=Constant(value=1)))",
+              "_source_file": "model.py",
+              "_lineno": 11,
+              "_end_lineno": 11,
+              "_col_offset": 8,
+              "_end_col_offset": 17,
+              "_raw_call": "x + 1",
+              "_source_calls": [],
+              "_stmt_hash": "ab69983b9cb0",
+              "_kind": "function",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "norm",
+            "kind": "layer",
+            "op": "LayerNorm",
+            "params": {
+              "normalized_shape": 4,
+              "_review_call": {
+                "target": "LayerNorm",
+                "arguments": {
+                  "normalized_shape": 4,
+                  "eps": 1e-05,
+                  "elementwise_affine": true,
+                  "bias": true,
+                  "device": null,
+                  "dtype": null
+                }
+              },
+              "_source_file": "model.py",
+              "_lineno": 6,
+              "_end_lineno": 6,
+              "_col_offset": 8,
+              "_end_col_offset": 35,
+              "_raw_call": "nn.LayerNorm(4)",
+              "_stmt_hash": "a48e2d9f817f",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "head",
+            "kind": "layer",
+            "op": "Linear",
+            "params": {
+              "in_features": 4,
+              "out_features": 2,
+              "_review_call": {
+                "target": "Linear",
+                "arguments": {
+                  "in_features": 4,
+                  "out_features": 2,
+                  "bias": true,
+                  "device": null,
+                  "dtype": null
+                }
+              },
+              "_source_file": "model.py",
+              "_lineno": 7,
+              "_end_lineno": 7,
+              "_col_offset": 8,
+              "_end_col_offset": 35,
+              "_raw_call": "nn.Linear(4, 2)",
+              "_stmt_hash": "eeb05dc4e4ea",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "output",
+            "kind": "output",
+            "op": "Output",
+            "params": {
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [],
+            "metadata": {
+              "parentId": null
+            }
+          }
+        ],
+        "edges": [
+          {
+            "edge_id": "edge_input_patch",
+            "source_node_id": "input",
+            "source_port": "y",
+            "target_node_id": "patch",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_patch_add@Net#0",
+            "source_node_id": "patch",
+            "source_port": "y",
+            "target_node_id": "add@Net#0",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_add@Net#0_norm",
+            "source_node_id": "add@Net#0",
+            "source_port": "y",
+            "target_node_id": "norm",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_norm_head",
+            "source_node_id": "norm",
+            "source_port": "y",
+            "target_node_id": "head",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_head_output",
+            "source_node_id": "head",
+            "source_port": "y",
+            "target_node_id": "output",
+            "target_port": "x",
+            "metadata": {}
+          }
+        ],
+        "modules": [],
+        "operations": [],
+        "metadata": {
+          "importer": "services.ingest",
+          "reviewClass": {
+            "defaults": {},
+            "members": {
+              "patch": {
+                "digest": "d2d409928595692eb7922f0c5cbbedc47661684aa568802225c3378f6d496560",
+                "span": {
+                  "file": "model.py",
+                  "start": [
+                    5,
+                    8
+                  ],
+                  "end": [
+                    5,
+                    36
+                  ],
+                  "kind": "decl"
+                },
+                "ambiguous": false
+              },
+              "norm": {
+                "digest": "4f5642449f1dabf3a546cc185948426259014d92ddd72e7bd59b65bd62f05f54",
+                "span": {
+                  "file": "model.py",
+                  "start": [
+                    6,
+                    8
+                  ],
+                  "end": [
+                    6,
+                    35
+                  ],
+                  "kind": "decl"
+                },
+                "ambiguous": false
+              },
+              "head": {
+                "digest": "a68f5d9fe8fa8b71df8264f15f4b9fbc9f74da5f11f5c34a54989a2019588b36",
+                "span": {
+                  "file": "model.py",
+                  "start": [
+                    7,
+                    8
+                  ],
+                  "end": [
+                    7,
+                    35
+                  ],
+                  "kind": "decl"
+                },
+                "ambiguous": false
+              }
+            },
+            "digest": "6073339ce789ec4d995ceecfd14d10180d754a2610ead2a20c9f6e80114b6d4d",
+            "span": {
+              "file": "model.py",
+              "start": [
+                2,
+                0
+              ],
+              "end": [
+                19,
+                39
+              ],
+              "kind": "decl"
+            }
+          }
+        }
+      },
+      "view": {
+        "graph_id": "git-review:ide:fada037ad086#Net:246a6237ee10c2c5fb5133805753d8a5895723a57b030d2314b604d79c0f4d49",
+        "node_positions": {
+          "input": {
+            "x": 50.0,
+            "y": 200.0
+          },
+          "patch": {
+            "x": 250.0,
+            "y": 200.0
+          },
+          "add@Net#0": {
+            "x": 1050.0,
+            "y": 200.0
+          },
+          "norm": {
+            "x": 450.0,
+            "y": 200.0
+          },
+          "head": {
+            "x": 650.0,
+            "y": 200.0
+          },
+          "output": {
+            "x": 1050.0,
+            "y": 200.0
+          }
+        },
+        "collapsed_modules": [],
+        "selection": [],
+        "layout": {
+          "strategy": "imported",
+          "node_canvas": {
+            "input": {
+              "type": "inputNode"
+            },
+            "patch": {
+              "type": "layerNode"
+            },
+            "add@Net#0": {
+              "type": "layerNode"
+            },
+            "norm": {
+              "type": "layerNode"
+            },
+            "head": {
+              "type": "layerNode"
+            },
+            "output": {
+              "type": "outputNode"
+            }
+          },
+          "node_data": {
+            "input": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "patch": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "add@Net#0": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "norm": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "head": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "output": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            }
+          },
+          "edge_canvas": {}
+        }
+      }
+    },
+    "spanmap": {
+      "patch": {
+        "file": "model.py",
+        "start": [
+          5,
+          8
+        ],
+        "end": [
+          5,
+          36
+        ],
+        "kind": "decl",
+        "digest": "80f333a8ba39",
+        "file_digest": "2109f6bf244360f9f520b38ccb1f1ee2b3f73d7c3dc6a8acf43fccea8e19276b"
+      },
+      "norm": {
+        "file": "model.py",
+        "start": [
+          6,
+          8
+        ],
+        "end": [
+          6,
+          35
+        ],
+        "kind": "decl",
+        "digest": "a48e2d9f817f",
+        "file_digest": "2109f6bf244360f9f520b38ccb1f1ee2b3f73d7c3dc6a8acf43fccea8e19276b"
+      },
+      "head": {
+        "file": "model.py",
+        "start": [
+          7,
+          8
+        ],
+        "end": [
+          7,
+          35
+        ],
+        "kind": "decl",
+        "digest": "eeb05dc4e4ea",
+        "file_digest": "2109f6bf244360f9f520b38ccb1f1ee2b3f73d7c3dc6a8acf43fccea8e19276b"
+      },
+      "add@Net#0": {
+        "file": "model.py",
+        "start": [
+          11,
+          8
+        ],
+        "end": [
+          11,
+          17
+        ],
+        "kind": "call",
+        "digest": "ab69983b9cb0",
+        "file_digest": "2109f6bf244360f9f520b38ccb1f1ee2b3f73d7c3dc6a8acf43fccea8e19276b"
+      }
+    },
+    "source_digest": "2109f6bf244360f9f520b38ccb1f1ee2b3f73d7c3dc6a8acf43fccea8e19276b",
+    "graph_id": "git-review:ide:fada037ad086#Net:246a6237ee10c2c5fb5133805753d8a5895723a57b030d2314b604d79c0f4d49",
+    "revision": 0,
+    "traced": false,
+    "trace_error": null,
+    "project_id": "standalone",
+    "protocol_version": 1,
+    "projection_digest": "246a6237ee10c2c5fb5133805753d8a5895723a57b030d2314b604d79c0f4d49",
+    "dependencies": [
+      {
+        "file": "model.py",
+        "digest": "2109f6bf244360f9f520b38ccb1f1ee2b3f73d7c3dc6a8acf43fccea8e19276b"
+      }
+    ],
+    "diagnostics": [],
+    "truncated": false
+  },
+  "after": {
+    "cls": "Net",
+    "document": {
+      "schemaVersion": 2,
+      "semantic": {
+        "graph_id": "git-review:ide:fada037ad086#Net:67738be95272a8a891bb701e8099d8dd9fe63b4de114a5139d90a50815cce31a",
+        "name": "Net",
+        "revision": 0,
+        "inputs": [
+          {
+            "name": "input",
+            "shape": "1,4"
+          }
+        ],
+        "nodes": [
+          {
+            "node_id": "input",
+            "kind": "input",
+            "op": "Input",
+            "params": {
+              "shape": "1,4",
+              "_review_scopes": [
+                {
+                  "file": "model.py",
+                  "scope": [
+                    "Net",
+                    "forward"
+                  ]
+                },
+                {
+                  "file": "model.py",
+                  "scope": [
+                    "Net",
+                    "forward",
+                    "self.features(*args, **kwargs)"
+                  ]
+                },
+                {
+                  "file": "model.py",
+                  "scope": [
+                    "Net",
+                    "forward",
+                    "self.features(*args, **kwargs)",
+                    "self.prepare(x, masks=masks)"
+                  ]
+                }
+              ],
+              "_shape_provenance": "static"
+            },
+            "in_ports": [],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "patch",
+            "kind": "layer",
+            "op": "Linear",
+            "params": {
+              "in_features": 4,
+              "out_features": 4,
+              "_review_call": {
+                "target": "Linear",
+                "arguments": {
+                  "in_features": 4,
+                  "out_features": 4,
+                  "bias": true,
+                  "device": null,
+                  "dtype": null
+                }
+              },
+              "_source_file": "model.py",
+              "_lineno": 5,
+              "_end_lineno": 5,
+              "_col_offset": 8,
+              "_end_col_offset": 36,
+              "_raw_call": "nn.Linear(4, 4)",
+              "_stmt_hash": "80f333a8ba39",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "relu@Net#0",
+            "kind": "layer",
+            "op": "ReLU",
+            "params": {
+              "_review_call": {
+                "target": "ReLU",
+                "arguments": {
+                  "inplace": false
+                }
+              },
+              "_review_scope": [
+                "Net",
+                "forward",
+                "self.features(*args, **kwargs)",
+                "self.prepare(x, masks=masks)"
+              ],
+              "_review_order": 1,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=Call(func=Call(func=Attribute(value=Name(id='nn', ctx=Load()), attr='ReLU', ctx=Load()), args=[], keywords=[]), args=[Name(id='x', ctx=Load())], keywords=[]))",
+              "_source_file": "model.py",
+              "_lineno": 10,
+              "_end_lineno": 10,
+              "_col_offset": 8,
+              "_end_col_offset": 24,
+              "_raw_call": "nn.ReLU()(x)",
+              "_source_calls": [
+                "ReLU"
+              ],
+              "_stmt_hash": "b0aba1099bb7",
+              "_kind": "function",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "add@Net#0",
+            "kind": "layer",
+            "op": "torch.add",
+            "params": {
+              "other": 1,
+              "_scalar_side": "right",
+              "_review_scope": [
+                "Net",
+                "forward",
+                "self.features(*args, **kwargs)",
+                "self.prepare(x, masks=masks)"
+              ],
+              "_review_order": 2,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=BinOp(left=Name(id='x', ctx=Load()), op=Add(), right=Constant(value=1)))",
+              "_source_file": "model.py",
+              "_lineno": 11,
+              "_end_lineno": 11,
+              "_col_offset": 8,
+              "_end_col_offset": 17,
+              "_raw_call": "x + 1",
+              "_source_calls": [],
+              "_stmt_hash": "ab69983b9cb0",
+              "_kind": "function",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "relu@Net#1",
+            "kind": "layer",
+            "op": "ReLU",
+            "params": {
+              "_review_call": {
+                "target": "ReLU",
+                "arguments": {
+                  "inplace": false
+                }
+              },
+              "_review_scope": [
+                "Net",
+                "forward",
+                "self.features(*args, **kwargs)",
+                "self.prepare(x, masks=masks)"
+              ],
+              "_review_order": 3,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=Call(func=Call(func=Attribute(value=Name(id='nn', ctx=Load()), attr='ReLU', ctx=Load()), args=[], keywords=[]), args=[Name(id='x', ctx=Load())], keywords=[]))",
+              "_source_file": "model.py",
+              "_lineno": 12,
+              "_end_lineno": 12,
+              "_col_offset": 8,
+              "_end_col_offset": 24,
+              "_raw_call": "nn.ReLU()(x)",
+              "_source_calls": [
+                "ReLU"
+              ],
+              "_stmt_hash": "b0aba1099bb7",
+              "_kind": "function",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "norm",
+            "kind": "layer",
+            "op": "LayerNorm",
+            "params": {
+              "normalized_shape": 4,
+              "_review_call": {
+                "target": "LayerNorm",
+                "arguments": {
+                  "normalized_shape": 4,
+                  "eps": 1e-05,
+                  "elementwise_affine": true,
+                  "bias": true,
+                  "device": null,
+                  "dtype": null
+                }
+              },
+              "_source_file": "model.py",
+              "_lineno": 6,
+              "_end_lineno": 6,
+              "_col_offset": 8,
+              "_end_col_offset": 35,
+              "_raw_call": "nn.LayerNorm(4)",
+              "_stmt_hash": "a48e2d9f817f",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "head",
+            "kind": "layer",
+            "op": "Linear",
+            "params": {
+              "in_features": 4,
+              "out_features": 2,
+              "_review_call": {
+                "target": "Linear",
+                "arguments": {
+                  "in_features": 4,
+                  "out_features": 2,
+                  "bias": true,
+                  "device": null,
+                  "dtype": null
+                }
+              },
+              "_source_file": "model.py",
+              "_lineno": 7,
+              "_end_lineno": 7,
+              "_col_offset": 8,
+              "_end_col_offset": 35,
+              "_raw_call": "nn.Linear(4, 2)",
+              "_stmt_hash": "eeb05dc4e4ea",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "output",
+            "kind": "output",
+            "op": "Output",
+            "params": {
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [],
+            "metadata": {
+              "parentId": null
+            }
+          }
+        ],
+        "edges": [
+          {
+            "edge_id": "edge_input_patch",
+            "source_node_id": "input",
+            "source_port": "y",
+            "target_node_id": "patch",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_patch_relu@Net#0",
+            "source_node_id": "patch",
+            "source_port": "y",
+            "target_node_id": "relu@Net#0",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_relu@Net#0_add@Net#0",
+            "source_node_id": "relu@Net#0",
+            "source_port": "y",
+            "target_node_id": "add@Net#0",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_add@Net#0_relu@Net#1",
+            "source_node_id": "add@Net#0",
+            "source_port": "y",
+            "target_node_id": "relu@Net#1",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_relu@Net#1_norm",
+            "source_node_id": "relu@Net#1",
+            "source_port": "y",
+            "target_node_id": "norm",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_norm_head",
+            "source_node_id": "norm",
+            "source_port": "y",
+            "target_node_id": "head",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_head_output",
+            "source_node_id": "head",
+            "source_port": "y",
+            "target_node_id": "output",
+            "target_port": "x",
+            "metadata": {}
+          }
+        ],
+        "modules": [],
+        "operations": [],
+        "metadata": {
+          "importer": "services.ingest",
+          "reviewClass": {
+            "defaults": {},
+            "members": {
+              "patch": {
+                "digest": "d2d409928595692eb7922f0c5cbbedc47661684aa568802225c3378f6d496560",
+                "span": {
+                  "file": "model.py",
+                  "start": [
+                    5,
+                    8
+                  ],
+                  "end": [
+                    5,
+                    36
+                  ],
+                  "kind": "decl"
+                },
+                "ambiguous": false
+              },
+              "norm": {
+                "digest": "4f5642449f1dabf3a546cc185948426259014d92ddd72e7bd59b65bd62f05f54",
+                "span": {
+                  "file": "model.py",
+                  "start": [
+                    6,
+                    8
+                  ],
+                  "end": [
+                    6,
+                    35
+                  ],
+                  "kind": "decl"
+                },
+                "ambiguous": false
+              },
+              "head": {
+                "digest": "a68f5d9fe8fa8b71df8264f15f4b9fbc9f74da5f11f5c34a54989a2019588b36",
+                "span": {
+                  "file": "model.py",
+                  "start": [
+                    7,
+                    8
+                  ],
+                  "end": [
+                    7,
+                    35
+                  ],
+                  "kind": "decl"
+                },
+                "ambiguous": false
+              }
+            },
+            "digest": "0fcdeb7899de93d9564bf8a6cd30eddd712f903f6d094d8cbce7e5012fd65c95",
+            "span": {
+              "file": "model.py",
+              "start": [
+                2,
+                0
+              ],
+              "end": [
+                19,
+                39
+              ],
+              "kind": "decl"
+            }
+          }
+        }
+      },
+      "view": {
+        "graph_id": "git-review:ide:fada037ad086#Net:67738be95272a8a891bb701e8099d8dd9fe63b4de114a5139d90a50815cce31a",
+        "node_positions": {
+          "input": {
+            "x": 50.0,
+            "y": 200.0
+          },
+          "patch": {
+            "x": 250.0,
+            "y": 200.0
+          },
+          "relu@Net#0": {
+            "x": 1050.0,
+            "y": 200.0
+          },
+          "add@Net#0": {
+            "x": 1250.0,
+            "y": 200.0
+          },
+          "relu@Net#1": {
+            "x": 1450.0,
+            "y": 200.0
+          },
+          "norm": {
+            "x": 450.0,
+            "y": 200.0
+          },
+          "head": {
+            "x": 650.0,
+            "y": 200.0
+          },
+          "output": {
+            "x": 1450.0,
+            "y": 200.0
+          }
+        },
+        "collapsed_modules": [],
+        "selection": [],
+        "layout": {
+          "strategy": "imported",
+          "node_canvas": {
+            "input": {
+              "type": "inputNode"
+            },
+            "patch": {
+              "type": "layerNode"
+            },
+            "relu@Net#0": {
+              "type": "layerNode"
+            },
+            "add@Net#0": {
+              "type": "layerNode"
+            },
+            "relu@Net#1": {
+              "type": "layerNode"
+            },
+            "norm": {
+              "type": "layerNode"
+            },
+            "head": {
+              "type": "layerNode"
+            },
+            "output": {
+              "type": "outputNode"
+            }
+          },
+          "node_data": {
+            "input": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "patch": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "relu@Net#0": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "add@Net#0": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "relu@Net#1": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "norm": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "head": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "output": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            }
+          },
+          "edge_canvas": {}
+        }
+      }
+    },
+    "spanmap": {
+      "patch": {
+        "file": "model.py",
+        "start": [
+          5,
+          8
+        ],
+        "end": [
+          5,
+          36
+        ],
+        "kind": "decl",
+        "digest": "80f333a8ba39",
+        "file_digest": "92cdd48ac0cfd24e88b5a67553d404c0d4027672b6a253766520879c0b288050"
+      },
+      "norm": {
+        "file": "model.py",
+        "start": [
+          6,
+          8
+        ],
+        "end": [
+          6,
+          35
+        ],
+        "kind": "decl",
+        "digest": "a48e2d9f817f",
+        "file_digest": "92cdd48ac0cfd24e88b5a67553d404c0d4027672b6a253766520879c0b288050"
+      },
+      "head": {
+        "file": "model.py",
+        "start": [
+          7,
+          8
+        ],
+        "end": [
+          7,
+          35
+        ],
+        "kind": "decl",
+        "digest": "eeb05dc4e4ea",
+        "file_digest": "92cdd48ac0cfd24e88b5a67553d404c0d4027672b6a253766520879c0b288050"
+      },
+      "relu@Net#0": {
+        "file": "model.py",
+        "start": [
+          10,
+          8
+        ],
+        "end": [
+          10,
+          24
+        ],
+        "kind": "call",
+        "digest": "b0aba1099bb7",
+        "file_digest": "92cdd48ac0cfd24e88b5a67553d404c0d4027672b6a253766520879c0b288050"
+      },
+      "add@Net#0": {
+        "file": "model.py",
+        "start": [
+          11,
+          8
+        ],
+        "end": [
+          11,
+          17
+        ],
+        "kind": "call",
+        "digest": "ab69983b9cb0",
+        "file_digest": "92cdd48ac0cfd24e88b5a67553d404c0d4027672b6a253766520879c0b288050"
+      },
+      "relu@Net#1": {
+        "file": "model.py",
+        "start": [
+          12,
+          8
+        ],
+        "end": [
+          12,
+          24
+        ],
+        "kind": "call",
+        "digest": "b0aba1099bb7",
+        "file_digest": "92cdd48ac0cfd24e88b5a67553d404c0d4027672b6a253766520879c0b288050"
+      }
+    },
+    "source_digest": "92cdd48ac0cfd24e88b5a67553d404c0d4027672b6a253766520879c0b288050",
+    "graph_id": "git-review:ide:fada037ad086#Net:67738be95272a8a891bb701e8099d8dd9fe63b4de114a5139d90a50815cce31a",
+    "revision": 0,
+    "traced": false,
+    "trace_error": null,
+    "project_id": "standalone",
+    "protocol_version": 1,
+    "projection_digest": "67738be95272a8a891bb701e8099d8dd9fe63b4de114a5139d90a50815cce31a",
+    "dependencies": [
+      {
+        "file": "model.py",
+        "digest": "92cdd48ac0cfd24e88b5a67553d404c0d4027672b6a253766520879c0b288050"
+      }
+    ],
+    "diagnostics": [],
+    "truncated": false
+  }
+}

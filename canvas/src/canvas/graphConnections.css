@@ -1,0 +1,67 @@
+/* Connection semantics are independent of emphasis: selection never erases dots.
+   Design v2: neutral base, in-edges a mid grey, out-edges a bright grey (never a
+   colour), filled arrowheads in their edge's colour. Connections explain tensor
+   flow, so block-family hues never reach them: 1.4px neutral at rest, a modestly
+   stronger pale sage for a traced path, no glow and no animated flow. */
+.tldraw-canvas-wrapper .model-edge-path { stroke: var(--tv-wire); stroke-width: 1.4; opacity: 1; transition: stroke var(--tv-standard) var(--tv-ease), opacity var(--tv-standard) var(--tv-ease); }
+.tldraw-canvas-wrapper .model-edge-direction { fill: var(--tv-wire); stroke: var(--tv-wire); stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+.tldraw-canvas-wrapper .model-edge-terminal { fill: var(--tv-canvas); stroke: var(--tv-wire); stroke-width: 1.2; }
+.tldraw-canvas-wrapper .model-edge-path.neighborhood { stroke: var(--tv-wire-traced); opacity: 1; stroke-width: 1.9; }
+.tldraw-canvas-wrapper :is(.model-edge-direction, .model-edge-terminal).neighborhood { stroke: var(--tv-wire-traced); opacity: 1; }
+.tldraw-canvas-wrapper .model-edge-direction.neighborhood { fill: var(--tv-wire-traced); }
+/* The focused layer's own edges are split by direction: dim for what feeds it,
+   bright for what it feeds. Diff and selected states below still outrank these. */
+.tldraw-canvas-wrapper .model-edge-path.in-edge { stroke: var(--tv-wire-in); opacity: 1; stroke-width: 1.7; }
+.tldraw-canvas-wrapper :is(.model-edge-direction, .model-edge-terminal).in-edge { stroke: var(--tv-wire-in); opacity: 1; }
+.tldraw-canvas-wrapper .model-edge-direction.in-edge { fill: var(--tv-wire-in); }
+.tldraw-canvas-wrapper .model-edge-path.out-edge { stroke: var(--tv-wire-out); opacity: 1; stroke-width: 1.9; }
+.tldraw-canvas-wrapper :is(.model-edge-direction, .model-edge-terminal).out-edge { stroke: var(--tv-wire-out); opacity: 1; }
+.tldraw-canvas-wrapper .model-edge-direction.out-edge { fill: var(--tv-wire-out); }
+.tldraw-canvas-wrapper :is(.model-edge-path, .model-edge-direction, .model-edge-terminal).unrelated { opacity: .22; }
+.tldraw-canvas-wrapper :is(.model-edge-path, .model-edge-direction, .model-edge-terminal).selected { stroke: var(--tv-selection); opacity: 1; }
+.tldraw-canvas-wrapper .model-edge-path.selected { stroke-width: 2.2; }
+.tldraw-canvas-wrapper .model-edge-direction.selected { fill: var(--tv-selection); }
+.tldraw-canvas-wrapper .model-edge-path.residual { stroke-dasharray: 1 6; stroke-linecap: round; }
+.tldraw-canvas-wrapper .model-edge-path-quiet { stroke: var(--tv-wire); opacity: .5; }
+.tldraw-canvas-wrapper .model-edge-path-quiet:not(.residual) { stroke-dasharray: 5 5; }
+.tldraw-canvas-wrapper :is(.model-edge-path, .model-edge-direction, .model-edge-terminal).diff-added { stroke: var(--tv-added); opacity: 1; }
+.tldraw-canvas-wrapper :is(.model-edge-path, .model-edge-direction, .model-edge-terminal).diff-modified { stroke: var(--tv-modified); opacity: 1; }
+.tldraw-canvas-wrapper :is(.model-edge-path, .model-edge-direction, .model-edge-terminal).diff-removed { stroke: var(--tv-removed); opacity: 1; }
+.tldraw-canvas-wrapper .model-edge-direction.diff-added { fill: var(--tv-added); }
+.tldraw-canvas-wrapper .model-edge-direction.diff-modified { fill: var(--tv-modified); }
+.tldraw-canvas-wrapper .model-edge-direction.diff-removed { fill: var(--tv-removed); }
+.tldraw-canvas-wrapper .model-edge-path.diff-removed:not(.residual) { stroke-dasharray: 8 5; }
+.tldraw-canvas-wrapper .model-edge-label { fill: var(--tv-text-2); font: 10.5px var(--font-mono); paint-order: stroke; stroke: var(--tv-canvas); stroke-width: 4px; stroke-linejoin: round; }
+.tldraw-canvas-wrapper .model-edge-label.unrelated { opacity: .65; }
+.tldraw-canvas-wrapper .graph-focus-overlay { position: absolute; top: 16px; left: 18px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; pointer-events: auto; max-width: min(380px, calc(100vw - 250px)); color: var(--tv-text); font: 12px/16px var(--font-ui); }
+.tldraw-canvas-wrapper .graph-legend { background: var(--tv-popover); border: 0; border-radius: 12px; padding: 8px 10px; box-shadow: var(--tv-popover-shadow); }
+.tldraw-canvas-wrapper .graph-legend summary { cursor: pointer; color: var(--tv-text-2); }
+.tldraw-canvas-wrapper .graph-legend[open] summary { margin-bottom: 9px; }
+.tldraw-canvas-wrapper .graph-legend span { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.tldraw-canvas-wrapper .graph-legend i { width: 23px; border-top: 1.4px solid var(--tv-wire); flex-shrink: 0; }
+.tldraw-canvas-wrapper .graph-legend i.graph-legend-in { border-top-color: var(--tv-wire-in); border-top-width: 1.7px; }
+.tldraw-canvas-wrapper .graph-legend i.graph-legend-out { border-top-color: var(--tv-wire-out); border-top-width: 1.9px; }
+.tldraw-canvas-wrapper .graph-legend i.graph-legend-dots { border-top-style: dotted; }
+.tldraw-canvas-wrapper .graph-legend i.graph-legend-dashes { border-top-style: dashed; }
+.tldraw-canvas-wrapper .graph-focus-controls { display: flex; flex-direction: column; gap: 8px; background: var(--tv-popover); border: 0; border-radius: 12px; padding: 10px; box-shadow: var(--tv-popover-shadow); max-width: 100%; box-sizing: border-box; }
+.tldraw-canvas-wrapper .graph-focus-overlay[data-local='true'] { top: auto; bottom: 12px; left: 12px; max-width: min(380px, calc(100% - 24px)); pointer-events: none; }
+.tldraw-canvas-wrapper .graph-focus-overlay[data-local='true'] .graph-focus-controls { pointer-events: auto; max-height: calc(100vh - 180px); overflow: auto; }
+.tldraw-canvas-wrapper .graph-focus-controls strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 13px/18px var(--font-ui); }
+.tldraw-canvas-wrapper .graph-focus-caption { display: flex; align-items: baseline; gap: 10px; }
+.tldraw-canvas-wrapper .graph-focus-caption span { color: var(--tv-text-3); white-space: nowrap; }
+.tldraw-canvas-wrapper .graph-focus-controls [role='group'] { display: inline-flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--tv-seg-track); box-shadow: inset 0 0 0 1px var(--tv-hairline); align-self: flex-start; }
+.tldraw-canvas-wrapper .graph-focus-controls button { display: inline-flex; align-items: center; gap: 6px; height: 26px; border: 0; border-radius: 8px; padding: 0 9px; background: transparent; color: var(--tv-text-2); cursor: pointer; font: 500 12.5px/1 var(--font-ui); transition: background-color var(--tv-quick) var(--tv-ease), color var(--tv-quick) var(--tv-ease); }
+.tldraw-canvas-wrapper .graph-focus-controls button[aria-pressed='true'] { background: var(--tv-seg-on); color: var(--tv-seg-on-ink); box-shadow: var(--tv-seg-on-shadow); }
+.tldraw-canvas-wrapper .graph-focus-controls button:hover { color: var(--tv-text); background: var(--tv-face-hi); }
+.tldraw-canvas-wrapper .graph-focus-controls small { color: var(--tv-text-3); font-size: 11.5px; }
+.tldraw-canvas-wrapper .graph-readable { height: 30px; border: 1px solid var(--tv-edge); border-radius: 8px; padding: 0 10px; color: var(--tv-text); background: var(--tv-popover); font: 500 12.5px/1 var(--font-ui); cursor: pointer; }
+.tldraw-canvas-wrapper .graph-focus-controls details { max-height: 170px; overflow: auto; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) {
+  .tldraw-canvas-wrapper :is(.model-edge-path, .graph-focus-controls button) { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .tldraw-canvas-wrapper :is(.model-edge-path, .model-edge-direction, .model-edge-terminal) { forced-color-adjust: none; }
+  .tldraw-canvas-wrapper .model-edge-path.out-edge { stroke: CanvasText; }
+  .tldraw-canvas-wrapper .model-edge-path.in-edge { stroke: GrayText; }
+}

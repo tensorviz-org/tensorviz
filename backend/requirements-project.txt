@@ -1,0 +1,14 @@
+# Direct dependencies for the extension's local backend in an existing environment.
+# Installed versions are constrained during setup; Torch/CUDA are never replaced.
+torch
+fastapi>=0.116,<1
+uvicorn>=0.35,<1
+libcst>=1.4,<2
+pydantic>=2.12,<3
+python-dotenv>=1.2.4,<2
+# Required by static model dependency inspection and reviewed package requests.
+packaging
+numpy
+httpx
+requests
+websockets>=12

@@ -1,0 +1,21 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+
+# tsc output
+/out
+
+# Packaged extension. `vsce package` writes tensorviz-<version>.vsix here and
+# `make extension-gate` regenerates it on every run, so tracking it would mean a dirty
+# binary diff after every local gate — the same reason backend/reports/ is ignored.
+*.vsix
+
+# VS Code builds downloaded by @vscode/test-electron for `npm run test:electron`.
+/.vscode-test
+
+# Local analytics configuration backup; never commit the configured token.
+/telemetry.config.local.json
+
+# Generated from the packages included in the extension host bundle.
+/DEPENDENCY_NOTICES.txt

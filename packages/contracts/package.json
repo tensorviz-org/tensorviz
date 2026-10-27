@@ -1,0 +1,16 @@
+{
+  "name": "@tensorviz/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "tensorviz-source": "./src/*.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "scripts": {
+    "pretest": "node -e \"require('fs').rmSync('.test-out', { recursive: true, force: true })\" && npm run build:shared --prefix ../.. && tsc -p tsconfig.test.json",
+    "test": "mocha --ui tdd \".test-out/**/*.test.js\""
+  }
+}

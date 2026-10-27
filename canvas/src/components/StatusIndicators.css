@@ -1,0 +1,391 @@
+.status-indicators {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(8px);
+}
+
+.status-indicator.connected {
+  color: var(--success);
+  border-color: var(--success);
+  background: var(--success-subtle);
+}
+
+.status-indicator.disconnected {
+  color: var(--error);
+  border-color: var(--error);
+  background: var(--error-subtle);
+}
+
+.status-indicator.inferring {
+  color: var(--info);
+  border-color: var(--info);
+  background: var(--info-subtle);
+}
+
+.status-indicator .status-icon {
+  display: flex;
+  align-items: center;
+}
+
+.status-action-button {
+  pointer-events: all;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--accent-border);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(8px);
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.status-action-button:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--text-inverse);
+}
+
+.status-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.status-action-group {
+  display: flex;
+  gap: 8px;
+  pointer-events: all;
+}
+
+.view-mode-group {
+  pointer-events: all;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+.view-mode-button {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.view-mode-button.active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.view-mode-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.status-history-card {
+  pointer-events: all;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  min-width: 170px;
+  box-shadow: var(--shadow-sm);
+}
+
+.status-history-title {
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+}
+
+.status-history-text {
+  font-size: 11px;
+  line-height: 1.3;
+  margin-bottom: 5px;
+  color: var(--text-primary);
+}
+
+.status-history-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ============================================
+   Module node — IDE-style "folded function" look
+   ============================================ */
+.module-node {
+  min-width: 200px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-mono);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.module-node:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.module-node.expanded {
+  background: var(--bg-secondary);
+  border-style: dashed;
+}
+
+.module-node.selected {
+  border-color: var(--cat-module);
+  box-shadow: 0 0 0 2px var(--cat-module), var(--shadow-md);
+}
+
+.module-node .node-header {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.module-node .node-icon {
+  color: var(--syntax-class);
+}
+
+.module-node .layer-name {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--syntax-class);
+}
+
+.module-node .layer-id {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.module-node .module-controls,
+.module-node .module-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.module-node .node-body {
+  padding: 10px 12px;
+}
+
+.module-node .module-pill-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.module-node .module-pill {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  background: var(--bg-inset);
+}
+
+.module-node .module-pill.status { background: transparent; }
+.module-node .module-boundary-shapes { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+.module-node .module-boundary-row { min-height: 36px; font: 11px/18px var(--font-mono); }
+.module-node .module-boundary-label,
+.module-node .module-boundary-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.module-node .module-boundary-label { color: var(--text-muted); }
+.module-node .module-boundary-value { color: var(--text-primary); }
+.module-node .module-pill.layout { font-size: 10px; font-weight: 600; }
+.module-node .module-pill.layout.deterministic {
+  border-color: var(--accent-border);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+.module-node .module-pill.layout.custom {
+  border-color: var(--success);
+  color: var(--success);
+  background: var(--success-subtle);
+}
+
+.module-node .module-route {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.module-node .module-resolution-block {
+  padding: 6px 10px;
+}
+
+.module-node .module-source-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font: 10px/1.3 var(--font-mono);
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-node .module-source-link:hover,
+.module-node .module-source-link:focus-visible {
+  text-decoration: underline;
+}
+
+.module-node .module-mini-map {
+  margin: 6px 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+}
+
+.module-node .expand-button {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.module-node .expand-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-color);
+  color: var(--accent);
+}
+
+.module-node .module-content {
+  min-height: 100px;
+  padding: 12px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  margin: 8px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-inset);
+}
+
+.module-node .drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--violet);
+  font-size: 12px;
+  text-align: center;
+}
+
+.module-node .module-info {
+  padding: 6px 0 0;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 6px;
+}
+
+.module-node .module-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Compact mode — used when ModelBuilder is embedded inside the IDE shell.
+   Reclaim vertical space by collapsing wordy pills into icon-only chips
+   while keeping tooltips for discoverability. Also flips the indicator
+   stack to a horizontal toolbar so the action buttons sit in one row
+   above the canvas. */
+.status-indicators.compact {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 6px 8px;
+  top: 8px;
+  right: 8px;
+  left: 8px;
+  max-width: none;
+}
+.status-indicators.compact .status-indicator,
+.status-indicators.compact .status-action-button {
+  padding: 4px 6px;
+  font-size: 0;
+  gap: 0;
+}
+.status-indicators.compact .status-indicator > span,
+.status-indicators.compact .status-action-button > span {
+  display: none;
+}
+.status-indicators.compact .view-mode-button {
+  padding: 4px 6px;
+  font-size: 11px;
+}
+.status-indicators.compact .status-history-card {
+  display: none;
+}

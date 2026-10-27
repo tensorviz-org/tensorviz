@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# The gate, on the way out.
+#
+# Fast local checks selected by changed paths. Run the complete gate locally;
+# this hook reports its intentionally omitted slow checks.
+#
+# Install:  make hooks
+# Bypass:   git push --no-verify
+# Remove:   git config --unset core.hooksPath
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+ZERO='0000000000000000000000000000000000000000'
+
+# Which files this push would add to the remote. git hands the hook one line per ref on
+# stdin: <local ref> <local sha> <remote ref> <remote sha>.
+changed_files() {
+  local local_ref local_sha remote_ref remote_sha base
+  local found=1
+  while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$local_sha" = "$ZERO" ] && continue          # a branch deletion changes no files
+    if [ "$remote_sha" = "$ZERO" ]; then
+      # A branch the remote has never seen: compare against where it left main, not
+      # against the empty tree, or the first push of any branch rebuilds the world.
+      base="$(git merge-base "$local_sha" origin/main 2>/dev/null || true)"
+      [ -z "$base" ] && base="$(git merge-base "$local_sha" main 2>/dev/null || true)"
+      [ -z "$base" ] && { git ls-tree -r --name-only "$local_sha"; found=0; continue; }
+      git diff --name-only "$base" "$local_sha"
+    else
+      git diff --name-only "$remote_sha" "$local_sha"
+    fi
+    found=0
+  done
+  return $found
+}
+
+FILES="$(changed_files | sort -u)"
+if [ -z "$FILES" ]; then
+  echo "pre-push: nothing to check."
+  exit 0
+fi
+
+matches() { printf '%s\n' "$FILES" | grep -qE "$1"; }
+
+# Shared-package changes affect both hosts and the browser's checked contracts.
+SHARED=0; matches '^(tests/fixtures/|packages/|tooling/|runtime/|package(-lock)?\.json$)' && SHARED=1
+BACKEND=0;   matches '^(tests/fixtures/|backend/|runtime/|Makefile$)'                       && BACKEND=1
+FRONTEND=0;  matches '^(tests/fixtures/|canvas/|packages/|tooling/contracts/)'     && FRONTEND=1
+EXTENSION=0; matches '^(tests/fixtures/|extension/|canvas/|backend/|packages/|tooling/|runtime/|package(-lock)?\.json$|Makefile$)' && EXTENSION=1
+PLUGIN=0; matches '^(tests/fixtures/|plugin/|plugins/|canvas/|backend/|packages/|tooling/|runtime/|package(-lock)?\.json$|Makefile$)' && PLUGIN=1
+DOCS=0;      matches '^(docs/|README\.md$|CONTRIBUTING\.md$|extension/README\.md$|\.github/)' && DOCS=1
+
+TARGETS=()
+[ "$SHARED" = 1 ]    && TARGETS+=(shared-check)
+[ "$DOCS" = 1 ]      && TARGETS+=(docs-links)
+[ "$BACKEND" = 1 ]   && TARGETS+=(backend-tests)
+[ "$FRONTEND" = 1 ]  && TARGETS+=(frontend-tests frontend-build)
+[ "$EXTENSION" = 1 ] && TARGETS+=(extension-compile extension-unit)
+[ "$PLUGIN" = 1 ] && TARGETS+=(plugin-unit)
+
+if [ "${#TARGETS[@]}" -eq 0 ]; then
+  echo "pre-push: nothing these changes gate."
+  exit 0
+fi
+
+echo "pre-push: make ${TARGETS[*]}"
+echo ""
+if ! make "${TARGETS[@]}"; then
+  echo ""
+  echo "  ── the gate failed, so the push stopped ──────────────────────────────────"
+  echo "  See CONTRIBUTING.md for the local checks."
+  echo "  Push anyway with:  git push --no-verify"
+  echo ""
+  exit 1
+fi
+
+# Everything real that this hook did not run. Stated, not silent: the value of a fast
+# hook is that it gets run, and the cost is that it is not the whole gate.
+SKIPPED=()
+[ "$BACKEND" = 1 ]   && SKIPPED+=("the strict template sweep .......... make backend-sweep")
+[ "$BACKEND" = 1 ]   && SKIPPED+=("the provider-free runtime smoke .... make backend-provider-free")
+[ "$EXTENSION" = 1 ] && SKIPPED+=("the real extension host ............ make extension-electron")
+[ "$EXTENSION" = 1 ] && SKIPPED+=("the .vsix and its contents ......... make extension-package")
+[ "$FRONTEND" = 1 ]  && SKIPPED+=("the browser specs .................. make e2e-auto")
+[ "$PLUGIN" = 1 ] && SKIPPED+=("plugin capture and packaging ....... make plugin-gate")
+[ "$PLUGIN" = 1 ] && SKIPPED+=("installed coding clients ........... make plugin-release")
+
+echo ""
+echo "  ── pushed legs passed ────────────────────────────────────────────────────"
+if [ "${#SKIPPED[@]}" -gt 0 ]; then
+  echo "  NOT run by this hook (run locally before release):"
+  for line in "${SKIPPED[@]}"; do echo "    $line"; done
+  echo ""
+  echo "  All of it, before you open a PR:  make gate"
+fi
+echo ""
+exit 0

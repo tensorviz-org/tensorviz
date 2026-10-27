@@ -1,0 +1,2 @@
+# Keep local model and fixture imports relative to this example project.
+[tool.tensorviz]

@@ -1,0 +1,24 @@
+name: Bug
+description: A visualization bug in the extension, canvas, backend, or plugin
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What you expected
+  - type: input
+    attributes:
+      label: Editor and version
+      placeholder: VS Code, Cursor, or VSCodium
+  - type: input
+    attributes:
+      label: tensorViz version
+  - type: textarea
+    attributes:
+      label: Steps
+      description: Do not paste launch tokens, secret storage, or license keys.

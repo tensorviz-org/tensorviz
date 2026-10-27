@@ -1,0 +1,25 @@
+{
+  "$comment": "Canonical pins for the managed backend runtime. The extension downloader reads ONLY this file. extension/src/test/unit/runtimeManifest.test.ts guards the URL and hash contract. Never update a hash without knowing why the published asset changed.",
+  "release": "20260901",
+  "python": "3.12.14",
+  "flavour": "install_only_stripped",
+  "baseUrl": "https://github.com/astral-sh/python-build-standalone/releases/download",
+  "maxDownloadBytes": 134217728,
+  "platforms": {
+    "darwin-arm64": {
+      "triple": "aarch64-apple-darwin",
+      "interpreter": "bin/python3",
+      "sha256": "81a359f1cfadd4da11766534c5913791cea55f26e1bb902cacd2a531bb1e4b2b"
+    },
+    "linux-x64": {
+      "triple": "x86_64-unknown-linux-gnu",
+      "interpreter": "bin/python3",
+      "sha256": "72748da13197c1fb161e3afeef20a6a385ff24f2165e6e2758e47008e7faba4c"
+    },
+    "win32-x64": {
+      "triple": "x86_64-pc-windows-msvc",
+      "interpreter": "python.exe",
+      "sha256": "7c45c9622400d578709a9b2cddbe8124cc21d382409d9f13406d706d28e31b14"
+    }
+  }
+}

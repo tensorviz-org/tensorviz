@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TensorViz example model</title>
+</head>
+<body>
+<main id="main">
+<h1>Example model</h1>
+<p>Install the extension and open a graph from the <a href="quickstart.md">quickstart</a>. Versions are in <a href="local-setup.md#versions">local setup</a>. This page keeps the sample the repository test runs.</p>
+
+<section id="example">
+<h2>A small model to explore</h2>
+<pre>
+<code>import torch.nn as nn
+
+# tensorviz: input=2,4
+class Net(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.hidden = nn.Linear(4, 8)
+        self.relu = nn.ReLU()
+        self.output = nn.Linear(8, 2)
+
+    def forward(self, x):
+        return self.output(self.relu(self.hidden(x)))</code>
+</pre>
+<p><code># tensorviz: input=2,4</code> belongs to the class it precedes. It is the example input when no <code>tensorviz.toml</code> profile and no single in-file example call supply one. <strong>Change inputs</strong> edits the saved setup. The other source directives are in the <a href="reference.md#source-directives">reference</a>.</p>
+</section>
+
+<section id="next">
+<h2>Next</h2>
+<ul>
+<li><a href="quickstart.md">Quickstart</a></li>
+<li><a href="canvas.md">Canvas</a></li>
+<li><a href="mcp.md">Connect a coding agent</a></li>
+<li><a href="agent-plugin.md">Coding-agent plugin</a></li>
+<li><a href="../README.md">Repository README</a></li>
+</ul>
+</section>
+</main>
+</body>
+</html>

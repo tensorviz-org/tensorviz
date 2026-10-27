@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question
+    url: https://github.com/tensorviz-org/tensorviz/discussions
+    about: Questions and usage discussion belong in GitHub Discussions.
+  - name: Report a security vulnerability
+    url: https://github.com/tensorviz-org/tensorviz/security/advisories/new
+    about: Report a vulnerability privately. Do not open a public issue.

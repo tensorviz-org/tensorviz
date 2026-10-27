@@ -1,0 +1,1061 @@
+[
+  {
+    "name": "missing operand",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          1,
+          "arguments",
+          "args",
+          1
+        ],
+        "value": {
+          "kind": "value",
+          "id": "missing"
+        }
+      }
+    ]
+  },
+  {
+    "name": "future operand",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "arguments",
+          "args",
+          0
+        ],
+        "value": {
+          "kind": "value",
+          "id": "b"
+        }
+      }
+    ]
+  },
+  {
+    "name": "event ordering",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          1,
+          "sequence"
+        ],
+        "value": 1
+      }
+    ]
+  },
+  {
+    "name": "recursive owner",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "invocations",
+          0,
+          "parentId"
+        ],
+        "value": "call:0"
+      }
+    ]
+  },
+  {
+    "name": "unknown owner",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "invocationId"
+        ],
+        "value": "missing"
+      }
+    ]
+  },
+  {
+    "name": "unknown module",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "invocations",
+          0,
+          "moduleId"
+        ],
+        "value": "missing"
+      }
+    ]
+  },
+  {
+    "name": "unknown definition",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "modules",
+          0,
+          "definitionId"
+        ],
+        "value": "missing"
+      }
+    ]
+  },
+  {
+    "name": "duplicate registration",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "modules",
+          0,
+          "paths"
+        ],
+        "value": [
+          "",
+          ""
+        ]
+      }
+    ]
+  },
+  {
+    "name": "wrong output path",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "values",
+          1,
+          "producer",
+          "path"
+        ],
+        "value": [
+          "items",
+          0
+        ]
+      }
+    ]
+  },
+  {
+    "name": "future alias",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "values",
+          1,
+          "aliasOf"
+        ],
+        "value": "b"
+      }
+    ]
+  },
+  {
+    "name": "different storage alias",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "values",
+          1,
+          "aliasOf"
+        ],
+        "value": "h"
+      }
+    ]
+  },
+  {
+    "name": "unjustified version",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "values",
+          1,
+          "previousVersion"
+        ],
+        "value": "h"
+      }
+    ]
+  },
+  {
+    "name": "missing version",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "values",
+          1,
+          "logicalVersion"
+        ],
+        "value": 1
+      }
+    ]
+  },
+  {
+    "name": "wrong stride",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "values",
+          0,
+          "stride"
+        ],
+        "value": [
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "name": "fake state",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "values",
+          0,
+          "origin"
+        ],
+        "value": "state"
+      }
+    ]
+  },
+  {
+    "name": "unknown diagnostic",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "diagnosticId"
+        ],
+        "value": "missing"
+      }
+    ]
+  },
+  {
+    "name": "missing source binding",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "sourceBindingIds"
+        ],
+        "value": [
+          "missing"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "different root output",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "output"
+        ],
+        "value": {
+          "kind": "value",
+          "id": "a"
+        }
+      }
+    ]
+  },
+  {
+    "name": "missing coverage",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "coverage",
+          "modules",
+          0,
+          "invocationIds"
+        ],
+        "value": []
+      }
+    ]
+  },
+  {
+    "name": "false unreached",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "coverage",
+          "modules",
+          0,
+          "status"
+        ],
+        "value": "not_observed"
+      }
+    ]
+  },
+  {
+    "name": "unexplained omission",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "coverage",
+          "operationsSeen"
+        ],
+        "value": 3
+      }
+    ]
+  },
+  {
+    "name": "false complete",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "coverage",
+          "omissions"
+        ],
+        "value": [
+          "operation_limit"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "value allowance",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "limits",
+          "values"
+        ],
+        "value": 2
+      }
+    ]
+  },
+  {
+    "name": "byte allowance",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "limits",
+          "bytes"
+        ],
+        "value": 1024
+      }
+    ]
+  },
+  {
+    "name": "local path",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "arguments",
+          "args",
+          1
+        ],
+        "value": {
+          "kind": "str",
+          "value": "/Users/private/example.py"
+        }
+      }
+    ]
+  },
+  {
+    "name": "named private literal",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "arguments",
+          "kwargs",
+          "token"
+        ],
+        "value": {
+          "kind": "int",
+          "value": "123"
+        }
+      }
+    ]
+  },
+  {
+    "name": "named tensor reference",
+    "valid": true,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "arguments",
+          "kwargs",
+          "source"
+        ],
+        "value": {
+          "kind": "value",
+          "id": "h"
+        }
+      }
+    ]
+  },
+  {
+    "name": "named absent literal",
+    "valid": true,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "arguments",
+          "kwargs",
+          "token"
+        ],
+        "value": {
+          "kind": "none"
+        }
+      }
+    ]
+  },
+  {
+    "name": "partial opaque argument",
+    "valid": true,
+    "patches": [
+      {
+        "path": [
+          "status"
+        ],
+        "value": "partial"
+      },
+      {
+        "path": [
+          "coverage",
+          "omissions"
+        ],
+        "value": [
+          "unsupported_type"
+        ]
+      },
+      {
+        "path": [
+          "operations",
+          0,
+          "arguments",
+          "kwargs",
+          "custom"
+        ],
+        "value": {
+          "kind": "opaque",
+          "typeName": "Custom",
+          "reason": "unsupported_type"
+        }
+      }
+    ]
+  },
+  {
+    "name": "empty kwargs source",
+    "valid": true,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "arguments",
+          "kwargs",
+          "source"
+        ],
+        "value": {
+          "kind": "tuple",
+          "items": []
+        }
+      }
+    ]
+  },
+  {
+    "name": "large literal",
+    "valid": true,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "arguments",
+          "args",
+          1
+        ],
+        "value": {
+          "kind": "int",
+          "value": "9007199254740993"
+        }
+      }
+    ]
+  },
+  {
+    "name": "negative zero",
+    "valid": true,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "arguments",
+          "args",
+          1
+        ],
+        "value": {
+          "kind": "float",
+          "value": "-0"
+        }
+      }
+    ]
+  },
+  {
+    "name": "nonreturned mutation",
+    "valid": true,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "output"
+        ],
+        "value": {
+          "kind": "none"
+        }
+      },
+      {
+        "path": [
+          "operations",
+          0,
+          "effects"
+        ],
+        "value": [
+          {
+            "kind": "write",
+            "argumentPath": [
+              "args",
+              0
+            ],
+            "beforeId": "h",
+            "after": {
+              "kind": "value",
+              "id": "a"
+            }
+          }
+        ]
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "producer"
+        ],
+        "value": {
+          "operationId": "add1",
+          "kind": "effect",
+          "path": [
+            0,
+            "after"
+          ]
+        }
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "objectId"
+        ],
+        "value": "object:h"
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "storageId"
+        ],
+        "value": "storage:h"
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "logicalVersion"
+        ],
+        "value": 1
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "previousVersion"
+        ],
+        "value": "h"
+      }
+    ]
+  },
+  {
+    "name": "mutation wrong operand",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "output"
+        ],
+        "value": {
+          "kind": "none"
+        }
+      },
+      {
+        "path": [
+          "operations",
+          0,
+          "effects"
+        ],
+        "value": [
+          {
+            "kind": "write",
+            "argumentPath": [
+              "args",
+              0
+            ],
+            "beforeId": "h",
+            "after": {
+              "kind": "value",
+              "id": "a"
+            }
+          }
+        ]
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "producer"
+        ],
+        "value": {
+          "operationId": "add1",
+          "kind": "effect",
+          "path": [
+            0,
+            "after"
+          ]
+        }
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "objectId"
+        ],
+        "value": "object:h"
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "storageId"
+        ],
+        "value": "storage:h"
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "logicalVersion"
+        ],
+        "value": 1
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "previousVersion"
+        ],
+        "value": "h"
+      },
+      {
+        "path": [
+          "operations",
+          0,
+          "effects",
+          0,
+          "argumentPath"
+        ],
+        "value": [
+          "args",
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "name": "mutation wrong version",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "output"
+        ],
+        "value": {
+          "kind": "none"
+        }
+      },
+      {
+        "path": [
+          "operations",
+          0,
+          "effects"
+        ],
+        "value": [
+          {
+            "kind": "write",
+            "argumentPath": [
+              "args",
+              0
+            ],
+            "beforeId": "h",
+            "after": {
+              "kind": "value",
+              "id": "a"
+            }
+          }
+        ]
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "producer"
+        ],
+        "value": {
+          "operationId": "add1",
+          "kind": "effect",
+          "path": [
+            0,
+            "after"
+          ]
+        }
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "objectId"
+        ],
+        "value": "object:h"
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "storageId"
+        ],
+        "value": "storage:h"
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "logicalVersion"
+        ],
+        "value": 1
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "previousVersion"
+        ],
+        "value": "h"
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "logicalVersion"
+        ],
+        "value": 2
+      }
+    ]
+  },
+  {
+    "name": "mutation wrong producer",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "operations",
+          0,
+          "output"
+        ],
+        "value": {
+          "kind": "none"
+        }
+      },
+      {
+        "path": [
+          "operations",
+          0,
+          "effects"
+        ],
+        "value": [
+          {
+            "kind": "write",
+            "argumentPath": [
+              "args",
+              0
+            ],
+            "beforeId": "h",
+            "after": {
+              "kind": "value",
+              "id": "a"
+            }
+          }
+        ]
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "producer"
+        ],
+        "value": {
+          "operationId": "add1",
+          "kind": "effect",
+          "path": [
+            0,
+            "after"
+          ]
+        }
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "objectId"
+        ],
+        "value": "object:h"
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "storageId"
+        ],
+        "value": "storage:h"
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "logicalVersion"
+        ],
+        "value": 1
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "previousVersion"
+        ],
+        "value": "h"
+      },
+      {
+        "path": [
+          "values",
+          1,
+          "producer",
+          "path"
+        ],
+        "value": [
+          1,
+          "after"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "constructor site",
+    "valid": true,
+    "patches": [
+      {
+        "path": [
+          "sourceBindings"
+        ],
+        "value": [
+          {
+            "id": "constructor:sample",
+            "snapshotId": "portable:ae20ffc834bb268a76aeedb9d82109eaea607b0cdf124f40b28d6aca2ace8f71",
+            "kind": "constructor",
+            "quality": "exact",
+            "anchors": [
+              {
+                "file": "file-0.py",
+                "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "startLine": 1,
+                "startColumn": 0,
+                "endLine": 1,
+                "endColumn": 8,
+                "scope": "Model.__init__",
+                "tokenDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "path": [
+          "modules",
+          0,
+          "constructorBindingIds"
+        ],
+        "value": [
+          "constructor:sample"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "missing constructor",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "sourceBindings"
+        ],
+        "value": [
+          {
+            "id": "constructor:sample",
+            "snapshotId": "portable:ae20ffc834bb268a76aeedb9d82109eaea607b0cdf124f40b28d6aca2ace8f71",
+            "kind": "constructor",
+            "quality": "exact",
+            "anchors": [
+              {
+                "file": "file-0.py",
+                "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "startLine": 1,
+                "startColumn": 0,
+                "endLine": 1,
+                "endColumn": 8,
+                "scope": "Model.__init__",
+                "tokenDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "path": [
+          "modules",
+          0,
+          "constructorBindingIds"
+        ],
+        "value": [
+          "unknown"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "duplicate constructor",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "sourceBindings"
+        ],
+        "value": [
+          {
+            "id": "constructor:sample",
+            "snapshotId": "portable:ae20ffc834bb268a76aeedb9d82109eaea607b0cdf124f40b28d6aca2ace8f71",
+            "kind": "constructor",
+            "quality": "exact",
+            "anchors": [
+              {
+                "file": "file-0.py",
+                "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "startLine": 1,
+                "startColumn": 0,
+                "endLine": 1,
+                "endColumn": 8,
+                "scope": "Model.__init__",
+                "tokenDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "path": [
+          "modules",
+          0,
+          "constructorBindingIds"
+        ],
+        "value": [
+          "constructor:sample",
+          "constructor:sample"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "constructor cannot reference a forward call",
+    "valid": false,
+    "patches": [
+      {
+        "path": [
+          "sourceBindings"
+        ],
+        "value": [
+          {
+            "id": "constructor:sample",
+            "snapshotId": "portable:ae20ffc834bb268a76aeedb9d82109eaea607b0cdf124f40b28d6aca2ace8f71",
+            "kind": "call",
+            "quality": "exact",
+            "anchors": [
+              {
+                "file": "file-0.py",
+                "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "startLine": 1,
+                "startColumn": 0,
+                "endLine": 1,
+                "endColumn": 8,
+                "scope": "Model.__init__",
+                "tokenDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "path": [
+          "modules",
+          0,
+          "constructorBindingIds"
+        ],
+        "value": [
+          "constructor:sample"
+        ]
+      }
+    ]
+  }
+]

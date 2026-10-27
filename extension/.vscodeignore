@@ -1,0 +1,24 @@
+.vscode/**
+src/**
+**/*.ts
+**/tsconfig.json
+# Compile keeps individual modules for local tests; the installed host uses one bundle.
+out/**
+!out/extension.js
+.gitignore
+*.vsix
+# Tests and their runner config are not part of the shipped extension.
+.vscode-test.mjs
+.vscode-test/**
+.mocharc.cjs
+# Build-time only: scripts/build-webview.mjs produces media/app, and
+# scripts/sync-protocol.mjs writes into the frontend checkout. Neither belongs in
+# a shipped extension, but media/app itself very much does — it IS the canvas.
+scripts/**
+# Source maps for the app bundle: ~4 MB of the .vsix for something only a
+# frontend developer with the checkout open can use.
+media/app/**/*.map
+# The backend is staged by scripts/stage-backend.mjs and IS shipped (it is
+# resolveBackendDir's second source), but its bytecode and any provisioned venv are not.
+backend/**/__pycache__/**
+backend/.runtime/**

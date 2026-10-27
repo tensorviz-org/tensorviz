@@ -1,0 +1,254 @@
+/* Shared Canvas paint (design v2). Ink is the default; Paper applies when the
+   theme owner sets <html data-tv-theme="light">. Card layout stays owned by
+   cardMetrics.ts — nothing here changes a box size.
+   Ink is muted sage graphite: flat surfaces with a whisper of green, restrained
+   borders, and a pale sage for selection and tracing. Hue is reserved for small
+   block-family markers. */
+:root {
+  --tv-color-scheme: dark;
+  --tv-canvas: #171817;
+  --tv-canvas-wash: linear-gradient(transparent, transparent);
+  --tv-dot: rgba(227, 232, 226, .055);
+  --tv-chrome: #1d1f1d;
+  --tv-chrome-filter: none;
+  --tv-popover: #242624;
+  --tv-field: #1a1b1a;
+  --tv-face: #2a2c2a;
+  --tv-face-top: #2a2c2a;
+  --tv-face-bot: #2a2c2a;
+  --tv-face-hi: rgba(227, 232, 226, .06);
+  /* A selected card lifts slightly; the outline carries the selection. */
+  --tv-face-selected: #323532;
+  --tv-rim-top: #3f433f;
+  --tv-rim-bot: #3f433f;
+  --tv-divider: rgba(227, 232, 226, .07);
+  --tv-module: rgba(227, 232, 226, .025);
+  --tv-frame-line: rgba(227, 232, 226, .1);
+  --tv-frame-head: rgba(227, 232, 226, .025);
+  --tv-edge: rgba(227, 232, 226, .14);
+  --tv-edge-hi: rgba(227, 232, 226, .26);
+  --tv-hairline: rgba(227, 232, 226, .08);
+  --tv-card-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  --tv-popover-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 16px 36px -14px rgba(0, 0, 0, .6);
+  --tv-keyline: 0 0 0 1px rgba(0, 0, 0, .35);
+  --tv-sheen: inset 0 1px 0 rgba(255, 255, 255, .02);
+  --tv-text: #e3e8e2;
+  --tv-text-2: #a4ada5;
+  --tv-text-3: #98a199;
+  /* Interactive accent: focus, active controls, traced edges. Pale sage, never a hue. */
+  --tv-accent: #aabfb2;
+  --tv-accent-ink: #b7c5bb;
+  --tv-accent-wash: rgba(170, 191, 178, .12);
+  --tv-accent-edge: rgba(170, 191, 178, .34);
+  /* Card selection: one pale sage-gray outline, no halo. */
+  --tv-selection: #b7c5bb;
+  --tv-selection-halo: transparent;
+  /* Keyboard focus is a separate, brighter ring so it never reads as selection. */
+  --tv-focus-ring: #e3e8e2;
+  --tv-hot: #f1f4f0;
+  --tv-row: rgba(227, 232, 226, .03);
+  --tv-row-bar: rgba(227, 232, 226, .16);
+  --tv-out-row: rgba(227, 232, 226, .05);
+  --tv-out-bar: rgba(227, 232, 226, .42);
+  --tv-tile-line: rgba(227, 232, 226, .08);
+  --tv-glyph: #a4ada5;
+  --tv-glyph-compute: #a4ada5;
+  --tv-seg-track: rgba(227, 232, 226, .04);
+  --tv-seg-on: rgba(170, 191, 178, .16);
+  --tv-seg-on-ink: #e3e8e2;
+  --tv-seg-on-shadow: inset 0 0 0 1px rgba(170, 191, 178, .34);
+  --tv-primary-bg: linear-gradient(rgba(170, 191, 178, .22), rgba(170, 191, 178, .12));
+  --tv-primary-ink: #eef3ed;
+  --tv-primary-line: rgba(170, 191, 178, .42);
+  --tv-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+  --tv-mark-bg: linear-gradient(145deg, #323532, #1d1f1d);
+  --tv-mark-rim: inset 0 0 0 1px rgba(170, 191, 178, .34), inset 0 1px 0 rgba(255, 255, 255, .08);
+  --tv-mark-ink: #c9d6cd;
+  --tv-wire: #636b64;
+  --tv-wire-in: #8f998f;
+  --tv-wire-out: #d5dcd4;
+  --tv-wire-traced: #aabfb2;
+  /* Block families colour each card's glyph and nothing else. Several are
+     deliberately close; the glyph shape and name identify the operation, the hue
+     helps recognition. Neutral glyphs hold 3:1 on a selected card's tile. */
+  --tv-family-convolution: #a8b9c7;
+  --tv-family-linear: #b5bacb;
+  --tv-family-normalization: #aabdae;
+  --tv-family-activation: #c6bda4;
+  --tv-family-pooling: #baafc5;
+  --tv-family-dropout: #c2adb5;
+  --tv-family-recurrent: #b5a5c1;
+  --tv-family-attention: #aba7c7;
+  --tv-family-embedding: #beaf96;
+  --tv-family-padding: #b6b8a5;
+  --tv-family-resampling: #a5bbb6;
+  --tv-family-shape: #aab8be;
+  --tv-family-distance: #b9a9ae;
+  --tv-family-loss: #c2aa9f;
+  --tv-family-arithmetic: #bfb1a4;
+  --tv-family-io: #c9cfc8;
+  --tv-family-neutral: #848d85;
+  /* Share of the family colour in a family glyph's tile; the glyph keeps 3.7:1 on it. */
+  --tv-glyph-tint: 16%;
+  /* Reserved semantic colours: outline/stroke, and label ink where they differ. */
+  --tv-success: #83dca3;
+  --tv-warning: #f5c778;
+  --tv-error: #ff9298;
+  --tv-inputs-changed: #8bbcff;
+  --tv-added: #83dca3;
+  --tv-modified: #f5c778;
+  --tv-removed: #ff9298;
+  --tv-added-ink: #83dca3;
+  --tv-modified-ink: #f5c778;
+  --tv-removed-ink: #ff9298;
+  --tv-inputs-changed-ink: #8bbcff;
+  --tv-backdrop: rgba(6, 8, 6, .6);
+  --tv-minimap-node: rgba(164, 173, 165, .5);
+  --tv-quick: 120ms;
+  --tv-standard: 160ms;
+  --tv-ease: cubic-bezier(.2, 0, 0, 1);
+}
+
+:root[data-tv-theme='light'] {
+  --tv-color-scheme: light;
+  --tv-canvas: #f3f2ee;
+  --tv-canvas-wash: radial-gradient(1200px 760px at 12% -10%, #f8f8fb, transparent 62%), linear-gradient(160deg, #f4f4f2, #f1efe9);
+  --tv-dot: rgba(20, 22, 30, .12);
+  --tv-chrome: rgba(251, 251, 249, .88);
+  --tv-chrome-filter: blur(14px) saturate(1.4);
+  --tv-popover: #ffffff;
+  --tv-field: #fbfbfa;
+  --tv-face: #ffffff;
+  --tv-face-top: #ffffff;
+  --tv-face-bot: #fdfdfc;
+  --tv-face-hi: rgba(20, 22, 30, .05);
+  --tv-face-selected: #fbfbf9;
+  --tv-rim-top: rgba(20, 22, 30, .12);
+  --tv-rim-bot: rgba(20, 22, 30, .15);
+  --tv-divider: rgba(20, 22, 30, .07);
+  --tv-module: rgba(255, 255, 255, .5);
+  --tv-frame-line: rgba(20, 22, 30, .10);
+  --tv-frame-head: rgba(255, 255, 255, .55);
+  --tv-edge: rgba(20, 22, 30, .13);
+  --tv-edge-hi: rgba(20, 22, 30, .18);
+  --tv-hairline: rgba(20, 22, 30, .08);
+  --tv-card-shadow: 0 1px 2px rgba(20, 22, 30, .06), 0 12px 26px -16px rgba(20, 22, 30, .24);
+  --tv-popover-shadow: 0 0 0 1px rgba(20, 22, 30, .08), 0 18px 40px -14px rgba(20, 22, 30, .28);
+  --tv-keyline: 0 1px 2px rgba(20, 22, 30, .06);
+  --tv-sheen: inset 0 1px 0 rgba(255, 255, 255, .6);
+  --tv-text: #16171b;
+  --tv-text-2: #555a66;
+  --tv-text-3: #6f7480;
+  /* Interaction is sage in both themes; this darker sage holds 5:1 on Paper. */
+  --tv-accent: #4d6a58;
+  --tv-accent-ink: #48634f;
+  --tv-accent-wash: rgba(77, 106, 88, .10);
+  --tv-accent-edge: rgba(77, 106, 88, .32);
+  --tv-selection: #17181c;
+  --tv-selection-halo: transparent;
+  --tv-focus-ring: #17181c;
+  --tv-hot: #16171b;
+  --tv-row: #f6f6f4;
+  --tv-row-bar: rgba(20, 22, 30, .16);
+  --tv-out-row: #f0f0ed;
+  --tv-out-bar: rgba(20, 22, 30, .45);
+  --tv-tile-line: rgba(20, 22, 30, .06);
+  --tv-glyph: #555a66;
+  --tv-glyph-compute: #555a66;
+  --tv-seg-track: rgba(20, 22, 30, .055);
+  --tv-seg-on: #ffffff;
+  --tv-seg-on-ink: #16171b;
+  --tv-seg-on-shadow: 0 1px 2px rgba(20, 22, 30, .14), 0 0 0 1px rgba(20, 22, 30, .06);
+  --tv-primary-bg: linear-gradient(#2b2c32, #17181c);
+  --tv-primary-ink: #ffffff;
+  --tv-primary-line: #17181c;
+  --tv-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 1px 2px rgba(0, 0, 0, .18);
+  --tv-mark-bg: linear-gradient(145deg, #2b2c33, #121316);
+  --tv-mark-rim: inset 0 1px 0 rgba(255, 255, 255, .16), 0 1px 2px rgba(0, 0, 0, .2);
+  --tv-mark-ink: #ffffff;
+  --tv-wire: #b2b5bd;
+  --tv-wire-in: #7f8490;
+  --tv-wire-out: #17181c;
+  --tv-wire-traced: #4d6a58;
+  /* Darker variants of the Ink family hues so glyph strokes hold 3:1 on Paper tiles. */
+  --tv-family-convolution: #6c91af;
+  --tv-family-linear: #808bb1;
+  --tv-family-normalization: #6d9775;
+  --tv-family-activation: #9f8b54;
+  --tv-family-pooling: #9a84b0;
+  --tv-family-dropout: #ab8291;
+  --tv-family-recurrent: #9e82b4;
+  --tv-family-attention: #8e87be;
+  --tv-family-embedding: #a78956;
+  --tv-family-padding: #8b8f68;
+  --tv-family-resampling: #67968b;
+  --tv-family-shape: #73919e;
+  --tv-family-distance: #a3858e;
+  --tv-family-loss: #b1836e;
+  --tv-family-arithmetic: #a5886d;
+  --tv-family-io: #555a66;
+  --tv-family-neutral: #83888f;
+  /* Untinted: on white, a tint would take glyph strokes below 3:1. */
+  --tv-glyph-tint: 0%;
+  --tv-success: #1a8a4a;
+  --tv-warning: #8f5600;
+  --tv-error: #c62f45;
+  --tv-inputs-changed: #2563d9;
+  --tv-added: #1a8a4a;
+  --tv-modified: #b06a00;
+  --tv-removed: #c62f45;
+  --tv-added-ink: #166e3c;
+  --tv-modified-ink: #824e00;
+  --tv-removed-ink: #b02a3e;
+  --tv-inputs-changed-ink: #1f52b4;
+  --tv-backdrop: rgba(20, 22, 30, .28);
+  --tv-minimap-node: rgba(111, 116, 128, .4);
+
+  /* Shared legacy surfaces that still read index.css / ui2 tokens. */
+  --bg-primary: #f3f2ee; --bg-secondary: #fbfbfa; --bg-elevated: #ffffff; --bg-floating: #ffffff;
+  --bg-inset: #fbfbfa; --bg-canvas: #f3f2ee; --bg-hover: rgba(20, 22, 30, .05);
+  --text-primary: #16171b; --text-secondary: #555a66; --text-muted: #6f7480;
+  --border-color: rgba(20, 22, 30, .13); --border-subtle: rgba(20, 22, 30, .08); --border-strong: rgba(20, 22, 30, .2);
+  --ui2-bg: #f3f2ee; --ui2-surface: #ffffff; --ui2-surface-2: #fbfbfa;
+  --ui2-border: rgba(20, 22, 30, .13); --ui2-border-strong: rgba(20, 22, 30, .2);
+  --ui2-text: #16171b; --ui2-text-dim: #555a66; --ui2-text-faint: #6f7480;
+  --ui2-bg-floating: #ffffff; --ui2-rule: rgba(20, 22, 30, .08);
+  --ui2-level-2: rgba(20, 22, 30, .04); --ui2-level-2-hover: rgba(20, 22, 30, .07);
+  --ui2-shadow-float: 0 18px 40px -14px rgba(20, 22, 30, .28);
+  --ui2-accent: #4d6a58; --ui2-accent-border: rgba(77, 106, 88, .45); --ui2-accent-wash: rgba(77, 106, 88, .09);
+}
+/* Shared legacy surfaces that still read index.css / ui2 tokens, in graphite. */
+:root[data-tv-theme='dark'] {
+  --bg-primary: #1d1f1d; --bg-secondary: #242624; --bg-elevated: #2a2c2a; --bg-floating: #242624;
+  --bg-inset: #1a1b1a; --bg-canvas: #171817; --bg-hover: rgba(227, 232, 226, .06);
+  --text-primary: #e3e8e2; --text-secondary: #a4ada5; --text-muted: #98a199;
+  --border-color: rgba(227, 232, 226, .14); --border-subtle: rgba(227, 232, 226, .08); --border-strong: rgba(227, 232, 226, .22);
+  --ui2-bg: #1d1f1d; --ui2-surface: #2a2c2a; --ui2-surface-2: #242624;
+  --ui2-border: rgba(227, 232, 226, .14); --ui2-border-strong: rgba(227, 232, 226, .22);
+  --ui2-text: #e3e8e2; --ui2-text-dim: #a4ada5; --ui2-text-faint: #98a199;
+  --ui2-bg-floating: #242624; --ui2-rule: rgba(227, 232, 226, .08);
+  --ui2-level-2: rgba(227, 232, 226, .04); --ui2-level-2-hover: rgba(227, 232, 226, .07);
+  --ui2-accent: #aabfb2; --ui2-accent-border: rgba(170, 191, 178, .45); --ui2-accent-wash: rgba(170, 191, 178, .09);
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-tv-theme='light'] { --tv-chrome: #fafaf8; --tv-chrome-filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --tv-quick: 0ms; --tv-standard: 0ms; }
+}
+@media (prefers-contrast: more) {
+  :root { --tv-edge: rgba(227, 232, 226, .24); --tv-edge-hi: rgba(227, 232, 226, .4); --tv-text-3: #a4ada5; --tv-rim-top: #6a726a; --tv-rim-bot: #6a726a; }
+  :root[data-tv-theme='light'] { --tv-edge: rgba(20, 22, 30, .3); --tv-edge-hi: rgba(20, 22, 30, .45); --tv-text-3: #555a66; --tv-rim-top: rgba(20, 22, 30, .3); --tv-rim-bot: rgba(20, 22, 30, .3); }
+}
+@media (forced-colors: active) {
+  :root, :root[data-tv-theme='light'] {
+    --tv-canvas: Canvas; --tv-chrome: Canvas; --tv-face: Canvas; --tv-face-top: Canvas; --tv-face-bot: Canvas; --tv-face-hi: Canvas;
+    --tv-module: Canvas; --tv-popover: Canvas; --tv-field: Canvas; --tv-canvas-wash: none; --tv-dot: transparent;
+    --tv-text: CanvasText; --tv-text-2: CanvasText; --tv-text-3: GrayText;
+    --tv-edge: CanvasText; --tv-edge-hi: Highlight; --tv-hairline: GrayText; --tv-rim-top: CanvasText; --tv-rim-bot: CanvasText;
+    --tv-accent: Highlight; --tv-accent-ink: Highlight; --tv-accent-edge: Highlight; --tv-accent-wash: Canvas;
+    --tv-selection: Highlight; --tv-selection-halo: Canvas; --tv-hot: CanvasText;
+    --tv-wire: GrayText; --tv-wire-in: GrayText; --tv-wire-out: CanvasText; --tv-wire-traced: Highlight;
+    --tv-face-selected: Canvas; --tv-focus-ring: Highlight;
+  }
+}

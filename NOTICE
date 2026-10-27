@@ -1,0 +1,26 @@
+tensorViz
+Copyright (c) 2026 TensorViz contributors
+
+This project is licensed under the MIT License. See LICENSE.
+
+The tldraw SDK and @tldraw/assets (version 5.0.1 in this tree) are not licensed
+under MIT. Their license is included at runtime/licenses/tldraw-5.0.1.md and
+summarized in docs/licensing.md. A production build that ships tldraw to other
+people needs a tldraw license key obtained by the builder. This repository does
+not grant that license and must not contain a key. The canvas reads
+REACT_APP_TLDRAW_LICENSE_KEY from the environment at build time.
+
+npm packages that the extension host and plugin bundle keep their own licenses.
+Packaging writes those notices with tooling/packaging/bundle-notices.mjs:
+
+- extension host: extension/DEPENDENCY_NOTICES.txt (generated, not committed)
+- plugin: DEPENDENCY_NOTICES.md inside the plugin archive
+
+The check lives in tooling/test/bundle-notices.test.mjs. Python packages installed
+into a selected or managed interpreter are not vendored here; their distributors
+retain their licenses.
+
+Third-party notices that ship with the extension source:
+
+- extension/THIRD_PARTY_NOTICES.md
+- extension/MCP_PARSER_NOTICES.md

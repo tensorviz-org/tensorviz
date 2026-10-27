@@ -1,0 +1,137 @@
+{
+  "name": "canvas",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@tldraw/assets": "5.0.1",
+    "@types/dagre": "^0.7.54",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.126",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "@types/react-router-dom": "^5.3.3",
+    "ajv": "8.20.0",
+    "dagre": "^0.8.5",
+    "firebase": "^11.10.0",
+    "lucide-react": "^0.511.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-router-dom": "^7.18.4",
+    "react-scripts": "5.0.1",
+    "reactflow": "^11.11.4",
+    "tldraw": "^5.0.1",
+    "typescript": "^4.9.5",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "test:ci": "react-scripts test --ci --watchAll=false --watch=false --runInBand",
+    "eject": "react-scripts eject",
+    "test:e2e:ui2:smoke": "npm run test:e2e:ui2:smoke:auto",
+    "test:e2e:ui2:smoke:auto": "node tests/e2e/run-e2e.mjs tests/e2e/builder-canvas-gate.spec.ts tests/e2e/builder-template-load.spec.ts",
+    "test:e2e:all": "node tests/e2e/run-e2e.mjs tests/e2e",
+    "protocol:sync": "node ../tooling/contracts/sync.mjs",
+    "protocol:check": "node ../tooling/contracts/sync.mjs --check",
+    "test:ui2:precheck:backend": "node tests/e2e/precheck-backend.mjs",
+    "test:ui2:guards": "react-scripts test --ci --watchAll=false --watch=false --runInBand src/__tests__/hosted/ui2InteractionAudit.test.ts",
+    "test:ui2:gate": "npm run test:ui2:guards && npm run test:ui2:precheck:backend && npm run test:e2e:ui2:smoke:auto",
+    "test:e2e:substantive": "node tests/e2e/run-e2e.mjs tests/e2e/builder-canvas-gate.spec.ts tests/e2e/builder-template-load.spec.ts tests/e2e/builder-shortcuts.spec.ts tests/e2e/drag-to-connect.spec.ts tests/e2e/node-parameters-autosave.spec.ts tests/e2e/node-parameters-reach-the-canvas.spec.ts tests/e2e/qa-canvas-h6-h7.spec.ts tests/e2e/palette-exact-match.spec.ts tests/e2e/error-help-and-repair.spec.ts tests/e2e/verified-status-reaches-home.spec.ts tests/e2e/getting-started-replay.spec.ts tests/e2e/home-start-anything.spec.ts tests/e2e/ungroup-module.spec.ts tests/e2e/more-menu-reachable.spec.ts tests/e2e/history.spec.ts tests/e2e/ui-v2-shell.spec.ts tests/e2e/two-tabs-one-graph.spec.ts tests/e2e/empty-canvas-has-a-way-in.spec.ts tests/e2e/ide-static-serve.spec.ts",
+    "test:e2e:local-browser": "node tests/e2e/run-installed.mjs",
+    "build:viewer": "node scripts/build-viewer.cjs",
+    "build:plugin": "node scripts/build-plugin.cjs",
+    "test:canvas": "npm run test:ci -- src/__tests__/canvas/",
+    "test:hosts": "npm run test:ci -- src/__tests__/hosts/",
+    "test:viewer": "npm run test:ci -- src/__tests__/viewer/"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "autoprefixer": "^10.5.0",
+    "http-proxy-middleware": "^2.0.9",
+    "postcss": "8.5.31",
+    "tailwindcss": "^3.4.19",
+    "yaml": "^2.9.1"
+  },
+  "overrides": {
+    "@babel/plugin-transform-modules-systemjs": "7.29.8",
+    "@eslint/eslintrc": {
+      "js-yaml": "4.3.2"
+    },
+    "@grpc/grpc-js": "1.14.6",
+    "@modelcontextprotocol/sdk": {
+      ".": "1.32.2",
+      "express": {
+        "body-parser": "2.4.0"
+      }
+    },
+    "@tiptap/core": "3.32.0",
+    "body-parser": "1.20.9",
+    "brace-expansion": "1.1.21",
+    "browserslist": "4.29.4",
+    "compression": "1.8.2",
+    "fast-uri": "3.1.9",
+    "filelist": {
+      "minimatch": {
+        "brace-expansion": "2.1.7"
+      }
+    },
+    "follow-redirects": "1.16.2",
+    "form-data": "3.0.5",
+    "js-yaml": "4.3.2",
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "3.15.2"
+    },
+    "eslint": {
+      "js-yaml": "4.3.2"
+    },
+    "launch-editor": "2.14.2",
+    "nanoid": "3.3.20",
+    "nth-check": "2.1.1",
+    "postcss": "8.5.31",
+    "prosemirror-view": "1.42.8",
+    "proxy-addr": "2.0.8",
+    "react-router": "7.18.4",
+    "resolve-url-loader": "5.0.0",
+    "serialize-javascript": "7.1.4",
+    "source-map-js": "1.2.2",
+    "svgo": "2.8.4",
+    "underscore": "1.13.8",
+    "webpack-dev-server": {
+      "ws": "8.22.0"
+    },
+    "ws": "7.5.13",
+    "zod": "4.6.7"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^react-router-dom$": "<rootDir>/src/__mocks__/react-router-dom.js"
+    }
+  }
+}

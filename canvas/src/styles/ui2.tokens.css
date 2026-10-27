@@ -1,0 +1,2806 @@
+:root {
+  --ui2-bg: #050505;
+  --ui2-surface: #090909;
+  --ui2-surface-2: #0f0f10;
+  /* A code pane inside a dialog. Recedes from --ui2-surface-2 so the pane reads
+     as inset into the dialog rather than sitting on it. */
+  --ui2-surface-code: #0d0d0e;
+  --ui2-border: rgba(255, 255, 255, 0.10);
+  --ui2-border-strong: rgba(255, 255, 255, 0.18);
+  --ui2-text: #f3f3f4;
+  /* 4.5:1 must hold on the LIGHTEST surface muted text ever lands on, which is
+     now the level-2 hover fill #3d3d3d. #9b9ba3 gives 3.94:1 there (fails AA);
+     #a8a8b0 gives 4.60:1, and 5.59:1 on the level-2 rest fill, 6.90:1 on a
+     panel, 8.63:1 on the app background. */
+  --ui2-text-dim: #a8a8b0;
+  --ui2-cyan: #67d9ff;
+  --ui2-accent: var(--ui2-cyan); /* chrome accent = cyan (was green #57f287) — single-accent chrome */
+  --ui2-green: #60f7b5;
+  --ui2-orange: #ffb65a;
+  /* ONE error hue. Banners used to pair a red border with a --ui2-pink icon,
+     and three near-reds (#ff7b72 / #ff8f85 / #ff958f) had drifted apart.
+     #ff7b72 = 6.46:1 on a level-1 panel. --ui2-pink is deleted: it was a
+     second error hue. */
+  --ui2-red: #ff7b72;
+
+  /* Floating chrome surface: #222 @ 92% so the canvas reads through the panels. */
+  --ui2-bg-floating: rgba(34, 34, 34, 0.92);
+
+  /* ── Surface ladder ─────────────────────────────────────────────────────
+     Exactly two painted levels. Level 1 = a panel on the page or the canvas
+     (--ui2-bg-floating composites to #202020 over --ui2-bg = 1.25:1).
+     Level 2 = anything sitting ON a level-1 panel; it used to be a repaint of
+     the IDENTICAL fill (#222 over #202020 = 1.026:1, "contrast mud") that also
+     re-ran backdrop-filter over already-blurred pixels.
+     Level 2 lifts with WHITE, not black: at this luminance darkening loses
+     contrast (26% black over #202020 = 1.09:1) while 7% white gives 1.23:1
+     and the 13% hover gives 1.50:1 against the parent panel. */
+  --ui2-level-2: rgba(255, 255, 255, 0.07);        /* -> #2f2f2f over level 1 */
+  --ui2-level-2-hover: rgba(255, 255, 255, 0.13);  /* -> #3d3d3d */
+  --ui2-level-2-active: rgba(255, 255, 255, 0.05);
+  --ui2-level-2-border: rgba(255, 255, 255, 0.14); /* 1.55:1 edge vs the panel */
+  /* 3.54:1 against the parent panel, so the hovered boundary clears the WCAG
+     1.4.11 3:1 minimum for a state indicator. */
+  --ui2-level-2-border-hover: color-mix(in srgb, var(--ui2-accent) 50%, transparent);
+
+  /* Status containers and accent-tinted controls. Border percentages are set
+     where the 1px edge clears ~3:1 on a level-1 panel. */
+  --ui2-red-border: color-mix(in srgb, var(--ui2-red) 55%, transparent);
+  --ui2-red-wash: color-mix(in srgb, var(--ui2-red) 9%, transparent);
+  --ui2-accent-border: color-mix(in srgb, var(--ui2-accent) 45%, transparent);
+  --ui2-accent-wash: color-mix(in srgb, var(--ui2-accent) 9%, transparent);
+  --ui2-green-border: color-mix(in srgb, var(--ui2-green) 45%, transparent);
+
+  /* Radius ladder: floating container / surface / control. Inner < outer, so a
+     row inside a card no longer shares its parent's exact corner. */
+  --ui2-radius-float: 12px;
+  --ui2-radius-surface: 10px;
+  --ui2-radius-control: 8px;
+
+  /* Elevation ladder. A page section lying flat on #050505 does not get the
+     same 28px drop shadow as an overlay floating above the canvas — uniform
+     drop shadows on flat cards are the flat-design-era tell. */
+  --ui2-shadow-flat: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 2px rgba(0, 0, 0, 0.28);
+  --ui2-shadow-pressed: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+  --ui2-shadow-float: 0 18px 44px rgba(0, 0, 0, 0.46);
+
+  /* Centre-column measure. Pins the hero's content box at 1070px — above the
+     1000px @container step — so wide viewports stop flipping the KPI grid
+     between 2-up and 4-up. */
+  --ui2-measure: 1120px;
+
+  /* ONE tracking value for every uppercase micro-label (was 0.05 / 0.06 / 0.08
+     / 0.14 / 0.18 / 0.2em, plus uppercase with NO tracking on the KPI labels). */
+  --ui2-tracking-eyebrow: 0.10em;
+
+  /* ── De-boxed page palette ──────────────────────────────────────────────
+     Hairline rules replace cards as the grouping device (the references' own
+     ~0.08 white). 0.09 -> #1c1c1c, 1.20:1 on --ui2-bg. A rule is static
+     STRUCTURE, not a state indicator, so 1.4.11's 3:1 floor does not apply.
+     Painted over a hovered row it composites to #373737, still 1.32:1 against
+     that row's fill, so list structure never disappears under the pointer. */
+  --ui2-rule: rgba(255, 255, 255, 0.09);
+  --ui2-rule-strong: rgba(255, 255, 255, 0.22); /* #3c3c3c, 1.85:1 — monoline strokes, decorative */
+
+  /* Dim eyebrow grey. USED IN EXACTLY ONE PLACE: .ui2-eyebrow-faint on the hero
+     eyebrow, which sits on the page. 5.06:1 on --ui2-bg, 4.92:1 on the top lift.
+     The references' own #5a5f66 is 3.17:1 here and FAILS AA, so it is not used.
+     THREE HARD EXCLUSIONS: never on a level-1 panel (4.05:1), never inside
+     .ui2-nav-item (the builder's nav popover IS a panel), never for text inside
+     .ui2-row (hover fill -> 3.90:1). Row glyphs use --ui2-text-dim. */
+  --ui2-text-faint: #7e7e86;
+
+  /* De-boxed row states. See .ui2-row for why the fill is not the affordance. */
+  --ui2-row-hover: rgba(255, 255, 255, 0.12);  /* -> #232323, 1.30:1 vs the page */
+  --ui2-row-active: rgba(255, 255, 255, 0.06); /* -> #141414, 1.11:1 */
+}
+
+.ui2-app-bg {
+  /* Near-black, flat, with at most a very subtle lift toward the top.
+     --ui2-bg stays #050505 — already DEEPER than the reference's #08080A. The
+     "deepening" this restyle delivers is de-boxing: the surface the user looks
+     at moves from #202020 to #050505, a 4.0x luminance drop. Delivered as a
+     gradient layer rather than a token change so the hardcoded #050505 in
+     .ui2-builder-stage and the rgba(5,5,5,.94) in .ui2-topbar cannot drift. */
+  background:
+    radial-gradient(120% 62% at 50% 0%, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0) 62%),
+    var(--ui2-bg);
+}
+
+/* ── Type roles and measure ───────────────────────────────────────────────
+   ONE ladder, one role per step, all line-heights multiples of 4px:
+     40/44  display     the single confident moment per app — the hero h1
+     28/32  stat        .ui2-kpi-value
+     24/32  page title  every page h1
+     18/24  section     every h2/h3 that heads a group
+     18/28  lede        the hero and Sandboxes intro, capped at 62ch
+     11/16  eyebrow     every uppercase micro-label
+   The old scale had a 60px hero h1 — 2.5x the 24px page titles, i.e. a
+   different design system — and a 24px lede exactly EQUAL to sibling pages'
+   titles. Weights are 400/500/600 only: the UI font's real weights are
+   Regular/Medium/Demi Bold, so the file's one `font-weight: 650` rounded
+   unpredictably per platform. */
+/* The two-tone statement, at HEADLINE scale. Emphasis comes from COLOUR, not a
+   size jump: ONE paragraph, ONE size, opening clause near-white, remainder
+   mid-grey. The 40/44 step is UNCHANGED — it moves from the h1 (a product NAME,
+   which cannot carry a two-tone sentence) to the paragraph that inherits the
+   headline role, so the page keeps exactly one big-type block.
+   30ch at 40px is ~666px, leaving 300px + 24px for the figure inside 1000px. */
+.ui2-display {
+  font-size: 40px;
+  line-height: 44px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  color: var(--ui2-text);
+  max-width: 30ch;
+}
+
+/* One device, two scales: the 40px hero display and the 18px Sandboxes lede.
+   .ui2-lede is already dim, so that page marks the OPENING clause strong; the
+   hero is already near-white, so it marks the TAIL dim. */
+.ui2-tone-strong { color: var(--ui2-text); }   /* 18.38:1 on the page */
+.ui2-tone-dim { color: var(--ui2-text-dim); }  /* 8.63:1 on the page */
+
+/* The h1 is a product NAME, so it becomes the dev-tool wordmark and hands the
+   display step to the sentence below it. Weight 500: index.html requests
+   JetBrains Mono at wght@400;500 only, so 600 would be synthesised. */
+.ui2-wordmark {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--ui2-text);
+}
+
+.ui2-title {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.014em;
+  color: var(--ui2-text);
+}
+
+.ui2-section-title {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.006em;
+  color: var(--ui2-text);
+}
+
+/* 62ch at 18px is ~66-72 characters — inside the 45-75 readable measure.
+   max-w-4xl (896px) was ~99 characters, which is why the hero's rag went
+   lopsided on a wide viewport. */
+.ui2-lede {
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 400;
+  letter-spacing: -0.004em;
+  color: var(--ui2-text-dim);
+  max-width: 62ch;
+}
+
+/* The references' monospace eyebrow. var(--font-mono) is already defined in
+   index.css and JetBrains Mono is already fetched by index.html — ZERO new
+   network requests. Weight 500 because only 400/500 are requested.
+   COLOUR STAYS --ui2-text-dim: this class also lands on the COLLAPSED right
+   rail, an <aside className="ui2-panel">, where --ui2-text-faint would be
+   4.05:1 and fail AA. #a8a8b0 is 6.90:1 there. The dim variant is opt-in. */
+.ui2-eyebrow {
+  font-family: var(--font-mono);
+  color: var(--ui2-text-dim);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: var(--ui2-tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+/* Opt-in dim modifier. Exactly one element: the hero eyebrow, on the page. */
+.ui2-eyebrow-faint {
+  color: var(--ui2-text-faint);
+}
+
+/* Centre-column measure. Applied to each page's own content wrapper rather than
+   to <main>, so main keeps filling its grid cell (background and scrollbar stay
+   at the edge). */
+.ui2-page {
+  width: 100%;
+  max-width: var(--ui2-measure);
+  margin-inline: auto;
+}
+
+.ui2-panel {
+  background: var(--ui2-bg-floating);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--ui2-border);
+  border-radius: var(--ui2-radius-surface);
+  /* Was a 28px drop shadow on every panel, including flat page sections. Real
+     elevation is now reserved for things that actually float (see below). */
+  box-shadow: var(--ui2-shadow-flat);
+  transition: border-color 120ms ease-out, box-shadow 120ms ease-out, background-color 120ms ease-out;
+}
+
+/* Only genuinely floating chrome keeps a real drop shadow: popovers pop OUT of
+   a surface painted with the same --ui2-bg-floating, so without this their
+   border is invisible against the bar they came from. */
+.ui2-panel[role="menu"] {
+  border-color: var(--ui2-border-strong);
+  box-shadow: var(--ui2-shadow-float);
+}
+
+/* ── Level 2 + interaction states ─────────────────────────────────────────
+   .ui2-panel declared `transition: border-color, box-shadow, background-color`
+   and then defined NO :hover anywhere in the file, so every panel-as-button row
+   in the app was inert under the mouse — the single biggest "feels dead" cue.
+   The fix is element-scoped on purpose: a SURFACE does not react to the mouse,
+   a CONTROL does. Only a <button> or <a> carrying the class lights up, so ~20
+   existing rows gain their first hover state with zero JSX change while
+   <section className="ui2-panel"> cards and the hero's static
+   <span className="ui2-chip"> stay correctly inert.
+
+   `background-color` (not the `background` shorthand) on purpose: status
+   notices deliver their tint as background-image, and the shorthand would
+   silently wipe it on a nested alert.
+
+   The diagnostics drawer is listed explicitly because it paints
+   --ui2-bg-floating WITHOUT carrying .ui2-panel, so its rows were depth-1
+   repaints of the identical fill for the same reason. */
+.ui2-panel .ui2-panel:not([role="menu"]),
+.ui2-diagnostics-drawer .ui2-panel:not([role="menu"]) {
+  background-color: var(--ui2-level-2);
+  border-color: var(--ui2-level-2-border);
+  border-radius: var(--ui2-radius-control);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+button.ui2-panel,
+a.ui2-panel {
+  cursor: pointer;
+}
+
+/* Hover = a fill step plus an accent edge at 3.54:1 against the parent panel.
+   Colour only — no transform — so nothing reflows.
+   The :has() arm lights a <div> row from its PRIMARY child only, so the row
+   does not glow as though it will open while the pointer is on a Delete chip. */
+button.ui2-panel:not(:disabled):hover,
+a.ui2-panel:hover,
+.ui2-panel:has(> .ui2-row-primary:hover) {
+  background-color: var(--ui2-level-2-hover);
+  border-color: var(--ui2-level-2-border-hover);
+}
+
+button.ui2-panel:not(:disabled):active,
+a.ui2-panel:active {
+  background-color: var(--ui2-level-2-active);
+  box-shadow: var(--ui2-shadow-pressed);
+}
+
+/* Grouping wrapper: no fill, no border, no shadow. A group of rows inside a
+   320px overlay is grouped by a heading and space, not by a third box — which
+   is what produced depth-3 contrast mud in the inspector (three fills within
+   1.03:1 of each other). Removing the middle box removes depth 3 entirely. */
+.ui2-section {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* Band head. The rule under the heading replaces the card edge as the grouping
+   signal, and it is continuous with the row rules below it — that continuity is
+   what makes a de-boxed list read as ONE group. 1.20:1 on the page. */
+.ui2-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ui2-rule);
+}
+
+/* ── De-boxed interactive row ──────────────────────────────────────────────
+   Replaces .ui2-panel on the ~20 list rows of the content pages.
+
+   THE FILL IS NOT THE AFFORDANCE. 12% white over --ui2-bg composites to
+   #232323 = 1.30:1. To clear 1.4.11's 3:1 a white fill would have to reach
+   rgba(255,255,255,0.355) = #5e5e5e, and twenty rows flashing to 35% white is
+   not a sleek dark UI. So the row carries FOUR cues at REST — the base rule
+   (1.20:1), a persistent trailing glyph at --ui2-text-dim (8.63:1), a
+   500-weight near-white title over a dim meta line, and cursor:pointer — and
+   the hover INDICATOR is a 2px inset near-white marker at 18.38:1 vs the page
+   and 14.17:1 vs the row's own hover fill. No row relies on hover to announce
+   itself.
+
+   This file is imported AFTER Tailwind's utilities, so these declarations beat
+   a same-property utility; the JSX sites drop their flex/items-center/p-3/w-full
+   rather than leaving them to lose silently. */
+.ui2-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* Bleeds 12px each side so the hover fill reads as a BAND, not a box drawn
+     around the label. 12px fits inside main's px-6 and the rail's px-5, so the
+     row never leaves its parent's padding box. */
+  width: calc(100% + 24px);
+  margin-inline: -12px;
+  padding: 14px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--ui2-rule);
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--ui2-text);
+  text-align: left;
+  /* inset box-shadow, never border-left: a border would reflow the row. */
+  box-shadow: inset 0 0 0 0 transparent;
+  transition: background-color 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+/* A dangling rule under the last row reads as a broken table. */
+.ui2-row:last-child {
+  border-bottom: 0;
+}
+
+/* Element-scoped like button.ui2-panel: a <div> row that merely CONTAINS
+   controls must never claim the pointer. */
+button.ui2-row,
+a.ui2-row,
+.ui2-row-primary {
+  cursor: pointer;
+}
+
+.ui2-row-primary {
+  min-width: 0;
+}
+
+/* The :has() arm lights a <div> row from its PRIMARY child only, so the row does
+   not promise to open while the pointer is on a Delete chip. */
+button.ui2-row:not(:disabled):hover,
+a.ui2-row:hover,
+.ui2-row:has(> .ui2-row-primary:hover) {
+  background-color: var(--ui2-row-hover);
+  box-shadow: inset 2px 0 0 0 var(--ui2-text);
+}
+
+button.ui2-row:not(:disabled):active,
+a.ui2-row:active {
+  background-color: var(--ui2-row-active);
+}
+
+/* The rest-state affordance, and why the base rule may stay quiet:
+   --ui2-text-dim, NOT --ui2-text-faint. 8.63:1 on the page, 6.66:1 on the row's
+   own hover fill — versus 5.06:1 / 3.90:1 for the faint grey. Trailing glyph
+   only; leading category icons keep --ui2-text. */
+.ui2-row-glyph {
+  color: var(--ui2-text-dim);
+  flex: 0 0 auto;
+  transition: color 120ms ease-out;
+}
+
+button.ui2-row:not(:disabled):hover .ui2-row-glyph,
+a.ui2-row:hover .ui2-row-glyph,
+.ui2-row:has(> .ui2-row-primary:hover) .ui2-row-glyph {
+  color: var(--ui2-text);
+}
+
+/* 18.38:1 at rest, 14.17:1 on the hover fill. */
+.ui2-row-title {
+  font-weight: 500;
+  color: var(--ui2-text);
+}
+
+/* 14px, not 13px: shrinking ~20 rows of timestamps buys no contrast — weight and
+   colour already separate title from meta. 6.66:1 on the hover fill, where the
+   faint grey would be 3.90:1. */
+.ui2-row-meta {
+  color: var(--ui2-text-dim);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+
+/* Status notices. The tint is a background-IMAGE so it layers over the panel's
+   own background-color instead of replacing it (and so a nested alert keeps
+   working). One hue per status — banners used to pair a red border with a pink
+   icon, and an OFFER to act is info, not success. */
+.ui2-notice-error {
+  border-color: var(--ui2-red-border);
+  background-image: linear-gradient(var(--ui2-red-wash), var(--ui2-red-wash));
+}
+
+.ui2-notice-info {
+  border-color: var(--ui2-accent-border);
+  background-image: linear-gradient(var(--ui2-accent-wash), var(--ui2-accent-wash));
+}
+
+.ui2-sidebar {
+  background: #060606;
+  border-right: 1px solid var(--ui2-rule);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.015);
+}
+
+/* Was a coral/orange radial blob over a #ff5a55 -> #fd8d42 -> #7cf29b gradient
+   painted in the RETIRED green, sitting 12px from a cyan-accent nav, first thing
+   on screen on every page — the most off-system object in the layer. */
+/* The references have zero chroma in view, so the mark goes monoline: a 5%
+   white chip so it still reads as a chip (the minimal-chrome nav trigger has no
+   other affordance), a 1px ring, and the glyph at --ui2-text. Pure CSS.
+   Preflight sets border-box, so the 1px border keeps the 36px/24px footprint. */
+.ui2-brand-mark {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--ui2-rule-strong);
+  color: var(--ui2-text);
+  box-shadow: none;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out;
+}
+
+/* The minimal-chrome nav trigger is a bare button with NO hover of its own, and
+   after de-chroming the mark it is the builder's only nav entry point. Fires
+   only in minimal chrome, where the mark is a direct <span> child of a button. */
+.ui2-app-bg button:hover > .ui2-brand-mark {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--ui2-border-strong);
+}
+
+/* .ui2-nav-section was removed with its only two users: the rail's "OVERVIEW"
+   and "EXTERNAL" eyebrow headers, which the redesign drops — the rail is now a
+   flat four-item nav, so there are no groups left to label. */
+
+.ui2-nav-item {
+  border: 1px solid transparent;
+  border-radius: 7px;
+  text-decoration: none;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.ui2-nav-item:hover {
+  background: rgba(255, 255, 255, 0.035) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: var(--ui2-text) !important;
+}
+
+.ui2-icon-button {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ui2-border);
+  border-radius: var(--ui2-radius-control);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ui2-text-dim);
+  cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+
+.ui2-icon-button:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--ui2-border-strong);
+  color: var(--ui2-text);
+}
+
+.ui2-icon-button:not(:disabled):active {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: var(--ui2-shadow-pressed);
+}
+
+.ui2-topbar {
+  background: rgba(5, 5, 5, 0.94);
+  border-bottom: 1px solid var(--ui2-rule);
+}
+
+.ui2-saved-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  color: var(--ui2-green);
+  background: color-mix(in srgb, var(--ui2-green) 12%, transparent);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.ui2-saved-pill span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ui2-green);
+}
+
+.ui2-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--ui2-border);
+  color: var(--ui2-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ui2-right-rail {
+  background: rgba(7, 7, 8, 0.88);
+  border-left: 1px solid var(--ui2-rule);
+}
+
+.ui2-scroll-surface {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 180ms ease;
+}
+
+.ui2-scroll-surface:hover,
+.ui2-scroll-surface:focus-within,
+.ui2-scroll-surface:active {
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+.ui2-scroll-surface::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.ui2-scroll-surface::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ui2-scroll-surface::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.ui2-scroll-surface:hover::-webkit-scrollbar-thumb,
+.ui2-scroll-surface:focus-within::-webkit-scrollbar-thumb,
+.ui2-scroll-surface:active::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.ui2-chip {
+  border: 1px solid var(--ui2-border);
+  /* 2% white was below the perceptual floor on every surface a chip sits on. */
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ui2-text-dim);
+  border-radius: var(--ui2-radius-control);
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+
+/* Element-scoped: the hero's three static <span className="ui2-chip"> tags
+   (nn.Module / Code / Graph) must not pretend to be buttons. */
+button.ui2-chip,
+a.ui2-chip {
+  cursor: pointer;
+}
+
+button.ui2-chip:not(:disabled):hover,
+a.ui2-chip:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--ui2-border-strong);
+  color: var(--ui2-text);
+}
+
+button.ui2-chip:not(:disabled):active,
+a.ui2-chip:active {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: var(--ui2-shadow-pressed);
+}
+
+/* Affirmative action. A banner's "Import" and its "Not now" must not be the
+   same object. Reserved for banners, page-header actions and error recovery. */
+/* Affirmative action, retuned into the references' single high-contrast pill:
+   near-white fill, dark ink, fully rounded. The accent tint was the last chroma
+   on the content surfaces. Exactly TWO in the app — Overview's "Import" and
+   Projects' "New" — and deliberately NONE in the builder toolbar, which already
+   has two high-intent buttons a near-white pill would out-shout. */
+.ui2-chip-primary {
+  color: #0f0f10;
+  font-weight: 600;
+  border-color: #f3f3f4;
+  background: #f3f3f4;
+  border-radius: 999px;
+  padding: 6px 14px;
+}
+
+/* MUST stay after button.ui2-chip:hover — same specificity, source order
+   decides, or the primary chip loses its accent on hover. */
+button.ui2-chip-primary:not(:disabled):hover {
+  color: #0f0f10;
+  border-color: #ffffff;
+  background: #ffffff;
+}
+
+/* Must stay after button.ui2-chip:active, which would otherwise repaint the
+   pill with a 6%-white fill on press. */
+button.ui2-chip-primary:not(:disabled):active {
+  color: #0f0f10;
+  border-color: #e2e2e6;
+  background: #e2e2e6;
+}
+
+.ui2-builder-stage {
+  position: relative;
+  background: #050505;
+  /* How much room at the bottom belongs to chrome rather than to the canvas.
+     Zero unless the status bar is mounted, which it is only while a project is
+     open — and then the canvas stops ABOVE it rather than running underneath,
+     for the reason CV-11 documents below. */
+  --ui2-canvas-inset-bottom: 0px;
+  /* How much room on the left belongs to chrome rather than to the canvas.
+     Zero by default — the canvas is full-bleed and everything floats over it,
+     which is the whole point of this layout and what
+     builder-canvas-gate.spec.ts measures. */
+  --ui2-canvas-inset-left: 0px;
+}
+
+/* Nothing reserves this on the builder any more: the Inspector was the one piece
+   of chrome that could not float (opaque, 320px, and the canvas ran underneath
+   it), and it is gone — parameters are edited on the node. The project rail below
+   still sets it, which is why the variable stays. */
+
+.ui2-builder-stage-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  padding: 14px;
+}
+
+.ui2-builder-toolbar {
+  position: absolute;
+  left: 50%;
+  /* The diagnostics drawer is no longer a permanent second bar, so the toolbar
+     sits close to the bottom edge instead of leaving room for it — plus whatever
+     the status bar reserves, which is 0 until a project is open. Measured at 18px
+     from the canvas edge either way, rather than from the viewport: the toolbar
+     floats over the canvas and the status bar is not canvas. */
+  bottom: calc(18px + var(--ui2-canvas-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 30;
+  /* NOT reduced by --ui2-canvas-inset-left. The bar's controls are ~995px
+     intrinsic and it scrolls on overflow-x, so subtracting the inset does not
+     shorten it — it clips its right end out of sight. Measured with the Inspector
+     open: at 1280 the visible bar was 894px against 995px of content, which took
+     Validate and Export Code with it; at 1024, four controls. It never needed
+     clamping anyway — z-index 30 beats the panel's 28 and the bar is in the
+     stage's stacking context, above the whole canvas subtree, so it stays
+     clickable where it overlaps. */
+  max-width: calc(100% - 32px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: var(--ui2-bg-floating);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.34);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.ui2-view-tabs {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 0;
+  padding: 2px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.ui2-view-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ui2-text-dim);
+  padding: 7px 11px;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+
+/* The inactive tab had no hover at all. The active tab keeps GREEN rather than
+   moving to the accent: Validate sits in the same bar wearing green, and two
+   accents in one toolbar is worse than one slightly over-loaded hue. Only the
+   retired #57f287 literal changes — retinted from the live token. */
+.ui2-view-tabs button:not(.active):hover {
+  color: var(--ui2-text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* The active tab drops GREEN: with the brand mark, the palette title and the
+   primary chip all de-chromed, a green tab was the loudest decorative colour
+   left one click from a greyscale Overview. It now uses the SAME device as
+   .ui2-row — a near-white 2px marker. Active label 10.41:1 on the fill; the
+   marker is 10.41:1 against it, 3.5x the 1.4.11 minimum, so the state is
+   carried by a compliant non-text indicator and not only by the fill. */
+.ui2-view-tabs button.active {
+  color: var(--ui2-text);
+  background: rgba(255, 255, 255, 0.10);
+  box-shadow: inset 0 -2px 0 var(--ui2-text);
+}
+
+/* Export Code and Validate are the two highest-intent buttons in the app and
+   had no hover and no active state. The neutral primary also read WEAKER than a
+   .ui2-chip (3.5% fill on --ui2-border); 6% + the strong border fixes that. */
+.ui2-primary-action {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 7px;
+  border: 1px solid var(--ui2-border-strong);
+  border-radius: var(--ui2-radius-control);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ui2-text);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+
+.ui2-primary-action:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.ui2-primary-action:not(:disabled):active {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: var(--ui2-shadow-pressed);
+}
+
+/* Class name deliberately UNCHANGED: src/canvas/ChatShapeUtil.tsx also uses it
+   for the AI plan "Accept" button, and renaming would silently degrade that to
+   the neutral primary. Only the two retired-green literals become tokens.
+   Must stay AFTER the neutral hover/active rules — same specificity. */
+.ui2-primary-action-green {
+  color: var(--ui2-green);
+  border-color: var(--ui2-green-border);
+  background: color-mix(in srgb, var(--ui2-green) 8%, transparent);
+}
+
+.ui2-primary-action-green:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--ui2-green) 62%, transparent);
+  background: color-mix(in srgb, var(--ui2-green) 15%, transparent);
+}
+
+.ui2-tool {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: var(--ui2-radius-control);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ui2-text-dim);
+  cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+
+/* :not(:disabled) is a real fix, not tidying: a greyed-out Undo / Redo / Delete
+   used to light up under the mouse, telling the user a dead control is live. */
+.ui2-tool:not(:disabled):hover,
+.ui2-tool.active {
+  color: var(--ui2-text);
+  border-color: var(--ui2-border-strong);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.ui2-tool:not(:disabled):active {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: var(--ui2-shadow-pressed);
+}
+
+/* Count badge on a toolbar tool (open error/warning count on Diagnostics). */
+.ui2-tool {
+  position: relative;
+}
+
+.ui2-tool-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--ui2-orange);
+  color: #1a1206;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+}
+
+/* Row in the toolbar's More menu. */
+.ui2-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ui2-text);
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ui2-menu-item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ui2-toolbar-divider-vertical {
+  width: 1px;
+  height: 28px;
+  background: var(--ui2-rule);
+}
+
+.ui2-canvas-frame {
+  background: #030303;
+}
+
+/* Floating bottom diagnostics drawer (default closed; overlays the full-bleed canvas). */
+.ui2-diagnostics-drawer {
+  position: absolute;
+  left: var(--ui2-canvas-inset-left, 0px);
+  /* Its warning rows are buttons that jump to a node, so the same overlap that
+     made cards unclickable made the left end of the log unclickable. */
+  right: 0;
+  bottom: 0;
+  z-index: 29;
+  background: var(--ui2-bg-floating);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--ui2-border);
+}
+
+/* Cmd/Ctrl+\ hide-all: drop every floating chrome overlay (canvas stays). */
+.ui2-chrome-hidden .ui2-builder-toolbar,
+.ui2-chrome-hidden .ui2-diagnostics-drawer,
+.ui2-chrome-hidden .ui2-palette-drawer {
+  display: none !important;
+}
+
+/* Cmd/Ctrl+P quick-jump palette. */
+.ui2-quickjump-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.ui2-quickjump {
+  width: 440px;
+  max-width: calc(100% - 32px);
+  border: 1px solid var(--ui2-border-strong);
+  border-radius: 12px;
+  background: rgba(14, 14, 16, 0.98);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.ui2-quickjump-input {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--ui2-border);
+  background: transparent;
+  color: var(--ui2-text);
+  padding: 12px 14px;
+  font-size: 14px;
+  outline: none;
+}
+
+.ui2-quickjump-list {
+  max-height: 320px;
+  overflow: auto;
+  padding: 6px;
+}
+
+.ui2-quickjump-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ui2-text);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.ui2-quickjump-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ui2-quickjump-id {
+  display: block;
+  font-weight: 600;
+}
+
+.ui2-quickjump-type {
+  display: block;
+  font-size: 12px;
+}
+
+/* The add-layer palette is a centred command palette, not a left drawer.
+   It used to be a 320px-wide column pinned to left:28px and stretched from
+   top:12px to bottom:96px; the redesigned palette is a 620px self-sizing panel,
+   which overflowed that box to the right and was anchored to a corner instead of
+   reading as a modal surface over the canvas. This is now a centring container
+   with no size of its own — the panel inside decides its own width, and
+   `pointer-events` is handed back to it so the container never eats a canvas
+   click in the empty space around it. */
+.ui2-palette-drawer {
+  position: absolute;
+  /* Centres its panel with justify-content, so the layer has to end where the
+     canvas ends or the palette drifts under the Inspector. */
+  inset: 0 0 0 var(--ui2-canvas-inset-left, 0px);
+  z-index: 24;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 10vh;
+  pointer-events: none;
+}
+
+.ui2-palette-drawer > * {
+  pointer-events: auto;
+  filter: drop-shadow(0 22px 50px rgba(0, 0, 0, 0.34));
+}
+
+.ui2-chip:disabled {
+  cursor: not-allowed;
+}
+
+.ui2-toolbar-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 4px;
+  background: var(--ui2-rule);
+}
+
+/* The global opacity rule STAYS for the v1 subtree — .ui2-app-bg also wraps
+   ModelBuilder and the code import/export dialogs, whose .cancel-button has no
+   disabled styling of its own. The new treatment below is added as MORE
+   SPECIFIC overrides on the ui2 control classes only. */
+.ui2-app-bg button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Disabled flattens the CHROME; it does not crush the LABEL. opacity:.5 put the
+   in-progress "Importing…" label at ~2.5:1 (chips at .45 -> ~2.3:1). The label
+   now holds --ui2-text-dim at 6.90:1 on a level-1 panel, and "inactive" is
+   carried by the collapsed border, the removed fill and the dimmed icon — which
+   is what keeps the icon-only tools (undo / redo / delete) legibly disabled. */
+.ui2-app-bg button.ui2-panel:disabled,
+.ui2-app-bg button.ui2-chip:disabled,
+.ui2-app-bg button.ui2-tool:disabled,
+.ui2-app-bg button.ui2-primary-action:disabled,
+.ui2-app-bg button.ui2-menu-item:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  color: var(--ui2-text-dim);
+  border-color: rgba(255, 255, 255, 0.05);
+  background: transparent;
+  box-shadow: none;
+}
+
+/* A menu row has no frame of its own — flattening would ADD one. */
+.ui2-app-bg button.ui2-menu-item:disabled {
+  border-color: transparent;
+}
+
+.ui2-app-bg button.ui2-panel:disabled svg,
+.ui2-app-bg button.ui2-chip:disabled svg,
+.ui2-app-bg button.ui2-tool:disabled svg,
+.ui2-app-bg button.ui2-primary-action:disabled svg,
+.ui2-app-bg button.ui2-menu-item:disabled svg {
+  opacity: 0.45;
+}
+
+/* 36px made a stat LARGER than the page's own h1 — an inverted hierarchy inside
+   one card. 28px is the ladder's stat step, sits clearly below the 40px display,
+   and gives "nn.Module" ~50px more room per tile. tabular-nums keeps the values
+   on a common digit width across the grid. 650 -> 600: a weight the font has. */
+.ui2-kpi-value {
+  font-size: 28px;
+  line-height: 32px;
+  letter-spacing: -0.016em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui2-text);
+}
+
+/* KPI tiles follow the hero's own width, not the viewport: the centre column is
+   viewport minus both rails, so a viewport breakpoint clipped the 36px values.
+   2-up until the hero is genuinely wide enough for 4 (a 4-up card must clear
+   "nn.Module" ≈ 184px + the p-4 inset). Browsers without @container keep the
+   2-up fallback, which also never clips. */
+.ui2-hero {
+  container-type: inline-size;
+  position: relative;
+  /* container-type implies `contain: layout`, which already makes this the
+     containing block for the absolutely positioned figure; layout containment
+     does NOT clip. isolation creates the stacking context that keeps the
+     z-index:-1 figure behind hero text under all circumstances. */
+  isolation: isolate;
+}
+
+/* ── Monoline isometric figure ─────────────────────────────────────────────
+   The references' thin wireframes and dashed perspective grid, drawn rather
+   than commissioned: a pure inline SVG. Decorative and aria-hidden. Absolutely
+   positioned so it can never reflow the hero, and gated to the SAME 1000px
+   container step the KPI grid uses, so the hero has exactly one breakpoint.
+   30ch display ~= 666px; 666 + 24 gap + 300 figure = 990px < 1000px, so text
+   and figure can never collide. */
+.ui2-hero-figure {
+  display: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: auto;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+@container (min-width: 1000px) {
+  .ui2-hero-figure {
+    display: block;
+  }
+}
+
+/* non-scaling-stroke is what makes "1px monoline" literally true: without it a
+   300px render of a 340-unit viewBox draws 0.88px strokes that blur. */
+.ui2-hero-figure path {
+  fill: none;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.ui2-figure-line path {
+  stroke: var(--ui2-rule-strong); /* #3c3c3c, 1.85:1 — decorative */
+}
+
+.ui2-figure-grid path {
+  stroke: rgba(255, 255, 255, 0.07);
+  stroke-dasharray: 3 5;
+}
+
+/* ── KPI band = the references' ruled-column figure, done literally ─────────
+   Columns of content sitting DIRECTLY on the background, separated ONLY by 1px
+   vertical hairlines. No fill, no box, no shadow. Removing the four level-2
+   tiles lifts every KPI value from 12.07:1 to 18.38:1 and every label from
+   5.59:1 to 8.63:1. Padding is SYMMETRIC — a padding-left-only version lets the
+   preceding column's text run flush into the next column's rule, and
+   "Architecture Templates" does wrap. row-gap instead of a horizontal rule in
+   the 2-up fallback: the reference has no horizontal rules. */
+.ui2-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 0;
+  row-gap: 28px;
+}
+
+.ui2-kpi-grid > * {
+  display: flex;
+  flex-direction: column;
+  padding-inline: 20px;
+  border-left: 1px solid var(--ui2-rule);
+}
+
+/* 2-up: items 1 and 3 START a row, so no left rule; 2 and 4 END a row. */
+.ui2-kpi-grid > *:nth-child(odd) {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.ui2-kpi-grid > *:nth-child(even) {
+  padding-right: 0;
+}
+
+@container (min-width: 1000px) {
+  .ui2-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  /* 4-up: undo the 2-up exemptions, then re-apply to first/last. All four are
+     specificity (0,2,0), so source order inside this block decides. */
+  .ui2-kpi-grid > *:nth-child(odd) {
+    padding-left: 20px;
+    border-left: 1px solid var(--ui2-rule);
+  }
+  .ui2-kpi-grid > *:nth-child(even) {
+    padding-right: 20px;
+  }
+  .ui2-kpi-grid > *:first-child {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .ui2-kpi-grid > *:last-child {
+    padding-right: 0;
+  }
+}
+
+/* Keeps the four values on a common baseline when a label wraps. */
+.ui2-kpi-grid .ui2-kpi-value {
+  margin-top: auto;
+}
+
+/* ── Low-emphasis tag row ──────────────────────────────────────────────────
+   The partner-logo device: flat grey, no chrome, divided by the SAME vertical
+   hairline instead of three boxes. Third reuse of that rule (band heads, KPI
+   columns, tag row), which is what makes it read as a system. Static spans —
+   they must never gain a hover, they are not controls. */
+.ui2-tagrow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 0;
+  row-gap: 8px;
+}
+
+.ui2-tagrow > * {
+  padding: 0 14px;
+  border-left: 1px solid var(--ui2-rule);
+  color: var(--ui2-text-dim);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.ui2-tagrow > *:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.ui2-muted {
+  color: var(--ui2-text-dim);
+}
+
+/* Accent ring instead of a translucent white one: 12.6:1 vs the page
+   background, 10.0:1 vs a level-1 panel, 7.4:1 vs the level-2 hover fill. The
+   old white ring was ~6:1 AND the same neutral family as the new hover border,
+   so focus and hover read alike.
+   NOTE: no [tabindex] arm — tldraw's editor container carries tabindex and that
+   would paint a cyan ring around the whole canvas. */
+.ui2-app-bg button:focus-visible,
+.ui2-app-bg a:focus-visible,
+.ui2-app-bg input:focus-visible {
+  outline: 2px solid var(--ui2-accent);
+  outline-offset: 2px;
+}
+
+.ui2-reactflow-skin .react-flow {
+  background: #030303;
+}
+
+.ui2-reactflow-skin .react-flow__background path {
+  stroke: rgba(255, 255, 255, 0.07) !important;
+}
+
+.ui2-reactflow-skin .react-flow__edge-path {
+  stroke: rgba(196, 196, 202, 0.62);
+  stroke-width: 1.8;
+}
+
+.ui2-reactflow-skin .react-flow__node {
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 8px 18px rgba(0, 0, 0, 0.34);
+}
+
+.ui2-reactflow-skin .react-flow__node.selected,
+.ui2-reactflow-skin .react-flow__node:focus {
+  border-color: rgba(255, 255, 255, 0.48) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 0 20px rgba(255, 255, 255, 0.06);
+}
+
+.ui2-palette-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--ui2-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.ui2-palette-search input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--ui2-text);
+  width: 100%;
+  font-size: 12px;
+}
+
+.ui2-palette-scroll {
+  overflow: auto;
+  padding-right: 4px;
+}
+
+/* Green was decorative — it encoded nothing — so it joins the mono eyebrow
+   system: same face, same 11px, same tracking token, weight 500 (600 would be
+   synthesised; only 400/500 of JetBrains Mono are loaded). */
+.ui2-palette-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ui2-text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: var(--ui2-tracking-eyebrow);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.ui2-palette-item {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--ui2-border);
+  background: rgba(255, 255, 255, 0.01);
+  border-radius: 10px;
+  padding: 8px 9px;
+  color: var(--ui2-text);
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+.ui2-palette-item:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.055);
+  transform: translateY(-1px);
+}
+
+.ui2-palette-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--ui2-border);
+  border-radius: 7px;
+  color: var(--ui2-cyan);
+  flex-shrink: 0;
+}
+
+.ui2-palette-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui2-palette-item-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ui2-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui2-palette-item-sub {
+  font-size: 11px;
+  color: var(--ui2-text-dim);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui2-palette-note,
+.ui2-palette-note-error {
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 11px;
+  margin-bottom: 8px;
+  border: 1px solid var(--ui2-border);
+  color: var(--ui2-text-dim);
+}
+
+.ui2-palette-note-error {
+  border-color: rgba(255, 123, 114, 0.34);
+  color: #ff958f;
+}
+
+.ui2-reactflow-skin .ui2-node-card {
+  min-width: 188px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+  border: 1px solid color-mix(in srgb, var(--node-accent, var(--ui2-cyan)) 36%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 12px rgba(0,0,0,0.3);
+  color: var(--ui2-text);
+}
+
+/* Hover: the card's own border, brighter. Same hue as at rest — the point is not
+   a second colour but the same edge, more visible. Exactly the card's outline,
+   because it IS the card's outline; tldraw's box only ever approximated it. */
+.ui2-reactflow-skin .ui2-node-card.hovered {
+  border-color: color-mix(in srgb, var(--node-accent, var(--ui2-cyan)) 62%, rgba(255,255,255,0.35));
+}
+
+.ui2-reactflow-skin .ui2-node-card.selected {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--node-accent, var(--ui2-cyan)) 55%, transparent),
+    0 0 16px color-mix(in srgb, var(--node-accent, var(--ui2-cyan)) 26%, transparent),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.ui2-reactflow-skin .ui2-node-card.diff-added {
+  border-color: rgba(87, 242, 135, 0.7) !important;
+  box-shadow:
+    0 0 0 1px rgba(87, 242, 135, 0.5),
+    0 0 20px rgba(87, 242, 135, 0.25),
+    inset 0 1px 0 rgba(255,255,255,0.05) !important;
+}
+
+.ui2-reactflow-skin .ui2-node-card.diff-removed {
+  border-color: rgba(255, 123, 114, 0.7) !important;
+  opacity: 0.6;
+  border-style: dashed !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 123, 114, 0.4),
+    inset 0 1px 0 rgba(255,255,255,0.05) !important;
+}
+
+/* Param edit on a retained node (AI proposal preview): amber ghost. */
+.ui2-reactflow-skin .ui2-node-card.diff-modified {
+  border-color: rgba(255, 182, 90, 0.75) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 182, 90, 0.5),
+    0 0 20px rgba(255, 182, 90, 0.22),
+    inset 0 1px 0 rgba(255,255,255,0.05) !important;
+}
+
+.ui2-reactflow-skin .ui2-node-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  background: linear-gradient(180deg, rgba(12, 12, 13, 0.94), rgba(9, 9, 10, 0.76));
+}
+
+.ui2-reactflow-skin .ui2-node-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--node-accent, var(--ui2-cyan)) 42%, transparent);
+  background: color-mix(in srgb, var(--node-accent, var(--ui2-cyan)) 11%, transparent);
+}
+
+.ui2-reactflow-skin .ui2-node-title-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
+.ui2-reactflow-skin .ui2-node-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--node-accent, var(--ui2-cyan)) 70%, #f3f6ff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui2-reactflow-skin .ui2-node-subtitle {
+  font-size: 10px;
+  color: var(--ui2-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui2-reactflow-skin .ui2-node-badge {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ui2-cyan);
+}
+
+.ui2-reactflow-skin .ui2-node-body {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* The derived expression line (opSummary). Mono, because it renders notation —
+   x[:, 0:16] — not prose. Sits above the parameter rows so the operation reads
+   before its arguments. */
+.ui2-reactflow-skin .ui2-node-expr {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  letter-spacing: -0.01em;
+  color: var(--ui2-text);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 5px;
+  padding: 4px 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui2-reactflow-skin .ui2-node-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ui2-reactflow-skin .ui2-node-row,
+.ui2-reactflow-skin .ui2-node-shape-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+
+/* Expand is the one row on a card that is a CONTROL rather than a fact. It was
+   drawn exactly like the "defined in" and "Ready to validate" rows above it and was
+   asked for three times as "where is the expand button?" while it was on screen.
+   Bordered, accented and pointing right: a thing to press, not a thing to read. */
+.ui2-reactflow-skin .ui2-node-expand-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  /* EXACTLY one row tall — 16.5px, the same slot cardMetrics reserves for every
+     other row. The first version added padding, a margin and a border, the card
+     grew by ~10px and the shape's box did not, and the hover outline sat above
+     the row that had grown past it. The outline is drawn with an inset shadow
+     for that reason: it takes no height. */
+  margin: 0;
+  padding: 0 6px;
+  height: 16.5px;
+  line-height: 16.5px;
+  box-shadow: inset 0 0 0 1px rgba(103, 217, 255, 0.35);
+  border-radius: 6px;
+  background: rgba(103, 217, 255, 0.08);
+  color: var(--ui2-cyan, #67d9ff);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ui2-reactflow-skin .ui2-node-expand-row:hover {
+  background: rgba(103, 217, 255, 0.16);
+  box-shadow: inset 0 0 0 1px var(--ui2-cyan, #67d9ff);
+}
+
+.ui2-reactflow-skin .ui2-node-key {
+  color: var(--ui2-text-dim);
+  white-space: nowrap;
+}
+
+.ui2-reactflow-skin .ui2-node-value {
+  color: #e7e7ea;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui2-reactflow-skin .ui2-node-shape-row {
+  justify-content: flex-start;
+  color: var(--ui2-text-dim);
+}
+
+.ui2-reactflow-skin .ui2-node-shape {
+  color: var(--ui2-cyan);
+  margin-left: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.ui2-reactflow-skin .ui2-node-shapes {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ui2-reactflow-skin .ui2-node-error {
+  color: #ff8f85;
+  border: 1px solid rgba(255, 123, 114, 0.4);
+  background: rgba(255, 123, 114, 0.08);
+  border-radius: 8px;
+  padding: 5px 6px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.graph-failure-facts { display: grid; min-width: 0; line-height: 16px; }
+.graph-summary-warning.graph-summary-failure { color: var(--error); align-items: flex-start; }
+.graph-failure-facts > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.graph-node-changes { display: flex; flex-direction: column; gap: 3px; color: var(--warning, #f5c451); font-size: 10px; min-width: 0; }
+.graph-node-changes > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--font-mono); }
+.graph-node-changes.compact { flex-direction: row; }
+.model-node-port[data-failed-port] { background: var(--error) !important; border-color: var(--error) !important; box-shadow: 0 0 0 3px rgba(255, 123, 114, .2); }
+
+.ui2-reactflow-skin .ui2-node-resolution {
+  color: var(--ui2-text-dim);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.045);
+  border-radius: 8px;
+  padding: 5px 6px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* The refusal's sentence wraps; the resolution block above it is one line and
+   inline-flex. Two lines is what cardMetrics reserves for it, so the card and its
+   box agree. */
+.ui2-reactflow-skin [data-testid="node-validate-detail"] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  line-height: 1.25;
+}
+
+/* The one line that would fix it, in the font it will be written in. Selectable:
+   the point is that it can be copied into the file. */
+.ui2-reactflow-skin .ui2-node-remedy {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10px;
+  color: var(--ui2-text);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 1px 4px;
+  pointer-events: auto;
+  user-select: text;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui2-reactflow-skin .ui2-node-hint {
+  color: var(--ui2-text-dim);
+  font-size: 10.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ui2-reactflow-skin .module-sublayer-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+
+.ui2-reactflow-skin .module-sublayer-chip {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: #d9d9de;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.ui2-toast-stack {
+  position: fixed;
+  right: 22px;
+  top: 88px;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.ui2-toast {
+  min-width: 240px;
+  max-width: 320px;
+  border-radius: 10px;
+  border: 1px solid var(--ui2-border);
+  background: rgba(10, 10, 11, 0.96);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.36);
+  padding: 9px 10px;
+  animation: ui2-fade-in 150ms ease;
+}
+
+.ui2-toast-label {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ui2-toast-detail {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--ui2-text-dim);
+}
+
+.ui2-toast-ok .ui2-toast-label { color: var(--ui2-green); }
+.ui2-toast-info .ui2-toast-label { color: var(--ui2-cyan); }
+.ui2-toast-warn .ui2-toast-label { color: var(--ui2-orange); }
+.ui2-toast-error .ui2-toast-label { color: #ff8f85; }
+
+@keyframes ui2-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Validation sweep: transient green/red halo that travels the graph in
+   topological order as the shape engine walks it. Shader-free (box-shadow). */
+.ui2-sweep-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 520;
+  overflow: hidden;
+}
+.ui2-sweep-halo {
+  position: absolute;
+  border-radius: 8px;
+  opacity: 0;
+  box-shadow: 0 0 0 1.5px currentColor, 0 0 16px 1px currentColor;
+  animation: ui2-sweep-pop 480ms ease-out forwards;
+  will-change: opacity, transform;
+}
+.ui2-sweep-halo.ok { color: rgba(87, 242, 135, 0.9); }   /* verified-green (matches diff-added) */
+.ui2-sweep-halo.err { color: rgba(255, 123, 114, 0.95); } /* error-red (matches diff-removed) */
+@keyframes ui2-sweep-pop {
+  0% { opacity: 0; transform: scale(1.08); }
+  30% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Every rule that adds a transition must be registered here. The states
+     themselves still apply instantly — reduced motion removes the tween, not
+     the feedback. */
+  .ui2-panel,
+  .ui2-row,
+  .ui2-row-glyph,
+  .ui2-card,
+  .ui2-chip,
+  .ui2-tool,
+  .ui2-icon-button,
+  .ui2-nav-item,
+  .ui2-primary-action,
+  .ui2-view-tabs button,
+  .ui2-palette-item,
+  .ui2-toast,
+  .ui2-sweep-halo {
+    transition: none !important;
+    animation: none !important;
+  }
+  .ui2-palette-item:hover {
+    transform: none;
+  }
+  .ui2-sweep-overlay { display: none; }
+}
+
+.ui2-inspector-input {
+  border: 1px solid var(--ui2-border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--ui2-text);
+  border-radius: 8px;
+  padding: 5px 7px;
+  min-width: 120px;
+  max-width: 170px;
+  text-align: right;
+  font-size: 12px;
+}
+
+.ui2-shape-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.ui2-shape-table th,
+.ui2-shape-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--ui2-rule);
+  text-align: left;
+}
+
+.ui2-shape-table th {
+  color: var(--ui2-text-dim);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ui2-shape-table td {
+  color: var(--ui2-text);
+}
+
+.ui2-shape-link {
+  color: var(--ui2-cyan);
+  background: transparent;
+  border: 0;
+  text-align: left;
+  padding: 0;
+}
+
+/* ── Builder chrome, brought onto the design system ────────────────────────
+   These are appended at end of file ON PURPOSE: .ui2-tool-accent / -warn are
+   both (0,1,0) like .ui2-tool itself, so they resolve on source order. They
+   replace inline style={{color}} props that outranked .ui2-tool:hover and made
+   the AI Chat and Diagnostics buttons the only toolbar controls with a dead
+   hover. Note .ui2-tool.active is (0,2,0) and sets --ui2-text, so an OPEN
+   diagnostics drawer loses the orange tint — the badge still carries the count. */
+.ui2-tool-accent {
+  color: var(--ui2-accent);
+}
+
+.ui2-tool-warn {
+  color: var(--ui2-orange);
+}
+
+/* Active diagnostics tab. The old inline rgba(255,255,255,0.22) border is
+   --ui2-rule-strong at 1.85:1 — below WCAG 1.4.11's 3:1 for a non-text state
+   indicator. This is the same 2px marker device .ui2-view-tabs already uses:
+   --ui2-text against the chip fill measures 10.41:1, 3.5x the minimum. */
+.ui2-chip-active {
+  color: var(--ui2-text);
+  border-color: var(--ui2-border-strong);
+  box-shadow: inset 0 -2px 0 var(--ui2-text);
+}
+
+/* Status dot for diagnostics rows. Replaces colouring the row TITLE in the
+   status hue: --ui2-red on the level-2 hover fill is 4.40:1 and fails the 4.5
+   text floor, whereas a 6px dot is a non-text indicator (3:1 applies, and red
+   on the panel is 6.46:1). The title now reads at --ui2-text, 14.69:1. */
+.ui2-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+/* Code panes. Tailwind's preflight gives <pre> its own monospace stack, so the
+   builder's generated PyTorch rendered in a DIFFERENT face from every eyebrow,
+   chip and palette title in the app. 13px/20px is the code step. */
+.ui2-code-block {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ui2-text);
+  tab-size: 4;
+}
+
+/* Shape tuples are the shape table's entire job — comparing [1, 3, 224, 224]
+   against [1, 64, 56, 56] — and proportional digits defeat that. */
+.ui2-shape-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   REDESIGN — command surface, shape ledgers and status
+   ══════════════════════════════════════════════════════════════════════════
+   Appended, not interleaved: the canvas node skin (.ui2-reactflow-skin
+   .ui2-node-*, ~L1185-1524) and .ui2-canvas-frame are the ONLY styling the
+   tldraw shapes have, and the canvas is explicitly out of scope for this
+   redesign. Everything below is page and dialog chrome.
+
+   No new colour tokens are introduced. The redesign's palette IS this file's
+   palette — #f3f3f4 / #a8a8b0 / #60f7b5 / #67d9ff / #ff7b72 / rule 0.09 —
+   which is why this is a structural change and not a re-theme.  */
+
+/* ── Graph thumbnail ──────────────────────────────────────────────────────
+   The card preview surface. #030303 is DEEPER than --ui2-bg (#050505) on
+   purpose: the thumbnail is a window cut into the card, so it has to recede
+   from a card that is itself lighter than the page. The dotted lattice is the
+   canvas's own grid at card scale, which is what makes a card read as "a piece
+   of canvas" rather than an illustration. */
+.ui2-graph-thumb {
+  position: relative;
+  overflow: hidden;
+  background: #030303;
+  border-bottom: 1px solid var(--ui2-rule);
+}
+
+.ui2-graph-thumb-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.ui2-graph-thumb svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Status pill ──────────────────────────────────────────────────────────
+   A dot plus a label, over the thumbnail's top-left corner. The label carries
+   the hue and the dot repeats it, so the state survives both a greyscale print
+   and a red-green deficiency — the dot's POSITION is constant, its presence is
+   the redundant channel, and the word is the primary one. */
+.ui2-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 16px;
+  border-radius: 999px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+
+.ui2-status-pill > span {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  background: currentColor;
+}
+
+.ui2-status-pill-verified {
+  color: var(--ui2-green);
+  background: color-mix(in srgb, var(--ui2-green) 12%, transparent);
+}
+
+.ui2-status-pill-error {
+  color: var(--ui2-red);
+  background: color-mix(in srgb, var(--ui2-red) 12%, transparent);
+}
+
+/* Never run and stale are deliberately NOT coloured. Only a real outcome earns
+   a hue; tinting "not yet checked" as a warning would make an untouched new
+   model look broken. */
+.ui2-status-pill-neutral {
+  color: var(--ui2-text-dim);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Inline (table cell) form: no fill, 6px dot, sits on the row. */
+.ui2-status-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.ui2-status-inline > span:first-child {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  background: currentColor;
+}
+
+/* ── Card ─────────────────────────────────────────────────────────────────
+   Distinct from .ui2-panel: a panel is floating chrome (blurred, shadowed,
+   --ui2-bg-floating). A card is a flat page object — no blur, no shadow, a
+   2.5% wash so it lifts off the page by fill alone. */
+.ui2-card {
+  border: 1px solid var(--ui2-border);
+  border-radius: var(--ui2-radius-float);
+  background: rgba(255, 255, 255, 0.025);
+  overflow: hidden;
+  text-align: left;
+  transition: border-color 120ms ease-out, background-color 120ms ease-out;
+}
+
+button.ui2-card,
+a.ui2-card {
+  cursor: pointer;
+  display: block;
+  width: 100%;
+}
+
+button.ui2-card:hover,
+a.ui2-card:hover {
+  border-color: var(--ui2-level-2-border-hover);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* A card that carries its own controls cannot be a <button> — a button inside a
+   button is invalid HTML with undefined activation behaviour — so it becomes a
+   <div> whose first child is the primary control, and the two rules above stop
+   matching. The card then lights from that child only, so a pointer parked on
+   the card's ⋯ menu does not make the whole card look as though it will open.
+   Same device as .ui2-row and .ui2-data-table. */
+.ui2-card:has(> .ui2-card-primary) {
+  display: flex;
+  flex-direction: column;
+}
+
+.ui2-card-primary {
+  display: block;
+  width: 100%;
+  /* .ui2-card-grid stretches every card to the tallest in its row. Left at its
+     content height the primary would stop short of the card's foot, leaving a
+     strip that neither opens the project nor lights the card — it looks like
+     part of the card but is not part of the control. */
+  flex: 1 1 auto;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The global ring is `outline-offset: 2px`, drawn outside the element — and the
+   card sets overflow:hidden to clip its thumbnail to the radius, so on the
+   inner primary that ring was clipped away entirely and the card had no visible
+   focus at all. Drawn inside, it survives the clip. */
+.ui2-card-primary:focus-visible {
+  outline-offset: -3px;
+}
+
+.ui2-card:has(> .ui2-card-primary:hover),
+.ui2-card:has(> .ui2-card-primary:focus-visible) {
+  border-color: var(--ui2-level-2-border-hover);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ui2-card-body {
+  padding: 13px 15px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.ui2-card-name {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ui2-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Metric strip ─────────────────────────────────────────────────────────
+   `68 layers │ 11.7M │ 44.6 MB`. Divided by hairline rules rather than a
+   middot: the values are tabular data, and a rule says "separate column" where
+   a dot says "same sentence". Tabular numerals so the digits line up down a
+   column of cards. */
+.ui2-metric-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ui2-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.ui2-metric-strip > span {
+  padding: 0 10px;
+  border-left: 1px solid var(--ui2-rule);
+}
+
+.ui2-metric-strip > span:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+/* An estimated figure is marked, once, at the end of the strip. The app must
+   not present a client-side estimate as torch's own count. */
+.ui2-metric-estimated {
+  font-style: normal;
+  color: var(--ui2-text-faint);
+}
+
+/* ── Command surface ──────────────────────────────────────────────────────
+   The home page's single input. It replaces a hero, a KPI band and a six-row
+   quick-start rail, so it has to look like the primary affordance on the page:
+   full measure, 1.5 lines tall, and the ONLY thing above the fold. */
+.ui2-command-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 15px 16px;
+  border: 1px solid var(--ui2-border-strong);
+  border-radius: var(--ui2-radius-surface);
+  background: rgba(255, 255, 255, 0.03);
+  transition: border-color 120ms ease-out, background-color 120ms ease-out;
+}
+
+.ui2-command-bar:focus-within {
+  border-color: var(--ui2-accent-border);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ui2-command-bar input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  color: var(--ui2-text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+/* One focus indicator, not two. The bar is the control's visual boundary and it
+   already takes the accent edge plus a fill step on :focus-within, so the global
+   `.ui2-app-bg input:focus-visible` ring would draw a SECOND cyan rectangle
+   inside the first. Specificity matches that rule and adds a class, so it wins
+   without !important. */
+.ui2-command-bar input:focus-visible,
+.ui2-app-bg .ui2-command-bar input:focus-visible {
+  outline: none;
+}
+
+/* The placeholder is a sentence, not a label — it enumerates what the field
+   accepts, which is the only thing telling the user this one box replaces six
+   buttons. Proportional face so it does not read as pre-filled code. */
+.ui2-command-bar input::placeholder {
+  font-family: var(--font-ui);
+  color: var(--ui2-text-dim);
+  opacity: 1;
+}
+
+.ui2-kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ui2-text-dim);
+  border: 1px solid var(--ui2-border);
+  border-radius: 5px;
+  padding: 2px 7px;
+  flex: 0 0 auto;
+}
+
+/* ── Pipe-separated tab strip ─────────────────────────────────────────────
+   Source switcher under the command bar, and the filter row on /projects.
+   Rules instead of boxes: these are six peers, and six chips would out-weigh
+   the input they modify. */
+.ui2-pipe-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ui2-pipe-tabs > button {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ui2-text-dim);
+  padding: 0 14px;
+  border-left: 1px solid var(--ui2-rule);
+  background: transparent;
+  cursor: pointer;
+  transition: color 120ms ease-out;
+}
+
+.ui2-pipe-tabs > button:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.ui2-pipe-tabs > button:hover {
+  color: var(--ui2-text);
+}
+
+.ui2-pipe-tabs > button[aria-selected='true'] {
+  color: var(--ui2-text);
+}
+
+/* ── Data table ───────────────────────────────────────────────────────────
+   CSS grid, not <table>: the row is a link target with a trailing action
+   cluster, and a grid keeps every row's columns locked to one track list
+   without the colspan gymnastics a real table would need for the error line.
+   Widths come straight from the design. */
+.ui2-data-table {
+  display: grid;
+  /* The last track is the action cluster. It holds three 28px buttons at
+     gap-1.5 (28*3 + 6*2 = 96px) since Export joined Delete and Open; at the
+     previous 92px the flex children silently squashed to 26.7px and went
+     non-square against their 13px icons. The 32px comes out of the name
+     column, which has it: the fixed tracks plus gaps total 880px against a
+     1120px measure. */
+  grid-template-columns: minmax(0, 1fr) 118px 96px 104px 132px 210px 124px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ui2-rule);
+  text-align: left;
+  width: 100%;
+  background: transparent;
+}
+
+.ui2-data-table-head .ui2-eyebrow {
+  white-space: nowrap;
+}
+
+/* The row cannot itself be a <button>: it carries delete and open controls, and
+   a <button> inside a <button> is invalid HTML (React 19 warns, and the inner
+   control's activation behaviour is undefined). So the row is a plain element
+   whose FIRST cell is the primary button, and the row lights up from that
+   child's hover via :has() — the same pattern .ui2-row already uses for the
+   same reason, so a pointer parked on Delete does not make the row look as
+   though it will open. */
+button.ui2-data-table,
+.ui2-data-table-primary {
+  cursor: pointer;
+}
+
+/* The hovered row is marked with a 2px inset bar at the leading edge plus a 3%
+   fill. A left bar rather than a border box: the row is one item in a
+   continuous list, and boxing it would break the shared rules that group the
+   list. */
+button.ui2-data-table:hover,
+button.ui2-data-table:focus-visible,
+.ui2-data-table:has(> .ui2-data-table-primary:hover),
+.ui2-data-table:has(> .ui2-data-table-primary:focus-visible) {
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 2px 0 0 var(--ui2-text);
+  outline: none;
+}
+
+/* The primary cell is a bare button: it supplies the row's click target and its
+   name/subline, and must not paint a control of its own. */
+.ui2-data-table-primary {
+  display: block;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+}
+
+.ui2-data-table .ui2-num {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui2-text);
+}
+
+/* The "est." marker rides in a reserved gutter rather than in the text flow.
+   Inline, it pushed the figure left by its own width, so a verified row's exact
+   number and an estimated row's number landed on different edges — which is the
+   one thing a right-aligned tabular column exists to prevent. The gutter is on
+   EVERY cell in the column, so the digits line up whether the marker is there or
+   not. */
+.ui2-data-table .ui2-num-estimable {
+  position: relative;
+  padding-right: 30px;
+}
+
+.ui2-data-table .ui2-num > .ui2-metric-estimated {
+  position: absolute;
+  right: 0;
+  font-size: 11px;
+}
+
+/* ── Sidebar environment readout ──────────────────────────────────────────
+   The rail's foot. This is the "local-first" claim made checkable: the address
+   the frontend is actually talking to, whether it answered, and the versions it
+   reported. A green dot beside a hostname is the whole point of the block, so
+   it must never be painted from a hardcoded string — see EnvironmentBlock. */
+.ui2-env-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+  border-top: 1px solid var(--ui2-rule);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ui2-text-dim);
+}
+
+.ui2-env-row > :last-child {
+  margin-left: auto;
+  text-align: right;
+  color: var(--ui2-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Dialog shell ─────────────────────────────────────────────────────────
+   Import / architecture / export all share one frame: a titled head with a
+   lede, a body, and an optional foot carrying the commit action. */
+.ui2-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.ui2-dialog {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+  background: var(--ui2-surface-2);
+  border: 1px solid var(--ui2-border-strong);
+  border-radius: var(--ui2-radius-float);
+  box-shadow: var(--ui2-shadow-float);
+  overflow: hidden;
+}
+
+.ui2-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--ui2-rule);
+  flex: 0 0 auto;
+}
+
+.ui2-dialog-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ui2-text);
+  margin: 0;
+}
+
+.ui2-dialog-lede {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--ui2-text-dim);
+  margin: 4px 0 0;
+}
+
+.ui2-dialog-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.ui2-dialog-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--ui2-rule);
+  flex: 0 0 auto;
+}
+
+/* ── Underline tabs ───────────────────────────────────────────────────────
+   Dialog-internal mode switch (Installed library / Repository folder). */
+.ui2-tab-underline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 2px 12px;
+  font-size: 13.5px;
+  color: var(--ui2-text-dim);
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 120ms ease-out, border-color 120ms ease-out;
+}
+
+.ui2-tab-underline:hover {
+  color: var(--ui2-text);
+}
+
+.ui2-tab-underline[aria-selected='true'] {
+  color: var(--ui2-text);
+  border-bottom-color: var(--ui2-text);
+}
+
+/* ── Segmented control ────────────────────────────────────────────────────
+   Detail depth 1 / 2 / 3. Three mutually exclusive integers, so a segmented
+   control rather than a select: all options and the current one are visible in
+   the same glance. */
+.ui2-segmented {
+  display: inline-flex;
+  border: 1px solid var(--ui2-border);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.ui2-segmented > button {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-width: 30px;
+  padding: 4px 0;
+  color: var(--ui2-text-dim);
+  background: transparent;
+  border-left: 1px solid var(--ui2-border);
+  cursor: pointer;
+  transition: color 120ms ease-out, background-color 120ms ease-out;
+}
+
+.ui2-segmented > button:first-child {
+  border-left: 0;
+}
+
+.ui2-segmented > button:hover {
+  color: var(--ui2-text);
+}
+
+.ui2-segmented > button[aria-pressed='true'] {
+  color: var(--ui2-text);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+/* ── Ranked candidate row ─────────────────────────────────────────────────
+   Repo scan results. The leading inset bar marks the top-ranked row WITHOUT
+   pre-selecting it — the backend is explicit that ranking is a heuristic and
+   that wrappers legitimately outrank backbones, so the UI marks a suggestion,
+   not an answer. */
+.ui2-candidate-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--ui2-rule);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+
+.ui2-candidate-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ui2-candidate-row[data-top='true'] {
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 2px 0 0 var(--ui2-text);
+}
+
+.ui2-candidate-score {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ui2-text-dim);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+/* ── Checkbox row ─────────────────────────────────────────────────────────
+   Export options. A real <input type=checkbox> underneath, so the control
+   keeps its native keyboard and screen-reader behaviour. */
+.ui2-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ui2-text);
+  cursor: pointer;
+  padding: 5px 0;
+}
+
+.ui2-check input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  border: 1px solid var(--ui2-border-strong);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+}
+
+.ui2-check input:checked {
+  background: var(--ui2-text);
+  border-color: var(--ui2-text);
+}
+
+.ui2-check input:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid #0f0f10;
+  border-width: 0 1.7px 1.7px 0;
+  transform: rotate(45deg);
+}
+
+.ui2-check input:focus-visible {
+  outline: 2px solid var(--ui2-accent);
+  outline-offset: 2px;
+}
+
+.ui2-check:has(input:disabled) {
+  color: var(--ui2-text-faint);
+  cursor: not-allowed;
+}
+
+/* ── Section band ─────────────────────────────────────────────────────────
+   `Start from a template ————— 8 starter blocks`. Same rule-under-heading
+   grouping as .ui2-section-head, at the redesign's tighter page rhythm. */
+.ui2-band-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ui2-rule);
+}
+
+.ui2-band-title {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.006em;
+  margin: 0;
+  color: var(--ui2-text);
+}
+
+.ui2-band-note {
+  font-size: 13px;
+  color: var(--ui2-text-dim);
+}
+
+/* Card grids. Whole rows only: the design is explicit that Continue renders
+   three or six, never four, because a partial row leaves a hole next to a
+   heading — the overflow has a home behind "All N projects". */
+.ui2-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.ui2-card-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 1180px) {
+  .ui2-card-grid,
+  .ui2-card-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ── Slice range control (Inspector) ─────────────────────────────────────────
+   A slice is picked on the axis, not typed as three numbers checked against a
+   remembered shape. Two consequences worth stating: the axis chips ARE the `dim`
+   control, so negative-versus-positive dim stops being a concept the user holds;
+   and the track IS the bound, so `start + length > size` cannot be expressed at
+   all — the out-of-range error becomes unreachable rather than well-worded. */
+.ui2-slice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ui2-slice-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ui2-text-dim);
+  margin-top: 4px;
+}
+.ui2-slice-label:first-child { margin-top: 0; }
+
+.ui2-slice-axes { display: flex; gap: 5px; }
+
+.ui2-slice-axis {
+  flex: 1 1 0;
+  min-width: 0;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 5px 2px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ui2-text);
+  font-variant-numeric: tabular-nums;
+  transition: border-color 130ms ease, background 130ms ease, color 130ms ease;
+}
+.ui2-slice-axis small {
+  display: block;
+  font-size: 8.5px;
+  color: var(--ui2-text-dim);
+  letter-spacing: 0.06em;
+}
+.ui2-slice-axis:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.3); }
+.ui2-slice-axis.on {
+  border-color: var(--ui2-cyan);
+  background: color-mix(in srgb, var(--ui2-cyan) 14%, transparent);
+  color: var(--ui2-cyan);
+}
+.ui2-slice-axis.on small { color: color-mix(in srgb, var(--ui2-cyan) 70%, transparent); }
+.ui2-slice-axis:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ui2-slice-track {
+  position: relative;
+  height: 30px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  touch-action: none;
+}
+
+.ui2-slice-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--ui2-cyan) 20%, transparent);
+  border-left: 1px solid var(--ui2-cyan);
+  border-right: 1px solid var(--ui2-cyan);
+}
+
+.ui2-slice-grab {
+  position: absolute;
+  top: -3px;
+  width: 11px;
+  height: 36px;
+  margin-left: -5.5px;
+  border-radius: 4px;
+  background: var(--ui2-cyan);
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+}
+.ui2-slice-grab:active { cursor: grabbing; }
+.ui2-slice-grab:focus-visible { outline: 2px solid var(--ui2-text); outline-offset: 2px; }
+
+.ui2-slice-read {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ui2-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.ui2-slice-read b { color: var(--ui2-cyan); font-weight: 500; }
+
+.ui2-slice-presets { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.ui2-slice-preset {
+  font-size: 11px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--ui2-text-dim);
+  border-radius: 999px;
+  padding: 3px 9px;
+  transition: color 130ms ease, border-color 130ms ease;
+}
+.ui2-slice-preset:hover { color: var(--ui2-text); border-color: rgba(255, 255, 255, 0.28); }
+
+.ui2-slice-emits {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ui2-text);
+  background: color-mix(in srgb, var(--ui2-cyan) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ui2-cyan) 22%, transparent);
+  border-radius: 6px;
+  padding: 6px 8px;
+  word-break: break-all;
+  margin-top: 4px;
+}
+
+/* Shown when the input shape is not known yet, because a track with no bounds
+   is worse than a number box. */
+.ui2-slice-hint { font-size: 11.5px; line-height: 1.45; }
+
+/* The axis a Slice changed, emphasised in the card's In/Out rows so the two
+   tuples do not have to be diffed by eye. */
+.ui2-reactflow-skin .ui2-node-axis-hot {
+  font-style: normal;
+  color: var(--ui2-text);
+  background: color-mix(in srgb, var(--ui2-cyan) 22%, transparent);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+/* Escape hatch out of the range control, for matching a paper verbatim. */
+.ui2-slice-exact {
+  align-self: flex-start;
+  margin-top: 2px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ui2-text-dim);
+  text-decoration: underline dotted;
+}
+.ui2-slice-exact:hover { color: var(--ui2-text); }
+
+/* ── The experiment rail in the panel (step 2.6) ──────────────────────────────
+   The rail reserves width instead of floating: tldraw measures .tl-container to
+   decide where a card can go, and an overlay would put cards under it where they
+   cannot be clicked — the same reason the Inspector sets --ui2-canvas-inset-left
+   rather than covering the canvas (CV-11 above). */
+.tv-project-rail-host {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--ui2-project-rail-width, 248px);
+  overflow-y: auto;
+  z-index: 2;
+  border-right: 1px solid var(--ui2-border, rgba(255, 255, 255, 0.08));
+  background: var(--ui2-surface, #111);
+}
+
+/* A rail on screen moves the canvas over by exactly its width. Scoped to the
+   stage that actually holds one, so a builder with no project is untouched. */
+.ui2-builder-stage:has(.tv-project-rail-host) {
+  --ui2-canvas-inset-left: var(--ui2-project-rail-width, 248px);
+}
+
+/* The handoff to the external page. Bottom of the rail, not the toolbar: it is a
+   property of the project on screen, not of the canvas's editing tools. */
+.tv-rail__browser {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-top: 1px solid var(--ui2-border, rgba(255, 255, 255, 0.08));
+  background: var(--ui2-surface, #111);
+  color: var(--ui2-muted, #9aa0a6);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tv-rail__browser:hover {
+  color: var(--ui2-text, #e8eaed);
+}
+
+/* The project picker, when a workspace holds more than one derived root. Sits
+   above the experiments for the same reason the SCM view's repository picker sits
+   above the changes: it says which project the list below belongs to. */
+.tv-rail__picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 0 2px;
+}
+
+.tv-rail__picker-label {
+  color: var(--ui2-muted, #9aa0a6);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tv-rail__picker select {
+  flex: 1;
+  min-width: 0;
+  background: var(--ui2-surface-2, #1b1b1b);
+  color: var(--ui2-text, #e8eaed);
+  border: 1px solid var(--ui2-border, rgba(255, 255, 255, 0.08));
+  border-radius: 4px;
+  padding: 2px 4px;
+  font: inherit;
+}
+
+
+/* The project status bar is opaque and takes its own row, so the canvas above it
+   stops where it starts. Set on the stage rather than measured, because the bar's
+   height is a constant this stylesheet owns and a ResizeObserver for one fixed
+   number is machinery pretending to be a measurement. */
+.ui2-builder-stage:has(> .tv-statusbar) {
+  --ui2-canvas-inset-bottom: 26px;
+}
+
+
+/* ── One bottom bar ──────────────────────────────────────────────────────────
+   When a project is open the toolbar docks into the status bar's right end. Same
+   DOM, same handlers, same tests: only where it sits and how much it says. Icon-
+   only, because every control already carries a title and the two bars together
+   did not fit on the screens this runs on. */
+.ui2-builder-toolbar--docked {
+  /* In flow inside the status bar's slot, not absolute over it. */
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  transform: none;
+  height: 20px;
+  max-width: none;
+  padding: 0;
+  gap: 2px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  z-index: auto;
+}
+
+.ui2-builder-toolbar--docked .ui2-tool-label { display: none; }
+
+/* The docked bar is a strip, not a panel: one line, 26px, nothing taller inside
+   it and nothing wrapping. Without this its buttons kept their floating-bar
+   height and the strip stood proud of the status bar it was meant to sit in. */
+.ui2-builder-toolbar--docked {
+  align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.ui2-builder-toolbar--docked > * { flex: 0 0 auto; }
+.ui2-builder-toolbar--docked .ui2-view-tabs,
+.ui2-builder-toolbar--docked .ml-auto { height: 20px; align-items: center; }
+.ui2-builder-toolbar--docked .ui2-toolbar-divider-vertical { height: 14px; }
+.ui2-builder-toolbar--docked .ui2-tool-badge { transform: scale(0.85); }
+
+/* Status text never runs under the tools. Unconditional, not behind :has(): on a
+   page with no docked tools it merely truncates a very long experiment name. */
+/* The slot takes what the tools need and no more; the status text flexes to what
+   is left and truncates, which is the whole point of putting them in one row. */
+.tv-statusbar__tools { display: flex; align-items: center; flex: 0 1 auto; min-width: 0; overflow: hidden; margin-left: auto; }
+
+.ui2-builder-toolbar--docked .ui2-view-tabs {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  gap: 2px;
+}
+
+.ui2-builder-toolbar--docked .ui2-tool,
+.ui2-builder-toolbar--docked .ui2-tool-button,
+.ui2-builder-toolbar--docked .ui2-view-tabs button {
+  height: 20px;
+  min-width: 22px;
+  padding: 0 4px;
+}
+
+.ui2-builder-toolbar--docked .ui2-primary-action {
+  height: 20px;
+  padding: 0 7px;
+  font-size: 11px;
+  gap: 4px;
+}
+
+/* The status text yields to the docked tools rather than running under them. */
+
+/* The drawer opens above the single bar, not behind it. */
+.ui2-builder-stage:has(> .tv-statusbar) .ui2-diagnostics-drawer { bottom: 26px; }

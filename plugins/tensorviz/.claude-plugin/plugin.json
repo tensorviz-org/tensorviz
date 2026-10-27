@@ -1,0 +1,12 @@
+{
+  "name": "tensorviz",
+  "version": "0.3.20",
+  "description": "Explore local PyTorch models with tensorViz.",
+  "author": {
+    "name": "TensorViz",
+    "url": "https://tensorviz.dev"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/tensorviz-org/tensorviz",
+  "repository": "https://github.com/tensorviz-org/tensorviz"
+}

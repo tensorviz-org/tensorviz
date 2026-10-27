@@ -1,0 +1,688 @@
+{
+  "before": {
+    "graphId": "ide:fada037ad086#MlpTiny",
+    "revision": 1,
+    "cls": "MlpTiny",
+    "file": "model.py",
+    "sourceDigest": "abbc0b6d02797f0cc8d15068bf587aba36c76d33c07add683f8d8e901208edf1",
+    "traced": false,
+    "greyed": false,
+    "viewRestored": false,
+    "document": {
+      "schemaVersion": 2,
+      "semantic": {
+        "graph_id": "ide:fada037ad086#MlpTiny",
+        "name": "MlpTiny",
+        "revision": 0,
+        "inputs": [
+          {
+            "name": "input",
+            "shape": "1,16"
+          }
+        ],
+        "nodes": [
+          {
+            "node_id": "input",
+            "kind": "input",
+            "op": "Input",
+            "params": {
+              "shape": "1,16",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "proj",
+            "kind": "layer",
+            "op": "Linear",
+            "params": {
+              "in_features": 16,
+              "out_features": 32,
+              "_source_file": "model.py",
+              "_lineno": 8,
+              "_end_lineno": 8,
+              "_col_offset": 8,
+              "_end_col_offset": 37,
+              "_raw_call": "nn.Linear(16, 32)",
+              "_stmt_hash": "a8b1ef1e8111",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "activation",
+            "kind": "layer",
+            "op": "ReLU",
+            "params": {
+              "inplace": true,
+              "_source_file": "model.py",
+              "_lineno": 9,
+              "_end_lineno": 9,
+              "_col_offset": 8,
+              "_end_col_offset": 47,
+              "_raw_call": "nn.ReLU(inplace=True)",
+              "_stmt_hash": "ba8939c3e4cb",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "head",
+            "kind": "layer",
+            "op": "Linear",
+            "params": {
+              "in_features": 32,
+              "out_features": 4,
+              "_source_file": "model.py",
+              "_lineno": 10,
+              "_end_lineno": 10,
+              "_col_offset": 8,
+              "_end_col_offset": 36,
+              "_raw_call": "nn.Linear(32, 4)",
+              "_stmt_hash": "f89f3e7f57a5",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "output",
+            "kind": "output",
+            "op": "Output",
+            "params": {
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [],
+            "metadata": {
+              "parentId": null
+            }
+          }
+        ],
+        "edges": [
+          {
+            "edge_id": "edge_input_proj",
+            "source_node_id": "input",
+            "source_port": "y",
+            "target_node_id": "proj",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_proj_activation",
+            "source_node_id": "proj",
+            "source_port": "y",
+            "target_node_id": "activation",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_activation_head",
+            "source_node_id": "activation",
+            "source_port": "y",
+            "target_node_id": "head",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_head_output",
+            "source_node_id": "head",
+            "source_port": "y",
+            "target_node_id": "output",
+            "target_port": "x",
+            "metadata": {}
+          }
+        ],
+        "modules": [],
+        "operations": [],
+        "metadata": {
+          "importer": "services.ingest"
+        }
+      },
+      "view": {
+        "graph_id": "ide:fada037ad086#MlpTiny",
+        "node_positions": {
+          "input": {
+            "x": 50.0,
+            "y": 200.0
+          },
+          "proj": {
+            "x": 250.0,
+            "y": 200.0
+          },
+          "activation": {
+            "x": 450.0,
+            "y": 200.0
+          },
+          "head": {
+            "x": 650.0,
+            "y": 200.0
+          },
+          "output": {
+            "x": 850.0,
+            "y": 200.0
+          }
+        },
+        "collapsed_modules": [],
+        "selection": [],
+        "layout": {
+          "strategy": "imported",
+          "node_canvas": {
+            "input": {
+              "type": "inputNode"
+            },
+            "proj": {
+              "type": "layerNode"
+            },
+            "activation": {
+              "type": "layerNode"
+            },
+            "head": {
+              "type": "layerNode"
+            },
+            "output": {
+              "type": "outputNode"
+            }
+          },
+          "node_data": {
+            "input": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "proj": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "activation": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "head": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "output": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            }
+          },
+          "edge_canvas": {}
+        }
+      }
+    },
+    "spanmap": {
+      "proj": {
+        "file": "model.py",
+        "start": [
+          8,
+          8
+        ],
+        "end": [
+          8,
+          37
+        ],
+        "kind": "decl",
+        "digest": "a8b1ef1e8111",
+        "file_digest": "abbc0b6d02797f0cc8d15068bf587aba36c76d33c07add683f8d8e901208edf1"
+      },
+      "activation": {
+        "file": "model.py",
+        "start": [
+          9,
+          8
+        ],
+        "end": [
+          9,
+          47
+        ],
+        "kind": "decl",
+        "digest": "ba8939c3e4cb",
+        "file_digest": "abbc0b6d02797f0cc8d15068bf587aba36c76d33c07add683f8d8e901208edf1"
+      },
+      "head": {
+        "file": "model.py",
+        "start": [
+          10,
+          8
+        ],
+        "end": [
+          10,
+          36
+        ],
+        "kind": "decl",
+        "digest": "f89f3e7f57a5",
+        "file_digest": "abbc0b6d02797f0cc8d15068bf587aba36c76d33c07add683f8d8e901208edf1"
+      }
+    },
+    "diagnostics": [],
+    "truncated": false
+  },
+  "after": {
+    "graphId": "ide:fada037ad086#MlpTiny",
+    "revision": 2,
+    "cls": "MlpTiny",
+    "file": "model.py",
+    "sourceDigest": "f5e6cbcde03a805959e27402bd6b362cd526f247e77d47689dc4fcb2ffa65ef1",
+    "traced": false,
+    "greyed": false,
+    "viewRestored": false,
+    "document": {
+      "schemaVersion": 2,
+      "semantic": {
+        "graph_id": "ide:fada037ad086#MlpTiny",
+        "name": "MlpTiny",
+        "revision": 0,
+        "inputs": [
+          {
+            "name": "input",
+            "shape": "1,16"
+          }
+        ],
+        "nodes": [
+          {
+            "node_id": "input",
+            "kind": "input",
+            "op": "Input",
+            "params": {
+              "shape": "1,16",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "proj",
+            "kind": "layer",
+            "op": "Linear",
+            "params": {
+              "in_features": 16,
+              "out_features": 64,
+              "_source_file": "model.py",
+              "_lineno": 8,
+              "_end_lineno": 8,
+              "_col_offset": 8,
+              "_end_col_offset": 37,
+              "_raw_call": "nn.Linear(16, 64)",
+              "_stmt_hash": "3b604f3e9683",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "activation",
+            "kind": "layer",
+            "op": "GELU",
+            "params": {
+              "_source_file": "model.py",
+              "_lineno": 9,
+              "_end_lineno": 9,
+              "_col_offset": 8,
+              "_end_col_offset": 35,
+              "_raw_call": "nn.GELU()",
+              "_stmt_hash": "04e4957bfe3d",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "norm",
+            "kind": "layer",
+            "op": "LayerNorm",
+            "params": {
+              "normalized_shape": 64,
+              "_source_file": "model.py",
+              "_lineno": 10,
+              "_end_lineno": 10,
+              "_col_offset": 8,
+              "_end_col_offset": 36,
+              "_raw_call": "nn.LayerNorm(64)",
+              "_stmt_hash": "8d90ad8151ad",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "head",
+            "kind": "layer",
+            "op": "Linear",
+            "params": {
+              "in_features": 64,
+              "out_features": 4,
+              "_source_file": "model.py",
+              "_lineno": 11,
+              "_end_lineno": 11,
+              "_col_offset": 8,
+              "_end_col_offset": 36,
+              "_raw_call": "nn.Linear(64, 4)",
+              "_stmt_hash": "712fb568c755",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "output",
+            "kind": "output",
+            "op": "Output",
+            "params": {
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [],
+            "metadata": {
+              "parentId": null
+            }
+          }
+        ],
+        "edges": [
+          {
+            "edge_id": "edge_input_proj",
+            "source_node_id": "input",
+            "source_port": "y",
+            "target_node_id": "proj",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_proj_activation",
+            "source_node_id": "proj",
+            "source_port": "y",
+            "target_node_id": "activation",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_activation_norm",
+            "source_node_id": "activation",
+            "source_port": "y",
+            "target_node_id": "norm",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_norm_head",
+            "source_node_id": "norm",
+            "source_port": "y",
+            "target_node_id": "head",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_head_output",
+            "source_node_id": "head",
+            "source_port": "y",
+            "target_node_id": "output",
+            "target_port": "x",
+            "metadata": {}
+          }
+        ],
+        "modules": [],
+        "operations": [],
+        "metadata": {
+          "importer": "services.ingest"
+        }
+      },
+      "view": {
+        "graph_id": "ide:fada037ad086#MlpTiny",
+        "node_positions": {
+          "input": {
+            "x": 50.0,
+            "y": 200.0
+          },
+          "proj": {
+            "x": 250.0,
+            "y": 200.0
+          },
+          "activation": {
+            "x": 450.0,
+            "y": 200.0
+          },
+          "norm": {
+            "x": 650.0,
+            "y": 200.0
+          },
+          "head": {
+            "x": 850.0,
+            "y": 200.0
+          },
+          "output": {
+            "x": 1050.0,
+            "y": 200.0
+          }
+        },
+        "collapsed_modules": [],
+        "selection": [],
+        "layout": {
+          "strategy": "imported",
+          "node_canvas": {
+            "input": {
+              "type": "inputNode"
+            },
+            "proj": {
+              "type": "layerNode"
+            },
+            "activation": {
+              "type": "layerNode"
+            },
+            "norm": {
+              "type": "layerNode"
+            },
+            "head": {
+              "type": "layerNode"
+            },
+            "output": {
+              "type": "outputNode"
+            }
+          },
+          "node_data": {
+            "input": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "proj": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "activation": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "norm": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "head": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "output": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            }
+          },
+          "edge_canvas": {}
+        }
+      }
+    },
+    "spanmap": {
+      "proj": {
+        "file": "model.py",
+        "start": [
+          8,
+          8
+        ],
+        "end": [
+          8,
+          37
+        ],
+        "kind": "decl",
+        "digest": "3b604f3e9683",
+        "file_digest": "f5e6cbcde03a805959e27402bd6b362cd526f247e77d47689dc4fcb2ffa65ef1"
+      },
+      "activation": {
+        "file": "model.py",
+        "start": [
+          9,
+          8
+        ],
+        "end": [
+          9,
+          35
+        ],
+        "kind": "decl",
+        "digest": "04e4957bfe3d",
+        "file_digest": "f5e6cbcde03a805959e27402bd6b362cd526f247e77d47689dc4fcb2ffa65ef1"
+      },
+      "norm": {
+        "file": "model.py",
+        "start": [
+          10,
+          8
+        ],
+        "end": [
+          10,
+          36
+        ],
+        "kind": "decl",
+        "digest": "8d90ad8151ad",
+        "file_digest": "f5e6cbcde03a805959e27402bd6b362cd526f247e77d47689dc4fcb2ffa65ef1"
+      },
+      "head": {
+        "file": "model.py",
+        "start": [
+          11,
+          8
+        ],
+        "end": [
+          11,
+          36
+        ],
+        "kind": "decl",
+        "digest": "712fb568c755",
+        "file_digest": "f5e6cbcde03a805959e27402bd6b362cd526f247e77d47689dc4fcb2ffa65ef1"
+      }
+    },
+    "diagnostics": [],
+    "truncated": false
+  }
+}

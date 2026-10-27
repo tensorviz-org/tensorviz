@@ -1,0 +1,264 @@
+{
+  "version": 1,
+  "id": "capture:0",
+  "attemptId": "attempt:0",
+  "source": {
+    "version": 1,
+    "id": "source:0",
+    "workspaceSessionId": "session:0",
+    "workspaceId": "workspace:0",
+    "modelId": "model:0",
+    "modelFile": "model.py",
+    "className": "Model",
+    "generation": 0,
+    "files": [
+      {
+        "path": "model.py",
+        "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "documentVersion": 1,
+        "role": "source"
+      }
+    ],
+    "dependencyScope": "complete",
+    "configDigest": null,
+    "environmentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "sourceMode": "saved"
+  },
+  "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "inputDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "stateDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "backend": "runtime",
+  "backendVersion": "1",
+  "torchVersion": "2.7.1",
+  "normalizations": [
+    "dispatcher operations"
+  ],
+  "status": "complete",
+  "rootInvocationId": "call:0",
+  "inputs": {
+    "args": [
+      {
+        "kind": "value",
+        "id": "h"
+      }
+    ],
+    "kwargs": {}
+  },
+  "output": {
+    "kind": "value",
+    "id": "b"
+  },
+  "definitions": [
+    {
+      "id": "definition:0",
+      "qualifiedName": "model.Model",
+      "sourceBindingIds": []
+    }
+  ],
+  "modules": [
+    {
+      "id": "module:0",
+      "definitionId": "definition:0",
+      "paths": [
+        ""
+      ]
+    }
+  ],
+  "invocations": [
+    {
+      "id": "call:0",
+      "moduleId": "module:0",
+      "parentId": null,
+      "sequence": 0,
+      "endSequence": 3,
+      "arguments": {
+        "args": [
+          {
+            "kind": "value",
+            "id": "h"
+          }
+        ],
+        "kwargs": {}
+      },
+      "output": {
+        "kind": "value",
+        "id": "b"
+      },
+      "status": "completed",
+      "training": false,
+      "gradEnabled": false,
+      "diagnosticId": null,
+      "sourceBindingIds": [],
+      "parameterCount": 0
+    }
+  ],
+  "operations": [
+    {
+      "id": "add1",
+      "sequence": 1,
+      "invocationId": "call:0",
+      "target": "aten.add.Tensor",
+      "schemaSignature": "aten::add.Tensor(Tensor self, Tensor other, *, Scalar alpha=1) -> Tensor",
+      "arguments": {
+        "args": [
+          {
+            "kind": "value",
+            "id": "h"
+          },
+          {
+            "kind": "int",
+            "value": "1"
+          }
+        ],
+        "kwargs": {}
+      },
+      "output": {
+        "kind": "value",
+        "id": "a"
+      },
+      "status": "completed",
+      "diagnosticId": null,
+      "sourceBindingIds": [],
+      "effects": []
+    },
+    {
+      "id": "add2",
+      "sequence": 2,
+      "invocationId": "call:0",
+      "target": "aten.add.Tensor",
+      "schemaSignature": null,
+      "arguments": {
+        "args": [
+          {
+            "kind": "value",
+            "id": "a"
+          },
+          {
+            "kind": "value",
+            "id": "a"
+          }
+        ],
+        "kwargs": {}
+      },
+      "output": {
+        "kind": "value",
+        "id": "b"
+      },
+      "status": "completed",
+      "diagnosticId": null,
+      "sourceBindingIds": [],
+      "effects": []
+    }
+  ],
+  "values": [
+    {
+      "id": "h",
+      "objectId": "object:h",
+      "storageId": "storage:h",
+      "version": 0,
+      "shape": [
+        2,
+        4
+      ],
+      "dtype": "float32",
+      "device": "cpu",
+      "requiresGrad": false,
+      "aliasOf": null,
+      "previousVersion": null,
+      "stride": [
+        4,
+        1
+      ],
+      "storageOffset": 0,
+      "state": [],
+      "origin": "input",
+      "producer": null,
+      "logicalVersion": 0,
+      "logicalBytes": 32
+    },
+    {
+      "id": "a",
+      "objectId": "object:a",
+      "storageId": "storage:a",
+      "version": 0,
+      "shape": [
+        2,
+        4
+      ],
+      "dtype": "float32",
+      "device": "cpu",
+      "requiresGrad": false,
+      "aliasOf": null,
+      "previousVersion": null,
+      "stride": [
+        4,
+        1
+      ],
+      "storageOffset": 0,
+      "state": [],
+      "origin": "operation",
+      "producer": {
+        "operationId": "add1",
+        "path": [],
+        "kind": "output"
+      },
+      "logicalVersion": 0,
+      "logicalBytes": 32
+    },
+    {
+      "id": "b",
+      "objectId": "object:b",
+      "storageId": "storage:b",
+      "version": 0,
+      "shape": [
+        2,
+        4
+      ],
+      "dtype": "float32",
+      "device": "cpu",
+      "requiresGrad": false,
+      "aliasOf": null,
+      "previousVersion": null,
+      "stride": [
+        4,
+        1
+      ],
+      "storageOffset": 0,
+      "state": [],
+      "origin": "operation",
+      "producer": {
+        "operationId": "add2",
+        "path": [],
+        "kind": "output"
+      },
+      "logicalVersion": 0,
+      "logicalBytes": 32
+    }
+  ],
+  "sourceBindings": [],
+  "diagnostics": [],
+  "coverage": {
+    "scope": "executed_path",
+    "operationsSeen": 2,
+    "invocationsSeen": 1,
+    "omissions": [],
+    "modules": [
+      {
+        "modulePath": "",
+        "status": "observed",
+        "invocationIds": [
+          "call:0"
+        ],
+        "reason": null
+      }
+    ]
+  },
+  "limits": {
+    "operations": 100,
+    "invocations": 100,
+    "values": 100,
+    "bytes": 1000000
+  },
+  "preparationDigest": null,
+  "automatic": null
+}

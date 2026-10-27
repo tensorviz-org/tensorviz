@@ -1,0 +1,1218 @@
+{
+  "batch2": {
+    "schemaVersion": 2,
+    "semantic": {
+      "graph_id": "ide:25c0ed0c4c66#GoodNet",
+      "name": "GoodNet",
+      "revision": 0,
+      "inputs": [
+        {
+          "name": "input",
+          "shape": "2,4"
+        }
+      ],
+      "nodes": [
+        {
+          "node_id": "input",
+          "kind": "input",
+          "op": "Input",
+          "params": {
+            "name": "Input",
+            "shape": "2,4",
+            "_subtitle": "Input",
+            "_input_provenance": "explicit"
+          },
+          "in_ports": [],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {}
+        },
+        {
+          "node_id": "fc1",
+          "kind": "layer",
+          "op": "Linear",
+          "params": {
+            "in_features": 4,
+            "out_features": 4,
+            "_module_path": "fc1",
+            "_class": "Linear",
+            "_params_M": 0.0,
+            "_in_shape": "2x4",
+            "_out_shape": "2x4",
+            "_shape_provenance": "observed",
+            "_subtitle": "Linear",
+            "_lineno": 5,
+            "_end_lineno": 5,
+            "_col_offset": 8,
+            "_end_col_offset": 34,
+            "_raw_call": "nn.Linear(4, 4)",
+            "_stmt_hash": "80f333a8ba39",
+            "_kind": "class"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {
+            "parentId": null
+          }
+        },
+        {
+          "node_id": "fc2",
+          "kind": "layer",
+          "op": "Linear",
+          "params": {
+            "in_features": 4,
+            "out_features": 2,
+            "_module_path": "fc2",
+            "_class": "Linear",
+            "_params_M": 0.0,
+            "_in_shape": "2x4",
+            "_out_shape": "2x2",
+            "_shape_provenance": "observed",
+            "_subtitle": "Linear",
+            "_lineno": 7,
+            "_end_lineno": 7,
+            "_col_offset": 8,
+            "_end_col_offset": 34,
+            "_raw_call": "nn.Linear(4, 2)",
+            "_stmt_hash": "eeb05dc4e4ea",
+            "_kind": "class"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {
+            "parentId": null
+          }
+        },
+        {
+          "node_id": "relu",
+          "kind": "layer",
+          "op": "ReLU",
+          "params": {
+            "inplace": false,
+            "_module_path": "relu",
+            "_class": "ReLU",
+            "_params_M": 0.0,
+            "_in_shape": "2x4",
+            "_out_shape": "2x4",
+            "_shape_provenance": "observed",
+            "_subtitle": "ReLU",
+            "_lineno": 6,
+            "_end_lineno": 6,
+            "_col_offset": 8,
+            "_end_col_offset": 29,
+            "_raw_call": "nn.ReLU()",
+            "_stmt_hash": "216926d3c0e6",
+            "_kind": "class"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {
+            "parentId": null
+          }
+        },
+        {
+          "node_id": "output",
+          "kind": "output",
+          "op": "Output",
+          "params": {
+            "name": "Output",
+            "_subtitle": "Output",
+            "shape": "2,2",
+            "_out_shape": "2x2",
+            "_shape_provenance": "observed"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [],
+          "metadata": {}
+        }
+      ],
+      "edges": [
+        {
+          "edge_id": "edge_fc1_relu",
+          "source_node_id": "fc1",
+          "source_port": "y",
+          "target_node_id": "relu",
+          "target_port": "x",
+          "metadata": {}
+        },
+        {
+          "edge_id": "edge_relu_fc2",
+          "source_node_id": "relu",
+          "source_port": "y",
+          "target_node_id": "fc2",
+          "target_port": "x",
+          "metadata": {}
+        },
+        {
+          "edge_id": "edge_input_fc1",
+          "source_node_id": "input",
+          "source_port": "y",
+          "target_node_id": "fc1",
+          "target_port": "x",
+          "metadata": {}
+        },
+        {
+          "edge_id": "edge_fc2_output",
+          "source_node_id": "fc2",
+          "source_port": "y",
+          "target_node_id": "output",
+          "target_port": "x",
+          "metadata": {}
+        }
+      ],
+      "modules": [],
+      "operations": [],
+      "metadata": {
+        "importer": "services.ingest"
+      }
+    },
+    "view": {
+      "graph_id": "ide:25c0ed0c4c66#GoodNet",
+      "node_positions": {
+        "input": {
+          "x": -300.0,
+          "y": 80.0
+        },
+        "fc1": {
+          "x": 80.0,
+          "y": 80.0
+        },
+        "fc2": {
+          "x": 840.0,
+          "y": 80.0
+        },
+        "relu": {
+          "x": 460.0,
+          "y": 80.0
+        },
+        "output": {
+          "x": 1220.0,
+          "y": 80.0
+        }
+      },
+      "collapsed_modules": [],
+      "selection": [],
+      "layout": {
+        "strategy": "imported",
+        "node_canvas": {
+          "input": {
+            "type": "inputNode"
+          },
+          "fc1": {
+            "type": "layerNode"
+          },
+          "fc2": {
+            "type": "layerNode"
+          },
+          "relu": {
+            "type": "layerNode"
+          },
+          "output": {
+            "type": "outputNode"
+          }
+        },
+        "node_data": {
+          "input": {},
+          "fc1": {
+            "parameterCount": 20,
+            "outputTensor": {
+              "shape": [
+                2,
+                4
+              ],
+              "dtype": "float32",
+              "logicalBytes": 32
+            },
+            "parentId": null,
+            "depth": 1,
+            "expanded": false,
+            "isGroup": false,
+            "moduleType": "builtin",
+            "displayName": "fc1",
+            "moduleInstanceId": "fc1",
+            "moduleTemplateId": "Linear",
+            "moduleLayerCount": 0
+          },
+          "fc2": {
+            "parameterCount": 10,
+            "outputTensor": {
+              "shape": [
+                2,
+                2
+              ],
+              "dtype": "float32",
+              "logicalBytes": 16
+            },
+            "parentId": null,
+            "depth": 1,
+            "expanded": false,
+            "isGroup": false,
+            "moduleType": "builtin",
+            "displayName": "fc2",
+            "moduleInstanceId": "fc2",
+            "moduleTemplateId": "Linear",
+            "moduleLayerCount": 0
+          },
+          "relu": {
+            "parameterCount": 0,
+            "outputTensor": {
+              "shape": [
+                2,
+                4
+              ],
+              "dtype": "float32",
+              "logicalBytes": 32
+            },
+            "parentId": null,
+            "depth": 1,
+            "expanded": false,
+            "isGroup": false,
+            "moduleType": "builtin",
+            "displayName": "relu",
+            "moduleInstanceId": "relu",
+            "moduleTemplateId": "ReLU",
+            "moduleLayerCount": 0
+          },
+          "output": {
+            "outputTensor": {
+              "shape": [
+                2,
+                2
+              ],
+              "dtype": "float32",
+              "logicalBytes": 16
+            }
+          }
+        },
+        "edge_canvas": {}
+      }
+    }
+  },
+  "batch3": {
+    "schemaVersion": 2,
+    "semantic": {
+      "graph_id": "ide:25c0ed0c4c66#GoodNet",
+      "name": "GoodNet",
+      "revision": 0,
+      "inputs": [
+        {
+          "name": "input",
+          "shape": "3,4"
+        }
+      ],
+      "nodes": [
+        {
+          "node_id": "input",
+          "kind": "input",
+          "op": "Input",
+          "params": {
+            "name": "Input",
+            "shape": "3,4",
+            "_subtitle": "Input",
+            "_input_provenance": "explicit"
+          },
+          "in_ports": [],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {}
+        },
+        {
+          "node_id": "fc1",
+          "kind": "layer",
+          "op": "Linear",
+          "params": {
+            "in_features": 4,
+            "out_features": 4,
+            "_module_path": "fc1",
+            "_class": "Linear",
+            "_params_M": 0.0,
+            "_in_shape": "3x4",
+            "_out_shape": "3x4",
+            "_shape_provenance": "observed",
+            "_subtitle": "Linear",
+            "_lineno": 5,
+            "_end_lineno": 5,
+            "_col_offset": 8,
+            "_end_col_offset": 34,
+            "_raw_call": "nn.Linear(4, 4)",
+            "_stmt_hash": "80f333a8ba39",
+            "_kind": "class"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {
+            "parentId": null
+          }
+        },
+        {
+          "node_id": "fc2",
+          "kind": "layer",
+          "op": "Linear",
+          "params": {
+            "in_features": 4,
+            "out_features": 2,
+            "_module_path": "fc2",
+            "_class": "Linear",
+            "_params_M": 0.0,
+            "_in_shape": "3x4",
+            "_out_shape": "3x2",
+            "_shape_provenance": "observed",
+            "_subtitle": "Linear",
+            "_lineno": 7,
+            "_end_lineno": 7,
+            "_col_offset": 8,
+            "_end_col_offset": 34,
+            "_raw_call": "nn.Linear(4, 2)",
+            "_stmt_hash": "eeb05dc4e4ea",
+            "_kind": "class"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {
+            "parentId": null
+          }
+        },
+        {
+          "node_id": "relu",
+          "kind": "layer",
+          "op": "ReLU",
+          "params": {
+            "inplace": false,
+            "_module_path": "relu",
+            "_class": "ReLU",
+            "_params_M": 0.0,
+            "_in_shape": "3x4",
+            "_out_shape": "3x4",
+            "_shape_provenance": "observed",
+            "_subtitle": "ReLU",
+            "_lineno": 6,
+            "_end_lineno": 6,
+            "_col_offset": 8,
+            "_end_col_offset": 29,
+            "_raw_call": "nn.ReLU()",
+            "_stmt_hash": "216926d3c0e6",
+            "_kind": "class"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {
+            "parentId": null
+          }
+        },
+        {
+          "node_id": "output",
+          "kind": "output",
+          "op": "Output",
+          "params": {
+            "name": "Output",
+            "_subtitle": "Output",
+            "shape": "3,2",
+            "_out_shape": "3x2",
+            "_shape_provenance": "observed"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [],
+          "metadata": {}
+        }
+      ],
+      "edges": [
+        {
+          "edge_id": "edge_fc1_relu",
+          "source_node_id": "fc1",
+          "source_port": "y",
+          "target_node_id": "relu",
+          "target_port": "x",
+          "metadata": {}
+        },
+        {
+          "edge_id": "edge_relu_fc2",
+          "source_node_id": "relu",
+          "source_port": "y",
+          "target_node_id": "fc2",
+          "target_port": "x",
+          "metadata": {}
+        },
+        {
+          "edge_id": "edge_input_fc1",
+          "source_node_id": "input",
+          "source_port": "y",
+          "target_node_id": "fc1",
+          "target_port": "x",
+          "metadata": {}
+        },
+        {
+          "edge_id": "edge_fc2_output",
+          "source_node_id": "fc2",
+          "source_port": "y",
+          "target_node_id": "output",
+          "target_port": "x",
+          "metadata": {}
+        }
+      ],
+      "modules": [],
+      "operations": [],
+      "metadata": {
+        "importer": "services.ingest"
+      }
+    },
+    "view": {
+      "graph_id": "ide:25c0ed0c4c66#GoodNet",
+      "node_positions": {
+        "input": {
+          "x": -300.0,
+          "y": 80.0
+        },
+        "fc1": {
+          "x": 80.0,
+          "y": 80.0
+        },
+        "fc2": {
+          "x": 840.0,
+          "y": 80.0
+        },
+        "relu": {
+          "x": 460.0,
+          "y": 80.0
+        },
+        "output": {
+          "x": 1220.0,
+          "y": 80.0
+        }
+      },
+      "collapsed_modules": [],
+      "selection": [],
+      "layout": {
+        "strategy": "imported",
+        "node_canvas": {
+          "input": {
+            "type": "inputNode"
+          },
+          "fc1": {
+            "type": "layerNode"
+          },
+          "fc2": {
+            "type": "layerNode"
+          },
+          "relu": {
+            "type": "layerNode"
+          },
+          "output": {
+            "type": "outputNode"
+          }
+        },
+        "node_data": {
+          "input": {},
+          "fc1": {
+            "parameterCount": 20,
+            "outputTensor": {
+              "shape": [
+                3,
+                4
+              ],
+              "dtype": "float32",
+              "logicalBytes": 48
+            },
+            "parentId": null,
+            "depth": 1,
+            "expanded": false,
+            "isGroup": false,
+            "moduleType": "builtin",
+            "displayName": "fc1",
+            "moduleInstanceId": "fc1",
+            "moduleTemplateId": "Linear",
+            "moduleLayerCount": 0
+          },
+          "fc2": {
+            "parameterCount": 10,
+            "outputTensor": {
+              "shape": [
+                3,
+                2
+              ],
+              "dtype": "float32",
+              "logicalBytes": 24
+            },
+            "parentId": null,
+            "depth": 1,
+            "expanded": false,
+            "isGroup": false,
+            "moduleType": "builtin",
+            "displayName": "fc2",
+            "moduleInstanceId": "fc2",
+            "moduleTemplateId": "Linear",
+            "moduleLayerCount": 0
+          },
+          "relu": {
+            "parameterCount": 0,
+            "outputTensor": {
+              "shape": [
+                3,
+                4
+              ],
+              "dtype": "float32",
+              "logicalBytes": 48
+            },
+            "parentId": null,
+            "depth": 1,
+            "expanded": false,
+            "isGroup": false,
+            "moduleType": "builtin",
+            "displayName": "relu",
+            "moduleInstanceId": "relu",
+            "moduleTemplateId": "ReLU",
+            "moduleLayerCount": 0
+          },
+          "output": {
+            "outputTensor": {
+              "shape": [
+                3,
+                2
+              ],
+              "dtype": "float32",
+              "logicalBytes": 24
+            }
+          }
+        },
+        "edge_canvas": {}
+      }
+    }
+  },
+  "double": {
+    "schemaVersion": 2,
+    "semantic": {
+      "graph_id": "ide:25c0ed0c4c66#GoodNet",
+      "name": "GoodNet",
+      "revision": 0,
+      "inputs": [
+        {
+          "name": "input",
+          "shape": "3,4"
+        }
+      ],
+      "nodes": [
+        {
+          "node_id": "input",
+          "kind": "input",
+          "op": "Input",
+          "params": {
+            "name": "Input",
+            "shape": "3,4",
+            "_subtitle": "Input",
+            "_input_provenance": "explicit"
+          },
+          "in_ports": [],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {}
+        },
+        {
+          "node_id": "fc1",
+          "kind": "layer",
+          "op": "Linear",
+          "params": {
+            "in_features": 4,
+            "out_features": 4,
+            "_module_path": "fc1",
+            "_class": "Linear",
+            "_params_M": 0.0,
+            "_in_shape": "3x4",
+            "_out_shape": "3x4",
+            "_shape_provenance": "observed",
+            "_subtitle": "Linear",
+            "_lineno": 5,
+            "_end_lineno": 5,
+            "_col_offset": 8,
+            "_end_col_offset": 34,
+            "_raw_call": "nn.Linear(4, 4)",
+            "_stmt_hash": "80f333a8ba39",
+            "_kind": "class"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {
+            "parentId": null
+          }
+        },
+        {
+          "node_id": "fc2",
+          "kind": "layer",
+          "op": "Linear",
+          "params": {
+            "in_features": 4,
+            "out_features": 2,
+            "_module_path": "fc2",
+            "_class": "Linear",
+            "_params_M": 0.0,
+            "_in_shape": "3x4",
+            "_out_shape": "3x2",
+            "_shape_provenance": "observed",
+            "_subtitle": "Linear",
+            "_lineno": 7,
+            "_end_lineno": 7,
+            "_col_offset": 8,
+            "_end_col_offset": 34,
+            "_raw_call": "nn.Linear(4, 2)",
+            "_stmt_hash": "eeb05dc4e4ea",
+            "_kind": "class"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {
+            "parentId": null
+          }
+        },
+        {
+          "node_id": "relu",
+          "kind": "layer",
+          "op": "ReLU",
+          "params": {
+            "inplace": false,
+            "_module_path": "relu",
+            "_class": "ReLU",
+            "_params_M": 0.0,
+            "_in_shape": "3x4",
+            "_out_shape": "3x4",
+            "_shape_provenance": "observed",
+            "_subtitle": "ReLU",
+            "_lineno": 6,
+            "_end_lineno": 6,
+            "_col_offset": 8,
+            "_end_col_offset": 29,
+            "_raw_call": "nn.ReLU()",
+            "_stmt_hash": "216926d3c0e6",
+            "_kind": "class"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {
+            "parentId": null
+          }
+        },
+        {
+          "node_id": "output",
+          "kind": "output",
+          "op": "Output",
+          "params": {
+            "name": "Output",
+            "_subtitle": "Output",
+            "shape": "3,2",
+            "_out_shape": "3x2",
+            "_shape_provenance": "observed"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [],
+          "metadata": {}
+        }
+      ],
+      "edges": [
+        {
+          "edge_id": "edge_fc1_relu",
+          "source_node_id": "fc1",
+          "source_port": "y",
+          "target_node_id": "relu",
+          "target_port": "x",
+          "metadata": {}
+        },
+        {
+          "edge_id": "edge_relu_fc2",
+          "source_node_id": "relu",
+          "source_port": "y",
+          "target_node_id": "fc2",
+          "target_port": "x",
+          "metadata": {}
+        },
+        {
+          "edge_id": "edge_input_fc1",
+          "source_node_id": "input",
+          "source_port": "y",
+          "target_node_id": "fc1",
+          "target_port": "x",
+          "metadata": {}
+        },
+        {
+          "edge_id": "edge_fc2_output",
+          "source_node_id": "fc2",
+          "source_port": "y",
+          "target_node_id": "output",
+          "target_port": "x",
+          "metadata": {}
+        }
+      ],
+      "modules": [],
+      "operations": [],
+      "metadata": {
+        "importer": "services.ingest"
+      }
+    },
+    "view": {
+      "graph_id": "ide:25c0ed0c4c66#GoodNet",
+      "node_positions": {
+        "input": {
+          "x": -300.0,
+          "y": 80.0
+        },
+        "fc1": {
+          "x": 80.0,
+          "y": 80.0
+        },
+        "fc2": {
+          "x": 840.0,
+          "y": 80.0
+        },
+        "relu": {
+          "x": 460.0,
+          "y": 80.0
+        },
+        "output": {
+          "x": 1220.0,
+          "y": 80.0
+        }
+      },
+      "collapsed_modules": [],
+      "selection": [],
+      "layout": {
+        "strategy": "imported",
+        "node_canvas": {
+          "input": {
+            "type": "inputNode"
+          },
+          "fc1": {
+            "type": "layerNode"
+          },
+          "fc2": {
+            "type": "layerNode"
+          },
+          "relu": {
+            "type": "layerNode"
+          },
+          "output": {
+            "type": "outputNode"
+          }
+        },
+        "node_data": {
+          "input": {},
+          "fc1": {
+            "parameterCount": 20,
+            "outputTensor": {
+              "shape": [
+                3,
+                4
+              ],
+              "dtype": "float64",
+              "logicalBytes": 96
+            },
+            "parentId": null,
+            "depth": 1,
+            "expanded": false,
+            "isGroup": false,
+            "moduleType": "builtin",
+            "displayName": "fc1",
+            "moduleInstanceId": "fc1",
+            "moduleTemplateId": "Linear",
+            "moduleLayerCount": 0
+          },
+          "fc2": {
+            "parameterCount": 10,
+            "outputTensor": {
+              "shape": [
+                3,
+                2
+              ],
+              "dtype": "float64",
+              "logicalBytes": 48
+            },
+            "parentId": null,
+            "depth": 1,
+            "expanded": false,
+            "isGroup": false,
+            "moduleType": "builtin",
+            "displayName": "fc2",
+            "moduleInstanceId": "fc2",
+            "moduleTemplateId": "Linear",
+            "moduleLayerCount": 0
+          },
+          "relu": {
+            "parameterCount": 0,
+            "outputTensor": {
+              "shape": [
+                3,
+                4
+              ],
+              "dtype": "float64",
+              "logicalBytes": 96
+            },
+            "parentId": null,
+            "depth": 1,
+            "expanded": false,
+            "isGroup": false,
+            "moduleType": "builtin",
+            "displayName": "relu",
+            "moduleInstanceId": "relu",
+            "moduleTemplateId": "ReLU",
+            "moduleLayerCount": 0
+          },
+          "output": {
+            "outputTensor": {
+              "shape": [
+                3,
+                2
+              ],
+              "dtype": "float64",
+              "logicalBytes": 48
+            }
+          }
+        },
+        "edge_canvas": {}
+      }
+    }
+  },
+  "empty": {
+    "schemaVersion": 2,
+    "semantic": {
+      "graph_id": "ide:25c0ed0c4c66#GoodNet",
+      "name": "GoodNet",
+      "revision": 0,
+      "inputs": [
+        {
+          "name": "input",
+          "shape": "0,4"
+        }
+      ],
+      "nodes": [
+        {
+          "node_id": "input",
+          "kind": "input",
+          "op": "Input",
+          "params": {
+            "name": "Input",
+            "shape": "0,4",
+            "_subtitle": "Input",
+            "_input_provenance": "explicit"
+          },
+          "in_ports": [],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {}
+        },
+        {
+          "node_id": "fc1",
+          "kind": "layer",
+          "op": "Linear",
+          "params": {
+            "in_features": 4,
+            "out_features": 4,
+            "_module_path": "fc1",
+            "_class": "Linear",
+            "_params_M": 0.0,
+            "_in_shape": "0x4",
+            "_out_shape": "0x4",
+            "_shape_provenance": "observed",
+            "_subtitle": "Linear",
+            "_lineno": 5,
+            "_end_lineno": 5,
+            "_col_offset": 8,
+            "_end_col_offset": 34,
+            "_raw_call": "nn.Linear(4, 4)",
+            "_stmt_hash": "80f333a8ba39",
+            "_kind": "class"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {
+            "parentId": null
+          }
+        },
+        {
+          "node_id": "fc2",
+          "kind": "layer",
+          "op": "Linear",
+          "params": {
+            "in_features": 4,
+            "out_features": 2,
+            "_module_path": "fc2",
+            "_class": "Linear",
+            "_params_M": 0.0,
+            "_in_shape": "0x4",
+            "_out_shape": "0x2",
+            "_shape_provenance": "observed",
+            "_subtitle": "Linear",
+            "_lineno": 7,
+            "_end_lineno": 7,
+            "_col_offset": 8,
+            "_end_col_offset": 34,
+            "_raw_call": "nn.Linear(4, 2)",
+            "_stmt_hash": "eeb05dc4e4ea",
+            "_kind": "class"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {
+            "parentId": null
+          }
+        },
+        {
+          "node_id": "relu",
+          "kind": "layer",
+          "op": "ReLU",
+          "params": {
+            "inplace": false,
+            "_module_path": "relu",
+            "_class": "ReLU",
+            "_params_M": 0.0,
+            "_in_shape": "0x4",
+            "_out_shape": "0x4",
+            "_shape_provenance": "observed",
+            "_subtitle": "ReLU",
+            "_lineno": 6,
+            "_end_lineno": 6,
+            "_col_offset": 8,
+            "_end_col_offset": 29,
+            "_raw_call": "nn.ReLU()",
+            "_stmt_hash": "216926d3c0e6",
+            "_kind": "class"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [
+            "y"
+          ],
+          "metadata": {
+            "parentId": null
+          }
+        },
+        {
+          "node_id": "output",
+          "kind": "output",
+          "op": "Output",
+          "params": {
+            "name": "Output",
+            "_subtitle": "Output",
+            "shape": "0,2",
+            "_out_shape": "0x2",
+            "_shape_provenance": "observed"
+          },
+          "in_ports": [
+            "x"
+          ],
+          "out_ports": [],
+          "metadata": {}
+        }
+      ],
+      "edges": [
+        {
+          "edge_id": "edge_fc1_relu",
+          "source_node_id": "fc1",
+          "source_port": "y",
+          "target_node_id": "relu",
+          "target_port": "x",
+          "metadata": {}
+        },
+        {
+          "edge_id": "edge_relu_fc2",
+          "source_node_id": "relu",
+          "source_port": "y",
+          "target_node_id": "fc2",
+          "target_port": "x",
+          "metadata": {}
+        },
+        {
+          "edge_id": "edge_input_fc1",
+          "source_node_id": "input",
+          "source_port": "y",
+          "target_node_id": "fc1",
+          "target_port": "x",
+          "metadata": {}
+        },
+        {
+          "edge_id": "edge_fc2_output",
+          "source_node_id": "fc2",
+          "source_port": "y",
+          "target_node_id": "output",
+          "target_port": "x",
+          "metadata": {}
+        }
+      ],
+      "modules": [],
+      "operations": [],
+      "metadata": {
+        "importer": "services.ingest"
+      }
+    },
+    "view": {
+      "graph_id": "ide:25c0ed0c4c66#GoodNet",
+      "node_positions": {
+        "input": {
+          "x": -300.0,
+          "y": 80.0
+        },
+        "fc1": {
+          "x": 80.0,
+          "y": 80.0
+        },
+        "fc2": {
+          "x": 840.0,
+          "y": 80.0
+        },
+        "relu": {
+          "x": 460.0,
+          "y": 80.0
+        },
+        "output": {
+          "x": 1220.0,
+          "y": 80.0
+        }
+      },
+      "collapsed_modules": [],
+      "selection": [],
+      "layout": {
+        "strategy": "imported",
+        "node_canvas": {
+          "input": {
+            "type": "inputNode"
+          },
+          "fc1": {
+            "type": "layerNode"
+          },
+          "fc2": {
+            "type": "layerNode"
+          },
+          "relu": {
+            "type": "layerNode"
+          },
+          "output": {
+            "type": "outputNode"
+          }
+        },
+        "node_data": {
+          "input": {},
+          "fc1": {
+            "parameterCount": 20,
+            "outputTensor": {
+              "shape": [
+                0,
+                4
+              ],
+              "dtype": "float32",
+              "logicalBytes": 0
+            },
+            "parentId": null,
+            "depth": 1,
+            "expanded": false,
+            "isGroup": false,
+            "moduleType": "builtin",
+            "displayName": "fc1",
+            "moduleInstanceId": "fc1",
+            "moduleTemplateId": "Linear",
+            "moduleLayerCount": 0
+          },
+          "fc2": {
+            "parameterCount": 10,
+            "outputTensor": {
+              "shape": [
+                0,
+                2
+              ],
+              "dtype": "float32",
+              "logicalBytes": 0
+            },
+            "parentId": null,
+            "depth": 1,
+            "expanded": false,
+            "isGroup": false,
+            "moduleType": "builtin",
+            "displayName": "fc2",
+            "moduleInstanceId": "fc2",
+            "moduleTemplateId": "Linear",
+            "moduleLayerCount": 0
+          },
+          "relu": {
+            "parameterCount": 0,
+            "outputTensor": {
+              "shape": [
+                0,
+                4
+              ],
+              "dtype": "float32",
+              "logicalBytes": 0
+            },
+            "parentId": null,
+            "depth": 1,
+            "expanded": false,
+            "isGroup": false,
+            "moduleType": "builtin",
+            "displayName": "relu",
+            "moduleInstanceId": "relu",
+            "moduleTemplateId": "ReLU",
+            "moduleLayerCount": 0
+          },
+          "output": {
+            "outputTensor": {
+              "shape": [
+                0,
+                2
+              ],
+              "dtype": "float32",
+              "logicalBytes": 0
+            }
+          }
+        },
+        "edge_canvas": {}
+      }
+    }
+  }
+}

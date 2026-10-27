@@ -1,0 +1,860 @@
+{
+  "version": 1,
+  "sourceManifest": "backend/tests/fixtures/four-model-sources.json",
+  "recipes": [
+    {
+      "id": "tensorsssss--explicit-correct",
+      "repository": "tensorsssss",
+      "file": "models/network.py",
+      "class": "MidLevelVisionNet",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                2,
+                3,
+                128,
+                128
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "constructorArgs": {
+          "num_classes": 20
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "outputShape": [
+        2,
+        20
+      ]
+    },
+    {
+      "id": "tensorsssss--missing-input",
+      "repository": "tensorsssss",
+      "file": "models/network.py",
+      "class": "MidLevelVisionNet",
+      "execution": {
+        "inputs": {
+          "args": [],
+          "kwargs": {}
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "TypeError"
+      ]
+    },
+    {
+      "id": "tensorsssss--wrong-channels",
+      "repository": "tensorsssss",
+      "file": "models/network.py",
+      "class": "MidLevelVisionNet",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                1,
+                64,
+                64
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "RuntimeError"
+      ]
+    },
+    {
+      "id": "tensorsssss--wrong-dtype",
+      "repository": "tensorsssss",
+      "file": "models/network.py",
+      "class": "MidLevelVisionNet",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                3,
+                64,
+                64
+              ],
+              "dtype": "int64",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "RuntimeError"
+      ]
+    },
+    {
+      "id": "tensorsssss--wrong-rank",
+      "repository": "tensorsssss",
+      "file": "models/network.py",
+      "class": "MidLevelVisionNet",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                3,
+                64
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "RuntimeError"
+      ]
+    },
+    {
+      "id": "Pytorch-UNet-master--bilinear-branch",
+      "repository": "Pytorch-UNet-master",
+      "file": "unet/unet_model.py",
+      "class": "UNet",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                3,
+                64,
+                64
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "constructorArgs": {
+          "n_channels": 3,
+          "n_classes": 2,
+          "bilinear": true
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "outputShape": [
+        1,
+        2,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "Pytorch-UNet-master--explicit-correct",
+      "repository": "Pytorch-UNet-master",
+      "file": "unet/unet_model.py",
+      "class": "UNet",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                3,
+                64,
+                64
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "constructorArgs": {
+          "n_channels": 3,
+          "n_classes": 2
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "outputShape": [
+        1,
+        2,
+        64,
+        64
+      ]
+    },
+    {
+      "id": "Pytorch-UNet-master--missing-constructor",
+      "repository": "Pytorch-UNet-master",
+      "file": "unet/unet_model.py",
+      "class": "UNet",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                3,
+                64,
+                64
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "TypeError"
+      ]
+    },
+    {
+      "id": "Pytorch-UNet-master--odd-spatial",
+      "repository": "Pytorch-UNet-master",
+      "file": "unet/unet_model.py",
+      "class": "UNet",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                3,
+                65,
+                67
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "constructorArgs": {
+          "n_channels": 3,
+          "n_classes": 2
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "outputShape": [
+        1,
+        2,
+        65,
+        67
+      ]
+    },
+    {
+      "id": "Pytorch-UNet-master--too-small-spatial",
+      "repository": "Pytorch-UNet-master",
+      "file": "unet/unet_model.py",
+      "class": "UNet",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                3,
+                8,
+                8
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "constructorArgs": {
+          "n_channels": 3,
+          "n_classes": 2
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "RuntimeError"
+      ]
+    },
+    {
+      "id": "Pytorch-UNet-master--wrong-channels",
+      "repository": "Pytorch-UNet-master",
+      "file": "unet/unet_model.py",
+      "class": "UNet",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                1,
+                64,
+                64
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "constructorArgs": {
+          "n_channels": 3,
+          "n_classes": 2
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "RuntimeError"
+      ]
+    },
+    {
+      "id": "dinov2-main--bad-head-divisibility",
+      "repository": "dinov2-main",
+      "file": "dinov2/models/vision_transformer.py",
+      "class": "DinoVisionTransformer",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                3,
+                56,
+                56
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "constructorArgs": {
+          "img_size": 56,
+          "patch_size": 14,
+          "embed_dim": 95,
+          "depth": 2,
+          "num_heads": 4
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "RuntimeError"
+      ]
+    },
+    {
+      "id": "dinov2-main--bad-patch-divisibility",
+      "repository": "dinov2-main",
+      "file": "dinov2/models/vision_transformer.py",
+      "class": "DinoVisionTransformer",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                3,
+                55,
+                55
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "constructorArgs": {
+          "img_size": 56,
+          "patch_size": 14,
+          "embed_dim": 96,
+          "depth": 2,
+          "num_heads": 4
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "AssertionError"
+      ]
+    },
+    {
+      "id": "dinov2-main--explicit-default-size",
+      "repository": "dinov2-main",
+      "file": "dinov2/models/vision_transformer.py",
+      "class": "DinoVisionTransformer",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                3,
+                224,
+                224
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "constructorArgs": {},
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "outputShape": [
+        1,
+        768
+      ]
+    },
+    {
+      "id": "dinov2-main--explicit-small",
+      "repository": "dinov2-main",
+      "file": "dinov2/models/vision_transformer.py",
+      "class": "DinoVisionTransformer",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                3,
+                56,
+                56
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "constructorArgs": {
+          "img_size": 56,
+          "patch_size": 14,
+          "embed_dim": 96,
+          "depth": 2,
+          "num_heads": 4
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "outputShape": [
+        1,
+        96
+      ]
+    },
+    {
+      "id": "dinov2-main--wrong-channels",
+      "repository": "dinov2-main",
+      "file": "dinov2/models/vision_transformer.py",
+      "class": "DinoVisionTransformer",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                1,
+                56,
+                56
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "constructorArgs": {
+          "img_size": 56,
+          "patch_size": 14,
+          "embed_dim": 96,
+          "depth": 2,
+          "num_heads": 4
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "RuntimeError"
+      ]
+    },
+    {
+      "id": "dinov2-main--wrong-rank",
+      "repository": "dinov2-main",
+      "file": "dinov2/models/vision_transformer.py",
+      "class": "DinoVisionTransformer",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                56,
+                56
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "constructorArgs": {
+          "img_size": 56,
+          "patch_size": 14,
+          "embed_dim": 96,
+          "depth": 2,
+          "num_heads": 4
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "ValueError"
+      ]
+    },
+    {
+      "id": "whisper-main--dict-dimensions",
+      "repository": "whisper-main",
+      "file": "whisper/model.py",
+      "class": "Whisper",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                80,
+                32
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            },
+            {
+              "shape": [
+                1,
+                4
+              ],
+              "dtype": "int64",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "constructorArgs": {
+          "dims": {
+            "n_mels": 80
+          }
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "AttributeError"
+      ]
+    },
+    {
+      "id": "whisper-main--factory-correct",
+      "repository": "whisper-main",
+      "file": "whisper/model.py",
+      "class": "Whisper",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                80,
+                32
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            },
+            {
+              "shape": [
+                1,
+                4
+              ],
+              "dtype": "int64",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "setup": {
+          "file": "audit_setup.py",
+          "callable": "make_model",
+          "kwargs": {}
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "outputShape": [
+        1,
+        4,
+        128
+      ]
+    },
+    {
+      "id": "whisper-main--factory-tiny-size",
+      "repository": "whisper-main",
+      "file": "whisper/model.py",
+      "class": "Whisper",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                80,
+                3000
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            },
+            {
+              "shape": [
+                1,
+                4
+              ],
+              "dtype": "int64",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "setup": {
+          "file": "audit_setup.py",
+          "callable": "make_tiny",
+          "kwargs": {}
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "outputShape": [
+        1,
+        4,
+        51865
+      ]
+    },
+    {
+      "id": "whisper-main--mel-context-mismatch",
+      "repository": "whisper-main",
+      "file": "whisper/model.py",
+      "class": "Whisper",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                80,
+                30
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            },
+            {
+              "shape": [
+                1,
+                4
+              ],
+              "dtype": "int64",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "setup": {
+          "file": "audit_setup.py",
+          "callable": "make_model",
+          "kwargs": {}
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "AssertionError"
+      ]
+    },
+    {
+      "id": "whisper-main--missing-constructor",
+      "repository": "whisper-main",
+      "file": "whisper/model.py",
+      "class": "Whisper",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                80,
+                32
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            },
+            {
+              "shape": [
+                1,
+                4
+              ],
+              "dtype": "int64",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "TypeError"
+      ]
+    },
+    {
+      "id": "whisper-main--missing-tokens",
+      "repository": "whisper-main",
+      "file": "whisper/model.py",
+      "class": "Whisper",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                80,
+                32
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "setup": {
+          "file": "audit_setup.py",
+          "callable": "make_model",
+          "kwargs": {}
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "TypeError"
+      ]
+    },
+    {
+      "id": "whisper-main--tokens-float",
+      "repository": "whisper-main",
+      "file": "whisper/model.py",
+      "class": "Whisper",
+      "execution": {
+        "inputs": {
+          "args": [
+            {
+              "shape": [
+                1,
+                80,
+                32
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            },
+            {
+              "shape": [
+                1,
+                4
+              ],
+              "dtype": "float32",
+              "fill": "ones"
+            }
+          ],
+          "kwargs": {}
+        },
+        "setup": {
+          "file": "audit_setup.py",
+          "callable": "make_model",
+          "kwargs": {}
+        },
+        "device": "cpu",
+        "mode": "eval",
+        "seed": 0,
+        "deterministic": true
+      },
+      "errorTypes": [
+        "RuntimeError"
+      ]
+    }
+  ]
+}

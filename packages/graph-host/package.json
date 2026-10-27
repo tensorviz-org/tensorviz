@@ -1,0 +1,30 @@
+{
+  "name": "@tensorviz/graph-host",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "tensorviz-source": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "tensorviz-source": "./src/*.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "dependencies": {
+    "@tensorviz/contracts": "0.0.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "ajv": "8.20.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "18.19.130"
+  },
+  "scripts": {
+    "pretest": "node -e \"require('fs').rmSync('.test-out', { recursive: true, force: true })\" && npm run build:shared --prefix ../.. && tsc -p tsconfig.test.json",
+    "test": "mocha --ui tdd \".test-out/**/*.test.js\""
+  }
+}

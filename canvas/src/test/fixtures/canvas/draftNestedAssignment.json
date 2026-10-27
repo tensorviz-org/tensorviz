@@ -1,0 +1,2382 @@
+{
+  "before": {
+    "graphId": "git-review:ide:8e7c5bc54135#ResNet152:e7ed273faaca55b267a63e6f4873396e51bcd7046cacedcc86b3aab6ed9d3ec5",
+    "revision": 0,
+    "cls": "ResNet152",
+    "file": "vision_models.py",
+    "sourceDigest": "6f9128351a553a726ebf22b466da872adcb72b72b01ef9baab43c0a6913a32aa",
+    "traced": false,
+    "greyed": false,
+    "viewRestored": false,
+    "document": {
+      "schemaVersion": 2,
+      "semantic": {
+        "graph_id": "git-review:ide:8e7c5bc54135#ResNet152:e7ed273faaca55b267a63e6f4873396e51bcd7046cacedcc86b3aab6ed9d3ec5",
+        "name": "ResNet152",
+        "revision": 0,
+        "inputs": [
+          {
+            "name": "input",
+            "shape": ""
+          }
+        ],
+        "nodes": [
+          {
+            "node_id": "conv1",
+            "kind": "layer",
+            "op": "Conv2d",
+            "params": {
+              "in_channels": 3,
+              "kernel_size": 7,
+              "stride": 2,
+              "padding": 3,
+              "bias": false,
+              "_review_call": {
+                "target": "Conv2d",
+                "arguments": {
+                  "in_channels": 3,
+                  "out_channels": {
+                    "expression": "Attribute(value=Name(id='self', ctx=Load()), attr='inplanes', ctx=Load())"
+                  },
+                  "kernel_size": 7,
+                  "stride": 2,
+                  "padding": 3,
+                  "bias": false,
+                  "dilation": 1,
+                  "groups": 1,
+                  "padding_mode": "zeros",
+                  "device": null,
+                  "dtype": null
+                }
+              },
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 197,
+              "_end_lineno": 197,
+              "_col_offset": 8,
+              "_end_col_offset": 96,
+              "_raw_call": "nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)",
+              "_stmt_hash": "48099de8b95e",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "bn1",
+            "kind": "layer",
+            "op": "custom_code",
+            "params": {
+              "_review_call": {
+                "target": "norm_layer",
+                "arguments": {
+                  "arg_0": {
+                    "expression": "Attribute(value=Name(id='self', ctx=Load()), attr='inplanes', ctx=Load())"
+                  }
+                }
+              },
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 198,
+              "_end_lineno": 198,
+              "_col_offset": 8,
+              "_end_col_offset": 44,
+              "_raw_call": "norm_layer(self.inplanes)",
+              "_stmt_hash": "65e8e482b783",
+              "_kind": "class",
+              "_shape_provenance": "static",
+              "_class": "norm_layer",
+              "_opaque": true
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "relu",
+            "kind": "layer",
+            "op": "ReLU",
+            "params": {
+              "inplace": true,
+              "_review_call": {
+                "target": "ReLU",
+                "arguments": {
+                  "inplace": true
+                }
+              },
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 199,
+              "_end_lineno": 199,
+              "_col_offset": 8,
+              "_end_col_offset": 41,
+              "_raw_call": "nn.ReLU(inplace=True)",
+              "_stmt_hash": "ba8939c3e4cb",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "maxpool",
+            "kind": "layer",
+            "op": "MaxPool2d",
+            "params": {
+              "kernel_size": 3,
+              "stride": 2,
+              "padding": 1,
+              "_review_call": {
+                "target": "MaxPool2d",
+                "arguments": {
+                  "kernel_size": 3,
+                  "stride": 2,
+                  "padding": 1,
+                  "dilation": 1,
+                  "return_indices": false,
+                  "ceil_mode": false
+                }
+              },
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 200,
+              "_end_lineno": 200,
+              "_col_offset": 8,
+              "_end_col_offset": 71,
+              "_raw_call": "nn.MaxPool2d(kernel_size=3, stride=2, padding=1)",
+              "_stmt_hash": "2befc5a60def",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "python@ResNet#0",
+            "kind": "layer",
+            "op": "Python",
+            "params": {
+              "_review_scope": [
+                "ResNet",
+                "forward",
+                "self._forward_impl(x)"
+              ],
+              "_review_order": 1,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=Call(func=Attribute(value=Name(id='self', ctx=Load()), attr='layer1', ctx=Load()), args=[Name(id='x', ctx=Load())], keywords=[]))",
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 273,
+              "_end_lineno": 273,
+              "_col_offset": 8,
+              "_end_col_offset": 26,
+              "_raw_call": "self.layer1(x)",
+              "_source_result_call": {
+                "name": "layer1"
+              },
+              "_source_calls": [
+                "layer1"
+              ],
+              "_stmt_hash": "8f2beaf9e7a5",
+              "_kind": "statement",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "python@ResNet#1",
+            "kind": "layer",
+            "op": "Python",
+            "params": {
+              "_review_scope": [
+                "ResNet",
+                "forward",
+                "self._forward_impl(x)"
+              ],
+              "_review_order": 2,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=Call(func=Attribute(value=Name(id='self', ctx=Load()), attr='layer2', ctx=Load()), args=[Name(id='x', ctx=Load())], keywords=[]))",
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 274,
+              "_end_lineno": 274,
+              "_col_offset": 8,
+              "_end_col_offset": 26,
+              "_raw_call": "self.layer2(x)",
+              "_source_result_call": {
+                "name": "layer2"
+              },
+              "_source_calls": [
+                "layer2"
+              ],
+              "_stmt_hash": "ca4e56bdd09b",
+              "_kind": "statement",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "python@ResNet#2",
+            "kind": "layer",
+            "op": "Python",
+            "params": {
+              "_review_scope": [
+                "ResNet",
+                "forward",
+                "self._forward_impl(x)"
+              ],
+              "_review_order": 3,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=Call(func=Attribute(value=Name(id='self', ctx=Load()), attr='layer3', ctx=Load()), args=[Name(id='x', ctx=Load())], keywords=[]))",
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 275,
+              "_end_lineno": 275,
+              "_col_offset": 8,
+              "_end_col_offset": 26,
+              "_raw_call": "self.layer3(x)",
+              "_source_result_call": {
+                "name": "layer3"
+              },
+              "_source_calls": [
+                "layer3"
+              ],
+              "_stmt_hash": "65d4e3e204e5",
+              "_kind": "statement",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "python@ResNet#3",
+            "kind": "layer",
+            "op": "Python",
+            "params": {
+              "_review_scope": [
+                "ResNet",
+                "forward",
+                "self._forward_impl(x)"
+              ],
+              "_review_order": 4,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=Call(func=Attribute(value=Name(id='self', ctx=Load()), attr='layer4', ctx=Load()), args=[Name(id='x', ctx=Load())], keywords=[]))",
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 276,
+              "_end_lineno": 276,
+              "_col_offset": 8,
+              "_end_col_offset": 26,
+              "_raw_call": "self.layer4(x)",
+              "_source_result_call": {
+                "name": "layer4"
+              },
+              "_source_calls": [
+                "layer4"
+              ],
+              "_stmt_hash": "3d318d962861",
+              "_kind": "statement",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "avgpool",
+            "kind": "layer",
+            "op": "AdaptiveAvgPool2d",
+            "params": {
+              "output_size": [
+                1,
+                1
+              ],
+              "_review_call": {
+                "target": "AdaptiveAvgPool2d",
+                "arguments": {
+                  "output_size": [
+                    1,
+                    1
+                  ]
+                }
+              },
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 205,
+              "_end_lineno": 205,
+              "_col_offset": 8,
+              "_end_col_offset": 51,
+              "_raw_call": "nn.AdaptiveAvgPool2d((1, 1))",
+              "_stmt_hash": "4eee762c089d",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "flatten@ResNet#0",
+            "kind": "layer",
+            "op": "Flatten",
+            "params": {
+              "start_dim": 1,
+              "_review_scope": [
+                "ResNet",
+                "forward",
+                "self._forward_impl(x)"
+              ],
+              "_review_order": 5,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=Call(func=Attribute(value=Name(id='torch', ctx=Load()), attr='flatten', ctx=Load()), args=[Name(id='x', ctx=Load()), Constant(value=1)], keywords=[]))",
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 279,
+              "_end_lineno": 279,
+              "_col_offset": 8,
+              "_end_col_offset": 31,
+              "_raw_call": "torch.flatten(x, 1)",
+              "_source_result_call": {
+                "name": "flatten",
+                "target": "torch.flatten"
+              },
+              "_source_calls": [
+                "flatten"
+              ],
+              "_stmt_hash": "bbc3af179acd",
+              "_kind": "function",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "fc",
+            "kind": "layer",
+            "op": "Linear",
+            "params": {
+              "out_features": 1000,
+              "_review_call": {
+                "target": "Linear",
+                "arguments": {
+                  "in_features": {
+                    "expression": "BinOp(left=Constant(value=512), op=Mult(), right=Attribute(value=Name(id='block', ctx=Load()), attr='expansion', ctx=Load()))"
+                  },
+                  "out_features": 1000,
+                  "bias": true,
+                  "device": null,
+                  "dtype": null
+                }
+              },
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 206,
+              "_end_lineno": 206,
+              "_col_offset": 8,
+              "_end_col_offset": 63,
+              "_raw_call": "nn.Linear(512 * block.expansion, num_classes)",
+              "_stmt_hash": "62242fe4c7d4",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "input",
+            "kind": "input",
+            "op": "Input",
+            "params": {
+              "shape": "",
+              "_review_scopes": [
+                {
+                  "file": "vision_models.py",
+                  "scope": [
+                    "ResNet152",
+                    "forward"
+                  ]
+                }
+              ],
+              "_shape_provenance": "static"
+            },
+            "in_ports": [],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "fc2",
+            "kind": "layer",
+            "op": "Linear",
+            "params": {
+              "_review_call": {
+                "target": "Linear",
+                "arguments": {
+                  "in_features": {
+                    "expression": "Attribute(value=Attribute(value=Name(id='self', ctx=Load()), attr='fc', ctx=Load()), attr='out_features', ctx=Load())"
+                  },
+                  "out_features": {
+                    "expression": "Attribute(value=Attribute(value=Name(id='self', ctx=Load()), attr='fc', ctx=Load()), attr='out_features', ctx=Load())"
+                  },
+                  "bias": true,
+                  "device": null,
+                  "dtype": null
+                }
+              },
+              "_source_file": "vision_models.py",
+              "_lineno": 10,
+              "_end_lineno": 10,
+              "_col_offset": 8,
+              "_end_col_offset": 72,
+              "_raw_call": "nn.Linear(self.fc.out_features, self.fc.out_features)",
+              "_stmt_hash": "ccfc15445f8e",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "sigmoid",
+            "kind": "layer",
+            "op": "Sigmoid",
+            "params": {
+              "_review_call": {
+                "target": "Sigmoid",
+                "arguments": {}
+              },
+              "_source_file": "vision_models.py",
+              "_lineno": 11,
+              "_end_lineno": 11,
+              "_col_offset": 8,
+              "_end_col_offset": 35,
+              "_raw_call": "nn.Sigmoid()",
+              "_stmt_hash": "560471ef8181",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "output",
+            "kind": "output",
+            "op": "Output",
+            "params": {
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [],
+            "metadata": {
+              "parentId": null
+            }
+          }
+        ],
+        "edges": [
+          {
+            "edge_id": "edge_conv1_bn1",
+            "source_node_id": "conv1",
+            "source_port": "y",
+            "target_node_id": "bn1",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_bn1_relu",
+            "source_node_id": "bn1",
+            "source_port": "y",
+            "target_node_id": "relu",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_relu_maxpool",
+            "source_node_id": "relu",
+            "source_port": "y",
+            "target_node_id": "maxpool",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_maxpool_python@ResNet#0",
+            "source_node_id": "maxpool",
+            "source_port": "y",
+            "target_node_id": "python@ResNet#0",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_python@ResNet#0_python@ResNet#1",
+            "source_node_id": "python@ResNet#0",
+            "source_port": "y",
+            "target_node_id": "python@ResNet#1",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_python@ResNet#1_python@ResNet#2",
+            "source_node_id": "python@ResNet#1",
+            "source_port": "y",
+            "target_node_id": "python@ResNet#2",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_python@ResNet#2_python@ResNet#3",
+            "source_node_id": "python@ResNet#2",
+            "source_port": "y",
+            "target_node_id": "python@ResNet#3",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_python@ResNet#3_avgpool",
+            "source_node_id": "python@ResNet#3",
+            "source_port": "y",
+            "target_node_id": "avgpool",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_avgpool_flatten@ResNet#0",
+            "source_node_id": "avgpool",
+            "source_port": "y",
+            "target_node_id": "flatten@ResNet#0",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_flatten@ResNet#0_fc",
+            "source_node_id": "flatten@ResNet#0",
+            "source_port": "y",
+            "target_node_id": "fc",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_input_conv1",
+            "source_node_id": "input",
+            "source_port": "y",
+            "target_node_id": "conv1",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_fc_fc2",
+            "source_node_id": "fc",
+            "source_port": "y",
+            "target_node_id": "fc2",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_fc2_sigmoid",
+            "source_node_id": "fc2",
+            "source_port": "y",
+            "target_node_id": "sigmoid",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_sigmoid_output",
+            "source_node_id": "sigmoid",
+            "source_port": "y",
+            "target_node_id": "output",
+            "target_port": "x",
+            "metadata": {}
+          }
+        ],
+        "modules": [],
+        "operations": [],
+        "metadata": {
+          "importer": "services.ingest",
+          "reviewClass": {
+            "defaults": {},
+            "members": {
+              "fc2": {
+                "digest": "ca2d96018d61888ab5368c4740369fff7b111f8ae0698675398f8483d961ae46",
+                "span": {
+                  "file": "vision_models.py",
+                  "start": [
+                    10,
+                    8
+                  ],
+                  "end": [
+                    10,
+                    72
+                  ],
+                  "kind": "decl"
+                },
+                "ambiguous": false
+              },
+              "sigmoid": {
+                "digest": "b042bb6e7e2dff452613d3f7532649071bc7e3fb7f12854d9219def358b39db1",
+                "span": {
+                  "file": "vision_models.py",
+                  "start": [
+                    11,
+                    8
+                  ],
+                  "end": [
+                    11,
+                    35
+                  ],
+                  "kind": "decl"
+                },
+                "ambiguous": false
+              }
+            },
+            "digest": "7dc3d0bcde5cdce688e94ca34e2e74873e4a2606cd2114ceeee2e1dbc119e3b8",
+            "span": {
+              "file": "vision_models.py",
+              "start": [
+                7,
+                0
+              ],
+              "end": [
+                16,
+                30
+              ],
+              "kind": "decl"
+            }
+          }
+        }
+      },
+      "view": {
+        "graph_id": "git-review:ide:8e7c5bc54135#ResNet152:e7ed273faaca55b267a63e6f4873396e51bcd7046cacedcc86b3aab6ed9d3ec5",
+        "node_positions": {
+          "conv1": {
+            "x": 250.0,
+            "y": 200.0
+          },
+          "bn1": {
+            "x": 450.0,
+            "y": 200.0
+          },
+          "relu": {
+            "x": 650.0,
+            "y": 200.0
+          },
+          "maxpool": {
+            "x": 850.0,
+            "y": 200.0
+          },
+          "python@ResNet#0": {
+            "x": 1650.0,
+            "y": 200.0
+          },
+          "python@ResNet#1": {
+            "x": 1850.0,
+            "y": 200.0
+          },
+          "python@ResNet#2": {
+            "x": 2050.0,
+            "y": 200.0
+          },
+          "python@ResNet#3": {
+            "x": 2250.0,
+            "y": 200.0
+          },
+          "avgpool": {
+            "x": 1050.0,
+            "y": 200.0
+          },
+          "flatten@ResNet#0": {
+            "x": 2450.0,
+            "y": 200.0
+          },
+          "fc": {
+            "x": 1250.0,
+            "y": 200.0
+          },
+          "input": {
+            "x": 50.0,
+            "y": 200.0
+          },
+          "fc2": {
+            "x": 250.0,
+            "y": 200.0
+          },
+          "sigmoid": {
+            "x": 450.0,
+            "y": 200.0
+          },
+          "output": {
+            "x": 650.0,
+            "y": 200.0
+          }
+        },
+        "collapsed_modules": [],
+        "selection": [],
+        "layout": {
+          "strategy": "imported",
+          "node_canvas": {
+            "conv1": {
+              "type": "layerNode"
+            },
+            "bn1": {
+              "type": "layerNode"
+            },
+            "relu": {
+              "type": "layerNode"
+            },
+            "maxpool": {
+              "type": "layerNode"
+            },
+            "python@ResNet#0": {
+              "type": "layerNode"
+            },
+            "python@ResNet#1": {
+              "type": "layerNode"
+            },
+            "python@ResNet#2": {
+              "type": "layerNode"
+            },
+            "python@ResNet#3": {
+              "type": "layerNode"
+            },
+            "avgpool": {
+              "type": "layerNode"
+            },
+            "flatten@ResNet#0": {
+              "type": "layerNode"
+            },
+            "fc": {
+              "type": "layerNode"
+            },
+            "input": {
+              "type": "inputNode"
+            },
+            "fc2": {
+              "type": "layerNode"
+            },
+            "sigmoid": {
+              "type": "layerNode"
+            },
+            "output": {
+              "type": "outputNode"
+            }
+          },
+          "node_data": {
+            "conv1": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "bn1": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null,
+              "displayName": "bn1"
+            },
+            "relu": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "maxpool": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "python@ResNet#0": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "python@ResNet#1": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "python@ResNet#2": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "python@ResNet#3": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "avgpool": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "flatten@ResNet#0": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "fc": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "input": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "fc2": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "sigmoid": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "output": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            }
+          },
+          "edge_canvas": {}
+        }
+      }
+    },
+    "spanmap": {
+      "fc2": {
+        "file": "vision_models.py",
+        "start": [
+          10,
+          8
+        ],
+        "end": [
+          10,
+          72
+        ],
+        "kind": "decl",
+        "digest": "ccfc15445f8e",
+        "file_digest": "6f9128351a553a726ebf22b466da872adcb72b72b01ef9baab43c0a6913a32aa"
+      },
+      "sigmoid": {
+        "file": "vision_models.py",
+        "start": [
+          11,
+          8
+        ],
+        "end": [
+          11,
+          35
+        ],
+        "kind": "decl",
+        "digest": "560471ef8181",
+        "file_digest": "6f9128351a553a726ebf22b466da872adcb72b72b01ef9baab43c0a6913a32aa"
+      },
+      "conv1": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          197,
+          8
+        ],
+        "end": [
+          197,
+          96
+        ],
+        "kind": "decl",
+        "digest": "48099de8b95e",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "bn1": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          198,
+          8
+        ],
+        "end": [
+          198,
+          44
+        ],
+        "kind": "decl",
+        "digest": "65e8e482b783",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "relu": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          199,
+          8
+        ],
+        "end": [
+          199,
+          41
+        ],
+        "kind": "decl",
+        "digest": "ba8939c3e4cb",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "maxpool": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          200,
+          8
+        ],
+        "end": [
+          200,
+          71
+        ],
+        "kind": "decl",
+        "digest": "2befc5a60def",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "python@ResNet#0": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          273,
+          8
+        ],
+        "end": [
+          273,
+          26
+        ],
+        "kind": "call",
+        "digest": "8f2beaf9e7a5",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "python@ResNet#1": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          274,
+          8
+        ],
+        "end": [
+          274,
+          26
+        ],
+        "kind": "call",
+        "digest": "ca4e56bdd09b",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "python@ResNet#2": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          275,
+          8
+        ],
+        "end": [
+          275,
+          26
+        ],
+        "kind": "call",
+        "digest": "65d4e3e204e5",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "python@ResNet#3": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          276,
+          8
+        ],
+        "end": [
+          276,
+          26
+        ],
+        "kind": "call",
+        "digest": "3d318d962861",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "avgpool": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          205,
+          8
+        ],
+        "end": [
+          205,
+          51
+        ],
+        "kind": "decl",
+        "digest": "4eee762c089d",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "flatten@ResNet#0": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          279,
+          8
+        ],
+        "end": [
+          279,
+          31
+        ],
+        "kind": "call",
+        "digest": "bbc3af179acd",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "fc": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          206,
+          8
+        ],
+        "end": [
+          206,
+          63
+        ],
+        "kind": "decl",
+        "digest": "62242fe4c7d4",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      }
+    },
+    "dependencies": [
+      {
+        "file": "torchvision/models/resnet.py",
+        "digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      {
+        "file": "vision_models.py",
+        "digest": "6f9128351a553a726ebf22b466da872adcb72b72b01ef9baab43c0a6913a32aa"
+      }
+    ],
+    "diagnostics": [
+      {
+        "code": "UNRESOLVED_IMPORT",
+        "severity": "warning",
+        "file": "torchvision/models/resnet.py",
+        "line": 198,
+        "import_text": "",
+        "detail": "no import or local definition binds norm_layer in torchvision.models.resnet [node bn1]",
+        "node": "bn1"
+      }
+    ],
+    "truncated": false
+  },
+  "after": {
+    "graphId": "git-review:ide:8e7c5bc54135#ResNet152:f2b2b289782a96032113251b3542d19e747246cc9b78577b0eb984d71a769a83",
+    "revision": 0,
+    "cls": "ResNet152",
+    "file": "vision_models.py",
+    "sourceDigest": "d26e76e8c9cfaffaeca487b3342019eb3816f313aa0fc44891095c60cdba32ed",
+    "traced": false,
+    "greyed": false,
+    "viewRestored": false,
+    "document": {
+      "schemaVersion": 2,
+      "semantic": {
+        "graph_id": "git-review:ide:8e7c5bc54135#ResNet152:f2b2b289782a96032113251b3542d19e747246cc9b78577b0eb984d71a769a83",
+        "name": "ResNet152",
+        "revision": 0,
+        "inputs": [
+          {
+            "name": "input",
+            "shape": ""
+          }
+        ],
+        "nodes": [
+          {
+            "node_id": "conv1",
+            "kind": "layer",
+            "op": "Conv2d",
+            "params": {
+              "in_channels": 3,
+              "kernel_size": 7,
+              "stride": 2,
+              "padding": 3,
+              "bias": false,
+              "_review_call": {
+                "target": "Conv2d",
+                "arguments": {
+                  "in_channels": 3,
+                  "out_channels": {
+                    "expression": "Attribute(value=Name(id='self', ctx=Load()), attr='inplanes', ctx=Load())"
+                  },
+                  "kernel_size": 7,
+                  "stride": 2,
+                  "padding": 3,
+                  "bias": false,
+                  "dilation": 1,
+                  "groups": 1,
+                  "padding_mode": "zeros",
+                  "device": null,
+                  "dtype": null
+                }
+              },
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 197,
+              "_end_lineno": 197,
+              "_col_offset": 8,
+              "_end_col_offset": 96,
+              "_raw_call": "nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)",
+              "_stmt_hash": "48099de8b95e",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "bn1",
+            "kind": "layer",
+            "op": "custom_code",
+            "params": {
+              "_review_call": {
+                "target": "norm_layer",
+                "arguments": {
+                  "arg_0": {
+                    "expression": "Attribute(value=Name(id='self', ctx=Load()), attr='inplanes', ctx=Load())"
+                  }
+                }
+              },
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 198,
+              "_end_lineno": 198,
+              "_col_offset": 8,
+              "_end_col_offset": 44,
+              "_raw_call": "norm_layer(self.inplanes)",
+              "_stmt_hash": "65e8e482b783",
+              "_kind": "class",
+              "_shape_provenance": "static",
+              "_class": "norm_layer",
+              "_opaque": true
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "relu",
+            "kind": "layer",
+            "op": "ReLU",
+            "params": {
+              "inplace": true,
+              "_review_call": {
+                "target": "ReLU",
+                "arguments": {
+                  "inplace": true
+                }
+              },
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 199,
+              "_end_lineno": 199,
+              "_col_offset": 8,
+              "_end_col_offset": 41,
+              "_raw_call": "nn.ReLU(inplace=True)",
+              "_stmt_hash": "ba8939c3e4cb",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "maxpool",
+            "kind": "layer",
+            "op": "MaxPool2d",
+            "params": {
+              "kernel_size": 3,
+              "stride": 2,
+              "padding": 1,
+              "_review_call": {
+                "target": "MaxPool2d",
+                "arguments": {
+                  "kernel_size": 3,
+                  "stride": 2,
+                  "padding": 1,
+                  "dilation": 1,
+                  "return_indices": false,
+                  "ceil_mode": false
+                }
+              },
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 200,
+              "_end_lineno": 200,
+              "_col_offset": 8,
+              "_end_col_offset": 71,
+              "_raw_call": "nn.MaxPool2d(kernel_size=3, stride=2, padding=1)",
+              "_stmt_hash": "2befc5a60def",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "python@ResNet#0",
+            "kind": "layer",
+            "op": "Python",
+            "params": {
+              "_review_scope": [
+                "ResNet",
+                "forward",
+                "self._forward_impl(x)"
+              ],
+              "_review_order": 1,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=Call(func=Attribute(value=Name(id='self', ctx=Load()), attr='layer1', ctx=Load()), args=[Name(id='x', ctx=Load())], keywords=[]))",
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 273,
+              "_end_lineno": 273,
+              "_col_offset": 8,
+              "_end_col_offset": 26,
+              "_raw_call": "self.layer1(x)",
+              "_source_result_call": {
+                "name": "layer1"
+              },
+              "_source_calls": [
+                "layer1"
+              ],
+              "_stmt_hash": "8f2beaf9e7a5",
+              "_kind": "statement",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "python@ResNet#1",
+            "kind": "layer",
+            "op": "Python",
+            "params": {
+              "_review_scope": [
+                "ResNet",
+                "forward",
+                "self._forward_impl(x)"
+              ],
+              "_review_order": 2,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=Call(func=Attribute(value=Name(id='self', ctx=Load()), attr='layer2', ctx=Load()), args=[Name(id='x', ctx=Load())], keywords=[]))",
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 274,
+              "_end_lineno": 274,
+              "_col_offset": 8,
+              "_end_col_offset": 26,
+              "_raw_call": "self.layer2(x)",
+              "_source_result_call": {
+                "name": "layer2"
+              },
+              "_source_calls": [
+                "layer2"
+              ],
+              "_stmt_hash": "ca4e56bdd09b",
+              "_kind": "statement",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "python@ResNet#2",
+            "kind": "layer",
+            "op": "Python",
+            "params": {
+              "_review_scope": [
+                "ResNet",
+                "forward",
+                "self._forward_impl(x)"
+              ],
+              "_review_order": 3,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=Call(func=Attribute(value=Name(id='self', ctx=Load()), attr='layer3', ctx=Load()), args=[Name(id='x', ctx=Load())], keywords=[]))",
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 275,
+              "_end_lineno": 275,
+              "_col_offset": 8,
+              "_end_col_offset": 26,
+              "_raw_call": "self.layer3(x)",
+              "_source_result_call": {
+                "name": "layer3"
+              },
+              "_source_calls": [
+                "layer3"
+              ],
+              "_stmt_hash": "65d4e3e204e5",
+              "_kind": "statement",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "python@ResNet#3",
+            "kind": "layer",
+            "op": "Python",
+            "params": {
+              "_review_scope": [
+                "ResNet",
+                "forward",
+                "self._forward_impl(x)"
+              ],
+              "_review_order": 4,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=Call(func=Attribute(value=Name(id='self', ctx=Load()), attr='layer4', ctx=Load()), args=[Name(id='x', ctx=Load())], keywords=[]))",
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 276,
+              "_end_lineno": 276,
+              "_col_offset": 8,
+              "_end_col_offset": 26,
+              "_raw_call": "self.layer4(x)",
+              "_source_result_call": {
+                "name": "layer4"
+              },
+              "_source_calls": [
+                "layer4"
+              ],
+              "_stmt_hash": "3d318d962861",
+              "_kind": "statement",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "avgpool",
+            "kind": "layer",
+            "op": "AdaptiveAvgPool2d",
+            "params": {
+              "output_size": [
+                1,
+                1
+              ],
+              "_review_call": {
+                "target": "AdaptiveAvgPool2d",
+                "arguments": {
+                  "output_size": [
+                    1,
+                    1
+                  ]
+                }
+              },
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 205,
+              "_end_lineno": 205,
+              "_col_offset": 8,
+              "_end_col_offset": 51,
+              "_raw_call": "nn.AdaptiveAvgPool2d((1, 1))",
+              "_stmt_hash": "4eee762c089d",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "flatten@ResNet#0",
+            "kind": "layer",
+            "op": "Flatten",
+            "params": {
+              "start_dim": 1,
+              "_review_scope": [
+                "ResNet",
+                "forward",
+                "self._forward_impl(x)"
+              ],
+              "_review_order": 5,
+              "_review_statement": "Assign(targets=[Name(id='x', ctx=Store())], value=Call(func=Attribute(value=Name(id='torch', ctx=Load()), attr='flatten', ctx=Load()), args=[Name(id='x', ctx=Load()), Constant(value=1)], keywords=[]))",
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 279,
+              "_end_lineno": 279,
+              "_col_offset": 8,
+              "_end_col_offset": 31,
+              "_raw_call": "torch.flatten(x, 1)",
+              "_source_result_call": {
+                "name": "flatten",
+                "target": "torch.flatten"
+              },
+              "_source_calls": [
+                "flatten"
+              ],
+              "_stmt_hash": "bbc3af179acd",
+              "_kind": "function",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "fc",
+            "kind": "layer",
+            "op": "Linear",
+            "params": {
+              "out_features": 1000,
+              "_review_call": {
+                "target": "Linear",
+                "arguments": {
+                  "in_features": {
+                    "expression": "BinOp(left=Constant(value=512), op=Mult(), right=Attribute(value=Name(id='block', ctx=Load()), attr='expansion', ctx=Load()))"
+                  },
+                  "out_features": 1000,
+                  "bias": true,
+                  "device": null,
+                  "dtype": null
+                }
+              },
+              "_source_file": "torchvision/models/resnet.py",
+              "_lineno": 206,
+              "_end_lineno": 206,
+              "_col_offset": 8,
+              "_end_col_offset": 63,
+              "_raw_call": "nn.Linear(512 * block.expansion, num_classes)",
+              "_stmt_hash": "62242fe4c7d4",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "input",
+            "kind": "input",
+            "op": "Input",
+            "params": {
+              "shape": "",
+              "_review_scopes": [
+                {
+                  "file": "vision_models.py",
+                  "scope": [
+                    "ResNet152",
+                    "forward"
+                  ]
+                }
+              ],
+              "_shape_provenance": "static"
+            },
+            "in_ports": [],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "fc2",
+            "kind": "layer",
+            "op": "Linear",
+            "params": {
+              "_review_call": {
+                "target": "Linear",
+                "arguments": {
+                  "in_features": {
+                    "expression": "Attribute(value=Attribute(value=Name(id='self', ctx=Load()), attr='fc', ctx=Load()), attr='out_features', ctx=Load())"
+                  },
+                  "out_features": {
+                    "expression": "Attribute(value=Attribute(value=Name(id='self', ctx=Load()), attr='fc', ctx=Load()), attr='out_features', ctx=Load())"
+                  },
+                  "bias": true,
+                  "device": null,
+                  "dtype": null
+                }
+              },
+              "_source_file": "vision_models.py",
+              "_lineno": 11,
+              "_end_lineno": 11,
+              "_col_offset": 8,
+              "_end_col_offset": 72,
+              "_raw_call": "nn.Linear(self.fc.out_features, self.fc.out_features)",
+              "_stmt_hash": "ccfc15445f8e",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "sigmoid",
+            "kind": "layer",
+            "op": "Sigmoid",
+            "params": {
+              "_review_call": {
+                "target": "Sigmoid",
+                "arguments": {}
+              },
+              "_source_file": "vision_models.py",
+              "_lineno": 12,
+              "_end_lineno": 12,
+              "_col_offset": 8,
+              "_end_col_offset": 35,
+              "_raw_call": "nn.Sigmoid()",
+              "_stmt_hash": "560471ef8181",
+              "_kind": "class",
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [
+              "y"
+            ],
+            "metadata": {
+              "parentId": null
+            }
+          },
+          {
+            "node_id": "output",
+            "kind": "output",
+            "op": "Output",
+            "params": {
+              "_shape_provenance": "static"
+            },
+            "in_ports": [
+              "x"
+            ],
+            "out_ports": [],
+            "metadata": {
+              "parentId": null
+            }
+          }
+        ],
+        "edges": [
+          {
+            "edge_id": "edge_conv1_bn1",
+            "source_node_id": "conv1",
+            "source_port": "y",
+            "target_node_id": "bn1",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_bn1_relu",
+            "source_node_id": "bn1",
+            "source_port": "y",
+            "target_node_id": "relu",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_relu_maxpool",
+            "source_node_id": "relu",
+            "source_port": "y",
+            "target_node_id": "maxpool",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_maxpool_python@ResNet#0",
+            "source_node_id": "maxpool",
+            "source_port": "y",
+            "target_node_id": "python@ResNet#0",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_python@ResNet#0_python@ResNet#1",
+            "source_node_id": "python@ResNet#0",
+            "source_port": "y",
+            "target_node_id": "python@ResNet#1",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_python@ResNet#1_python@ResNet#2",
+            "source_node_id": "python@ResNet#1",
+            "source_port": "y",
+            "target_node_id": "python@ResNet#2",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_python@ResNet#2_python@ResNet#3",
+            "source_node_id": "python@ResNet#2",
+            "source_port": "y",
+            "target_node_id": "python@ResNet#3",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_python@ResNet#3_avgpool",
+            "source_node_id": "python@ResNet#3",
+            "source_port": "y",
+            "target_node_id": "avgpool",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_avgpool_flatten@ResNet#0",
+            "source_node_id": "avgpool",
+            "source_port": "y",
+            "target_node_id": "flatten@ResNet#0",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_flatten@ResNet#0_fc",
+            "source_node_id": "flatten@ResNet#0",
+            "source_port": "y",
+            "target_node_id": "fc",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_input_conv1",
+            "source_node_id": "input",
+            "source_port": "y",
+            "target_node_id": "conv1",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_fc_fc2",
+            "source_node_id": "fc",
+            "source_port": "y",
+            "target_node_id": "fc2",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_fc2_sigmoid",
+            "source_node_id": "fc2",
+            "source_port": "y",
+            "target_node_id": "sigmoid",
+            "target_port": "x",
+            "metadata": {}
+          },
+          {
+            "edge_id": "edge_sigmoid_output",
+            "source_node_id": "sigmoid",
+            "source_port": "y",
+            "target_node_id": "output",
+            "target_port": "x",
+            "metadata": {}
+          }
+        ],
+        "modules": [],
+        "operations": [],
+        "metadata": {
+          "importer": "services.ingest",
+          "reviewClass": {
+            "defaults": {},
+            "members": {
+              "fc2": {
+                "digest": "ca2d96018d61888ab5368c4740369fff7b111f8ae0698675398f8483d961ae46",
+                "span": {
+                  "file": "vision_models.py",
+                  "start": [
+                    11,
+                    8
+                  ],
+                  "end": [
+                    11,
+                    72
+                  ],
+                  "kind": "decl"
+                },
+                "ambiguous": false
+              },
+              "sigmoid": {
+                "digest": "b042bb6e7e2dff452613d3f7532649071bc7e3fb7f12854d9219def358b39db1",
+                "span": {
+                  "file": "vision_models.py",
+                  "start": [
+                    12,
+                    8
+                  ],
+                  "end": [
+                    12,
+                    35
+                  ],
+                  "kind": "decl"
+                },
+                "ambiguous": false
+              }
+            },
+            "digest": "07f950a3952a9fc1dfd74b47a669ef46e530fa241789512a5a356f8fae0d8277",
+            "span": {
+              "file": "vision_models.py",
+              "start": [
+                7,
+                0
+              ],
+              "end": [
+                17,
+                30
+              ],
+              "kind": "decl"
+            },
+            "assignments": {
+              "@assignment:layer3[0].relu": {
+                "target": "layer3[0].relu",
+                "digest": "1ab4d5c34a78cf33af12834fa06bdaa177f9a46a27c5457e45caf8ce9ae84c72",
+                "span": {
+                  "file": "vision_models.py",
+                  "start": [
+                    10,
+                    8
+                  ],
+                  "end": [
+                    10,
+                    39
+                  ],
+                  "kind": "decl"
+                },
+                "ambiguous": false,
+                "conditional": false,
+                "title": "nn.GELU",
+                "value": "nn.GELU()"
+              }
+            }
+          }
+        }
+      },
+      "view": {
+        "graph_id": "git-review:ide:8e7c5bc54135#ResNet152:f2b2b289782a96032113251b3542d19e747246cc9b78577b0eb984d71a769a83",
+        "node_positions": {
+          "conv1": {
+            "x": 250.0,
+            "y": 200.0
+          },
+          "bn1": {
+            "x": 450.0,
+            "y": 200.0
+          },
+          "relu": {
+            "x": 650.0,
+            "y": 200.0
+          },
+          "maxpool": {
+            "x": 850.0,
+            "y": 200.0
+          },
+          "python@ResNet#0": {
+            "x": 1650.0,
+            "y": 200.0
+          },
+          "python@ResNet#1": {
+            "x": 1850.0,
+            "y": 200.0
+          },
+          "python@ResNet#2": {
+            "x": 2050.0,
+            "y": 200.0
+          },
+          "python@ResNet#3": {
+            "x": 2250.0,
+            "y": 200.0
+          },
+          "avgpool": {
+            "x": 1050.0,
+            "y": 200.0
+          },
+          "flatten@ResNet#0": {
+            "x": 2450.0,
+            "y": 200.0
+          },
+          "fc": {
+            "x": 1250.0,
+            "y": 200.0
+          },
+          "input": {
+            "x": 50.0,
+            "y": 200.0
+          },
+          "fc2": {
+            "x": 250.0,
+            "y": 200.0
+          },
+          "sigmoid": {
+            "x": 450.0,
+            "y": 200.0
+          },
+          "output": {
+            "x": 650.0,
+            "y": 200.0
+          }
+        },
+        "collapsed_modules": [],
+        "selection": [],
+        "layout": {
+          "strategy": "imported",
+          "node_canvas": {
+            "conv1": {
+              "type": "layerNode"
+            },
+            "bn1": {
+              "type": "layerNode"
+            },
+            "relu": {
+              "type": "layerNode"
+            },
+            "maxpool": {
+              "type": "layerNode"
+            },
+            "python@ResNet#0": {
+              "type": "layerNode"
+            },
+            "python@ResNet#1": {
+              "type": "layerNode"
+            },
+            "python@ResNet#2": {
+              "type": "layerNode"
+            },
+            "python@ResNet#3": {
+              "type": "layerNode"
+            },
+            "avgpool": {
+              "type": "layerNode"
+            },
+            "flatten@ResNet#0": {
+              "type": "layerNode"
+            },
+            "fc": {
+              "type": "layerNode"
+            },
+            "input": {
+              "type": "inputNode"
+            },
+            "fc2": {
+              "type": "layerNode"
+            },
+            "sigmoid": {
+              "type": "layerNode"
+            },
+            "output": {
+              "type": "outputNode"
+            }
+          },
+          "node_data": {
+            "conv1": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "bn1": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null,
+              "displayName": "bn1"
+            },
+            "relu": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "maxpool": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "python@ResNet#0": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "python@ResNet#1": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "python@ResNet#2": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "python@ResNet#3": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "avgpool": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "flatten@ResNet#0": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "fc": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "input": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "fc2": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "sigmoid": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            },
+            "output": {
+              "parentId": null,
+              "childNodeIds": [],
+              "depth": 0,
+              "moduleType": null,
+              "internalGraph": null,
+              "expanded": null
+            }
+          },
+          "edge_canvas": {}
+        }
+      }
+    },
+    "spanmap": {
+      "fc2": {
+        "file": "vision_models.py",
+        "start": [
+          11,
+          8
+        ],
+        "end": [
+          11,
+          72
+        ],
+        "kind": "decl",
+        "digest": "ccfc15445f8e",
+        "file_digest": "d26e76e8c9cfaffaeca487b3342019eb3816f313aa0fc44891095c60cdba32ed"
+      },
+      "sigmoid": {
+        "file": "vision_models.py",
+        "start": [
+          12,
+          8
+        ],
+        "end": [
+          12,
+          35
+        ],
+        "kind": "decl",
+        "digest": "560471ef8181",
+        "file_digest": "d26e76e8c9cfaffaeca487b3342019eb3816f313aa0fc44891095c60cdba32ed"
+      },
+      "conv1": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          197,
+          8
+        ],
+        "end": [
+          197,
+          96
+        ],
+        "kind": "decl",
+        "digest": "48099de8b95e",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "bn1": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          198,
+          8
+        ],
+        "end": [
+          198,
+          44
+        ],
+        "kind": "decl",
+        "digest": "65e8e482b783",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "relu": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          199,
+          8
+        ],
+        "end": [
+          199,
+          41
+        ],
+        "kind": "decl",
+        "digest": "ba8939c3e4cb",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "maxpool": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          200,
+          8
+        ],
+        "end": [
+          200,
+          71
+        ],
+        "kind": "decl",
+        "digest": "2befc5a60def",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "python@ResNet#0": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          273,
+          8
+        ],
+        "end": [
+          273,
+          26
+        ],
+        "kind": "call",
+        "digest": "8f2beaf9e7a5",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "python@ResNet#1": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          274,
+          8
+        ],
+        "end": [
+          274,
+          26
+        ],
+        "kind": "call",
+        "digest": "ca4e56bdd09b",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "python@ResNet#2": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          275,
+          8
+        ],
+        "end": [
+          275,
+          26
+        ],
+        "kind": "call",
+        "digest": "65d4e3e204e5",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "python@ResNet#3": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          276,
+          8
+        ],
+        "end": [
+          276,
+          26
+        ],
+        "kind": "call",
+        "digest": "3d318d962861",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "avgpool": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          205,
+          8
+        ],
+        "end": [
+          205,
+          51
+        ],
+        "kind": "decl",
+        "digest": "4eee762c089d",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "flatten@ResNet#0": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          279,
+          8
+        ],
+        "end": [
+          279,
+          31
+        ],
+        "kind": "call",
+        "digest": "bbc3af179acd",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "fc": {
+        "file": "torchvision/models/resnet.py",
+        "start": [
+          206,
+          8
+        ],
+        "end": [
+          206,
+          63
+        ],
+        "kind": "decl",
+        "digest": "62242fe4c7d4",
+        "file_digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      "@assignment:layer3[0].relu": {
+        "file": "vision_models.py",
+        "start": [
+          10,
+          8
+        ],
+        "end": [
+          10,
+          39
+        ],
+        "kind": "decl",
+        "digest": "1ab4d5c34a78cf33af12834fa06bdaa177f9a46a27c5457e45caf8ce9ae84c72",
+        "file_digest": "d26e76e8c9cfaffaeca487b3342019eb3816f313aa0fc44891095c60cdba32ed"
+      }
+    },
+    "dependencies": [
+      {
+        "file": "torchvision/models/resnet.py",
+        "digest": "7499a5059ad7b1a1f8f7543c04b4a13795140fad837c38530b48ff5d9610bf6e"
+      },
+      {
+        "file": "vision_models.py",
+        "digest": "d26e76e8c9cfaffaeca487b3342019eb3816f313aa0fc44891095c60cdba32ed"
+      }
+    ],
+    "diagnostics": [
+      {
+        "code": "UNRESOLVED_IMPORT",
+        "severity": "warning",
+        "file": "torchvision/models/resnet.py",
+        "line": 198,
+        "import_text": "",
+        "detail": "no import or local definition binds norm_layer in torchvision.models.resnet [node bn1]",
+        "node": "bn1"
+      }
+    ],
+    "truncated": false
+  }
+}

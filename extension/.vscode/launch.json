@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Opens an Extension Development Host with the repo root as its workspace folder, so
+      // discovery finds the checkout with no configuration. Run `npm run watch` (or
+      // `npm run compile`) first — this does not build.
+      "name": "Run tensorViz extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "${workspaceFolder}/.."
+      ],
+      "outFiles": ["${workspaceFolder}/out/**/*.js"]
+    }
+  ]
+}

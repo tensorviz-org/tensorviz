@@ -1,0 +1,94 @@
+.execution-surface { position: static; flex: 0 1 auto; max-width: 220px; color: var(--canvas-text); background: var(--canvas-surface); font: 12px/1.5 var(--canvas-font); min-width: 0; z-index: 575; }
+.execution-surface button, .execution-surface select { font: inherit; color: inherit; }
+.execution-surface button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: transparent; border: 1px solid var(--canvas-line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.execution-surface svg { display: block; flex: none; }
+.execution-surface button { line-height: 18px; }
+.execution-surface button:disabled { opacity: .5; cursor: default; }
+.execution-surface button:focus-visible, .execution-surface select:focus-visible, .execution-surface summary:focus-visible { outline: 2px solid var(--canvas-accent); outline-offset: 2px; }
+.execution-surface .execution-target { width: 100%; border: 1px solid var(--canvas-line); border-radius: 6px; justify-content: flex-start; padding: 4px 7px; min-height: 28px; text-align: left; white-space: nowrap; }
+.execution-target strong { flex: none; font-weight: 550; }
+.execution-host { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--canvas-muted); }
+.execution-target > svg:last-child { margin-left: auto; flex: none; }
+.execution-sheet { position: absolute; right: 8px; top: calc(100% + 8px); width: min(370px, calc(100vw - 16px)); max-height: min(680px, calc(100dvh - 170px)); background: var(--canvas-popover); border: 1px solid var(--canvas-line); border-radius: 10px; box-shadow: var(--tv-popover-shadow); display: flex; flex-direction: column; overflow: hidden; }
+.execution-sheet header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 18px 12px; flex: none; }
+.execution-sheet header button { border: 0; padding: 4px; }
+.execution-sheet h2 { font: 600 17px/1.4 var(--canvas-font); letter-spacing: -.3px; margin: 0; }
+.execution-sheet h2:focus { outline: none; }
+.execution-scroll { flex: 1 1 auto; padding: 0 18px 16px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--canvas-muted) transparent; }
+.execution-scroll:focus-visible { outline: 2px solid var(--canvas-accent); outline-offset: -2px; }
+.execution-scroll::-webkit-scrollbar { width: 8px; }
+.execution-scroll::-webkit-scrollbar-thumb { background: var(--canvas-muted); border: 2px solid var(--canvas-popover); border-radius: 4px; }
+.execution-device { display: grid; gap: 6px; font-weight: 550; }
+.execution-device select { width: 100%; min-width: 0; border: 1px solid var(--canvas-line); border-radius: 6px; background: var(--canvas-field); padding: 9px 8px; }
+.execution-host-line { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--canvas-muted); overflow-wrap: anywhere; }
+.execution-hardware { margin-top: 6px; font-size: 11px; }
+.execution-hardware dd { min-width: 0; overflow-wrap: anywhere; }
+.execution-resource-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 16px 0 4px; font-weight: 550; }
+.execution-resource-heading button { border: 0; font-size: 11px; color: var(--canvas-muted); padding: 3px; }
+.execution-readings { margin: 0; font-variant-numeric: tabular-nums; }
+.execution-readings div { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+.execution-readings dt { color: var(--canvas-muted); }
+.execution-readings dd { margin: 0; text-align: right; }
+.execution-readings small { font-size: inherit; color: var(--canvas-muted); }
+.execution-readings .execution-usage { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.execution-usage span { min-width: 42px; }
+.execution-usage meter { width: 68px; height: 6px; border: 0; border-radius: 3px; background: var(--canvas-line); }
+.execution-usage meter::-webkit-meter-bar { background: var(--canvas-line); border: 0; border-radius: 3px; }
+.execution-usage meter::-webkit-meter-optimum-value { background: var(--canvas-accent); border-radius: 3px; }
+.execution-usage meter::-moz-meter-bar { background: var(--canvas-accent); border-radius: 3px; }
+.execution-sample { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--canvas-muted); margin-top: 8px; }
+.execution-workload { margin-top: 16px; border-top: 1px solid var(--canvas-line); padding-top: 14px; }
+.execution-workload-title { display: flex; justify-content: space-between; gap: 10px; }
+.execution-workload-title strong { font-weight: 550; }
+.execution-workload-title > span { color: var(--canvas-accent); }
+.execution-workload ol { list-style: none; padding: 0 0 0 10px; margin: 10px 0; border-left: 2px solid var(--canvas-active-border); }
+.execution-workload li { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+.execution-workload b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.execution-profile-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; }
+.execution-profile-heading strong { font-weight: 550; }
+.execution-source { display: flex; flex-wrap: wrap; gap: 4px 8px; color: var(--canvas-muted); font-size: 11px; margin: 5px 0 8px; overflow-wrap: anywhere; }
+.execution-mode { margin: 6px 0 10px; }
+.execution-mode dd { display: flex; align-items: center; gap: 12px; }
+.execution-surface .execution-edit { padding: 2px 4px; border: 0; font-size: 11px; color: var(--canvas-accent); gap: 4px; white-space: nowrap; }
+.execution-timing-toggle { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
+.execution-timing-toggle input { margin: 0; accent-color: var(--canvas-accent); }
+.execution-timing-fields { display: grid; gap: 6px; margin: 10px 0; }
+.execution-timing-fields label { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.execution-timing-fields input { width: 58px; box-sizing: border-box; border: 1px solid var(--canvas-line); border-radius: 4px; background: var(--canvas-field); color: var(--canvas-text); padding: 4px 6px; font: inherit; font-variant-numeric: tabular-nums; }
+.execution-timing-fields input:focus-visible, .execution-timing-toggle input:focus-visible { outline: 2px solid var(--canvas-accent); outline-offset: 2px; }
+.execution-origin { margin-bottom: 12px; font-size: 11px; }
+.execution-origin ul { padding-left: 16px; }
+.execution-origin code { display: block; }
+.execution-sheet details { border-top: 1px solid var(--canvas-line); padding-top: 10px; color: var(--canvas-muted); }
+.execution-sheet summary { cursor: pointer; color: var(--canvas-text); }
+.execution-sheet code, .execution-sheet pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.6 var(--font-mono, monospace); }
+.execution-settings { margin-top: 8px; }
+.execution-settings dt { flex: none; }
+.execution-settings dd { min-width: 0; overflow-wrap: anywhere; color: var(--canvas-text); }
+.execution-inputs { width: 100%; margin: 10px 0; border-collapse: collapse; table-layout: fixed; color: var(--canvas-text); text-align: left; overflow-wrap: anywhere; }
+.execution-inputs caption { text-align: left; font-weight: 550; padding-bottom: 6px; }
+.execution-inputs th, .execution-inputs td { padding: 5px 6px 5px 0; border-bottom: 1px solid var(--canvas-line); vertical-align: top; font-weight: 400; }
+.execution-inputs thead { color: var(--canvas-muted); }
+.execution-inputs th:last-child, .execution-inputs td:last-child { width: 52px; padding-right: 0; text-align: right; }
+.execution-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.execution-sheet .execution-recipe { border-top: 0; }
+.execution-feedback { overflow-wrap: anywhere; }
+.execution-progress { height: 3px; background: var(--canvas-active); overflow: hidden; border-radius: 3px; }
+.execution-progress::after { content: ''; display: block; width: 40%; height: 100%; background: var(--canvas-accent); animation: execution-progress 1.4s ease-in-out infinite alternate; }
+.execution-sheet footer { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--canvas-line); flex: none; }
+.execution-run-count { margin-right: auto; align-self: center; color: var(--canvas-muted); font-variant-numeric: tabular-nums; font-size: 11px; }
+.execution-surface .execution-run { background: var(--canvas-accent); color: var(--tv-canvas); border-color: transparent; font-weight: 550; }
+@keyframes execution-progress { to { transform: translateX(150%); } }
+@media (prefers-reduced-motion: reduce) { .execution-progress::after { animation: none; width: 100%; opacity: .6; } }
+@media (max-width: 360px) { .execution-sheet { right: 4px; width: calc(100vw - 8px); } .execution-scroll { padding: 0 12px 12px; } .execution-sheet header { padding: 14px 12px 10px; } .execution-sheet footer { padding: 10px 12px; } }
+/* Execution cache: a finished invocation whose result was reused, not run. */
+.execution-reused-badge { display: inline-flex; flex: none; align-items: center; gap: 4px; padding: 1px 6px; border: 1px solid var(--canvas-line); border-radius: 999px; color: var(--canvas-muted); font-size: 11px; white-space: nowrap; }
+.execution-reused { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 4px; padding: 8px 10px; border: 1px solid var(--canvas-line); border-radius: 6px; }
+.execution-reused > svg { flex: none; margin-top: 2px; }
+.execution-reused p { display: flex; flex-direction: column; gap: 2px; margin: 0; overflow-wrap: anywhere; }
+.execution-reused span { color: var(--canvas-muted); font-size: 11px; }
+
+/* Keep reused-result disclosure readable inside the compact target control. */
+.execution-target:has(.execution-reused-badge) { flex-wrap: wrap; }
+.execution-target:has(.execution-reused-badge) .execution-host { flex: 1; }
+.execution-target .execution-reused-badge { order: 1; flex: 0 0 100%; box-sizing: border-box; justify-content: center; white-space: normal; }

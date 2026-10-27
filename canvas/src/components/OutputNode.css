@@ -1,0 +1,113 @@
+.output-node {
+  min-width: 160px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-mono);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.output-node:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.output-node.selected {
+  border-color: var(--syntax-type);
+  box-shadow: 0 0 0 2px var(--syntax-type), var(--shadow-md);
+}
+
+.output-node .node-header {
+  background: var(--bg-secondary);
+  color: var(--syntax-type);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.output-node .node-icon {
+  display: flex;
+  align-items: center;
+  color: var(--syntax-type);
+}
+
+.output-node .node-title {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.output-node .layer-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--syntax-type);
+  font-family: var(--font-ui);
+}
+
+.output-node .layer-id {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.output-node .selected-indicator {
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+}
+
+.output-node .node-body {
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.output-node .output-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.output-node .shape-display,
+.output-node .name-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.output-node .shape-display span,
+.output-node .name-display span {
+  color: var(--syntax-number);
+}
+
+.output-node .error-message {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--error);
+  background: var(--error-subtle);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--error);
+  margin-top: 6px;
+}
+
+.output-node .edit-hint {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+}

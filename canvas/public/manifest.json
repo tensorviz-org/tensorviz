@@ -1,0 +1,15 @@
+{
+  "short_name": "tensorViz",
+  "name": "tensorViz — Your Python model, as a graph",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1c2420",
+  "background_color": "#f5f5ef"
+}

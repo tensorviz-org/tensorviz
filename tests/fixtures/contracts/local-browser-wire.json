@@ -1,0 +1,44 @@
+{
+  "message": {
+    "type": "projection",
+    "protocolVersion": 1,
+    "workspaceSessionId": "wire-contract",
+    "messageId": "m-1",
+    "hostSequence": 1,
+    "target": {
+      "workspaceFolder": "workspace-a",
+      "file": "model.py",
+      "cls": "Net",
+      "documentVersion": 1,
+      "sourceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "backendRevision": 1
+    },
+    "projection": {
+      "nodes": [
+        {
+          "id": "operation:unchanged",
+          "label": "入力 👋",
+          "ports": [
+            {
+              "valueId": "tensor0",
+              "shape": [
+                1,
+                3,
+                64,
+                64
+              ],
+              "path": [
+                "arguments",
+                "args",
+                0
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "traced": true,
+    "greyed": false
+  },
+  "wire": "{\"encoding\":\"tensorviz-gzip-json-v1\",\"data\":\"H4sIAAAAAAAC/6VRsU7DMBD9lchzi1qBGDojJBYGKrFUHa7OaxLq+MLZaVVVHVlgYmZg4tO68wn4TCvUmURR9N75vTu/25m47WAmhemEn2Bjw94MMops2T1CglKTYpzYDcsqdGQxRVD6rlTlphEMLfsoZKOK21SlCr/VdjhWruYQp3ju4S2ObpGkQkxg92d8y66EZNcTNSTVLxuXx2y5hLvotspZF5S6R+5asu1b+Hg+cuBeLG6aCkFbGfrno50WZFfw5QPWzanTfnCWoN7Jp0l1vtnONDkJ7iCk5UnvbU2+QqlujhZwWj+8fB1eP4rvz/e3vAKWeNSvyfXHOCN8YBnpgVBTXt0s3fNyUFxf6TdXJcVaeZMCzpEEPZ6A/kfzvb6af9oX1DRKj4QrwTbjJbmA/Q/f5Y9xGwIAAA==\"}"
+}

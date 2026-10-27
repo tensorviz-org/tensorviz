@@ -1,0 +1,67 @@
+{
+  "name": "@tensorviz/plugin",
+  "version": "0.3.20",
+  "private": true,
+  "description": "Local tensorViz host for coding-agent plugins",
+  "license": "MIT",
+  "homepage": "https://github.com/tensorviz-org/tensorviz",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tensorviz-org/tensorviz"
+  },
+  "bugs": {
+    "url": "https://github.com/tensorviz-org/tensorviz/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "precheck": "npm run build:shared --prefix ..",
+    "build": "node scripts/build.mjs",
+    "build:panel": "node ../canvas/scripts/build-plugin.cjs --panel",
+    "build:browser": "node ../canvas/scripts/build-plugin.cjs",
+    "package": "node scripts/package.mjs --allow-source-development",
+    "package:release": "node scripts/package.mjs --release",
+    "check": "tsc --noEmit",
+    "test": "npm run check && npm run build && npm run build:panel && node --test test/unit/*.test.cjs",
+    "test:capture": "node --test test/integration/*.test.cjs",
+    "test:dependencies": "node --test test/network/*.test.cjs",
+    "test:runtime": "node --test test/network/runtime.cjs",
+    "test:codex": "node --test test/clients/codex.cjs",
+    "test:t3": "node --test test/clients/t3.cjs",
+    "test:claude": "node --test test/clients/claude.cjs",
+    "test:migration": "node --test test/clients/migration.cjs",
+    "test:permissions": "node --test test/clients/permissions.cjs test/clients/connections.cjs",
+    "test:release": "node --test test/package/public.cjs test/native/*.cjs",
+    "build:native:backend": "node scripts/build-native-backend.mjs",
+    "build:native:host": "npm run build && node scripts/build-native-host.mjs",
+    "test:native:installer": "node --test test/native/installer.cjs",
+    "package:source-development": "npm run check && npm run build && npm run build:browser && npm run build:panel && node scripts/package.mjs --allow-source-development",
+    "test:source-package": "node --test test/package/*.cjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@openai/mcp-extensions": "0.2.1",
+    "proper-lockfile": "4.1.2",
+    "ws": "8.22.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "18.19.130",
+    "@types/proper-lockfile": "4.1.4",
+    "@types/ws": "8.18.1",
+    "@yao-pkg/pkg": "6.24.0",
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "body-parser": "2.4.0",
+    "fast-uri": "3.1.9",
+    "hono": "4.13.14",
+    "ip-address": "10.7.5",
+    "undici": "7.30.1",
+    "zod": "4.6.7"
+  }
+}

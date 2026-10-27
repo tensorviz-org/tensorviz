@@ -1,0 +1,27 @@
+{
+  "name": "tensorviz",
+  "version": "0.3.20",
+  "description": "Explore local PyTorch models with tensorViz.",
+  "author": {
+    "name": "TensorViz",
+    "url": "https://tensorviz.dev"
+  },
+  "homepage": "https://github.com/tensorviz-org/tensorviz",
+  "repository": "https://github.com/tensorviz-org/tensorviz",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "tensorViz",
+    "logo": "./assets/logo.png",
+    "composerIcon": "./assets/logo.png",
+    "shortDescription": "Explore local PyTorch models",
+    "longDescription": "A local TensorViz service and model-workflow skill for PyTorch architecture, tensor shapes and model changes. Requires Node.js 22 or newer; model execution uses a separately selected Python environment.",
+    "developerName": "TensorViz",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": "Explain this PyTorch model and show its TensorViz graph."
+  },
+  "mcpServers": "./.mcp.json"
+}

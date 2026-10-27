@@ -1,0 +1,89 @@
+{
+  "entry": {
+    "phase": "initializer_entry", "status": "observed", "reason": null,
+    "positionalOnly": 1,
+    "positional": [{"name": "width", "value": {"kind": "int", "value": "4"}}],
+    "keywordOnly": [{"name": "bias", "value": {"kind": "bool", "value": true}}],
+    "varArgs": [{"kind": "float", "value": "-0"}],
+    "varKwargs": {"width": {"kind": "int", "value": "9007199254740993"}}
+  },
+  "cases": [
+    {"name": "non-UTF8 key cannot break capture serialization", "live": false, "portable": false, "patches": [
+      {"path": ["varKwargs"], "value": {"\ud800": {"kind": "none"}}}
+    ]},
+    {"name": "astral Unicode key is preserved", "live": true, "portable": true, "patches": [
+      {"path": ["varKwargs"], "value": {"😀": {"kind": "int", "value": "2"}}}
+    ]},
+    {"name": "positional-only name can also occur in variadic keywords", "live": true, "portable": true, "patches": []},
+    {"name": "Unicode signature", "live": true, "portable": true, "patches": [
+      {"path": ["positional", 0, "name"], "value": "π"},
+      {"path": ["keywordOnly", 0, "name"], "value": "𝒜"}
+    ]},
+    {"name": "duplicate parameter name", "live": false, "portable": false, "patches": [
+      {"path": ["keywordOnly", 0, "name"], "value": "width"}
+    ]},
+    {"name": "invalid parameter name", "live": false, "portable": false, "patches": [
+      {"path": ["positional", 0, "name"], "value": "not-valid"}
+    ]},
+    {"name": "variadic key need not be a Python identifier", "live": true, "portable": true, "patches": [
+      {"path": ["varKwargs"], "value": {"non-identifier": {"kind": "int", "value": "2"}}}
+    ]},
+    {"name": "positional-only count exceeds signature", "live": false, "portable": false, "patches": [
+      {"path": ["positionalOnly"], "value": 2}
+    ]},
+    {"name": "variadic keyword duplicates positional binding", "live": false, "portable": false, "patches": [
+      {"path": ["positionalOnly"], "value": 0}
+    ]},
+    {"name": "variadic keyword duplicates keyword-only binding", "live": false, "portable": false, "patches": [
+      {"path": ["varKwargs"], "value": {"bias": {"kind": "bool", "value": false}}}
+    ]},
+    {"name": "unavailable cannot retain bound values", "live": false, "portable": false, "patches": [
+      {"path": ["status"], "value": "unavailable"}, {"path": ["reason"], "value": "byte_limit"}
+    ]},
+    {"name": "observed cannot have unavailable reason", "live": false, "portable": false, "patches": [
+      {"path": ["reason"], "value": "byte_limit"}
+    ]},
+    {"name": "entry is not a claim of successful initialization", "live": false, "portable": false, "patches": [
+      {"path": ["phase"], "value": "initialized"}
+    ]},
+    {"name": "opaque object retains no metadata", "live": false, "portable": false, "patches": [
+      {"path": ["positional", 0, "value"], "value": {"kind": "opaque", "reason": "unsupported_type", "typeName": "private.Type"}}
+    ]},
+    {"name": "opaque private parameter cannot leak its payload", "live": true, "portable": true, "patches": [
+      {"path": ["positional", 0], "value": {"name": "password", "value": {"kind": "opaque", "reason": "unsupported_type", "typeName": null}}}
+    ]},
+    {"name": "benign underscored parameter", "live": true, "portable": true, "patches": [
+      {"path": ["positional", 0], "value": {"name": "_freeze", "value": {"kind": "bool", "value": false}}}
+    ]},
+    {"name": "sensitive numeric parameter", "live": true, "portable": false, "patches": [
+      {"path": ["positional", 0, "name"], "value": "password"}
+    ]},
+    {"name": "underscored sensitive numeric parameter", "live": true, "portable": false, "patches": [
+      {"path": ["positional", 0, "name"], "value": "__token"}
+    ]},
+    {"name": "sensitive None has no payload", "live": true, "portable": true, "patches": [
+      {"path": ["positional", 0], "value": {"name": "token", "value": {"kind": "none"}}}
+    ]},
+    {"name": "variadic private numeric key", "live": true, "portable": false, "patches": [
+      {"path": ["varKwargs"], "value": {"_private": {"kind": "int", "value": "2"}}}
+    ]},
+    {"name": "variadic opaque private key", "live": true, "portable": true, "patches": [
+      {"path": ["varKwargs"], "value": {"_private": {"kind": "opaque", "reason": "unsupported_type", "typeName": null}}}
+    ]},
+    {"name": "path key cannot hide in opaque observation", "live": true, "portable": false, "patches": [
+      {"path": ["varKwargs"], "value": {"/Users/private": {"kind": "opaque", "reason": "unsupported_type", "typeName": null}}}
+    ]},
+    {"name": "Windows path key", "live": true, "portable": false, "patches": [
+      {"path": ["varKwargs"], "value": {"C:\\private": {"kind": "none"}}}
+    ]},
+    {"name": "initializer cannot retain strings", "live": false, "portable": false, "patches": [
+      {"path": ["positional", 0, "value"], "value": {"kind": "str", "value": "private"}}
+    ]},
+    {"name": "initializer cannot claim tensor value references", "live": false, "portable": false, "patches": [
+      {"path": ["positional", 0, "value"], "value": {"kind": "value", "id": "h"}}
+    ]},
+    {"name": "nonfinite scalar has explicit tag", "live": true, "portable": true, "patches": [
+      {"path": ["varArgs"], "value": [{"kind": "float", "value": "nan"}, {"kind": "float", "value": "inf"}]}
+    ]}
+  ]
+}

@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 2,
+  "semantic": {
+    "graph_id": "ported",
+    "name": "Ported",
+    "revision": 0,
+    "inputs": [
+      {
+        "name": "input",
+        "shape": null
+      }
+    ],
+    "nodes": [
+      {
+        "node_id": "input",
+        "kind": "input",
+        "op": "input",
+        "params": {},
+        "in_ports": [],
+        "out_ports": [
+          "h",
+          "tokens"
+        ],
+        "metadata": {}
+      },
+      {
+        "node_id": "block",
+        "kind": "module",
+        "op": "module",
+        "params": {},
+        "in_ports": [
+          "x"
+        ],
+        "out_ports": [
+          "y"
+        ],
+        "metadata": {}
+      },
+      {
+        "node_id": "add",
+        "kind": "layer",
+        "op": "add",
+        "params": {},
+        "in_ports": [
+          "args:0",
+          "args:1",
+          "alpha"
+        ],
+        "out_ports": [
+          "sum"
+        ],
+        "metadata": {
+          "parentId": "block"
+        }
+      },
+      {
+        "node_id": "factory",
+        "kind": "layer",
+        "op": "ones",
+        "params": {},
+        "in_ports": [],
+        "out_ports": [
+          "value"
+        ],
+        "metadata": {}
+      },
+      {
+        "node_id": "output",
+        "kind": "output",
+        "op": "output",
+        "params": {},
+        "in_ports": [
+          "result"
+        ],
+        "out_ports": [],
+        "metadata": {}
+      }
+    ],
+    "edges": [
+      {
+        "edge_id": "operand-0",
+        "source_node_id": "input",
+        "source_port": "h",
+        "target_node_id": "add",
+        "target_port": "args:0",
+        "metadata": {}
+      },
+      {
+        "edge_id": "operand-1",
+        "source_node_id": "input",
+        "source_port": "h",
+        "target_node_id": "add",
+        "target_port": "args:1",
+        "metadata": {}
+      },
+      {
+        "edge_id": "result",
+        "source_node_id": "add",
+        "source_port": "sum",
+        "target_node_id": "output",
+        "target_port": "result",
+        "metadata": {}
+      }
+    ],
+    "modules": [],
+    "operations": [],
+    "metadata": {
+      "importer": "services.ingest"
+    }
+  },
+  "view": {
+    "graph_id": "ported",
+    "node_positions": {
+      "input": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "block": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "add": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "factory": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "output": {
+        "x": 0.0,
+        "y": 0.0
+      }
+    },
+    "collapsed_modules": [
+      "block"
+    ],
+    "selection": [],
+    "layout": {
+      "strategy": "imported",
+      "node_canvas": {
+        "input": {
+          "type": "layerNode"
+        },
+        "block": {
+          "type": "moduleNode"
+        },
+        "add": {
+          "type": "layerNode"
+        },
+        "factory": {
+          "type": "layerNode"
+        },
+        "output": {
+          "type": "layerNode"
+        }
+      },
+      "node_data": {
+        "input": {
+          "outputPorts": [
+            "h",
+            "tokens"
+          ]
+        },
+        "block": {
+          "isGroup": true,
+          "moduleMembers": [
+            "add"
+          ]
+        },
+        "add": {
+          "parentId": "block",
+          "inputPorts": [
+            "args:0",
+            "args:1",
+            "alpha"
+          ],
+          "outputPorts": [
+            "sum"
+          ]
+        },
+        "factory": {
+          "inputPorts": [],
+          "outputPorts": [
+            "value"
+          ]
+        },
+        "output": {
+          "inputPorts": [
+            "result"
+          ]
+        }
+      },
+      "edge_canvas": {}
+    }
+  }
+}

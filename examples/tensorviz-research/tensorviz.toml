@@ -1,0 +1,14 @@
+version = 1
+
+[profiles.baseline]
+kind = "script"
+script = "train.py"
+args = []
+capture = { model = "models.tiny_lm:TinyLM", call = 1 }
+tracked_files = ["configs/base.json"]
+
+[profiles.lora]
+kind = "script"
+script = "finetune_lora.py"
+args = []
+capture = { model = "peft.peft_model:PeftModelForCausalLM", call = 1 }

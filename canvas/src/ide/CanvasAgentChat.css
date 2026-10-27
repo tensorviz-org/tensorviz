@@ -1,0 +1,96 @@
+.canvas-agent-bubble, .canvas-agent-chat { position: absolute; left: 12px; right: auto; bottom: 12px; z-index: 550; color: var(--canvas-text); font: 12px/1.5 var(--canvas-font); }
+.canvas-agent-bubble { display: grid; place-items: center; width: 46px; height: 46px; padding: 0; border: 1px solid var(--canvas-line); border-radius: 50%; background: var(--canvas-popover); color: var(--canvas-accent); box-shadow: 0 4px 16px #0000004d; cursor: pointer; transition: background-color .12s, border-color .12s; }
+.canvas-agent-bubble:hover { background: var(--canvas-active); border-color: var(--canvas-active-border); }
+.canvas-agent-unread { position: absolute; top: 1px; right: 1px; width: 10px; height: 10px; border: 2px solid var(--canvas-popover); border-radius: 50%; background: var(--canvas-accent); }
+.canvas-agent-unread-error { background: var(--canvas-error); }
+
+/* One surface, one outline. It grows upward from its corner; when space runs out the history shrinks first, then the surface scrolls under its sticky bar. */
+.canvas-agent-chat { display: flex; flex-direction: column; width: min(380px, calc(100% - 24px)); max-height: min(560px, calc(100% - 24px)); border: 1px solid var(--canvas-line); border-radius: 12px; background: var(--canvas-popover); box-shadow: 0 10px 32px #0000004d; overflow: auto; overscroll-behavior: contain; scroll-padding-top: 40px; transform-origin: bottom left; animation: canvas-agent-open .14s ease-out; }
+.canvas-agent-chat:focus-within { border-color: var(--canvas-active-border); }
+@keyframes canvas-agent-open { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+.canvas-agent-chat button, .canvas-agent-chat select, .canvas-agent-chat textarea { font: inherit; color: inherit; }
+.canvas-agent-chat button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--canvas-muted); cursor: pointer; transition: background-color .12s, color .12s; }
+.canvas-agent-chat button:hover:not(:disabled) { background: var(--canvas-hover); color: var(--canvas-text); }
+.canvas-agent-chat button:disabled { opacity: .4; cursor: default; }
+.canvas-agent-chat svg { stroke-width: 1.75; }
+.canvas-agent-chat :focus-visible, .canvas-agent-bubble:focus-visible { outline: 2px solid var(--canvas-accent); outline-offset: 1px; }
+/* The caret and the tinted outer outline mark the prompt's focus; no ring inside the frame. */
+.canvas-agent-chat textarea:focus-visible { outline: none; }
+
+.canvas-agent-bar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 2px; flex: none; height: 40px; box-sizing: border-box; padding: 0 6px 0 12px; border-bottom: 1px solid transparent; background: var(--canvas-popover); }
+.canvas-agent-bar-divided { border-bottom-color: var(--canvas-line); }
+.canvas-agent-context { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; margin-right: 6px; }
+.canvas-agent-context > svg { flex: none; color: var(--canvas-accent); }
+.canvas-agent-context > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.canvas-agent-status { display: flex; align-items: center; gap: 5px; margin-right: 4px; color: var(--canvas-muted); font-size: 11px; white-space: nowrap; }
+.canvas-agent-status-ready { color: var(--canvas-success); }
+.canvas-agent-status-attention { color: var(--canvas-error); }
+.canvas-agent-dot { flex: none; width: 7px; height: 7px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid var(--canvas-muted); }
+.canvas-agent-dot-ready { background: var(--canvas-success); border-color: var(--canvas-success); }
+.canvas-agent-dot-checking { border-color: var(--canvas-accent); }
+.canvas-agent-dot-attention { background: var(--canvas-error); border-color: var(--canvas-error); border-radius: 1px; transform: rotate(45deg); }
+.canvas-agent-chat .canvas-agent-settings-toggle[aria-expanded="true"] { background: var(--canvas-active); color: var(--canvas-accent); }
+
+.canvas-agent-clear { display: flex; align-items: center; gap: 2px; flex: none; padding: 6px 6px 6px 12px; border-bottom: 1px solid var(--canvas-line); }
+.canvas-agent-clear span { flex: 1; min-width: 0; }
+.canvas-agent-chat .canvas-agent-clear button { width: auto; padding: 0 8px; color: var(--canvas-text); }
+.canvas-agent-chat .canvas-agent-clear button:first-of-type { color: var(--canvas-error); }
+
+/* Preference rows: the whole row is the select, unframed until hovered; label and chevron sit over it in fixed lanes. */
+.canvas-agent-settings { display: flex; flex-direction: column; gap: 2px; flex: none; padding: 6px 6px 8px; border-bottom: 1px solid var(--canvas-line); }
+.canvas-agent-setting { position: relative; display: flex; align-items: center; }
+.canvas-agent-setting label { position: absolute; left: 6px; color: var(--canvas-muted); pointer-events: none; }
+.canvas-agent-setting > svg { position: absolute; right: 8px; color: var(--canvas-muted); pointer-events: none; transition: color .12s; }
+.canvas-agent-settings select { appearance: none; width: 100%; min-width: 0; height: 30px; padding: 0 28px 0 64px; border: 0; border-radius: 6px; background: transparent; text-align: right; text-align-last: right; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; cursor: pointer; transition: background-color .12s; }
+.canvas-agent-settings option { background: var(--canvas-popover); color: var(--canvas-text); }
+.canvas-agent-settings select:hover:not(:disabled) { background: var(--canvas-hover); }
+.canvas-agent-setting:hover > select:not(:disabled) ~ svg { color: var(--canvas-text); }
+.canvas-agent-settings select:disabled { color: var(--canvas-muted); cursor: default; }
+.canvas-agent-settings select:disabled ~ svg { opacity: .4; }
+.canvas-agent-settings select[aria-invalid="true"] { color: var(--canvas-error); }
+.canvas-agent-settings-hint { margin: -2px 0 2px; padding-left: 6px; color: var(--canvas-muted); font-size: 11px; overflow-wrap: anywhere; }
+.canvas-agent-settings .canvas-agent-readiness { margin: 4px 0 0; padding-left: 6px; font-size: 11px; line-height: 16px; }
+
+.canvas-agent-history { flex: 1 1 auto; min-height: 48px; overflow: auto; overscroll-behavior: contain; padding: 2px 12px 12px; border-bottom: 1px solid var(--canvas-line); font-size: 13px; line-height: 1.55; }
+.canvas-agent-chat .canvas-agent-history:focus-visible { outline-offset: -2px; }
+.canvas-agent-turn { margin-top: 12px; overflow-wrap: anywhere; }
+.canvas-agent-turn > span { font-size: 11px; line-height: 16px; color: var(--canvas-muted); }
+.canvas-agent-turn p { margin: 2px 0 0; white-space: pre-wrap; user-select: text; -webkit-user-select: text; }
+.canvas-agent-chat .canvas-agent-copy { float: right; width: 24px; height: 20px; padding: 2px; color: var(--canvas-muted); }
+.canvas-agent-user { padding-left: 10px; border-left: 2px solid var(--canvas-active-border); }
+.canvas-agent-turn-settings { color: var(--canvas-muted); }
+
+.canvas-agent-activity { flex: none; margin: 10px 12px 0; color: var(--canvas-muted); overflow-wrap: anywhere; }
+.canvas-agent-chat .canvas-agent-error { color: var(--canvas-error); }
+.canvas-agent-readiness { display: flex; align-items: center; gap: 8px; flex: none; margin: 10px 12px 0; color: var(--canvas-muted); }
+.canvas-agent-readiness > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.canvas-agent-chat .canvas-agent-refresh, .canvas-agent-chat .canvas-agent-refresh:hover:not(:disabled) { width: auto; padding: 0 8px; color: var(--canvas-accent); font-size: 12px; }
+
+/* The prompt is the main element: borderless, it grows with its text; Send sits in the corner under Minimize. */
+.canvas-agent-composer { display: flex; align-items: flex-end; gap: 8px; flex: none; padding: 0 6px 6px 12px; }
+.canvas-agent-composer textarea { flex: 1; min-width: 0; box-sizing: border-box; min-height: 80px; max-height: 180px; padding: 8px 0 12px; border: 0; background: transparent; resize: none; field-sizing: content; font-size: 14px; line-height: 20px; }
+.canvas-agent-composer-compact textarea { min-height: 60px; }
+.canvas-agent-composer textarea::placeholder { color: var(--canvas-muted); }
+.canvas-agent-chat .canvas-agent-send { background: var(--canvas-accent); color: var(--canvas-field); }
+.canvas-agent-chat .canvas-agent-send:hover:not(:disabled) { background: var(--canvas-accent); color: var(--canvas-field); filter: brightness(1.08); }
+.canvas-agent-chat .canvas-agent-send:disabled { background: var(--canvas-hover); color: var(--canvas-muted); opacity: 1; }
+.canvas-agent-chat .canvas-agent-stop, .canvas-agent-chat .canvas-agent-stop:hover:not(:disabled) { background: var(--canvas-active); color: var(--canvas-accent); box-shadow: inset 0 0 0 1px var(--canvas-active-border); }
+
+.canvas-agent-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (max-height: 420px) {
+  .canvas-agent-chat { scroll-padding-top: 36px; }
+  .canvas-agent-bar { height: 36px; }
+  .canvas-agent-composer textarea { min-height: 56px; padding: 6px 0 10px; }
+  .canvas-agent-activity, .canvas-agent-readiness { margin-top: 6px; }
+  .canvas-agent-settings { padding-block: 4px 6px; }
+  .canvas-agent-settings select { height: 28px; }
+}
+/* Bar height and scroll padding move together so a scrolled-to control is never under the bar. */
+@media (pointer: coarse) {
+  .canvas-agent-chat { scroll-padding-top: 52px; }
+  .canvas-agent-bar { height: 52px; }
+  .canvas-agent-chat button { width: 40px; height: 40px; }
+  .canvas-agent-settings select { height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) { .canvas-agent-chat { animation: none; } .canvas-agent-chat button, .canvas-agent-bubble, .canvas-agent-settings select, .canvas-agent-setting > svg { transition: none; } }

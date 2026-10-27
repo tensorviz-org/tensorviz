@@ -1,0 +1,45 @@
+.canvas-state { box-sizing: border-box; display: flex; flex-direction: column; min-height: 100vh;
+  width: 100%; padding: 28px 24px 20px; color: var(--tv-text); background: var(--tv-canvas);
+  font: 13px/1.65 var(--font-ui); color-scheme: var(--tv-color-scheme); }
+.canvas-state-brand { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; }
+.canvas-state-brand svg { color: var(--tv-accent); flex: none; }
+.canvas-state-content { width: 100%; max-width: 400px; margin: auto; padding: 40px 0; min-width: 0; }
+.canvas-state-art { position: relative; overflow: hidden; margin: 0 -16px 28px; min-height: 120px;
+  display: grid; place-items: center; color: var(--tv-accent); }
+.canvas-state-art::before { content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle, var(--tv-dot) 1px, transparent 1px) 0 0 / 18px 18px;
+  mask-image: radial-gradient(ellipse, black, transparent 72%); }
+.canvas-state-art > svg { position: relative; width: 68px; height: 68px; stroke-width: 1.1; }
+.canvas-state-art > svg[viewBox='0 0 320 190'] { width: 100%; height: auto; }
+.canvas-state-wires { stroke: var(--tv-accent); stroke-width: 1; opacity: .3; }
+.canvas-state-nodes { fill: var(--tv-face); stroke: var(--tv-accent); stroke-width: 1.2; }
+.canvas-state-detail { stroke: var(--tv-accent); stroke-width: 1; opacity: .5; }
+.canvas-state-signal { stroke: var(--tv-accent); stroke-width: 2; stroke-linecap: round;
+  stroke-dasharray: 7 93; animation: canvas-state-flow 7s linear infinite; }
+.canvas-state-signal.second { animation-delay: -3.5s; }
+.canvas-state[data-motion='paused'] .canvas-state-signal { animation-play-state: paused; }
+@keyframes canvas-state-flow { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+.canvas-state h1 { margin: 0 0 12px; font: 600 clamp(22px, 6vw, 28px)/1.2 var(--font-ui); letter-spacing: -.6px; }
+.canvas-state-copy { color: var(--tv-text-2); overflow-wrap: anywhere; }
+.canvas-state-copy p { margin: 0; }
+.canvas-state-copy p + p { margin-top: 12px; }
+.canvas-state-copy strong { color: var(--tv-text); font-weight: 500; }
+.canvas-state-details { margin-top: 12px; }
+.canvas-state-details summary { cursor: pointer; color: var(--tv-text); }
+.canvas-state-details pre { max-height: 40vh; overflow: auto; margin: 8px 0 0; padding: 8px 10px; border: 1px solid var(--tv-edge);
+  border-radius: 6px; background: var(--tv-field); white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.5 var(--font-mono, monospace); }
+.canvas-state-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
+.canvas-state-actions button { display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 40px; padding: 9px 14px; border: 1px solid var(--tv-edge); border-radius: 6px;
+  background: var(--tv-field); color: var(--tv-text); font: 500 13px/1.4 var(--font-ui); cursor: pointer; }
+.canvas-state-actions button.primary { background: var(--tv-primary-bg); color: var(--tv-primary-ink);
+  border-color: var(--tv-primary-line); box-shadow: var(--tv-primary-shadow); }
+.canvas-state-actions button:not(:disabled):hover { filter: brightness(1.08); }
+.canvas-state-actions button:disabled { opacity: .5; cursor: default; }
+.canvas-state-actions svg { width: 17px; height: 17px; flex: none; }
+.canvas-state button:focus-visible { outline: 2px solid var(--tv-accent); outline-offset: 3px; }
+.canvas-state-embedded { flex: 1; min-height: 0; overflow: auto; }
+.canvas-state-embedded .canvas-state-content { max-width: 440px; }
+@media (max-width: 260px) { .canvas-state { padding: 20px 16px 16px; } }
+@media (max-height: 520px) { .canvas-state-content { padding: 24px 0; } .canvas-state-art { max-width: 230px; margin: 0 auto 20px; } }
+@media (prefers-reduced-motion: reduce) { .canvas-state-signal { animation: none; stroke-dasharray: none; opacity: .3; } }

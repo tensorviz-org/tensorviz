@@ -1,0 +1,31 @@
+.capture-details-trigger,
+.tldraw-canvas-wrapper .graph-focus-controls .capture-details-trigger {
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 9px; border-radius: 6px;
+  border: 1px solid var(--tv-edge); background: var(--tv-face);
+  color: var(--tv-text); font: inherit; cursor: pointer; text-align: left;
+}
+.capture-details-trigger svg { flex: none; }
+.capture-details-trigger:focus-visible { outline: 2px solid var(--tv-accent); outline-offset: 2px; }
+.capture-details { color: var(--tv-text); background: var(--tv-popover); border: 1px solid var(--tv-edge); border-radius: 10px; padding: 0; width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 40px); box-shadow: var(--tv-popover-shadow); }
+.capture-details::backdrop { background: var(--tv-backdrop); }
+.capture-details-content { display: flex; flex-direction: column; max-height: calc(100vh - 44px); font: 12px/18px var(--font-ui); }
+.capture-details header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 20px 12px; }
+.capture-details h2 { font-size: 16px; margin: 0; overflow-wrap: anywhere; }
+.capture-details p { margin: 4px 0 10px; color: var(--tv-text-2); }
+.capture-details button { color: inherit; background: var(--tv-face); border: 1px solid var(--tv-edge); border-radius: 6px; padding: 5px 9px; cursor: pointer; text-align: left; font: inherit; overflow-wrap: anywhere; }
+.capture-details button:focus-visible { outline: 2px solid var(--tv-accent); outline-offset: 2px; }
+.capture-details button:disabled { opacity: .4; cursor: default; }
+.capture-details nav, .capture-details-path { display: flex; gap: 8px; padding: 8px 20px; flex-wrap: wrap; align-items: center; }
+.capture-details-path { border-bottom: 1px solid var(--tv-hairline); }
+.capture-details code { overflow-wrap: anywhere; white-space: pre-wrap; }
+.capture-details-path code { flex: 1; min-width: 0; font-size: 11px; }
+.capture-details-body { overflow: auto; min-height: 150px; padding: 12px 20px; }
+.capture-details table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.capture-details th, .capture-details td { padding: 8px; border-bottom: 1px solid var(--tv-hairline); text-align: left; vertical-align: top; }
+.capture-details th { width: 30%; font-weight: 500; }
+.capture-details td button { width: 100%; }
+.capture-details td span { color: var(--tv-text-2); }
+.capture-details pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.capture-details footer { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 20px 20px; border-top: 1px solid var(--tv-hairline); }
+.capture-details footer small { flex: 1; min-width: 200px; color: var(--tv-text-2); }
+.capture-details footer div { display: flex; gap: 8px; }

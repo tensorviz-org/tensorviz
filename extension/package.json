@@ -1,0 +1,728 @@
+{
+  "name": "tensorviz",
+  "displayName": "tensorViz — PyTorch & JAX Model Visualizer",
+  "description": "Explore PyTorch and JAX/Flax model graphs, inspect tensor shapes, jump to Python source, and review PyTorch architecture changes in VS Code.",
+  "version": "0.1.18",
+  "publisher": "tensorviz",
+  "license": "MIT",
+  "homepage": "https://tensorviz.dev/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tensorviz-org/tensorviz.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tensorviz-org/tensorviz/issues"
+  },
+  "qna": "marketplace",
+  "pricing": "Free",
+  "keywords": [
+    "pytorch",
+    "jax",
+    "flax",
+    "tensor",
+    "tensor shapes",
+    "model graph",
+    "model visualization",
+    "neural network",
+    "graph diff",
+    "machine learning",
+    "MCP"
+  ],
+  "//icon": "Marketplace / Extensions-view logo. A committed 512x512 PNG of the website brand mark (icons/icon.png). VS Code requires a raster icon here (SVG is not allowed for the top-level icon field) and at least 128x128.",
+  "icon": "icons/icon.png",
+  "engines": {
+    "vscode": "^1.106.0",
+    "node": ">=22"
+  },
+  "categories": [
+    "Visualization",
+    "Machine Learning"
+  ],
+  "main": "./out/extension.js",
+  "//extensionKind": "Runs with workspace files, backend and trace worker on local desktop or Remote SSH. Other remote kinds are unsupported.",
+  "extensionKind": [
+    "workspace"
+  ],
+  "//activationEvents": "Activate the views and index already-open Python documents. In a trusted workspace, a Python subclass can start source discovery; only discovered models receive CodeLenses. Static indexing does not execute the model.",
+  "activationEvents": [
+    "onStartupFinished",
+    "workspaceContains:**/*.py"
+  ],
+  "//enabledApiProposals": "Keep proposed APIs absent for released VS Code compatibility. Optional fork APIs are granted by its product configuration and probed at runtime.",
+  "contributes": {
+    "commands": [
+      {
+        "command": "tensorviz.signInToWebsite",
+        "title": "Sign in to tensorViz",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.signOutOfWebsite",
+        "title": "Sign out of tensorViz",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.connectMcp",
+        "title": "Connect coding agent (MCP)",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.forwardMcp",
+        "title": "Forward MCP to This Desktop",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.disconnectMcp",
+        "title": "Disconnect coding agents (MCP)",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.applySourceProposal",
+        "title": "Apply source change",
+        "category": "tensorViz",
+        "icon": "$(check)",
+        "enablement": "tensorviz.sourceReviewActive"
+      },
+      {
+        "command": "tensorviz.discardSourceProposal",
+        "title": "Discard proposal",
+        "category": "tensorViz",
+        "icon": "$(close)",
+        "enablement": "tensorviz.sourceReviewActive"
+      },
+      {
+        "command": "tensorviz.inspectSourceCandidate",
+        "title": "Inspect candidate result",
+        "category": "tensorViz",
+        "icon": "$(output)",
+        "enablement": "tensorviz.sourceCandidateAvailable"
+      },
+      {
+        "command": "tensorviz.cancelSourceCandidate",
+        "title": "Cancel candidate run",
+        "category": "tensorViz",
+        "icon": "$(debug-stop)",
+        "enablement": "tensorviz.sourceCandidateAvailable && tensorviz.sourceCandidateRunning"
+      },
+      {
+        "command": "tensorviz.runSourceCandidate",
+        "title": "Run reviewed candidate",
+        "category": "tensorViz",
+        "icon": "$(play)",
+        "enablement": "tensorviz.sourceCandidateAvailable && !tensorviz.sourceCandidateRunning"
+      },
+      {
+        "command": "tensorviz.openCanvas",
+        "title": "Open Canvas",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.openProject",
+        "title": "Open Project as Graph",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.openProjectInBrowser",
+        "title": "Open Canvas in Browser (Legacy Alias)"
+      },
+      {
+        "command": "tensorviz.openAsGraph",
+        "title": "Open as Graph",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.toggleCanvas",
+        "title": "Toggle Canvas",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.repairRuntime",
+        "title": "Repair runtime",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.getStarted",
+        "title": "Get Started",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.selectEnvironment",
+        "title": "Select Python Environment",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.checkEnvironment",
+        "title": "Check the Python environment",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.openHuggingFace",
+        "title": "Open Hugging Face model",
+        "category": "tensorViz",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "tensorviz.newModelFromTemplate",
+        "title": "New model from template",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.refreshModels",
+        "title": "Refresh models",
+        "category": "tensorViz",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "tensorviz.clearExecutionCache",
+        "title": "Clear Execution Cache",
+        "category": "tensorViz"
+      },
+      {
+        "command": "tensorviz.compareWithHead",
+        "title": "Graph diff against HEAD",
+        "category": "tensorViz",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "tensorviz.graphDiffWorking",
+        "title": "Graph diff",
+        "category": "tensorViz",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "tensorviz.graphDiffStaged",
+        "title": "Graph diff",
+        "category": "tensorViz",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "tensorviz.showSidebarCanvas",
+        "title": "Show Canvas",
+        "category": "tensorViz",
+        "icon": "$(layout-sidebar-right)"
+      },
+      {
+        "command": "tensorviz.hideCanvas",
+        "title": "Hide Canvas",
+        "category": "tensorViz",
+        "icon": "$(close)"
+      },
+      {
+        "command": "tensorviz.openCanvasInBrowser",
+        "title": "Open Canvas in Browser",
+        "category": "tensorViz",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "tensorviz.openPullRequest",
+        "title": "Open PR",
+        "category": "tensorViz",
+        "icon": "$(git-pull-request)"
+      },
+      {
+        "command": "tensorviz.graphDiffFromEditor",
+        "title": "Graph diff",
+        "category": "tensorViz",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "tensorviz.reviewGraphChanges",
+        "title": "Review model changes",
+        "category": "tensorViz",
+        "icon": "$(git-compare)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "tensorviz.toggleCanvas",
+        "key": "ctrl+cmd+g",
+        "mac": "ctrl+cmd+g",
+        "win": "ctrl+alt+g",
+        "linux": "ctrl+alt+g",
+        "when": "!terminalFocus"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "tensorviz.graphDiffFromEditor",
+          "when": "isInDiffEditor && resourceExtname == .py",
+          "group": "navigation@0"
+        },
+        {
+          "command": "tensorviz.applySourceProposal",
+          "when": "tensorviz.sourceReviewActive && resourceScheme =~ /^tensorviz-review-/",
+          "group": "navigation@1"
+        },
+        {
+          "command": "tensorviz.discardSourceProposal",
+          "when": "tensorviz.sourceReviewActive && resourceScheme =~ /^tensorviz-review-/",
+          "group": "navigation@2"
+        },
+        {
+          "command": "tensorviz.runSourceCandidate",
+          "when": "tensorviz.sourceCandidateAvailable && !tensorviz.sourceCandidateRunning && resourceScheme =~ /^tensorviz-review-/",
+          "group": "navigation@3"
+        },
+        {
+          "command": "tensorviz.cancelSourceCandidate",
+          "when": "tensorviz.sourceCandidateAvailable && tensorviz.sourceCandidateRunning && resourceScheme =~ /^tensorviz-review-/",
+          "group": "navigation@3"
+        },
+        {
+          "command": "tensorviz.inspectSourceCandidate",
+          "when": "tensorviz.sourceCandidateAvailable && resourceScheme =~ /^tensorviz-review-/",
+          "group": "navigation@3"
+        },
+        {
+          "command": "tensorviz.showSidebarCanvas",
+          "when": "!tensorviz.canvasVisible",
+          "group": "navigation@3"
+        },
+        {
+          "command": "tensorviz.hideCanvas",
+          "when": "tensorviz.canvasVisible",
+          "group": "navigation@3"
+        },
+        {
+          "command": "tensorviz.showSidebarCanvas",
+          "when": "!tensorviz.canvasVisible",
+          "group": "tensorviz@1"
+        },
+        {
+          "command": "tensorviz.hideCanvas",
+          "when": "tensorviz.canvasVisible",
+          "group": "tensorviz@1"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "tensorviz.openHuggingFace",
+          "when": "view == tensorviz.models",
+          "group": "navigation@1"
+        },
+        {
+          "command": "tensorviz.openPullRequest",
+          "when": "view == tensorviz.sidebarCanvas",
+          "group": "navigation@0"
+        },
+        {
+          "command": "tensorviz.refreshModels",
+          "when": "view == tensorviz.models",
+          "group": "navigation"
+        },
+        {
+          "command": "tensorviz.newModelFromTemplate",
+          "when": "view == tensorviz.templates",
+          "group": "navigation"
+        },
+        {
+          "command": "tensorviz.hideCanvas",
+          "when": "view == tensorviz.sidebarCanvas",
+          "group": "navigation@2"
+        },
+        {
+          "command": "tensorviz.openCanvasInBrowser",
+          "when": "view == tensorviz.sidebarCanvas",
+          "group": "navigation@1"
+        }
+      ],
+      "scm/resourceState/context": [
+        {
+          "command": "tensorviz.graphDiffStaged",
+          "when": "scmProvider == git && resourceExtname == .py && scmResourceGroup == index",
+          "group": "inline"
+        },
+        {
+          "command": "tensorviz.graphDiffWorking",
+          "when": "scmProvider == git && resourceExtname == .py && scmResourceGroup == workingTree",
+          "group": "inline"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "tensorviz.compareWithHead",
+          "when": "resourceExtname == .py",
+          "group": "tensorviz@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "tensorviz.graphDiffWorking",
+          "when": "false"
+        },
+        {
+          "command": "tensorviz.graphDiffStaged",
+          "when": "false"
+        },
+        {
+          "command": "tensorviz.showSidebarCanvas",
+          "when": "!tensorviz.canvasVisible"
+        },
+        {
+          "command": "tensorviz.hideCanvas",
+          "when": "tensorviz.canvasVisible"
+        },
+        {
+          "command": "tensorviz.openProjectInBrowser",
+          "when": "false"
+        }
+      ]
+    },
+    "//viewsContainers": "A committed SVG under extension/icons/ (extension/media/ is gitignored \u2014 it is where the built React app is staged \u2014 so an icon there would never be committed). icons/tensorviz.svg is the website brand mark drawn with stroke=currentColor and a transparent background so VS Code can tint it to the active/inactive activity-bar color.",
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "tensorviz",
+          "title": "tensorViz",
+          "icon": "icons/tensorviz.svg"
+        }
+      ],
+      "secondarySidebar": [
+        {
+          "id": "tensorviz-canvas",
+          "title": "tensorViz",
+          "icon": "icons/tensorviz.svg"
+        }
+      ]
+    },
+    "views": {
+      "tensorviz": [
+        {
+          "id": "tensorviz.models",
+          "name": "Models"
+        },
+        {
+          "id": "tensorviz.templates",
+          "name": "Templates"
+        }
+      ],
+      "tensorviz-canvas": [
+        {
+          "id": "tensorviz.sidebarCanvas",
+          "name": "tensorViz",
+          "type": "webview",
+          "icon": "icons/tensorviz.svg"
+        }
+      ]
+    },
+    "themes": [
+      {
+        "id": "tensorViz Dark",
+        "label": "tensorViz Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/tensorviz-dark.json"
+      },
+      {
+        "id": "tensorViz Light",
+        "label": "tensorViz Light",
+        "uiTheme": "vs",
+        "path": "./themes/tensorviz-light.json"
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "tensorviz.firstRun",
+        "title": "Get started with tensorViz",
+        "//description": "Environment selection and dependency consent happen on first graph use; Select Python Environment remains available to change the workspace choice.",
+        "description": "Open a model in the sidebar Canvas, explore its graph, and review source changes in VS Code.",
+        "steps": [
+          {
+            "id": "openRepo",
+            "title": "Open your models",
+            "description": "Open the folder your `nn.Module` classes live in. tensorViz reads them with an AST scan \u2014 nothing is imported or executed. To try tensorViz first, open an empty folder and create an MLP or small CNN from the built-in starters.\n[Open Folder](command:workbench.action.files.openFolder) \u00b7 [Try a starter model](command:tensorviz.newModelFromTemplate)",
+            "media": {
+              "markdown": "walkthrough/repository.md"
+            },
+            "completionEvents": [
+              "onContext:workspaceFolderCount > 0"
+            ]
+          },
+          {
+            "id": "environment",
+            "title": "Choose your Python environment",
+            "description": "Open as Graph and **Refresh graph** run in a Python you choose. tensorViz offers your existing Conda or virtual environments and checks Python 3.10+ and the capture libraries. The separate service uses Python 3.11+. Missing libraries need approval; installed Torch/CUDA versions are preserved.\n[Select Python Environment](command:tensorviz.selectEnvironment)",
+            "media": {
+              "markdown": "walkthrough/environment.md"
+            },
+            "completionEvents": [
+              "onCommand:tensorviz.selectEnvironment"
+            ]
+          },
+          {
+            "id": "openAsGraph",
+            "title": "See a class as a graph",
+            "description": "Choose **Open as Graph** above an `nn.Module` class or in the Models view. The first capture needs model configuration and example inputs; tensorViz fills what it can and asks for missing values beside a source-only preview. Not sure what to enter? Connect your coding agent through MCP and ask it to prepare the setup. You can also fill the form yourself. Setup is saved in `tensorviz.toml` for later captures.\n[Open as Graph](command:tensorviz.openAsGraph) \u00b7 [Get setup help with MCP](command:tensorviz.connectMcp)",
+            "media": {
+              "markdown": "walkthrough/graph.md"
+            },
+            "completionEvents": [
+              "onCommand:tensorviz.openAsGraph"
+            ]
+          },
+          {
+            "id": "validate",
+            "title": "Validate and read the measurements",
+            "description": "Open as Graph captures one forward call once setup is complete. Save source changes and choose **Refresh graph** to capture again; **Change inputs** edits the saved setup. Unreached nodes stay unverified, and a failed, refused or cancelled run keeps earlier measurements explicitly retained.",
+            "media": {
+              "markdown": "walkthrough/validate.md"
+            }
+          },
+          {
+            "id": "sourceEdit",
+            "title": "Propose a change, review the diff",
+            "description": "Zoom into a layer and choose its top-right **Edit** control to open a form on the node. Every proposal opens a native Python diff in VS Code; **Apply source change** makes one unsaved edit and native Undo restores it. Shared definitions affect all instances, and grouping changes parameter and checkpoint keys.",
+            "media": {
+              "markdown": "walkthrough/source-edit.md"
+            }
+          },
+          {
+            "id": "agent",
+            "title": "Connect your coding agent",
+            "description": "Open the chat icon in Canvas to use your installed, signed-in Codex or Claude Code agent directly. Minimize preserves the conversation; source changes require native Apply/Discard. No provider key or global MCP configuration is needed for Canvas chat. You can also connect from an existing agent chat through MCP. The tensorViz plugin installs separately in your coding agent and works with VS Code closed. **Connect coding agent (MCP)** optionally connects an agent to this VS Code extension; keep VS Code open for that connection. Use one TensorViz host per agent to avoid duplicate tools. The agent can use open_graph to capture a model, complete missing setup and request dependency installation in the capture environment. It can also inspect and focus the graph and propose native source reviews. Connection opt-in persists across restarts; **Disconnect coding agents (MCP)** revokes sessions and disables reconnection.\n[Turn MCP on](command:tensorviz.connectMcp) \u00b7 [Turn MCP off](command:tensorviz.disconnectMcp)",
+            "media": {
+              "markdown": "walkthrough/agent.md"
+            },
+            "completionEvents": [
+              "onCommand:tensorviz.connectMcp"
+            ]
+          },
+          {
+            "id": "export",
+            "title": "Share a graph",
+            "description": "Add the graph to tensorViz from the Canvas's model menu, then choose who can see it and copy its link on tensorviz.dev.",
+            "media": {
+              "markdown": "walkthrough/export.md"
+            }
+          }
+        ]
+      }
+    ],
+    "//configurationDefaults": "Only tensorviz settings belong here; preserve the user's editor, language and theme preferences.",
+    "configurationDefaults": {
+      "tensorviz.traceOnSave": false
+    },
+    "configuration": {
+      "title": "tensorViz",
+      "properties": {
+        "tensorviz.agent.codexPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "restricted": true,
+          "markdownDescription": "Optional absolute path to the Codex executable for Canvas chat. Empty uses the workspace host's PATH and standard installation locations. Sign in to the installed agent first. In Remote SSH, this path and sign-in belong to the SSH server."
+        },
+        "tensorviz.agent.claudePath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "restricted": true,
+          "markdownDescription": "Optional absolute path to the Claude Code executable for Canvas chat. Empty uses the workspace host's PATH and standard installation locations. Sign in to the installed agent first. In Remote SSH, this path and sign-in belong to the SSH server."
+        },
+        "tensorviz.mcpPort": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 65535,
+          "scope": "application",
+          "description": "Local MCP port shared by all tensorViz windows. Zero automatically chooses an available port and reuses it while available. Set a number to require a fixed port. Applies when connecting from the status bar. Copy the current URL from tensorViz when configuring an agent."
+        },
+        "tensorviz.repoPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "**Developer override.** Absolute path to a canvas checkout, used as the backend source instead of the one tensorViz ships with. You do not need this: the backend is bundled with the app and packaged inside the extension, and is found first. It exists for running against a checkout. When set, it is used as-is \u2014 tensorViz will not fall back to guessing if it does not validate."
+        },
+        "tensorviz.pythonPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Absolute Python path offered in the environment picker and used for model execution when this workspace folder has no saved choice. Use tensorViz: Select Python Environment to choose a Conda/venv for the model\u2019s owning folder. The tensorViz service has its own Python. Missing capture/model libraries require approval and existing Torch/CUDA versions are preserved."
+        },
+        "tensorviz.devServerUrl": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Load the canvas from this URL instead of the app bundled with the extension \u2014 for developing the frontend against a live `npm start`. When empty (the default) the backend serves the built app on a port chosen at launch. The value is used verbatim, and its origin becomes the panel's `frame-src`."
+        },
+        "tensorviz.graphSurface": {
+          "type": "string",
+          "enum": [
+            "sidebar",
+            "browser",
+            "editor"
+          ],
+          "enumDescriptions": [
+            "Open the persistent sidebar Canvas.",
+            "Legacy value; opens the sidebar Canvas. Use Open Canvas in Browser explicitly.",
+            "Legacy value; opens the sidebar Canvas."
+          ],
+          "default": "sidebar",
+          "scope": "window",
+          "markdownDescription": "Open as Graph always uses the persistent sidebar Canvas. Use **tensorViz: Open Canvas in Browser** for the selected model or project.",
+          "deprecationMessage": "All values now open the sidebar Canvas. Remove this setting; use tensorViz: Open Canvas in Browser for external opening."
+        },
+        "tensorviz.autoOpenCanvas": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "markdownDescription": "Open the sidebar Canvas initially when a Python model or project is found. Only tensorViz IDE enables this implicitly; stock VS Code requires an explicit setting or Open as Graph. Opening another editor never replaces the selected model/project. The existing toggle shortcut shows or hides the retained Canvas."
+        },
+        "tensorviz.traceOnSave": {
+          "type": "boolean",
+          "default": false,
+          "scope": "resource",
+          "markdownDescription": "Legacy capture-on-save setting. Sidebar Canvas always refreshes source on save without executing. Opening a model captures it; use Run model to review the device for another capture.",
+          "deprecationMessage": "Saving refreshes source only. Opening a model captures it; Run model reviews another capture."
+        },
+        "tensorviz.showGraphPrompt": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "markdownDescription": "Show an Open as Graph notification when the active saved Python file contains a discovered PyTorch model. Each file is offered once per VS Code window session. Disable this to keep using CodeLens, Models or the command palette without notifications."
+        },
+        "tensorviz.traceTier": {
+          "type": "string",
+          "enum": [
+            "real",
+            "fake"
+          ],
+          "default": "real",
+          "scope": "resource",
+          "markdownDescription": "How the trace worker runs your model. `real` uses real tensors, so data-dependent control flow (`if x.sum() > 0`) takes a branch instead of failing. `fake` runs under `FakeTensorMode` and allocates nothing, at the cost of refusing those models."
+        },
+        "tensorviz.executionCache.mode": {
+          "type": "string",
+          "enum": [
+            "off",
+            "shadow",
+            "on"
+          ],
+          "enumDescriptions": [
+            "No execution cache. Every Run executes your model exactly as before.",
+            "Diagnostic only: every Run still executes your model. tensorViz also keeps the result in memory and, when a later Run has exactly the same inputs, compares the two and writes the outcome to the tensorViz output channel. A stored result is never shown.",
+            "Preview: when a Run has exactly the same inputs as an earlier Run in this window, tensorViz shows that earlier result instead of running your model again, labelled \"Reused identical result … (no Python ran)\". Use Run fresh to execute anyway."
+          ],
+          "default": "off",
+          "scope": "machine-overridable",
+          "markdownDescription": "Reuse of identical runs (preview). A Run can reuse an earlier identical result only with the same saved sources, configuration, inputs and seed, environment variables, Python environment and tensorViz backend, on CPU, with nothing read from outside the tracked files. `shadow` only checks this, without changing what you see; `on` shows the earlier result without running Python. Agent (MCP) runs always execute. Results are kept in memory for this window only and are never written to disk; **tensorViz: Clear Execution Cache** drops them. Takes effect on the next Run."
+        },
+        "tensorviz.executionCache.maxSizeMB": {
+          "type": "number",
+          "default": 96,
+          "minimum": 1,
+          "maximum": 1024,
+          "scope": "machine-overridable",
+          "markdownDescription": "Memory limit, in megabytes, for results kept by `#tensorviz.executionCache.mode#` in this window (at most 32 results, 16 MB each). The least recently used result is dropped first."
+        },
+        "tensorviz.followEditor": {
+          "type": "boolean",
+          "default": true,
+          "description": "Move the project canvas to the file you open, and open its node. Turn this off to leave the camera where you put it; the canvas still follows when you click a node yourself."
+        },
+        "tensorviz.codeFocus": {
+          "type": "object",
+          "default": {
+            "enabled": false,
+            "scope": "node",
+            "references": "both",
+            "opacity": 25
+          },
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "scope": {
+              "type": "string",
+              "enum": [
+                "class",
+                "function",
+                "node"
+              ]
+            },
+            "references": {
+              "type": "string",
+              "enum": [
+                "declaration",
+                "uses",
+                "both"
+              ]
+            },
+            "opacity": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 60
+            }
+          },
+          "required": [
+            "enabled",
+            "scope",
+            "references",
+            "opacity"
+          ],
+          "markdownDescription": "Dim code outside selected Canvas nodes. Configure **Model / class**, **Function**, or **Node / expression**, parameter declarations/uses, and opacity from **Code focus** in the Canvas toolbar. Preferences persist across sessions; hidden, stale, or unmapped views leave source undimmed."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "precompile": "npm run build:shared --prefix .. && node scripts/stage-runtime.mjs",
+    "vscode:prepublish": "npm run compile && node scripts/bundle-extension.mjs",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "//pretest": "Clean out/ before tests because tsc does not remove outputs for deleted source files. Compile and watch remain incremental.",
+    "clean": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\"",
+    "pretest": "npm run clean && npm run compile",
+    "test:unit": "mocha --ui tdd --require ./out/test/bootstrap.js \"out/test/unit/**/*.test.js\"",
+    "//test:unit:interpreter": "Compatibility alias for test:integration. Python workers and MCP evidence tests require TENSORVIZ_TEST_PYTHON, or the repository venv.",
+    "test:integration": "mocha --ui tdd --require ./out/test/bootstrap.js \"out/test/integration/**/*.test.js\"",
+    "test:unit:interpreter": "npm run test:integration",
+    "test:electron": "vscode-test",
+    "test": "npm run test:unit && npm run test:unit:interpreter && npm run test:electron",
+    "build:webview": "node scripts/build-webview.mjs",
+    "stage:backend": "node scripts/stage-backend.mjs",
+    "protocol:sync": "node scripts/sync-protocol.mjs",
+    "validation:generate": "node scripts/generate-validation-contracts.mjs",
+    "validation:check": "node scripts/generate-validation-contracts.mjs --check",
+    "semantic:generate": "node scripts/generate-validation-contracts.mjs --semantic",
+    "semantic:check": "node scripts/generate-validation-contracts.mjs --semantic --check",
+    "package": "npm run stage:backend && vsce package --no-dependencies && node scripts/verify-package.mjs",
+    "package:release": "node scripts/verify-package.mjs --require-release-key && npm run stage:backend && vsce package --no-dependencies && node scripts/verify-package.mjs --release",
+    "//vsix": "Build a local VSIX in order: ensure dependencies, build:webview, compile, package. package uses the existing webview build; keeping the steps separate avoids duplicate builds in release-vsix.yml. See docs/releasing.md.",
+    "vsix": "node scripts/build-vsix.mjs",
+    "check:staged": "node scripts/check-staged.mjs",
+    "//dev:build": "Refresh the staged backend, webpage and compiled host before F5, then check that all three outputs are current.",
+    "dev:build": "npm run stage:backend && npm run build:webview && npm run compile && npm run check:staged"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^18.19.0",
+    "@types/proper-lockfile": "4.1.4",
+    "@types/vscode": "^1.86.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^4.0.0",
+    "mocha": "^12.0.3",
+    "openapi-typescript": "7.13.0",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "ajv": "8.20.0",
+    "jsonc-parser": "^3.3.1",
+    "proper-lockfile": "4.1.2",
+    "smol-toml": "1.9.1",
+    "zod": "4.6.7"
+  },
+  "overrides": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "body-parser": "2.4.0",
+    "fast-uri": "3.1.9",
+    "hono": "4.13.14",
+    "ip-address": "10.7.5",
+    "proxy-addr": "2.0.8",
+    "zod": "4.6.7"
+  }
+}

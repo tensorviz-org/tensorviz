@@ -1,0 +1,2099 @@
+{
+  "source": "\"\"\"Preserve this module docstring.\"\"\"\nfrom __future__ import annotations\n# keep this import comment\nfrom torch.nn import Module\nfrom torch.nn.functional import relu as activate\nclass Model(Module):\n    def forward(self, h):\n        a = activate(h)  # selected call\n        b = activate(h)  # unrelated use of the same import\n        return a + b\n",
+  "capture": {
+    "version": 1,
+    "id": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+    "attemptId": "attempt:0",
+    "source": {
+      "version": 1,
+      "id": "source:0",
+      "workspaceSessionId": "session:0",
+      "workspaceId": "workspace:0",
+      "modelId": "model:0",
+      "modelFile": "model.py",
+      "className": "Model",
+      "generation": 0,
+      "files": [
+        {
+          "path": "model.py",
+          "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+          "documentVersion": 1,
+          "role": "source"
+        }
+      ],
+      "dependencyScope": "complete",
+      "configDigest": null,
+      "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "sourceMode": "saved"
+    },
+    "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "preparationDigest": null,
+    "automatic": null,
+    "inputDigest": null,
+    "stateDigest": null,
+    "backend": "runtime",
+    "backendVersion": "1",
+    "torchVersion": "2.7.1",
+    "normalizations": [
+      "PyTorch dispatcher operations; Python syntax may be decomposed",
+      "Dispatcher kernels are atomic; arbitrary Python statements are not recorded",
+      "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch",
+      "Source bindings identify authored expressions, not independently editable dispatcher operations"
+    ],
+    "status": "complete",
+    "rootInvocationId": "invocation:0",
+    "inputs": {
+      "args": [
+        {
+          "kind": "value",
+          "id": "tensor0"
+        }
+      ],
+      "kwargs": {}
+    },
+    "output": {
+      "kind": "value",
+      "id": "tensor3"
+    },
+    "definitions": [
+      {
+        "id": "definition:0",
+        "qualifiedName": "test_model.Model",
+        "sourceBindingIds": [
+          "binding:5322094288f0468e89d620cbe47092257e28ac055962b71b29834ec090e1fd38"
+        ]
+      }
+    ],
+    "modules": [
+      {
+        "id": "module:0",
+        "definitionId": "definition:0",
+        "paths": [
+          ""
+        ],
+        "constructorBindingIds": []
+      }
+    ],
+    "invocations": [
+      {
+        "id": "invocation:0",
+        "moduleId": "module:0",
+        "parentId": null,
+        "sequence": 0,
+        "endSequence": 4,
+        "arguments": {
+          "args": [
+            {
+              "kind": "value",
+              "id": "tensor0"
+            }
+          ],
+          "kwargs": {}
+        },
+        "output": {
+          "kind": "value",
+          "id": "tensor3"
+        },
+        "status": "completed",
+        "diagnosticId": null,
+        "training": false,
+        "gradEnabled": false,
+        "parameterCount": 0,
+        "parameterCountUnavailable": null,
+        "sourceBindingIds": []
+      }
+    ],
+    "operations": [
+      {
+        "id": "operation:0",
+        "sequence": 1,
+        "invocationId": "invocation:0",
+        "target": "aten.relu.default",
+        "schemaSignature": "aten::relu(Tensor self) -> Tensor",
+        "arguments": {
+          "args": [
+            {
+              "kind": "value",
+              "id": "tensor0"
+            }
+          ],
+          "kwargs": {}
+        },
+        "output": {
+          "kind": "value",
+          "id": "tensor1"
+        },
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": [
+          "binding:1caf5dfcf6b10f150700ef604b82c7832d45a0be47c14886468ca7d0c33fb060"
+        ]
+      },
+      {
+        "id": "operation:1",
+        "sequence": 2,
+        "invocationId": "invocation:0",
+        "target": "aten.relu.default",
+        "schemaSignature": "aten::relu(Tensor self) -> Tensor",
+        "arguments": {
+          "args": [
+            {
+              "kind": "value",
+              "id": "tensor0"
+            }
+          ],
+          "kwargs": {}
+        },
+        "output": {
+          "kind": "value",
+          "id": "tensor2"
+        },
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": [
+          "binding:9d8075e609521927073b3b865666a0db5bb15f33f11bd1a95489d440d66418a0"
+        ]
+      },
+      {
+        "id": "operation:2",
+        "sequence": 3,
+        "invocationId": "invocation:0",
+        "target": "aten.add.Tensor",
+        "schemaSignature": "aten::add.Tensor(Tensor self, Tensor other, *, Scalar alpha=1) -> Tensor",
+        "arguments": {
+          "args": [
+            {
+              "kind": "value",
+              "id": "tensor1"
+            },
+            {
+              "kind": "value",
+              "id": "tensor2"
+            }
+          ],
+          "kwargs": {}
+        },
+        "output": {
+          "kind": "value",
+          "id": "tensor3"
+        },
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": [
+          "binding:88d22fd0b6b55823244ecf926b466b5d55fa24c99608525c1a0c2e950b42209f"
+        ]
+      }
+    ],
+    "values": [
+      {
+        "id": "tensor0",
+        "objectId": "object0",
+        "storageId": "storage0",
+        "version": 0,
+        "shape": [
+          2,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "requiresGrad": false,
+        "aliasOf": null,
+        "previousVersion": null,
+        "logicalVersion": 0,
+        "stride": [
+          4,
+          1
+        ],
+        "storageOffset": 0,
+        "logicalBytes": 32,
+        "producer": null,
+        "origin": "input",
+        "state": []
+      },
+      {
+        "id": "tensor1",
+        "objectId": "object1",
+        "storageId": "storage1",
+        "version": 0,
+        "shape": [
+          2,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "requiresGrad": false,
+        "aliasOf": null,
+        "previousVersion": null,
+        "logicalVersion": 0,
+        "stride": [
+          4,
+          1
+        ],
+        "storageOffset": 0,
+        "logicalBytes": 32,
+        "producer": {
+          "operationId": "operation:0",
+          "kind": "output",
+          "path": []
+        },
+        "origin": "operation",
+        "state": []
+      },
+      {
+        "id": "tensor2",
+        "objectId": "object2",
+        "storageId": "storage2",
+        "version": 0,
+        "shape": [
+          2,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "requiresGrad": false,
+        "aliasOf": null,
+        "previousVersion": null,
+        "logicalVersion": 0,
+        "stride": [
+          4,
+          1
+        ],
+        "storageOffset": 0,
+        "logicalBytes": 32,
+        "producer": {
+          "operationId": "operation:1",
+          "kind": "output",
+          "path": []
+        },
+        "origin": "operation",
+        "state": []
+      },
+      {
+        "id": "tensor3",
+        "objectId": "object3",
+        "storageId": "storage3",
+        "version": 0,
+        "shape": [
+          2,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "requiresGrad": false,
+        "aliasOf": null,
+        "previousVersion": null,
+        "logicalVersion": 0,
+        "stride": [
+          4,
+          1
+        ],
+        "storageOffset": 0,
+        "logicalBytes": 32,
+        "producer": {
+          "operationId": "operation:2",
+          "kind": "output",
+          "path": []
+        },
+        "origin": "operation",
+        "state": []
+      }
+    ],
+    "sourceBindings": [
+      {
+        "id": "binding:5322094288f0468e89d620cbe47092257e28ac055962b71b29834ec090e1fd38",
+        "snapshotId": "source:0",
+        "kind": "definition",
+        "quality": "exact",
+        "anchors": [
+          {
+            "file": "model.py",
+            "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+            "startLine": 7,
+            "startColumn": 4,
+            "endLine": 10,
+            "endColumn": 20,
+            "scope": "Model.forward",
+            "tokenDigest": "265d356d5ac8a04139188145835481dfda8df10b039218d2064c0c69e14b8610"
+          }
+        ]
+      },
+      {
+        "id": "binding:1caf5dfcf6b10f150700ef604b82c7832d45a0be47c14886468ca7d0c33fb060",
+        "snapshotId": "source:0",
+        "kind": "call",
+        "quality": "exact",
+        "anchors": [
+          {
+            "file": "model.py",
+            "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+            "startLine": 8,
+            "startColumn": 12,
+            "endLine": 8,
+            "endColumn": 23,
+            "scope": "Model.forward",
+            "tokenDigest": "660976a1f772e290f358efe03e2d9405c8df03f23d7d86ef8097da1ea20b41a2"
+          }
+        ]
+      },
+      {
+        "id": "binding:9d8075e609521927073b3b865666a0db5bb15f33f11bd1a95489d440d66418a0",
+        "snapshotId": "source:0",
+        "kind": "call",
+        "quality": "exact",
+        "anchors": [
+          {
+            "file": "model.py",
+            "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+            "startLine": 9,
+            "startColumn": 12,
+            "endLine": 9,
+            "endColumn": 23,
+            "scope": "Model.forward",
+            "tokenDigest": "660976a1f772e290f358efe03e2d9405c8df03f23d7d86ef8097da1ea20b41a2"
+          }
+        ]
+      },
+      {
+        "id": "binding:88d22fd0b6b55823244ecf926b466b5d55fa24c99608525c1a0c2e950b42209f",
+        "snapshotId": "source:0",
+        "kind": "call",
+        "quality": "exact",
+        "anchors": [
+          {
+            "file": "model.py",
+            "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+            "startLine": 10,
+            "startColumn": 15,
+            "endLine": 10,
+            "endColumn": 20,
+            "scope": "Model.forward",
+            "tokenDigest": "c151c7cbe798c640f238a2c54b94d62c3f9979d903a250bc49f6f596109eba34"
+          }
+        ]
+      }
+    ],
+    "diagnostics": [],
+    "coverage": {
+      "scope": "executed_path",
+      "operationsSeen": 3,
+      "invocationsSeen": 1,
+      "omissions": [],
+      "modules": [
+        {
+          "modulePath": "",
+          "status": "observed",
+          "invocationIds": [
+            "invocation:0"
+          ],
+          "reason": null
+        }
+      ]
+    },
+    "limits": {
+      "operations": 1000,
+      "invocations": 1000,
+      "values": 1000,
+      "bytes": 4194304
+    }
+  },
+  "capability": {
+    "version": 1,
+    "id": "edit:fb1aee16973bac7659d4412f7dcac0ab202561d86b6d72ad0357116af6006c99",
+    "command": "replace_activation",
+    "recipe": "functional_activation_v1",
+    "target": {
+      "version": 1,
+      "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+      "sourceId": "source:0",
+      "kind": "operation",
+      "semanticId": "operation:0"
+    },
+    "expression": {
+      "id": "binding:1caf5dfcf6b10f150700ef604b82c7832d45a0be47c14886468ca7d0c33fb060",
+      "snapshotId": "source:0",
+      "kind": "call",
+      "quality": "exact",
+      "anchors": [
+        {
+          "file": "model.py",
+          "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+          "startLine": 8,
+          "startColumn": 12,
+          "endLine": 8,
+          "endColumn": 23,
+          "scope": "Model.forward",
+          "tokenDigest": "660976a1f772e290f358efe03e2d9405c8df03f23d7d86ef8097da1ea20b41a2"
+        }
+      ]
+    },
+    "binding": {
+      "id": "binding:710c677ea48830a2923483f89095f30861a24e01121c8c0c2eea60b99c9a4b4f",
+      "snapshotId": "source:0",
+      "kind": "call",
+      "quality": "exact",
+      "anchors": [
+        {
+          "file": "model.py",
+          "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+          "startLine": 8,
+          "startColumn": 12,
+          "endLine": 8,
+          "endColumn": 20,
+          "scope": "Model.forward",
+          "tokenDigest": "447fc296b301a306aa5c330c6c4c19cfe8f417d4bfde3124bd8debd26b2d46ff"
+        }
+      ]
+    },
+    "namespace": "_tensorviz_functional",
+    "importPlan": {
+      "module": "torch.nn.functional",
+      "line": 4,
+      "lineEnding": "\n"
+    },
+    "expected": "relu",
+    "options": {
+      "inplace": null,
+      "approximate": null
+    },
+    "compatibleActivations": [
+      "relu",
+      "gelu",
+      "silu",
+      "sigmoid",
+      "tanh"
+    ],
+    "scope": {
+      "kind": "source_expression",
+      "affects": "all_executions",
+      "observedOperations": 1,
+      "observedInvocations": 1,
+      "observedModuleInstances": 1,
+      "includesUnobservedExecutions": true
+    }
+  },
+  "intent": {
+    "kind": "replace_activation",
+    "capabilityId": "edit:fb1aee16973bac7659d4412f7dcac0ab202561d86b6d72ad0357116af6006c99",
+    "target": {
+      "version": 1,
+      "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+      "sourceId": "source:0",
+      "kind": "operation",
+      "semanticId": "operation:0"
+    },
+    "expected": "relu",
+    "value": "gelu",
+    "scope": "source_expression"
+  },
+  "plan": {
+    "file": "model.py",
+    "expected_digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+    "source_digest": "1f41bbd37f5568605d6dcbc138438a079275df8949687a2974ad6f8b4f379f7a",
+    "edits": [
+      {
+        "range": {
+          "start": [
+            8,
+            12
+          ],
+          "end": [
+            8,
+            20
+          ]
+        },
+        "newText": "_tensorviz_functional.gelu"
+      },
+      {
+        "range": {
+          "start": [
+            4,
+            0
+          ],
+          "end": [
+            4,
+            0
+          ]
+        },
+        "newText": "import torch.nn.functional as _tensorviz_functional\n"
+      }
+    ],
+    "capability": {
+      "version": 1,
+      "id": "edit:fb1aee16973bac7659d4412f7dcac0ab202561d86b6d72ad0357116af6006c99",
+      "command": "replace_activation",
+      "recipe": "functional_activation_v1",
+      "target": {
+        "version": 1,
+        "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+        "sourceId": "source:0",
+        "kind": "operation",
+        "semanticId": "operation:0"
+      },
+      "expression": {
+        "id": "binding:1caf5dfcf6b10f150700ef604b82c7832d45a0be47c14886468ca7d0c33fb060",
+        "snapshotId": "source:0",
+        "kind": "call",
+        "quality": "exact",
+        "anchors": [
+          {
+            "file": "model.py",
+            "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+            "startLine": 8,
+            "startColumn": 12,
+            "endLine": 8,
+            "endColumn": 23,
+            "scope": "Model.forward",
+            "tokenDigest": "660976a1f772e290f358efe03e2d9405c8df03f23d7d86ef8097da1ea20b41a2"
+          }
+        ]
+      },
+      "binding": {
+        "id": "binding:710c677ea48830a2923483f89095f30861a24e01121c8c0c2eea60b99c9a4b4f",
+        "snapshotId": "source:0",
+        "kind": "call",
+        "quality": "exact",
+        "anchors": [
+          {
+            "file": "model.py",
+            "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+            "startLine": 8,
+            "startColumn": 12,
+            "endLine": 8,
+            "endColumn": 20,
+            "scope": "Model.forward",
+            "tokenDigest": "447fc296b301a306aa5c330c6c4c19cfe8f417d4bfde3124bd8debd26b2d46ff"
+          }
+        ]
+      },
+      "namespace": "_tensorviz_functional",
+      "importPlan": {
+        "module": "torch.nn.functional",
+        "line": 4,
+        "lineEnding": "\n"
+      },
+      "expected": "relu",
+      "options": {
+        "inplace": null,
+        "approximate": null
+      },
+      "compatibleActivations": [
+        "relu",
+        "gelu",
+        "silu",
+        "sigmoid",
+        "tanh"
+      ],
+      "scope": {
+        "kind": "source_expression",
+        "affects": "all_executions",
+        "observedOperations": 1,
+        "observedInvocations": 1,
+        "observedModuleInstances": 1,
+        "includesUnobservedExecutions": true
+      }
+    },
+    "validation": "static_only"
+  },
+  "document": {
+    "schemaVersion": 2,
+    "semantic": {
+      "graph_id": "captured-activation-import-fixture",
+      "name": "Model",
+      "revision": 0,
+      "inputs": [],
+      "nodes": [
+        {
+          "node_id": "input:0e3305d06923aa2c27928a83c77629a0b5dc99d9210ba65b6d539e4b69a3362a",
+          "kind": "input",
+          "op": "Input",
+          "params": {
+            "_out_shape": [
+              2,
+              4
+            ],
+            "_shape_provenance": "observed"
+          },
+          "in_ports": [],
+          "out_ports": [
+            "port:8041a2348005721f5f4ae42fe218b3e8872a45d4fab553df615461bba81099e9"
+          ],
+          "metadata": {
+            "captureRef": {
+              "version": 1,
+              "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+              "sourceId": "source:0",
+              "kind": "input",
+              "semanticId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13"
+            },
+            "capturePorts": [
+              {
+                "id": "port:8041a2348005721f5f4ae42fe218b3e8872a45d4fab553df615461bba81099e9",
+                "nodeId": "input:0e3305d06923aa2c27928a83c77629a0b5dc99d9210ba65b6d539e4b69a3362a",
+                "direction": "out",
+                "paths": [
+                  [
+                    "inputs",
+                    "args",
+                    0
+                  ]
+                ],
+                "argumentKind": "value",
+                "valueId": "tensor0",
+                "memberPortId": null,
+                "shape": [
+                  2,
+                  4
+                ],
+                "dtype": "torch.float32",
+                "device": "cpu"
+              }
+            ],
+            "capturedOperationCount": 0,
+            "outputTensor": {
+              "shape": [
+                2,
+                4
+              ],
+              "dtype": "float32",
+              "logicalBytes": 32
+            },
+            "captureLabel": "Inputs",
+            "shapeEvidence": "measured",
+            "layerType": {
+              "id": "input",
+              "name": "Input",
+              "displayName": "Input",
+              "category": "io",
+              "icon": "Box",
+              "description": "Captured execution",
+              "parameters": []
+            }
+          }
+        },
+        {
+          "node_id": "output:0e3305d06923aa2c27928a83c77629a0b5dc99d9210ba65b6d539e4b69a3362a",
+          "kind": "output",
+          "op": "Output",
+          "params": {
+            "_in_shape": [
+              2,
+              4
+            ],
+            "_shape_provenance": "observed"
+          },
+          "in_ports": [
+            "port:feba49d24a9549906386fdc100056fd5edde33d453e19935cc961d0020dabb9c"
+          ],
+          "out_ports": [],
+          "metadata": {
+            "captureRef": {
+              "version": 1,
+              "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+              "sourceId": "source:0",
+              "kind": "output",
+              "semanticId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13"
+            },
+            "capturePorts": [
+              {
+                "id": "port:feba49d24a9549906386fdc100056fd5edde33d453e19935cc961d0020dabb9c",
+                "nodeId": "output:0e3305d06923aa2c27928a83c77629a0b5dc99d9210ba65b6d539e4b69a3362a",
+                "direction": "in",
+                "paths": [
+                  [
+                    "output"
+                  ]
+                ],
+                "argumentKind": "value",
+                "valueId": "tensor3",
+                "memberPortId": null,
+                "shape": [
+                  2,
+                  4
+                ],
+                "dtype": "torch.float32",
+                "device": "cpu"
+              }
+            ],
+            "capturedOperationCount": 0,
+            "captureLabel": "Outputs",
+            "shapeEvidence": "measured",
+            "layerType": {
+              "id": "output",
+              "name": "Output",
+              "displayName": "Output",
+              "category": "io",
+              "icon": "Box",
+              "description": "Captured execution",
+              "parameters": []
+            }
+          }
+        },
+        {
+          "node_id": "invocation:4e2b852327f4fe88c0dcdce8ac2ae974fda8a50164eb01c5452bb284e4a03cf5",
+          "kind": "module",
+          "op": "test_model.Model",
+          "params": {
+            "_in_shape": [
+              2,
+              4
+            ],
+            "_out_shape": [
+              2,
+              4
+            ],
+            "_shape_provenance": "observed"
+          },
+          "in_ports": [
+            "port:5117439574514e3cc65deef94125836e950ec34f194bb7118523091c83eee8a0"
+          ],
+          "out_ports": [
+            "port:225c8e3820cc96787ddbe82cd29bb94984f3c7132389f4ac28bcf93d1eb2e85d"
+          ],
+          "metadata": {
+            "captureRef": {
+              "version": 1,
+              "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+              "sourceId": "source:0",
+              "kind": "invocation",
+              "semanticId": "invocation:0"
+            },
+            "capturePorts": [
+              {
+                "id": "port:5117439574514e3cc65deef94125836e950ec34f194bb7118523091c83eee8a0",
+                "nodeId": "invocation:4e2b852327f4fe88c0dcdce8ac2ae974fda8a50164eb01c5452bb284e4a03cf5",
+                "direction": "in",
+                "paths": [
+                  [
+                    "arguments",
+                    "args",
+                    0
+                  ]
+                ],
+                "argumentKind": "value",
+                "valueId": "tensor0",
+                "memberPortId": null,
+                "shape": [
+                  2,
+                  4
+                ],
+                "dtype": "torch.float32",
+                "device": "cpu"
+              },
+              {
+                "id": "port:225c8e3820cc96787ddbe82cd29bb94984f3c7132389f4ac28bcf93d1eb2e85d",
+                "nodeId": "invocation:4e2b852327f4fe88c0dcdce8ac2ae974fda8a50164eb01c5452bb284e4a03cf5",
+                "direction": "out",
+                "paths": [
+                  [
+                    "output"
+                  ]
+                ],
+                "argumentKind": "value",
+                "valueId": "tensor3",
+                "memberPortId": null,
+                "shape": [
+                  2,
+                  4
+                ],
+                "dtype": "torch.float32",
+                "device": "cpu"
+              }
+            ],
+            "capturedOperationCount": 3,
+            "sourceEditCapabilities": [],
+            "sourceEditLimitation": "ambiguous_constructor",
+            "outputTensor": {
+              "shape": [
+                2,
+                4
+              ],
+              "dtype": "float32",
+              "logicalBytes": 32
+            },
+            "parameterCount": 0,
+            "isGroup": true,
+            "moduleInstanceId": "invocation:4e2b852327f4fe88c0dcdce8ac2ae974fda8a50164eb01c5452bb284e4a03cf5",
+            "moduleTemplateId": "Model",
+            "moduleMembers": [
+              "operation:8e580f90a2183e52b7ce947d1cf3a07a0be8967a91b194225c1c0b2d1d111d84",
+              "operation:b0c2c0d483d9c37c7effb517a4e0e791f2ad1d68ecb5e7e2ec00cd0afcd2e315",
+              "operation:99438bac436c7b4261c7f3e412f23e0ab75cbbeef52b53ffcab1ee15c346cabb"
+            ],
+            "moduleLayerCount": 3,
+            "expandable": true,
+            "captureLabel": "Model",
+            "shapeEvidence": "measured",
+            "layerType": {
+              "id": "module",
+              "name": "test_model.Model",
+              "displayName": "Model",
+              "category": "module",
+              "icon": "Package",
+              "description": "Captured execution",
+              "parameters": []
+            }
+          }
+        },
+        {
+          "node_id": "operation:8e580f90a2183e52b7ce947d1cf3a07a0be8967a91b194225c1c0b2d1d111d84",
+          "kind": "layer",
+          "op": "aten.relu.default",
+          "params": {
+            "_in_shape": [
+              2,
+              4
+            ],
+            "_out_shape": [
+              2,
+              4
+            ],
+            "_shape_provenance": "observed"
+          },
+          "in_ports": [
+            "port:d9c30a797b602d947cbc61903fbaa15f16f441b21614815b344038c62b28e07b"
+          ],
+          "out_ports": [
+            "port:c01739b2bbc4dc4c125efff3bb386e4ab6e85305934cc5c50446b1e1d4d03ff5"
+          ],
+          "metadata": {
+            "captureRef": {
+              "version": 1,
+              "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+              "sourceId": "source:0",
+              "kind": "operation",
+              "semanticId": "operation:0"
+            },
+            "capturePorts": [
+              {
+                "id": "port:d9c30a797b602d947cbc61903fbaa15f16f441b21614815b344038c62b28e07b",
+                "nodeId": "operation:8e580f90a2183e52b7ce947d1cf3a07a0be8967a91b194225c1c0b2d1d111d84",
+                "direction": "in",
+                "paths": [
+                  [
+                    "arguments",
+                    "args",
+                    0
+                  ]
+                ],
+                "argumentKind": "value",
+                "valueId": "tensor0",
+                "memberPortId": null,
+                "shape": [
+                  2,
+                  4
+                ],
+                "dtype": "torch.float32",
+                "device": "cpu"
+              },
+              {
+                "id": "port:c01739b2bbc4dc4c125efff3bb386e4ab6e85305934cc5c50446b1e1d4d03ff5",
+                "nodeId": "operation:8e580f90a2183e52b7ce947d1cf3a07a0be8967a91b194225c1c0b2d1d111d84",
+                "direction": "out",
+                "paths": [
+                  [
+                    "output"
+                  ]
+                ],
+                "argumentKind": "value",
+                "valueId": "tensor1",
+                "memberPortId": null,
+                "shape": [
+                  2,
+                  4
+                ],
+                "dtype": "torch.float32",
+                "device": "cpu"
+              }
+            ],
+            "capturedOperationCount": 1,
+            "parentId": "invocation:4e2b852327f4fe88c0dcdce8ac2ae974fda8a50164eb01c5452bb284e4a03cf5",
+            "sourceEditCapabilities": [
+              {
+                "version": 1,
+                "id": "edit:fb1aee16973bac7659d4412f7dcac0ab202561d86b6d72ad0357116af6006c99",
+                "command": "replace_activation",
+                "recipe": "functional_activation_v1",
+                "target": {
+                  "version": 1,
+                  "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+                  "sourceId": "source:0",
+                  "kind": "operation",
+                  "semanticId": "operation:0"
+                },
+                "expression": {
+                  "id": "binding:1caf5dfcf6b10f150700ef604b82c7832d45a0be47c14886468ca7d0c33fb060",
+                  "snapshotId": "source:0",
+                  "kind": "call",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 8,
+                      "startColumn": 12,
+                      "endLine": 8,
+                      "endColumn": 23,
+                      "scope": "Model.forward",
+                      "tokenDigest": "660976a1f772e290f358efe03e2d9405c8df03f23d7d86ef8097da1ea20b41a2"
+                    }
+                  ]
+                },
+                "binding": {
+                  "id": "binding:710c677ea48830a2923483f89095f30861a24e01121c8c0c2eea60b99c9a4b4f",
+                  "snapshotId": "source:0",
+                  "kind": "call",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 8,
+                      "startColumn": 12,
+                      "endLine": 8,
+                      "endColumn": 20,
+                      "scope": "Model.forward",
+                      "tokenDigest": "447fc296b301a306aa5c330c6c4c19cfe8f417d4bfde3124bd8debd26b2d46ff"
+                    }
+                  ]
+                },
+                "namespace": "_tensorviz_functional",
+                "importPlan": {
+                  "module": "torch.nn.functional",
+                  "line": 4,
+                  "lineEnding": "\n"
+                },
+                "expected": "relu",
+                "options": {
+                  "inplace": null,
+                  "approximate": null
+                },
+                "compatibleActivations": [
+                  "relu",
+                  "gelu",
+                  "silu",
+                  "sigmoid",
+                  "tanh"
+                ],
+                "scope": {
+                  "kind": "source_expression",
+                  "affects": "all_executions",
+                  "observedOperations": 1,
+                  "observedInvocations": 1,
+                  "observedModuleInstances": 1,
+                  "includesUnobservedExecutions": true
+                }
+              },
+              {
+                "version": 1,
+                "id": "edit:06aaf357ad4559363a1e0e9690c0dfcaf15dcb441c736450c5e4cf69ebc62890",
+                "command": "delete_unary_op",
+                "recipe": "straight_line_unary_delete_v1",
+                "target": {
+                  "version": 1,
+                  "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+                  "sourceId": "source:0",
+                  "kind": "operation",
+                  "semanticId": "operation:0"
+                },
+                "expression": {
+                  "id": "binding:1caf5dfcf6b10f150700ef604b82c7832d45a0be47c14886468ca7d0c33fb060",
+                  "snapshotId": "source:0",
+                  "kind": "call",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 8,
+                      "startColumn": 12,
+                      "endLine": 8,
+                      "endColumn": 23,
+                      "scope": "Model.forward",
+                      "tokenDigest": "660976a1f772e290f358efe03e2d9405c8df03f23d7d86ef8097da1ea20b41a2"
+                    }
+                  ]
+                },
+                "binding": {
+                  "id": "binding:1caf5dfcf6b10f150700ef604b82c7832d45a0be47c14886468ca7d0c33fb060",
+                  "snapshotId": "source:0",
+                  "kind": "call",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 8,
+                      "startColumn": 12,
+                      "endLine": 8,
+                      "endColumn": 23,
+                      "scope": "Model.forward",
+                      "tokenDigest": "660976a1f772e290f358efe03e2d9405c8df03f23d7d86ef8097da1ea20b41a2"
+                    }
+                  ]
+                },
+                "argumentPath": [
+                  "args",
+                  0
+                ],
+                "expected": {
+                  "kind": "value",
+                  "id": "tensor1"
+                },
+                "activation": "relu",
+                "input": {
+                  "name": "h",
+                  "value": {
+                    "kind": "value",
+                    "id": "tensor0"
+                  },
+                  "binding": {
+                    "id": "binding:411898c0acf3d1db57e48a33b0b903950e835024eaf7ffafb69649cca410effb",
+                    "snapshotId": "source:0",
+                    "kind": "argument",
+                    "quality": "exact",
+                    "anchors": [
+                      {
+                        "file": "model.py",
+                        "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                        "startLine": 7,
+                        "startColumn": 22,
+                        "endLine": 7,
+                        "endColumn": 23,
+                        "scope": "Model.forward",
+                        "tokenDigest": "41fc2909b7e8957e1057461f5a8fbaa4876fcaeb241c328f72e7042ba4cfa0f4"
+                      }
+                    ]
+                  }
+                },
+                "scope": {
+                  "kind": "source_expression",
+                  "affects": "all_executions",
+                  "observedOperations": 1,
+                  "observedInvocations": 1,
+                  "observedModuleInstances": 1,
+                  "includesUnobservedExecutions": true
+                }
+              }
+            ],
+            "outputTensor": {
+              "shape": [
+                2,
+                4
+              ],
+              "dtype": "float32",
+              "logicalBytes": 32
+            },
+            "captureLabel": "aten.relu.default",
+            "shapeEvidence": "measured",
+            "layerType": {
+              "id": "captured_operation",
+              "name": "aten.relu.default",
+              "displayName": "aten.relu.default",
+              "category": "misc",
+              "icon": "Box",
+              "description": "Captured execution",
+              "parameters": []
+            }
+          }
+        },
+        {
+          "node_id": "operation:b0c2c0d483d9c37c7effb517a4e0e791f2ad1d68ecb5e7e2ec00cd0afcd2e315",
+          "kind": "layer",
+          "op": "aten.relu.default",
+          "params": {
+            "_in_shape": [
+              2,
+              4
+            ],
+            "_out_shape": [
+              2,
+              4
+            ],
+            "_shape_provenance": "observed"
+          },
+          "in_ports": [
+            "port:42b3e77e918f8fc48ef70c161ddd9e6484ec0ceef577da427b326f68147d175a"
+          ],
+          "out_ports": [
+            "port:cb64d96750aa5d4d05735d0f9850a044e9e3b903e466cbaf1ae50a8d4ea5f9c6"
+          ],
+          "metadata": {
+            "captureRef": {
+              "version": 1,
+              "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+              "sourceId": "source:0",
+              "kind": "operation",
+              "semanticId": "operation:1"
+            },
+            "capturePorts": [
+              {
+                "id": "port:42b3e77e918f8fc48ef70c161ddd9e6484ec0ceef577da427b326f68147d175a",
+                "nodeId": "operation:b0c2c0d483d9c37c7effb517a4e0e791f2ad1d68ecb5e7e2ec00cd0afcd2e315",
+                "direction": "in",
+                "paths": [
+                  [
+                    "arguments",
+                    "args",
+                    0
+                  ]
+                ],
+                "argumentKind": "value",
+                "valueId": "tensor0",
+                "memberPortId": null,
+                "shape": [
+                  2,
+                  4
+                ],
+                "dtype": "torch.float32",
+                "device": "cpu"
+              },
+              {
+                "id": "port:cb64d96750aa5d4d05735d0f9850a044e9e3b903e466cbaf1ae50a8d4ea5f9c6",
+                "nodeId": "operation:b0c2c0d483d9c37c7effb517a4e0e791f2ad1d68ecb5e7e2ec00cd0afcd2e315",
+                "direction": "out",
+                "paths": [
+                  [
+                    "output"
+                  ]
+                ],
+                "argumentKind": "value",
+                "valueId": "tensor2",
+                "memberPortId": null,
+                "shape": [
+                  2,
+                  4
+                ],
+                "dtype": "torch.float32",
+                "device": "cpu"
+              }
+            ],
+            "capturedOperationCount": 1,
+            "parentId": "invocation:4e2b852327f4fe88c0dcdce8ac2ae974fda8a50164eb01c5452bb284e4a03cf5",
+            "sourceEditCapabilities": [
+              {
+                "version": 1,
+                "id": "edit:e06dbd305cda51ae87557af1088b393bca9a0c36097a1ba51cebb8329f82da1a",
+                "command": "replace_activation",
+                "recipe": "functional_activation_v1",
+                "target": {
+                  "version": 1,
+                  "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+                  "sourceId": "source:0",
+                  "kind": "operation",
+                  "semanticId": "operation:1"
+                },
+                "expression": {
+                  "id": "binding:9d8075e609521927073b3b865666a0db5bb15f33f11bd1a95489d440d66418a0",
+                  "snapshotId": "source:0",
+                  "kind": "call",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 9,
+                      "startColumn": 12,
+                      "endLine": 9,
+                      "endColumn": 23,
+                      "scope": "Model.forward",
+                      "tokenDigest": "660976a1f772e290f358efe03e2d9405c8df03f23d7d86ef8097da1ea20b41a2"
+                    }
+                  ]
+                },
+                "binding": {
+                  "id": "binding:ae111c5def69e108fd2e5998312a941ada88f76075e5893a817e9eb14a59522d",
+                  "snapshotId": "source:0",
+                  "kind": "call",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 9,
+                      "startColumn": 12,
+                      "endLine": 9,
+                      "endColumn": 20,
+                      "scope": "Model.forward",
+                      "tokenDigest": "447fc296b301a306aa5c330c6c4c19cfe8f417d4bfde3124bd8debd26b2d46ff"
+                    }
+                  ]
+                },
+                "namespace": "_tensorviz_functional",
+                "importPlan": {
+                  "module": "torch.nn.functional",
+                  "line": 4,
+                  "lineEnding": "\n"
+                },
+                "expected": "relu",
+                "options": {
+                  "inplace": null,
+                  "approximate": null
+                },
+                "compatibleActivations": [
+                  "relu",
+                  "gelu",
+                  "silu",
+                  "sigmoid",
+                  "tanh"
+                ],
+                "scope": {
+                  "kind": "source_expression",
+                  "affects": "all_executions",
+                  "observedOperations": 1,
+                  "observedInvocations": 1,
+                  "observedModuleInstances": 1,
+                  "includesUnobservedExecutions": true
+                }
+              },
+              {
+                "version": 1,
+                "id": "edit:f5cd015831f586a2a4be503c3cbb64ef2dbdf62b5db3f920232c4be8b6a6720d",
+                "command": "delete_unary_op",
+                "recipe": "straight_line_unary_delete_v1",
+                "target": {
+                  "version": 1,
+                  "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+                  "sourceId": "source:0",
+                  "kind": "operation",
+                  "semanticId": "operation:1"
+                },
+                "expression": {
+                  "id": "binding:9d8075e609521927073b3b865666a0db5bb15f33f11bd1a95489d440d66418a0",
+                  "snapshotId": "source:0",
+                  "kind": "call",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 9,
+                      "startColumn": 12,
+                      "endLine": 9,
+                      "endColumn": 23,
+                      "scope": "Model.forward",
+                      "tokenDigest": "660976a1f772e290f358efe03e2d9405c8df03f23d7d86ef8097da1ea20b41a2"
+                    }
+                  ]
+                },
+                "binding": {
+                  "id": "binding:9d8075e609521927073b3b865666a0db5bb15f33f11bd1a95489d440d66418a0",
+                  "snapshotId": "source:0",
+                  "kind": "call",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 9,
+                      "startColumn": 12,
+                      "endLine": 9,
+                      "endColumn": 23,
+                      "scope": "Model.forward",
+                      "tokenDigest": "660976a1f772e290f358efe03e2d9405c8df03f23d7d86ef8097da1ea20b41a2"
+                    }
+                  ]
+                },
+                "argumentPath": [
+                  "args",
+                  0
+                ],
+                "expected": {
+                  "kind": "value",
+                  "id": "tensor2"
+                },
+                "activation": "relu",
+                "input": {
+                  "name": "h",
+                  "value": {
+                    "kind": "value",
+                    "id": "tensor0"
+                  },
+                  "binding": {
+                    "id": "binding:411898c0acf3d1db57e48a33b0b903950e835024eaf7ffafb69649cca410effb",
+                    "snapshotId": "source:0",
+                    "kind": "argument",
+                    "quality": "exact",
+                    "anchors": [
+                      {
+                        "file": "model.py",
+                        "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                        "startLine": 7,
+                        "startColumn": 22,
+                        "endLine": 7,
+                        "endColumn": 23,
+                        "scope": "Model.forward",
+                        "tokenDigest": "41fc2909b7e8957e1057461f5a8fbaa4876fcaeb241c328f72e7042ba4cfa0f4"
+                      }
+                    ]
+                  }
+                },
+                "scope": {
+                  "kind": "source_expression",
+                  "affects": "all_executions",
+                  "observedOperations": 1,
+                  "observedInvocations": 1,
+                  "observedModuleInstances": 1,
+                  "includesUnobservedExecutions": true
+                }
+              }
+            ],
+            "outputTensor": {
+              "shape": [
+                2,
+                4
+              ],
+              "dtype": "float32",
+              "logicalBytes": 32
+            },
+            "captureLabel": "aten.relu.default",
+            "shapeEvidence": "measured",
+            "layerType": {
+              "id": "captured_operation",
+              "name": "aten.relu.default",
+              "displayName": "aten.relu.default",
+              "category": "misc",
+              "icon": "Box",
+              "description": "Captured execution",
+              "parameters": []
+            }
+          }
+        },
+        {
+          "node_id": "operation:99438bac436c7b4261c7f3e412f23e0ab75cbbeef52b53ffcab1ee15c346cabb",
+          "kind": "layer",
+          "op": "aten.add.Tensor",
+          "params": {
+            "_out_shape": [
+              2,
+              4
+            ],
+            "_shape_provenance": "observed"
+          },
+          "in_ports": [
+            "port:004d8df5967bbd6a6f820083881f2b5032f0bd36418043978b93cc836e1e74fd",
+            "port:c2ba9c0eea4a62fc040449e2aa6d9886bc192380599c53f674e6840b4ad34d83"
+          ],
+          "out_ports": [
+            "port:cbebd6da0b9a53717dc7b81afb3b95af96b6fe70ecf018e25c4559ac6a9768f1"
+          ],
+          "metadata": {
+            "captureRef": {
+              "version": 1,
+              "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+              "sourceId": "source:0",
+              "kind": "operation",
+              "semanticId": "operation:2"
+            },
+            "capturePorts": [
+              {
+                "id": "port:004d8df5967bbd6a6f820083881f2b5032f0bd36418043978b93cc836e1e74fd",
+                "nodeId": "operation:99438bac436c7b4261c7f3e412f23e0ab75cbbeef52b53ffcab1ee15c346cabb",
+                "direction": "in",
+                "paths": [
+                  [
+                    "arguments",
+                    "args",
+                    0
+                  ]
+                ],
+                "argumentKind": "value",
+                "valueId": "tensor1",
+                "memberPortId": null,
+                "shape": [
+                  2,
+                  4
+                ],
+                "dtype": "torch.float32",
+                "device": "cpu"
+              },
+              {
+                "id": "port:c2ba9c0eea4a62fc040449e2aa6d9886bc192380599c53f674e6840b4ad34d83",
+                "nodeId": "operation:99438bac436c7b4261c7f3e412f23e0ab75cbbeef52b53ffcab1ee15c346cabb",
+                "direction": "in",
+                "paths": [
+                  [
+                    "arguments",
+                    "args",
+                    1
+                  ]
+                ],
+                "argumentKind": "value",
+                "valueId": "tensor2",
+                "memberPortId": null,
+                "shape": [
+                  2,
+                  4
+                ],
+                "dtype": "torch.float32",
+                "device": "cpu"
+              },
+              {
+                "id": "port:cbebd6da0b9a53717dc7b81afb3b95af96b6fe70ecf018e25c4559ac6a9768f1",
+                "nodeId": "operation:99438bac436c7b4261c7f3e412f23e0ab75cbbeef52b53ffcab1ee15c346cabb",
+                "direction": "out",
+                "paths": [
+                  [
+                    "output"
+                  ]
+                ],
+                "argumentKind": "value",
+                "valueId": "tensor3",
+                "memberPortId": null,
+                "shape": [
+                  2,
+                  4
+                ],
+                "dtype": "torch.float32",
+                "device": "cpu"
+              }
+            ],
+            "capturedOperationCount": 1,
+            "parentId": "invocation:4e2b852327f4fe88c0dcdce8ac2ae974fda8a50164eb01c5452bb284e4a03cf5",
+            "sourceEditCapabilities": [
+              {
+                "version": 1,
+                "id": "edit:e6cfcda7b0a7a4c35209d91a6811858483f8690086046bbe5163b9a372143630",
+                "command": "reconnect_argument",
+                "recipe": "straight_line_tensor_v1",
+                "target": {
+                  "version": 1,
+                  "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+                  "sourceId": "source:0",
+                  "kind": "operation",
+                  "semanticId": "operation:2"
+                },
+                "expression": {
+                  "id": "binding:88d22fd0b6b55823244ecf926b466b5d55fa24c99608525c1a0c2e950b42209f",
+                  "snapshotId": "source:0",
+                  "kind": "call",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 10,
+                      "startColumn": 15,
+                      "endLine": 10,
+                      "endColumn": 20,
+                      "scope": "Model.forward",
+                      "tokenDigest": "c151c7cbe798c640f238a2c54b94d62c3f9979d903a250bc49f6f596109eba34"
+                    }
+                  ]
+                },
+                "binding": {
+                  "id": "binding:812e7ae747ac7c4cc83ecf6a9b2c8e03aad91170c256e763a441905bed3058b0",
+                  "snapshotId": "source:0",
+                  "kind": "argument",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 10,
+                      "startColumn": 15,
+                      "endLine": 10,
+                      "endColumn": 16,
+                      "scope": "Model.forward",
+                      "tokenDigest": "fa2277a0c437554e56c6b89a3ec8a6ffe71362b0a783e43a4dc58daaea587ba2"
+                    }
+                  ]
+                },
+                "argumentPath": [
+                  "args",
+                  0
+                ],
+                "expected": {
+                  "kind": "value",
+                  "id": "tensor1"
+                },
+                "expectedName": "a",
+                "choices": [
+                  {
+                    "name": "a",
+                    "value": {
+                      "kind": "value",
+                      "id": "tensor1"
+                    },
+                    "binding": {
+                      "id": "binding:230e0ad0bcc3a541ed604a7a1f7f13fd514be0a86858522289b862bc5a4db4f2",
+                      "snapshotId": "source:0",
+                      "kind": "argument",
+                      "quality": "exact",
+                      "anchors": [
+                        {
+                          "file": "model.py",
+                          "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                          "startLine": 8,
+                          "startColumn": 8,
+                          "endLine": 8,
+                          "endColumn": 9,
+                          "scope": "Model.forward",
+                          "tokenDigest": "ecdbdfc6e38da3b98e975db8af3c2dccf17dccf599ad4ba312667c6748b6bed9"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "h",
+                    "value": {
+                      "kind": "value",
+                      "id": "tensor0"
+                    },
+                    "binding": {
+                      "id": "binding:411898c0acf3d1db57e48a33b0b903950e835024eaf7ffafb69649cca410effb",
+                      "snapshotId": "source:0",
+                      "kind": "argument",
+                      "quality": "exact",
+                      "anchors": [
+                        {
+                          "file": "model.py",
+                          "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                          "startLine": 7,
+                          "startColumn": 22,
+                          "endLine": 7,
+                          "endColumn": 23,
+                          "scope": "Model.forward",
+                          "tokenDigest": "41fc2909b7e8957e1057461f5a8fbaa4876fcaeb241c328f72e7042ba4cfa0f4"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "b",
+                    "value": {
+                      "kind": "value",
+                      "id": "tensor2"
+                    },
+                    "binding": {
+                      "id": "binding:40c7d2ba2bd10ffc39b9fd020ef044efbf12d4bbc7fd52ee869ab98276482c38",
+                      "snapshotId": "source:0",
+                      "kind": "argument",
+                      "quality": "exact",
+                      "anchors": [
+                        {
+                          "file": "model.py",
+                          "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                          "startLine": 9,
+                          "startColumn": 8,
+                          "endLine": 9,
+                          "endColumn": 9,
+                          "scope": "Model.forward",
+                          "tokenDigest": "ffd95ab0704da1760d488252836d41d5ca1810a6abd4bed4fa07ef636629517e"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "scope": {
+                  "kind": "source_expression",
+                  "affects": "all_executions",
+                  "observedOperations": 1,
+                  "observedInvocations": 1,
+                  "observedModuleInstances": 1,
+                  "includesUnobservedExecutions": true
+                }
+              },
+              {
+                "version": 1,
+                "id": "edit:41de64a48014dfa750f567c7846b621a5b0efb5d3a787c05eca1cc843e4564b1",
+                "command": "reconnect_argument",
+                "recipe": "straight_line_tensor_v1",
+                "target": {
+                  "version": 1,
+                  "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+                  "sourceId": "source:0",
+                  "kind": "operation",
+                  "semanticId": "operation:2"
+                },
+                "expression": {
+                  "id": "binding:88d22fd0b6b55823244ecf926b466b5d55fa24c99608525c1a0c2e950b42209f",
+                  "snapshotId": "source:0",
+                  "kind": "call",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 10,
+                      "startColumn": 15,
+                      "endLine": 10,
+                      "endColumn": 20,
+                      "scope": "Model.forward",
+                      "tokenDigest": "c151c7cbe798c640f238a2c54b94d62c3f9979d903a250bc49f6f596109eba34"
+                    }
+                  ]
+                },
+                "binding": {
+                  "id": "binding:36e63dc210cf00e1ca546ec63e74a48f313d775c68fd057df46c5763ab01f1da",
+                  "snapshotId": "source:0",
+                  "kind": "argument",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 10,
+                      "startColumn": 19,
+                      "endLine": 10,
+                      "endColumn": 20,
+                      "scope": "Model.forward",
+                      "tokenDigest": "eec01d5cfa33568a0be88fa2dde0646b8e4663704a6e9d572ee9d2c88696e0e7"
+                    }
+                  ]
+                },
+                "argumentPath": [
+                  "args",
+                  1
+                ],
+                "expected": {
+                  "kind": "value",
+                  "id": "tensor2"
+                },
+                "expectedName": "b",
+                "choices": [
+                  {
+                    "name": "b",
+                    "value": {
+                      "kind": "value",
+                      "id": "tensor2"
+                    },
+                    "binding": {
+                      "id": "binding:40c7d2ba2bd10ffc39b9fd020ef044efbf12d4bbc7fd52ee869ab98276482c38",
+                      "snapshotId": "source:0",
+                      "kind": "argument",
+                      "quality": "exact",
+                      "anchors": [
+                        {
+                          "file": "model.py",
+                          "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                          "startLine": 9,
+                          "startColumn": 8,
+                          "endLine": 9,
+                          "endColumn": 9,
+                          "scope": "Model.forward",
+                          "tokenDigest": "ffd95ab0704da1760d488252836d41d5ca1810a6abd4bed4fa07ef636629517e"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "h",
+                    "value": {
+                      "kind": "value",
+                      "id": "tensor0"
+                    },
+                    "binding": {
+                      "id": "binding:411898c0acf3d1db57e48a33b0b903950e835024eaf7ffafb69649cca410effb",
+                      "snapshotId": "source:0",
+                      "kind": "argument",
+                      "quality": "exact",
+                      "anchors": [
+                        {
+                          "file": "model.py",
+                          "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                          "startLine": 7,
+                          "startColumn": 22,
+                          "endLine": 7,
+                          "endColumn": 23,
+                          "scope": "Model.forward",
+                          "tokenDigest": "41fc2909b7e8957e1057461f5a8fbaa4876fcaeb241c328f72e7042ba4cfa0f4"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "a",
+                    "value": {
+                      "kind": "value",
+                      "id": "tensor1"
+                    },
+                    "binding": {
+                      "id": "binding:230e0ad0bcc3a541ed604a7a1f7f13fd514be0a86858522289b862bc5a4db4f2",
+                      "snapshotId": "source:0",
+                      "kind": "argument",
+                      "quality": "exact",
+                      "anchors": [
+                        {
+                          "file": "model.py",
+                          "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                          "startLine": 8,
+                          "startColumn": 8,
+                          "endLine": 8,
+                          "endColumn": 9,
+                          "scope": "Model.forward",
+                          "tokenDigest": "ecdbdfc6e38da3b98e975db8af3c2dccf17dccf599ad4ba312667c6748b6bed9"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "scope": {
+                  "kind": "source_expression",
+                  "affects": "all_executions",
+                  "observedOperations": 1,
+                  "observedInvocations": 1,
+                  "observedModuleInstances": 1,
+                  "includesUnobservedExecutions": true
+                }
+              },
+              {
+                "version": 1,
+                "id": "edit:04427167724bcbf50b1c3c85deb7b321c44d1889ccadbfb91e762a6881e69d26",
+                "command": "insert_unary_op",
+                "recipe": "straight_line_unary_insert_v1",
+                "target": {
+                  "version": 1,
+                  "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+                  "sourceId": "source:0",
+                  "kind": "operation",
+                  "semanticId": "operation:2"
+                },
+                "expression": {
+                  "id": "binding:88d22fd0b6b55823244ecf926b466b5d55fa24c99608525c1a0c2e950b42209f",
+                  "snapshotId": "source:0",
+                  "kind": "call",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 10,
+                      "startColumn": 15,
+                      "endLine": 10,
+                      "endColumn": 20,
+                      "scope": "Model.forward",
+                      "tokenDigest": "c151c7cbe798c640f238a2c54b94d62c3f9979d903a250bc49f6f596109eba34"
+                    }
+                  ]
+                },
+                "binding": {
+                  "id": "binding:812e7ae747ac7c4cc83ecf6a9b2c8e03aad91170c256e763a441905bed3058b0",
+                  "snapshotId": "source:0",
+                  "kind": "argument",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 10,
+                      "startColumn": 15,
+                      "endLine": 10,
+                      "endColumn": 16,
+                      "scope": "Model.forward",
+                      "tokenDigest": "fa2277a0c437554e56c6b89a3ec8a6ffe71362b0a783e43a4dc58daaea587ba2"
+                    }
+                  ]
+                },
+                "argumentPath": [
+                  "args",
+                  0
+                ],
+                "expected": {
+                  "kind": "value",
+                  "id": "tensor1"
+                },
+                "expectedName": "a",
+                "namespace": "_tensorviz_functional",
+                "importPlan": {
+                  "module": "torch.nn.functional",
+                  "line": 4,
+                  "lineEnding": "\n"
+                },
+                "scope": {
+                  "kind": "source_expression",
+                  "affects": "all_executions",
+                  "observedOperations": 1,
+                  "observedInvocations": 1,
+                  "observedModuleInstances": 1,
+                  "includesUnobservedExecutions": true
+                }
+              },
+              {
+                "version": 1,
+                "id": "edit:cc3768e4751d131165a7cb3b83cc0af93a1448c2b06f4bb56d8803795225afef",
+                "command": "insert_unary_op",
+                "recipe": "straight_line_unary_insert_v1",
+                "target": {
+                  "version": 1,
+                  "captureId": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+                  "sourceId": "source:0",
+                  "kind": "operation",
+                  "semanticId": "operation:2"
+                },
+                "expression": {
+                  "id": "binding:88d22fd0b6b55823244ecf926b466b5d55fa24c99608525c1a0c2e950b42209f",
+                  "snapshotId": "source:0",
+                  "kind": "call",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 10,
+                      "startColumn": 15,
+                      "endLine": 10,
+                      "endColumn": 20,
+                      "scope": "Model.forward",
+                      "tokenDigest": "c151c7cbe798c640f238a2c54b94d62c3f9979d903a250bc49f6f596109eba34"
+                    }
+                  ]
+                },
+                "binding": {
+                  "id": "binding:36e63dc210cf00e1ca546ec63e74a48f313d775c68fd057df46c5763ab01f1da",
+                  "snapshotId": "source:0",
+                  "kind": "argument",
+                  "quality": "exact",
+                  "anchors": [
+                    {
+                      "file": "model.py",
+                      "digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190",
+                      "startLine": 10,
+                      "startColumn": 19,
+                      "endLine": 10,
+                      "endColumn": 20,
+                      "scope": "Model.forward",
+                      "tokenDigest": "eec01d5cfa33568a0be88fa2dde0646b8e4663704a6e9d572ee9d2c88696e0e7"
+                    }
+                  ]
+                },
+                "argumentPath": [
+                  "args",
+                  1
+                ],
+                "expected": {
+                  "kind": "value",
+                  "id": "tensor2"
+                },
+                "expectedName": "b",
+                "namespace": "_tensorviz_functional",
+                "importPlan": {
+                  "module": "torch.nn.functional",
+                  "line": 4,
+                  "lineEnding": "\n"
+                },
+                "scope": {
+                  "kind": "source_expression",
+                  "affects": "all_executions",
+                  "observedOperations": 1,
+                  "observedInvocations": 1,
+                  "observedModuleInstances": 1,
+                  "includesUnobservedExecutions": true
+                }
+              }
+            ],
+            "outputTensor": {
+              "shape": [
+                2,
+                4
+              ],
+              "dtype": "float32",
+              "logicalBytes": 32
+            },
+            "captureLabel": "aten.add.Tensor",
+            "shapeEvidence": "measured",
+            "layerType": {
+              "id": "captured_operation",
+              "name": "aten.add.Tensor",
+              "displayName": "aten.add.Tensor",
+              "category": "misc",
+              "icon": "Box",
+              "description": "Captured execution",
+              "parameters": []
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "edge_id": "edge:080c3c4940d2eba940a550992b90e832b5555c21e3341b521d9e29a580aa6ad1",
+          "source_node_id": "input:0e3305d06923aa2c27928a83c77629a0b5dc99d9210ba65b6d539e4b69a3362a",
+          "source_port": "port:8041a2348005721f5f4ae42fe218b3e8872a45d4fab553df615461bba81099e9",
+          "target_node_id": "operation:8e580f90a2183e52b7ce947d1cf3a07a0be8967a91b194225c1c0b2d1d111d84",
+          "target_port": "port:d9c30a797b602d947cbc61903fbaa15f16f441b21614815b344038c62b28e07b",
+          "metadata": {
+            "captureEdge": {
+              "id": "edge:080c3c4940d2eba940a550992b90e832b5555c21e3341b521d9e29a580aa6ad1",
+              "kind": "argument",
+              "valueId": "tensor0",
+              "sourcePortId": "port:8041a2348005721f5f4ae42fe218b3e8872a45d4fab553df615461bba81099e9",
+              "targetPortId": "port:d9c30a797b602d947cbc61903fbaa15f16f441b21614815b344038c62b28e07b",
+              "displaySourcePortId": "port:8041a2348005721f5f4ae42fe218b3e8872a45d4fab553df615461bba81099e9",
+              "displayTargetPortId": "port:d9c30a797b602d947cbc61903fbaa15f16f441b21614815b344038c62b28e07b"
+            }
+          }
+        },
+        {
+          "edge_id": "edge:6e6f509a2c1f088b84b9df542366401989d3ef60b83154f9ef480e4f522e6b86",
+          "source_node_id": "input:0e3305d06923aa2c27928a83c77629a0b5dc99d9210ba65b6d539e4b69a3362a",
+          "source_port": "port:8041a2348005721f5f4ae42fe218b3e8872a45d4fab553df615461bba81099e9",
+          "target_node_id": "operation:b0c2c0d483d9c37c7effb517a4e0e791f2ad1d68ecb5e7e2ec00cd0afcd2e315",
+          "target_port": "port:42b3e77e918f8fc48ef70c161ddd9e6484ec0ceef577da427b326f68147d175a",
+          "metadata": {
+            "captureEdge": {
+              "id": "edge:6e6f509a2c1f088b84b9df542366401989d3ef60b83154f9ef480e4f522e6b86",
+              "kind": "argument",
+              "valueId": "tensor0",
+              "sourcePortId": "port:8041a2348005721f5f4ae42fe218b3e8872a45d4fab553df615461bba81099e9",
+              "targetPortId": "port:42b3e77e918f8fc48ef70c161ddd9e6484ec0ceef577da427b326f68147d175a",
+              "displaySourcePortId": "port:8041a2348005721f5f4ae42fe218b3e8872a45d4fab553df615461bba81099e9",
+              "displayTargetPortId": "port:42b3e77e918f8fc48ef70c161ddd9e6484ec0ceef577da427b326f68147d175a"
+            }
+          }
+        },
+        {
+          "edge_id": "edge:64c3e6c5b0d192ce3b1c503389bd0b46791ff280fcc1b0c58b671ffc927893c4",
+          "source_node_id": "operation:8e580f90a2183e52b7ce947d1cf3a07a0be8967a91b194225c1c0b2d1d111d84",
+          "source_port": "port:c01739b2bbc4dc4c125efff3bb386e4ab6e85305934cc5c50446b1e1d4d03ff5",
+          "target_node_id": "operation:99438bac436c7b4261c7f3e412f23e0ab75cbbeef52b53ffcab1ee15c346cabb",
+          "target_port": "port:004d8df5967bbd6a6f820083881f2b5032f0bd36418043978b93cc836e1e74fd",
+          "metadata": {
+            "captureEdge": {
+              "id": "edge:64c3e6c5b0d192ce3b1c503389bd0b46791ff280fcc1b0c58b671ffc927893c4",
+              "kind": "argument",
+              "valueId": "tensor1",
+              "sourcePortId": "port:c01739b2bbc4dc4c125efff3bb386e4ab6e85305934cc5c50446b1e1d4d03ff5",
+              "targetPortId": "port:004d8df5967bbd6a6f820083881f2b5032f0bd36418043978b93cc836e1e74fd",
+              "displaySourcePortId": "port:c01739b2bbc4dc4c125efff3bb386e4ab6e85305934cc5c50446b1e1d4d03ff5",
+              "displayTargetPortId": "port:004d8df5967bbd6a6f820083881f2b5032f0bd36418043978b93cc836e1e74fd"
+            }
+          }
+        },
+        {
+          "edge_id": "edge:0c7176e962ff964d2b1784e7b2a0ca7c731aaa6fa947c7df424c6ce5cf27ec49",
+          "source_node_id": "operation:b0c2c0d483d9c37c7effb517a4e0e791f2ad1d68ecb5e7e2ec00cd0afcd2e315",
+          "source_port": "port:cb64d96750aa5d4d05735d0f9850a044e9e3b903e466cbaf1ae50a8d4ea5f9c6",
+          "target_node_id": "operation:99438bac436c7b4261c7f3e412f23e0ab75cbbeef52b53ffcab1ee15c346cabb",
+          "target_port": "port:c2ba9c0eea4a62fc040449e2aa6d9886bc192380599c53f674e6840b4ad34d83",
+          "metadata": {
+            "captureEdge": {
+              "id": "edge:0c7176e962ff964d2b1784e7b2a0ca7c731aaa6fa947c7df424c6ce5cf27ec49",
+              "kind": "argument",
+              "valueId": "tensor2",
+              "sourcePortId": "port:cb64d96750aa5d4d05735d0f9850a044e9e3b903e466cbaf1ae50a8d4ea5f9c6",
+              "targetPortId": "port:c2ba9c0eea4a62fc040449e2aa6d9886bc192380599c53f674e6840b4ad34d83",
+              "displaySourcePortId": "port:cb64d96750aa5d4d05735d0f9850a044e9e3b903e466cbaf1ae50a8d4ea5f9c6",
+              "displayTargetPortId": "port:c2ba9c0eea4a62fc040449e2aa6d9886bc192380599c53f674e6840b4ad34d83"
+            }
+          }
+        },
+        {
+          "edge_id": "edge:84d6794324f745ba073e6c872e6c20cbe4c339830e606676b262667dc568cc6d",
+          "source_node_id": "operation:99438bac436c7b4261c7f3e412f23e0ab75cbbeef52b53ffcab1ee15c346cabb",
+          "source_port": "port:cbebd6da0b9a53717dc7b81afb3b95af96b6fe70ecf018e25c4559ac6a9768f1",
+          "target_node_id": "output:0e3305d06923aa2c27928a83c77629a0b5dc99d9210ba65b6d539e4b69a3362a",
+          "target_port": "port:feba49d24a9549906386fdc100056fd5edde33d453e19935cc961d0020dabb9c",
+          "metadata": {
+            "captureEdge": {
+              "id": "edge:84d6794324f745ba073e6c872e6c20cbe4c339830e606676b262667dc568cc6d",
+              "kind": "result",
+              "valueId": "tensor3",
+              "sourcePortId": "port:cbebd6da0b9a53717dc7b81afb3b95af96b6fe70ecf018e25c4559ac6a9768f1",
+              "targetPortId": "port:feba49d24a9549906386fdc100056fd5edde33d453e19935cc961d0020dabb9c",
+              "displaySourcePortId": "port:cbebd6da0b9a53717dc7b81afb3b95af96b6fe70ecf018e25c4559ac6a9768f1",
+              "displayTargetPortId": "port:feba49d24a9549906386fdc100056fd5edde33d453e19935cc961d0020dabb9c"
+            }
+          }
+        }
+      ],
+      "modules": [],
+      "operations": [],
+      "metadata": {
+        "capture": {
+          "version": 1,
+          "id": "capture:f7b40f42-9910-4837-8b1c-3c3b41bedd13",
+          "sourceId": "source:0",
+          "status": "complete",
+          "backend": "runtime",
+          "rootInvocationId": "invocation:0",
+          "omissions": [],
+          "operationCount": 3,
+          "invocationCount": 1,
+          "failureNodeId": null
+        },
+        "sourceCorrespondence": []
+      }
+    },
+    "view": {
+      "graph_id": "captured-activation-import-fixture",
+      "node_positions": {
+        "input:0e3305d06923aa2c27928a83c77629a0b5dc99d9210ba65b6d539e4b69a3362a": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "output:0e3305d06923aa2c27928a83c77629a0b5dc99d9210ba65b6d539e4b69a3362a": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "invocation:4e2b852327f4fe88c0dcdce8ac2ae974fda8a50164eb01c5452bb284e4a03cf5": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "operation:8e580f90a2183e52b7ce947d1cf3a07a0be8967a91b194225c1c0b2d1d111d84": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "operation:b0c2c0d483d9c37c7effb517a4e0e791f2ad1d68ecb5e7e2ec00cd0afcd2e315": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "operation:99438bac436c7b4261c7f3e412f23e0ab75cbbeef52b53ffcab1ee15c346cabb": {
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      "collapsed_modules": [],
+      "selection": [],
+      "layout": {
+        "strategy": "captured"
+      }
+    }
+  },
+  "spans": {
+    "operation:8e580f90a2183e52b7ce947d1cf3a07a0be8967a91b194225c1c0b2d1d111d84": {
+      "file": "model.py",
+      "start": [
+        8,
+        12
+      ],
+      "end": [
+        8,
+        23
+      ],
+      "kind": "call",
+      "digest": "660976a1f772e290f358efe03e2d9405c8df03f23d7d86ef8097da1ea20b41a2",
+      "file_digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190"
+    },
+    "operation:b0c2c0d483d9c37c7effb517a4e0e791f2ad1d68ecb5e7e2ec00cd0afcd2e315": {
+      "file": "model.py",
+      "start": [
+        9,
+        12
+      ],
+      "end": [
+        9,
+        23
+      ],
+      "kind": "call",
+      "digest": "660976a1f772e290f358efe03e2d9405c8df03f23d7d86ef8097da1ea20b41a2",
+      "file_digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190"
+    },
+    "operation:99438bac436c7b4261c7f3e412f23e0ab75cbbeef52b53ffcab1ee15c346cabb": {
+      "file": "model.py",
+      "start": [
+        10,
+        15
+      ],
+      "end": [
+        10,
+        20
+      ],
+      "kind": "call",
+      "digest": "c151c7cbe798c640f238a2c54b94d62c3f9979d903a250bc49f6f596109eba34",
+      "file_digest": "f2ec09ddc80a9dbd564ff6680363e86d8198fc638ec24d95e1900283170a1190"
+    }
+  },
+  "after": "\"\"\"Preserve this module docstring.\"\"\"\nfrom __future__ import annotations\n# keep this import comment\nimport torch.nn.functional as _tensorviz_functional\nfrom torch.nn import Module\nfrom torch.nn.functional import relu as activate\nclass Model(Module):\n    def forward(self, h):\n        a = _tensorviz_functional.gelu(h)  # selected call\n        b = activate(h)  # unrelated use of the same import\n        return a + b\n"
+}

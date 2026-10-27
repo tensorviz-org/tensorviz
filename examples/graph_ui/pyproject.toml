@@ -1,0 +1,2 @@
+# These standalone models form their own project when opened from a parent folder.
+[tool.tensorviz]

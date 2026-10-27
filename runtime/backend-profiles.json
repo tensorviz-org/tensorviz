@@ -1,0 +1,14 @@
+{
+  "excludedDirectories": ["tests", "evals", "scripts", "reports", "__pycache__", ".runtime", ".pytest_cache", ".mypy_cache", "node_modules"],
+  "excludedFileNames": [".env"],
+  "excludedFilePrefixes": [".env."],
+  "profiles": {
+    "extension": { "tree": true, "entry": "server_v2.py", "excludedFiles": ["requirements-test.txt"] },
+    "standalone": {
+      "entry": "standalone_server.py",
+      "excludedFiles": ["services/ide/anchor.py", "utils/model_validation.py"],
+      "pythonPrefixes": ["models/", "utils/", "core/", "research/", "services/ide/", "services/ingest/", "services/jax_support/", "services/semantic/", "services/validation/"],
+      "files": ["standalone_server.py", "middleware.py", "requirements-project.txt", "requirements-standalone.txt", "requirements-capture.txt", "services/__init__.py", "services/input_comment.py", "services/torch_imports.py", "services/python_compat.py", "api/__init__.py", "api/routers/__init__.py", "api/routers/local_browser.py"]
+    }
+  }
+}

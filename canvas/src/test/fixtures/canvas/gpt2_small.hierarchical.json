@@ -1,0 +1,566 @@
+{
+  "root_nodes": [
+    {
+      "id": "input_node",
+      "type": "inputNode",
+      "position": {
+        "x": 100.0,
+        "y": 200.0
+      },
+      "data": {
+        "layerType": {
+          "id": "input",
+          "name": "Input",
+          "parameters": []
+        },
+        "parameters": {
+          "shape": "1,1024",
+          "name": "input_tokens"
+        },
+        "parentId": null,
+        "childNodeIds": [],
+        "depth": 0,
+        "moduleType": null,
+        "internalGraph": null,
+        "expanded": null
+      }
+    },
+    {
+      "id": "token_embeddings",
+      "type": "layerNode",
+      "position": {
+        "x": 300.0,
+        "y": 200.0
+      },
+      "data": {
+        "layerType": {
+          "id": "embedding",
+          "name": "Embedding",
+          "parameters": []
+        },
+        "parameters": {
+          "num_embeddings": 50257,
+          "embedding_dim": 768
+        },
+        "parentId": null,
+        "childNodeIds": [],
+        "depth": 0,
+        "moduleType": null,
+        "internalGraph": null,
+        "expanded": null
+      }
+    },
+    {
+      "id": "decoder_stack",
+      "type": "moduleNode",
+      "position": {
+        "x": 500.0,
+        "y": 200.0
+      },
+      "data": {
+        "layerType": {
+          "id": "module",
+          "name": "Module",
+          "parameters": []
+        },
+        "parameters": {
+          "module_type": "decoder_stack",
+          "num_layers": 12,
+          "repeat_count": 12,
+          "repeat_block_label": "TransformerDecoderLayer"
+        },
+        "parentId": null,
+        "childNodeIds": [],
+        "depth": 0,
+        "moduleType": "custom",
+        "internalGraph": null,
+        "expanded": null
+      }
+    },
+    {
+      "id": "lm_head",
+      "type": "layerNode",
+      "position": {
+        "x": 700.0,
+        "y": 200.0
+      },
+      "data": {
+        "layerType": {
+          "id": "linear",
+          "name": "Linear",
+          "parameters": []
+        },
+        "parameters": {
+          "in_features": 768,
+          "out_features": 50257
+        },
+        "parentId": null,
+        "childNodeIds": [],
+        "depth": 0,
+        "moduleType": null,
+        "internalGraph": null,
+        "expanded": null
+      }
+    },
+    {
+      "id": "output_node",
+      "type": "outputNode",
+      "position": {
+        "x": 900.0,
+        "y": 200.0
+      },
+      "data": {
+        "layerType": {
+          "id": "output",
+          "name": "Output",
+          "parameters": []
+        },
+        "parameters": {
+          "name": "logits"
+        },
+        "parentId": null,
+        "childNodeIds": [],
+        "depth": 0,
+        "moduleType": null,
+        "internalGraph": null,
+        "expanded": null
+      }
+    }
+  ],
+  "root_edges": [
+    {
+      "id": "e1",
+      "source": "input_node",
+      "target": "token_embeddings"
+    },
+    {
+      "id": "e2",
+      "source": "token_embeddings",
+      "target": "decoder_stack"
+    },
+    {
+      "id": "e3",
+      "source": "decoder_stack",
+      "target": "lm_head"
+    },
+    {
+      "id": "e4",
+      "source": "lm_head",
+      "target": "output_node"
+    }
+  ],
+  "modules": {
+    "decoder_stack": {
+      "module_id": "decoder_stack",
+      "parent_id": null,
+      "internal_nodes": [
+        {
+          "id": "decoder_stack__layer_0",
+          "type": "layerNode",
+          "position": {
+            "x": 120.0,
+            "y": 0.0
+          },
+          "data": {
+            "layerType": {
+              "id": "transformerdecoderlayer",
+              "name": "TransformerDecoderLayer",
+              "parameters": []
+            },
+            "parameters": {
+              "d_model": 768,
+              "nhead": 12,
+              "dim_feedforward": 3072,
+              "dropout": 0.1,
+              "batch_first": true
+            },
+            "parentId": null,
+            "childNodeIds": [],
+            "depth": 0,
+            "moduleType": null,
+            "internalGraph": null,
+            "expanded": null
+          }
+        },
+        {
+          "id": "decoder_stack__layer_1",
+          "type": "layerNode",
+          "position": {
+            "x": 280.0,
+            "y": 0.0
+          },
+          "data": {
+            "layerType": {
+              "id": "transformerdecoderlayer",
+              "name": "TransformerDecoderLayer",
+              "parameters": []
+            },
+            "parameters": {
+              "d_model": 768,
+              "nhead": 12,
+              "dim_feedforward": 3072,
+              "dropout": 0.1,
+              "batch_first": true
+            },
+            "parentId": null,
+            "childNodeIds": [],
+            "depth": 0,
+            "moduleType": null,
+            "internalGraph": null,
+            "expanded": null
+          }
+        },
+        {
+          "id": "decoder_stack__layer_2",
+          "type": "layerNode",
+          "position": {
+            "x": 440.0,
+            "y": 0.0
+          },
+          "data": {
+            "layerType": {
+              "id": "transformerdecoderlayer",
+              "name": "TransformerDecoderLayer",
+              "parameters": []
+            },
+            "parameters": {
+              "d_model": 768,
+              "nhead": 12,
+              "dim_feedforward": 3072,
+              "dropout": 0.1,
+              "batch_first": true
+            },
+            "parentId": null,
+            "childNodeIds": [],
+            "depth": 0,
+            "moduleType": null,
+            "internalGraph": null,
+            "expanded": null
+          }
+        },
+        {
+          "id": "decoder_stack__layer_3",
+          "type": "layerNode",
+          "position": {
+            "x": 600.0,
+            "y": 0.0
+          },
+          "data": {
+            "layerType": {
+              "id": "transformerdecoderlayer",
+              "name": "TransformerDecoderLayer",
+              "parameters": []
+            },
+            "parameters": {
+              "d_model": 768,
+              "nhead": 12,
+              "dim_feedforward": 3072,
+              "dropout": 0.1,
+              "batch_first": true
+            },
+            "parentId": null,
+            "childNodeIds": [],
+            "depth": 0,
+            "moduleType": null,
+            "internalGraph": null,
+            "expanded": null
+          }
+        },
+        {
+          "id": "decoder_stack__layer_4",
+          "type": "layerNode",
+          "position": {
+            "x": 760.0,
+            "y": 0.0
+          },
+          "data": {
+            "layerType": {
+              "id": "transformerdecoderlayer",
+              "name": "TransformerDecoderLayer",
+              "parameters": []
+            },
+            "parameters": {
+              "d_model": 768,
+              "nhead": 12,
+              "dim_feedforward": 3072,
+              "dropout": 0.1,
+              "batch_first": true
+            },
+            "parentId": null,
+            "childNodeIds": [],
+            "depth": 0,
+            "moduleType": null,
+            "internalGraph": null,
+            "expanded": null
+          }
+        },
+        {
+          "id": "decoder_stack__layer_5",
+          "type": "layerNode",
+          "position": {
+            "x": 920.0,
+            "y": 0.0
+          },
+          "data": {
+            "layerType": {
+              "id": "transformerdecoderlayer",
+              "name": "TransformerDecoderLayer",
+              "parameters": []
+            },
+            "parameters": {
+              "d_model": 768,
+              "nhead": 12,
+              "dim_feedforward": 3072,
+              "dropout": 0.1,
+              "batch_first": true
+            },
+            "parentId": null,
+            "childNodeIds": [],
+            "depth": 0,
+            "moduleType": null,
+            "internalGraph": null,
+            "expanded": null
+          }
+        },
+        {
+          "id": "decoder_stack__layer_6",
+          "type": "layerNode",
+          "position": {
+            "x": 1080.0,
+            "y": 0.0
+          },
+          "data": {
+            "layerType": {
+              "id": "transformerdecoderlayer",
+              "name": "TransformerDecoderLayer",
+              "parameters": []
+            },
+            "parameters": {
+              "d_model": 768,
+              "nhead": 12,
+              "dim_feedforward": 3072,
+              "dropout": 0.1,
+              "batch_first": true
+            },
+            "parentId": null,
+            "childNodeIds": [],
+            "depth": 0,
+            "moduleType": null,
+            "internalGraph": null,
+            "expanded": null
+          }
+        },
+        {
+          "id": "decoder_stack__layer_7",
+          "type": "layerNode",
+          "position": {
+            "x": 1240.0,
+            "y": 0.0
+          },
+          "data": {
+            "layerType": {
+              "id": "transformerdecoderlayer",
+              "name": "TransformerDecoderLayer",
+              "parameters": []
+            },
+            "parameters": {
+              "d_model": 768,
+              "nhead": 12,
+              "dim_feedforward": 3072,
+              "dropout": 0.1,
+              "batch_first": true
+            },
+            "parentId": null,
+            "childNodeIds": [],
+            "depth": 0,
+            "moduleType": null,
+            "internalGraph": null,
+            "expanded": null
+          }
+        },
+        {
+          "id": "decoder_stack__layer_8",
+          "type": "layerNode",
+          "position": {
+            "x": 1400.0,
+            "y": 0.0
+          },
+          "data": {
+            "layerType": {
+              "id": "transformerdecoderlayer",
+              "name": "TransformerDecoderLayer",
+              "parameters": []
+            },
+            "parameters": {
+              "d_model": 768,
+              "nhead": 12,
+              "dim_feedforward": 3072,
+              "dropout": 0.1,
+              "batch_first": true
+            },
+            "parentId": null,
+            "childNodeIds": [],
+            "depth": 0,
+            "moduleType": null,
+            "internalGraph": null,
+            "expanded": null
+          }
+        },
+        {
+          "id": "decoder_stack__layer_9",
+          "type": "layerNode",
+          "position": {
+            "x": 1560.0,
+            "y": 0.0
+          },
+          "data": {
+            "layerType": {
+              "id": "transformerdecoderlayer",
+              "name": "TransformerDecoderLayer",
+              "parameters": []
+            },
+            "parameters": {
+              "d_model": 768,
+              "nhead": 12,
+              "dim_feedforward": 3072,
+              "dropout": 0.1,
+              "batch_first": true
+            },
+            "parentId": null,
+            "childNodeIds": [],
+            "depth": 0,
+            "moduleType": null,
+            "internalGraph": null,
+            "expanded": null
+          }
+        },
+        {
+          "id": "decoder_stack__layer_10",
+          "type": "layerNode",
+          "position": {
+            "x": 1720.0,
+            "y": 0.0
+          },
+          "data": {
+            "layerType": {
+              "id": "transformerdecoderlayer",
+              "name": "TransformerDecoderLayer",
+              "parameters": []
+            },
+            "parameters": {
+              "d_model": 768,
+              "nhead": 12,
+              "dim_feedforward": 3072,
+              "dropout": 0.1,
+              "batch_first": true
+            },
+            "parentId": null,
+            "childNodeIds": [],
+            "depth": 0,
+            "moduleType": null,
+            "internalGraph": null,
+            "expanded": null
+          }
+        },
+        {
+          "id": "decoder_stack__layer_11",
+          "type": "layerNode",
+          "position": {
+            "x": 1880.0,
+            "y": 0.0
+          },
+          "data": {
+            "layerType": {
+              "id": "transformerdecoderlayer",
+              "name": "TransformerDecoderLayer",
+              "parameters": []
+            },
+            "parameters": {
+              "d_model": 768,
+              "nhead": 12,
+              "dim_feedforward": 3072,
+              "dropout": 0.1,
+              "batch_first": true
+            },
+            "parentId": null,
+            "childNodeIds": [],
+            "depth": 0,
+            "moduleType": null,
+            "internalGraph": null,
+            "expanded": null
+          }
+        }
+      ],
+      "internal_edges": [
+        {
+          "id": "decoder_stack__e_1",
+          "source": "decoder_stack__layer_0",
+          "target": "decoder_stack__layer_1"
+        },
+        {
+          "id": "decoder_stack__e_2",
+          "source": "decoder_stack__layer_1",
+          "target": "decoder_stack__layer_2"
+        },
+        {
+          "id": "decoder_stack__e_3",
+          "source": "decoder_stack__layer_2",
+          "target": "decoder_stack__layer_3"
+        },
+        {
+          "id": "decoder_stack__e_4",
+          "source": "decoder_stack__layer_3",
+          "target": "decoder_stack__layer_4"
+        },
+        {
+          "id": "decoder_stack__e_5",
+          "source": "decoder_stack__layer_4",
+          "target": "decoder_stack__layer_5"
+        },
+        {
+          "id": "decoder_stack__e_6",
+          "source": "decoder_stack__layer_5",
+          "target": "decoder_stack__layer_6"
+        },
+        {
+          "id": "decoder_stack__e_7",
+          "source": "decoder_stack__layer_6",
+          "target": "decoder_stack__layer_7"
+        },
+        {
+          "id": "decoder_stack__e_8",
+          "source": "decoder_stack__layer_7",
+          "target": "decoder_stack__layer_8"
+        },
+        {
+          "id": "decoder_stack__e_9",
+          "source": "decoder_stack__layer_8",
+          "target": "decoder_stack__layer_9"
+        },
+        {
+          "id": "decoder_stack__e_10",
+          "source": "decoder_stack__layer_9",
+          "target": "decoder_stack__layer_10"
+        },
+        {
+          "id": "decoder_stack__e_11",
+          "source": "decoder_stack__layer_10",
+          "target": "decoder_stack__layer_11"
+        }
+      ],
+      "input_node_id": null,
+      "output_node_id": null,
+      "parameters": {
+        "module_type": "decoder_stack",
+        "num_layers": 12,
+        "name": "decoder_stack",
+        "d_model": 768,
+        "num_heads": 12,
+        "d_ff": 3072,
+        "repeat_count": 12,
+        "repeat_block_label": "TransformerDecoderLayer"
+      }
+    }
+  },
+  "node_hierarchy": {}
+}

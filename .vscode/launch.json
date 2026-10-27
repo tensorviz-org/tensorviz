@@ -1,0 +1,43 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Open the REPOSITORY ROOT as your workspace and press F5. The counterpart in
+      // extension/.vscode/launch.json requires opening extension/ instead, which hides
+      // docs/, backend/ and examples/ from the editing window.
+      //
+      // The development host opens examples/tensorviz-test — one real experiment, seven
+      // files — rather than the repo root, whose own nn.Module classes would fill the
+      // Models view with tensorViz's internals instead of a model under test.
+      //
+      // Before the first F5, from the repo root:
+      //   npm run stage:backend --prefix extension   (once; puts the backend where
+      //                                               the extension looks for it)
+      //   npm run build:webview --prefix extension   (once, and after canvas edits)
+      //   npm run watch --prefix extension           (leave running)
+      // This configuration launches; it does not build. Without stage:backend the
+      // extension reports "could not find a backend to start" — `npm run package`
+      // normally does that step, and a dev session never runs package.
+      "name": "Run tensorViz extension (examples/tensorviz-test)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/extension",
+        "${workspaceFolder}/examples/tensorviz-test"
+      ],
+      "outFiles": ["${workspaceFolder}/extension/out/**/*.js"]
+    },
+    {
+      // The whole checkout as the workspace, for reproducing anything that depends on a
+      // large multi-project folder.
+      "name": "Run tensorViz extension (repository root)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/extension",
+        "${workspaceFolder}"
+      ],
+      "outFiles": ["${workspaceFolder}/extension/out/**/*.js"]
+    },
+  ]
+}

@@ -1,0 +1,93 @@
+.tldraw-canvas-wrapper {
+  container: tensorviz-canvas / inline-size;
+}
+
+.canvas-navigation-overlays { display: contents; }
+
+.canvas-minimap {
+  position: absolute;
+  z-index: 500;
+  top: 14px;
+  right: 14px;
+  width: 176px;
+  max-width: calc(100% - 28px);
+  color: var(--tv-text);
+  /* Solid chrome keeps the overview legible at every zoom. */
+  background: var(--tv-popover);
+  backdrop-filter: none;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: var(--tv-popover-shadow);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.canvas-minimap[data-panel-open="true"] { right: 418px; }
+.canvas-minimap[data-expanded="false"] { width: 126px; }
+
+.canvas-minimap-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 0;
+  background: transparent;
+  /* Dim at rest, near-white under the pointer. The button had no hover at all,
+     which is the "feels dead" cue the token file calls out for every other
+     control — and this one is the panel's only affordance. */
+  color: var(--tv-text-2);
+  cursor: pointer;
+  font: inherit;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 16px;
+  transition: background-color var(--tv-quick) var(--tv-ease), color var(--tv-quick) var(--tv-ease);
+}
+
+.canvas-minimap-toggle:hover {
+  background: var(--tv-face-hi);
+  color: var(--tv-text);
+}
+
+/* The panel's one micro-label, on the shared eyebrow system: mono, 11px, the
+   single tracking token, uppercase — same treatment as .ui2-palette-section-title
+   and every other label of this role. */
+.canvas-minimap-toggle span {
+  flex: 1;
+  text-align: left;
+}
+
+.canvas-minimap-navigation { padding: 0 8px 8px; }
+.canvas-minimap .tlui-minimap { height: 118px; min-height: 118px; padding: 0; }
+/* The mini graph is a window cut into the panel, so it recedes from it — the
+   same relationship .ui2-graph-thumb has with a card. Its contents are painted
+   by MinimapManager from the four --tl-color-* properties set in
+   tldraw-theme.css. */
+.canvas-minimap .tlui-minimap__canvas {
+  border-radius: 8px;
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--tv-hairline);
+  background: var(--tv-canvas);
+  touch-action: none;
+}
+.canvas-minimap-toggle:focus-visible,
+.canvas-minimap-navigation:focus-visible {
+  outline: 2px solid var(--tv-accent);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-minimap-toggle { transition: none; }
+}
+
+/* When Ask occupies most of a compact canvas, closing it restores the overview.
+   It must not cover the panel or shrink the remaining graph into an unusable strip. */
+@container tensorviz-canvas (max-width: 720px) {
+  .canvas-minimap[data-panel-open="true"] { display: none; }
+}
+
+.ui2-chrome-hidden .canvas-minimap { display: none; }

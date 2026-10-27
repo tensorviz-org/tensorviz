@@ -1,0 +1,251 @@
+/* The three auth screens are one system: a single centred 420px column sitting
+   directly on the app background. The card/panel chrome is deliberately gone —
+   sign-in is the page, not a dialog floating over one. Every value below is a
+   ui2 token; the only literals are the low-alpha white washes the design uses
+   for control fills, which have no token. */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(120% 62% at 50% 0%, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0) 62%),
+    var(--ui2-bg, #050505);
+  color: var(--ui2-text, #f3f3f4);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 36px;
+}
+
+.auth-brand-mark {
+  width: 36px;
+  height: 36px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--ui2-rule-strong, rgba(255, 255, 255, 0.22));
+  color: var(--ui2-text, #f3f3f4);
+}
+
+.auth-wordmark {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.auth-title {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.014em;
+  margin: 0 0 8px;
+}
+
+.auth-subtitle {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--ui2-text-dim, #a8a8b0);
+  margin: 0 0 28px;
+}
+
+.auth-field {
+  margin-bottom: 16px;
+}
+
+/* The label element itself carries .ui2-eyebrow for its type. This rule only
+   places it, so the two classes never fight over the cascade. */
+.auth-label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.auth-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  border-radius: 8px;
+  border: 1px solid var(--ui2-border, rgba(255, 255, 255, 0.10));
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ui2-text, #f3f3f4);
+  outline: none;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.auth-input:focus {
+  border-color: var(--ui2-rule-strong, rgba(255, 255, 255, 0.22));
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.auth-input::placeholder {
+  color: var(--ui2-text-dim, #a8a8b0);
+}
+
+/* Sits immediately above the submit button, at the point of action, as plain
+   red text — not a toast and not a banner at the top of the column, either of
+   which can be off-screen or gone by the time the user looks. */
+.auth-error {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ui2-red, #ff7b72);
+}
+
+.auth-config-banner {
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ui2-orange, #ffb65a);
+  background: rgba(255, 182, 90, 0.1);
+  border: 1px solid rgba(255, 182, 90, 0.28);
+}
+
+/* Pulls up against the password field's 16px gap to leave the design's 10px,
+   so the link reads as belonging to that field rather than floating between it
+   and the submit button. */
+.auth-forgot-row {
+  display: flex;
+  margin-top: -6px;
+  margin-bottom: 24px;
+}
+
+/* Dim rather than accent-coloured: the primary path down this column is the
+   submit button, and a cyan link directly above it competes with it. */
+.auth-forgot {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--ui2-text-dim, #a8a8b0);
+  text-decoration: none;
+}
+
+.auth-forgot:hover {
+  color: var(--ui2-text, #f3f3f4);
+  text-decoration: underline;
+}
+
+/* Sign-up and reset have no "Forgot password?" row before the submit; this
+   makes their field-to-button gap the same 24px sign-in gets from that row. */
+.auth-field + .auth-primary-btn {
+  margin-top: 8px;
+}
+
+.auth-primary-btn {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--ui2-surface-2, #0f0f10);
+  background: var(--ui2-text, #f3f3f4);
+  transition: opacity 140ms ease;
+}
+
+.auth-primary-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.auth-primary-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 22px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: var(--ui2-tracking-eyebrow, 0.10em);
+  text-transform: uppercase;
+  color: var(--ui2-text-dim, #a8a8b0);
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--ui2-rule, rgba(255, 255, 255, 0.09));
+}
+
+.auth-google-btn {
+  width: 100%;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--ui2-text, #f3f3f4);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--ui2-level-2-border, rgba(255, 255, 255, 0.14));
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.auth-google-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--ui2-rule-strong, rgba(255, 255, 255, 0.22));
+}
+
+.auth-google-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.auth-footer {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--ui2-rule, rgba(255, 255, 255, 0.09));
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ui2-text-dim, #a8a8b0);
+}
+
+.auth-footer a,
+.auth-link {
+  color: var(--ui2-cyan, #67d9ff);
+  text-decoration: none;
+}
+
+.auth-footer a:hover,
+.auth-link:hover {
+  text-decoration: underline;
+}
+
+.auth-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ui2-bg, #050505);
+  color: var(--ui2-text-dim, #a8a8b0);
+  font-size: 14px;
+}

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="24" height="24">
+  <!-- Website tensor-graph mark. Stroke is thinner and node radius larger than
+       the favicon so each circle reads as an open ring (not a filled dot) at
+       activity-bar size. -->
+  <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+    <path d="M8 7h16M8 7v18m0-9h16m0-9v18M8 25h16" />
+    <circle cx="8" cy="7" r="3.2" />
+    <circle cx="24" cy="7" r="3.2" />
+    <circle cx="8" cy="25" r="3.2" />
+    <circle cx="24" cy="25" r="3.2" />
+    <circle cx="24" cy="16" r="3.2" />
+  </g>
+</svg>

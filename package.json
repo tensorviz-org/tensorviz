@@ -1,0 +1,51 @@
+{
+  "name": "tensorviz-workspace",
+  "private": true,
+  "homepage": "https://github.com/tensorviz-org/tensorviz",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tensorviz-org/tensorviz"
+  },
+  "bugs": {
+    "url": "https://github.com/tensorviz-org/tensorviz/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/contracts",
+    "packages/graph-host"
+  ],
+  "scripts": {
+    "dev": "node tooling/workflow.mjs dev",
+    "qa": "node tooling/workflow.mjs qa",
+    "release": "node tooling/workflow.mjs release",
+    "release:publish": "node tooling/workflow.mjs release --publish",
+    "test:workflow": "node --test tooling/test/workflow.test.mjs",
+    "build:shared": "tsc -b packages/contracts packages/graph-host",
+    "protocol:sync": "node tooling/contracts/sync.mjs",
+    "protocol:check": "node tooling/contracts/sync.mjs --check",
+    "semantic:generate": "node tooling/contracts/generate.mjs --semantic",
+    "semantic:check": "node tooling/contracts/generate.mjs --semantic --check",
+    "validation:generate": "node tooling/contracts/generate.mjs",
+    "validation:check": "node tooling/contracts/generate.mjs --check",
+    "check:boundaries": "node --test tooling/test/*.test.mjs && node tooling/check-boundaries.mjs",
+    "test:shared": "npm test --workspaces"
+  },
+  "devDependencies": {
+    "@types/mocha": "10.0.10",
+    "@types/node": "18.19.130",
+    "ajv": "8.20.0",
+    "mocha": "12.0.3",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "body-parser": "2.4.0",
+    "fast-uri": "3.1.9",
+    "hono": "4.13.14",
+    "ip-address": "10.7.5",
+    "zod": "4.6.7"
+  }
+}

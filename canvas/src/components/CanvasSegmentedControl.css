@@ -1,0 +1,26 @@
+.canvas-segments {
+  --segment-inset: 2px;
+  display: inline-grid; grid-template-columns: repeat(var(--segment-count), minmax(0, 1fr));
+  position: relative; isolation: isolate; align-items: stretch; flex-shrink: 0;
+  padding: var(--segment-inset); border: 0; box-shadow: inset 0 0 0 1px var(--tv-hairline); border-radius: 10px;
+  background: var(--tv-seg-track); font: 500 12.5px/1 var(--font-ui); letter-spacing: .003em;
+}
+.canvas-segment-selection {
+  position: absolute; z-index: -1; inset: var(--segment-inset) auto var(--segment-inset) var(--segment-inset);
+  width: calc((100% - 2 * var(--segment-inset)) / var(--segment-count)); box-sizing: border-box;
+  border-radius: 8px; box-shadow: var(--tv-seg-on-shadow);
+  background: var(--tv-seg-on); transform: translateX(calc(var(--segment-active) * 100%));
+  transition: transform 160ms cubic-bezier(.2,.8,.2,1);
+}
+.canvas-segments > .canvas-tooltip-anchor { min-width: 0; display: flex; }
+.canvas-segments button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 26px; width: 100%; padding: 0 9px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--tv-text-2); cursor: pointer; font: inherit; white-space: nowrap;
+  transition: color 140ms, background-color 140ms;
+}
+.canvas-segments button svg { flex-shrink: 0; }
+.canvas-segments button:hover { color: var(--tv-text); background: var(--tv-face-hi); }
+.canvas-segments button[aria-pressed="true"] { color: var(--tv-seg-on-ink); }
+.canvas-segments button:focus-visible { outline: 2px solid var(--tv-accent); outline-offset: -1px; }
+@media (prefers-reduced-motion: reduce) { .canvas-segment-selection, .canvas-segments button { transition: none; } }

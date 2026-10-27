@@ -1,0 +1,8 @@
+# Only libraries imported by isolated model preparation/capture workers.
+# Tool-server libraries and the dependency installer live outside project Python.
+# Model-specific libraries are discovered and reviewed separately.
+torch
+pydantic>=2.12,<3
+packaging
+numpy
+tomli>=2.0; python_version < "3.11"

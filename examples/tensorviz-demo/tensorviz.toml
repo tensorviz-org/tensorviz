@@ -1,0 +1,52 @@
+version = 1
+
+[profiles.residual]
+kind = "model"
+model = "models.resid:Net"
+mode = "eval"
+device = "cpu"
+grad_enabled = false
+init = { args = [], kwargs = {} }
+inputs = { args = [{ kind = "tensor", shape = [2, 8], dtype = "float32", requires_grad = false, generator = { kind = "normal", mean = 0.0, std = 1.0, seed = 0 } }], kwargs = {} }
+
+[profiles.gate]
+kind = "model"
+model = "models.gate:Gate"
+mode = "eval"
+device = "cpu"
+grad_enabled = false
+init = { args = [], kwargs = {} }
+inputs = { args = [{ kind = "tensor", shape = [2, 8], dtype = "float32", requires_grad = false, generator = { kind = "full", value = -1.0 } }], kwargs = {} }
+
+[profiles.custom]
+kind = "model"
+model = "custom.net:Custom"
+mode = "eval"
+device = "cpu"
+grad_enabled = false
+init = { args = [], kwargs = {} }
+inputs = { args = [{ kind = "tensor", shape = [2, 16], dtype = "float32", requires_grad = false, generator = { kind = "normal", mean = 0.0, std = 1.0, seed = 0 } }], kwargs = {} }
+
+[profiles.transposed]
+kind = "model"
+model = "custom.net:Transposed"
+mode = "eval"
+device = "cpu"
+grad_enabled = false
+init = { args = [], kwargs = {} }
+inputs = { args = [{ kind = "tensor", shape = [2, 8, 4], dtype = "float32", requires_grad = false, generator = { kind = "normal", mean = 0.0, std = 1.0, seed = 0 } }], kwargs = {} }
+
+[profiles.branchy]
+kind = "model"
+model = "custom.declared:Branchy"
+mode = "eval"
+device = "cpu"
+grad_enabled = false
+init = { args = [], kwargs = {} }
+inputs = { args = [{ kind = "tensor", shape = [2, 16], dtype = "float32", requires_grad = false, generator = { kind = "full", value = -1.0 } }], kwargs = {} }
+
+[profiles.configured]
+kind = "script"
+script = "validate_configured.py"
+args = []
+capture = { model = "models.cfg:Configured", call = 1 }

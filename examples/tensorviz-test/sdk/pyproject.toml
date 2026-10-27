@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tensorviz"
+version = "0.1.0"
+description = "Declare experiments, pipeline nodes and dataflow for the tensorViz IDE."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+[tool.setuptools.packages.find]
+include = ["tensorviz*"]

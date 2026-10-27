@@ -1,0 +1,29 @@
+# CPU-only install of the backend's dependencies, for the managed runtime the
+# tensorViz extension provisions after explicit setup consent.
+#
+# Why a second file instead of two flags on the pip command line: the index a
+# build is installed from is part of the dependency contract, so it belongs
+# beside the pins rather than inside extension/src/runtime.ts, where nobody
+# reviewing requirements.txt would ever see it.
+#
+# A plain `-r requirements.txt` resolves torch from PyPI, and on Linux and
+# Windows the default PyPI torch wheel drags in the CUDA payload -- a dozen
+# `nvidia-*` wheels and several GB -- for a backend that only ever runs shape
+# inference on CPU. Pointing the primary index at PyTorch's CPU channel is what
+# keeps the managed runtime small enough to provision on first launch.
+#
+# PEP 440 local versions: the CPU channel publishes `torch-2.14.1+cpu` on Linux
+# and Windows, and `torch==2.14.1` matches it (a local version qualifier is
+# ignored by `==` unless the specifier carries one itself). macOS arm64 has no
+# `+cpu` build at all -- those wheels are CPU-only already -- and the CPU
+# channel serves the plain `2.14.1` wheel, so this one invocation is correct on
+# all three platforms.
+#
+# The extra index is not optional: everything that is not torch/torchvision
+# (fastapi, pydantic, libcst...) exists only on PyPI.
+--index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://pypi.org/simple
+
+# The pins themselves stay in one place. `-r` is resolved relative to THIS
+# file, so the two travel together into resources/app/backend/.
+-r requirements.txt

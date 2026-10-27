@@ -1,0 +1,23 @@
+node_modules/
+
+# VitePress build output and the manifest prepare.mjs writes for the config.
+site/.vitepress/dist/
+site/.vitepress/cache/
+site/.vitepress/generated.json
+
+# Everything prepare.mjs copies or generates under site/. The theme, the
+# config, the not-found page, and the logos are source and stay tracked.
+site/*
+!site/.vitepress/
+!site/public/
+!site/404.md
+
+site/.vitepress/*
+!site/.vitepress/config.mts
+!site/.vitepress/mono-theme.ts
+!site/.vitepress/theme/
+
+site/public/*
+!site/public/logo.svg
+!site/public/logo-light.svg
+!site/public/logo-dark.svg

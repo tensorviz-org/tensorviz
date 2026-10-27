@@ -1,0 +1,9 @@
+.graph-detail-toggle-compact button { min-width: 28px; padding: 4px; }
+.node-operation-group {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  width: calc(100% - 20px); margin: 4px 10px 0; padding: 3px 0;
+  border: 0; background: transparent; color: var(--tv-text-2);
+  font: 11px/16px var(--font-ui); cursor: pointer;
+}
+.node-operation-group:hover { color: var(--tv-text); }
+.node-operation-group:focus-visible { outline: 2px solid var(--tv-accent); outline-offset: 2px; }

@@ -1,0 +1,26 @@
+version = 1
+
+[profiles.simple]
+kind = "model"
+model = "models.simple:Simple"
+mode = "eval"
+device = "cpu"
+grad_enabled = false
+init = { args = [], kwargs = {} }
+inputs = { args = [{ kind = "tensor", shape = [1, 3, 32, 32], dtype = "float32", requires_grad = false, generator = { kind = "normal", mean = 0.0, std = 1.0, seed = 0 } }], kwargs = {} }
+
+[profiles.transformer]
+kind = "model"
+model = "models.tiny_transformer:TinyTransformer"
+mode = "eval"
+device = "cpu"
+grad_enabled = false
+init = { args = [], kwargs = {} }
+inputs = { args = [{ kind = "tensor", shape = [1, 10], dtype = "int64", requires_grad = false, generator = { kind = "randint", low = 1, high = 16, seed = 0 } }], kwargs = {} }
+
+[profiles.training]
+kind = "script"
+script = "train.py"
+args = []
+capture = { model = "models.tiny_transformer:TinyTransformer", call = 1 }
+tracked_files = ["config.json"]

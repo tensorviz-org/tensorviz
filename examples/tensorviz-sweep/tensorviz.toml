@@ -1,0 +1,16 @@
+version = 1
+
+[profiles.basic_block]
+kind = "model"
+model = "models.resnet_demo:BasicBlock"
+mode = "eval"
+device = "cpu"
+grad_enabled = false
+init = { args = [], kwargs = { cin = 3, cout = 8 } }
+inputs = { args = [{ kind = "tensor", shape = [1, 3, 32, 32], dtype = "float32", requires_grad = false, generator = { kind = "normal", mean = 0.0, std = 1.0, seed = 0 } }], kwargs = {} }
+
+[profiles.configured]
+kind = "script"
+script = "validate_configured.py"
+args = []
+capture = { model = "models.config_demo:ConfigDrivenNet", call = 1 }

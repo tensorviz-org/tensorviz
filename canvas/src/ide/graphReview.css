@@ -1,0 +1,84 @@
+.graph-review-toolbar { flex: none; background: var(--tv-chrome); border-bottom: 1px solid var(--tv-hairline); color: var(--tv-text); padding: 10px 12px; font: 12px/18px var(--font-ui); min-width: 0; }
+.graph-review-actions { display: flex; flex: none; align-items: center; gap: 2px; padding: 2px;
+  border: 1px solid var(--tv-hairline); border-radius: 8px; background: var(--tv-field); }
+.graph-review-models { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; margin-bottom: 10px; color: var(--tv-text-2); }
+.graph-review-models select { width: 100%; min-width: 0; background: var(--tv-field); color: var(--tv-text); border: 1px solid var(--tv-edge); border-radius: 6px; padding: 7px 8px; font: 500 12px/18px var(--font-ui); }
+.graph-review-models select:focus-visible { outline: 2px solid var(--tv-accent); outline-offset: 2px; }
+.graph-review-coverage-actions { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; color: var(--tv-text-2); }
+.graph-review-coverage-actions button { color: inherit; background: var(--tv-field); border: 1px solid var(--tv-hairline); border-radius: 5px; padding: 3px 7px; cursor: pointer; font: inherit; }
+.graph-review-coverage-actions button:hover, .graph-review-coverage-actions button[aria-expanded='true'] { color: var(--tv-accent); text-decoration: underline; }
+.graph-review-coverage-actions button:focus-visible, .graph-review-coverage-content:focus-visible { outline: 1px solid var(--tv-accent); outline-offset: 2px; }
+.graph-review-coverage-content { max-height: min(180px, 25vh); overflow: auto; overscroll-behavior: contain; border-top: 1px solid var(--tv-hairline); margin-top: 5px; overflow-wrap: anywhere; color: var(--tv-text-2); }
+.graph-review-coverage-content p { margin: 7px 0; }
+.graph-review-coverage-content ul { margin: 7px 0; padding-left: 18px; }
+.graph-review-coverage-content li + li { margin-top: 5px; }
+.graph-review-controls, .graph-review-stepper, .graph-review-counts, .graph-review-current { display: flex; align-items: center; gap: 10px; min-width: 0; }
+/* One row while it fits; narrow panels wrap the counts instead of adding fixed rows. */
+.graph-review-controls { flex-wrap: wrap; gap: 8px 10px; }
+.graph-review-toolbar button:focus-visible { outline: 2px solid var(--tv-accent); outline-offset: 2px; }
+.graph-review-stepper { gap: 4px; max-width: 100%; font-variant-numeric: tabular-nums; color: var(--tv-text-2); }
+.graph-review-stepper > span { min-width: 0; text-align: center; overflow-wrap: anywhere; }
+.graph-review-counts { margin-left: auto; gap: 5px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.graph-review-counts > span { padding: 2px 6px; border: 1px solid var(--tv-hairline); border-radius: 5px; background: var(--tv-field); }
+.graph-review-added, .graph-review-value ins { color: var(--tv-added-ink); }
+.graph-review-removed, .graph-review-value del { color: var(--tv-removed-ink); }
+.graph-review-modified { color: var(--tv-modified-ink); }
+.graph-review-rewired { color: var(--tv-inputs-changed-ink); }
+.graph-review-current { --review: var(--tv-modified); flex: 1 1 180px; gap: 6px; color: var(--tv-modified-ink); white-space: nowrap; }
+.graph-review-current::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--review); }
+.graph-review-current strong { flex: none; max-width: 60%; color: var(--tv-text); font-weight: 500; }
+.graph-review-current strong, .graph-review-current span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.graph-review-current[data-status='added'] { --review: var(--tv-added); color: var(--tv-added-ink); }
+.graph-review-current[data-status='removed'] { --review: var(--tv-removed); color: var(--tv-removed-ink); }
+.graph-review-current[data-status='rewired'] { --review: var(--tv-inputs-changed); color: var(--tv-inputs-changed-ink); }
+.graph-review-current[data-status='unresolved'] { --review: var(--tv-text-2); color: var(--tv-text-2); }
+.graph-review-stale { color: var(--tv-warning); }
+.graph-review-stale button { color: inherit; background: transparent; border: 0; text-decoration: underline; cursor: pointer; font: inherit; }
+.graph-review-value { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; }
+.graph-review-value ins { text-decoration: none; }
+.graph-review-value del { opacity: .8; }
+.graph-review-badge { --review: var(--tv-modified); flex: none; font: 500 10px/16px var(--font-mono, monospace); white-space: nowrap; padding: 1px 6px; border-radius: 5px;
+  color: var(--tv-modified-ink); background: color-mix(in srgb, var(--review) 14%, transparent); }
+.graph-review-badge[data-status='added'] { --review: var(--tv-added); color: var(--tv-added-ink); }
+.graph-review-badge[data-status='removed'] { --review: var(--tv-removed); color: var(--tv-removed-ink); }
+.graph-review-badge[data-status='rewired'] { --review: var(--tv-inputs-changed); color: var(--tv-inputs-changed-ink); }
+.graph-review-badge[data-status='unresolved'] { color: var(--tv-text-2); background: var(--tv-row); border: 1px dashed var(--tv-edge); }
+.graph-review-module-summary { color: var(--tv-text-2); font-size: 10px; white-space: nowrap; }
+.graph-review-canvas .local-canvas-node-count { display: none; }
+@media (max-width: 480px) {
+  .graph-review-models { grid-template-columns: minmax(0, 1fr) auto; gap: 5px 8px; }
+  .graph-review-models select { grid-row: 2; grid-column: 1 / -1; }
+  .graph-review-modes { max-width: 100%; }
+  .graph-review-modes button { min-width: 0; padding: 0 8px; }
+  .graph-review-current { flex-basis: 100%; }
+}
+.graph-review-draft { padding: 3px 12px; }
+.graph-review-draft-row { display: flex; align-items: center; gap: 10px; min-height: 26px; min-width: 0; }
+.graph-review-draft-row > strong { flex: none; font-weight: 600; }
+.graph-review-draft-row .graph-review-counts { margin-left: 0; flex-wrap: nowrap; order: 2; }
+.graph-review-draft-row .graph-review-stepper { flex: none; white-space: nowrap; }
+.graph-review-draft-row > button { flex: none; order: 3; margin-left: auto; }
+.graph-review-draft-current { flex: 1 1 0; order: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #f5c778; }
+.graph-review-draft-current[data-status='added'] { color: #83dca3; }
+.graph-review-draft-current strong { color: #c7d1e3; font-weight: 500; }
+.graph-review-draft-detail { margin-inline-start: 8px; }
+/* The decision row: plain text buttons flush with the label above; Accept carries the only tint. Wraps whole buttons when narrow. */
+.graph-review-draft-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 2px 0 5px; }
+.graph-review-draft-actions button { min-height: 24px; padding: 0 10px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--canvas-muted, #a9b8cd); font: 500 12px/1 var(--canvas-font, system-ui); white-space: nowrap; cursor: pointer; transition: background-color .12s, color .12s; }
+.graph-review-draft-actions button:hover:not(:disabled) { background: var(--canvas-hover, var(--tv-face-hi)); color: var(--canvas-text, var(--tv-text)); }
+.graph-review-draft-actions .graph-review-accept { margin-right: 2px; color: var(--canvas-accent, var(--tv-accent)); background: var(--canvas-active, var(--tv-accent-wash)); border-color: var(--canvas-active-border, var(--tv-accent-edge)); }
+.graph-review-draft-actions .graph-review-accept:hover:not(:disabled) { color: var(--canvas-text, var(--tv-text)); background: color-mix(in srgb, var(--canvas-accent, var(--tv-accent)) 22%, transparent); }
+.graph-review-draft-actions button:disabled { opacity: .45; cursor: default; }
+.graph-review-draft-note { margin: 0 0 3px; color: var(--vscode-descriptionForeground, #a9b8cd); }
+.graph-review-draft .graph-review-stale { margin: 0 0 4px; }
+@media (pointer: coarse) { .graph-review-draft-actions button { min-height: 40px; } }
+@media (prefers-reduced-motion: reduce) { .graph-review-draft-actions button { transition: none; } }
+.graph-review-draft .graph-review-coverage { margin-top: 0; }
+@media (max-width: 600px) {
+  .graph-review-draft-row { flex-wrap: wrap; gap: 4px 8px; }
+  .graph-review-draft-current { flex: 1 0 100%; order: 4; padding-bottom: 3px; }
+  .graph-review-draft-detail { display: none; }
+}
+@media (max-width: 420px) {
+  .graph-review-draft-row .graph-review-counts { display: none; }
+}

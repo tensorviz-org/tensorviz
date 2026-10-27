@@ -1,0 +1,19 @@
+.candidate-review { color: var(--tv-text); background: var(--tv-popover); border: 1px solid var(--tv-edge); border-radius: 10px; font: 12px/18px var(--font-ui); }
+.candidate-review-floating { position: fixed; right: 20px; bottom: 44px; z-index: 90; width: min(390px, calc(100vw - 40px)); box-shadow: var(--tv-popover-shadow); }
+.candidate-review-embedded { margin-top: 12px; }
+.candidate-review summary { padding: 10px 12px; cursor: pointer; font-weight: 600; }
+.candidate-review section { padding: 0 12px 12px; max-height: min(560px, 65vh); overflow: auto; }
+.candidate-review label { display: grid; gap: 4px; margin: 8px 0; }
+.candidate-review select { width: 100%; min-width: 0; }
+.candidate-review button, .candidate-review select { color: inherit; background: var(--tv-field); border: 1px solid var(--tv-edge); border-radius: 6px; padding: 7px; font: inherit; }
+.candidate-review button { cursor: pointer; }
+.candidate-review :disabled { opacity: .5; cursor: default; }
+.candidate-review :focus-visible { outline: 2px solid var(--tv-accent); outline-offset: 2px; }
+.candidate-review p { line-height: 1.5; }
+.candidate-review-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.candidate-review dl { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; }
+.candidate-review dt { color: var(--tv-text-2); }
+.candidate-review dd { margin: 0; }
+.candidate-review small { display: block; line-height: 1.5; color: var(--tv-text-2); }
+.candidate-review .applied-source-check { border-top: 1px solid var(--tv-edge); margin-top: 12px; padding: 0; max-height: none; overflow: visible; }
+.candidate-review .applied-source-check h3 { font-size: inherit; margin: 12px 0 8px; }

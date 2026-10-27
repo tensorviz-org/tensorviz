@@ -1,0 +1,76 @@
+/* The guessed-connections panel. Amber throughout, matching the `candidate` badge:
+   both mean "the tool is not certain and you should look". */
+
+.tv-guess {
+  border-top: 1px solid var(--tv-edge);
+  display: flex;
+  flex-direction: column;
+  font: 12px/18px var(--font-ui);
+  gap: 4px;
+  padding-top: 8px;
+}
+
+.tv-guess__disclosure {
+  background: none;
+  border: none;
+  color: var(--tv-warning);
+  cursor: pointer;
+  font: inherit;
+  padding: 4px 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.tv-guess__disclosure:hover { color: var(--tv-warning); }
+
+.tv-guess__why {
+  color: var(--tv-text-3);
+  margin: 0;
+  padding: 0 12px 4px;
+}
+
+.tv-guess__list { list-style: none; margin: 0; padding: 0; }
+
+.tv-guess__item {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  padding: 4px 12px;
+}
+
+.tv-guess__item:hover { background: var(--tv-face-hi); }
+
+.tv-guess__edge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tv-guess__node {
+  color: var(--tv-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tv-guess__rel { color: var(--tv-text-3); font-style: italic; }
+
+.tv-guess__confirm {
+  background: var(--tv-edge);
+  border: 1px solid var(--tv-edge);
+  border-radius: 4px;
+  color: var(--tv-text);
+  cursor: pointer;
+  font: inherit;
+  margin-left: auto;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+.tv-guess__confirm:hover:not(:disabled) { background: var(--tv-edge); border-color: var(--tv-text-2); }
+
+.tv-guess__confirm:disabled {
+  color: var(--tv-text-3);
+  cursor: default;
+}

@@ -1,0 +1,96 @@
+/* A row in the page column, never an overlay. See ProjectStatusBar.tsx. */
+.tv-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 8px;
+  border-top: 1px solid var(--tv-edge);
+  background: var(--tv-chrome);
+  color: var(--tv-text-2);
+  font-size: 11px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  /* Above the canvas's own floating chrome, which is z-index 30. */
+  position: relative;
+  z-index: 40;
+}
+
+/* The status takes the slack, so the two toggle groups stay pinned to their own
+   ends however long the experiment's name is. */
+.tv-statusbar__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tv-statusbar__rest { color: var(--tv-text-3); }
+
+.tv-statusbar__spin {
+  animation: tv-statusbar-spin 900ms linear infinite;
+  color: var(--tv-accent);
+}
+
+@keyframes tv-statusbar-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-statusbar__spin { animation: none; }
+}
+
+.tv-statusbar__toggles {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.tv-statusbar__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tv-text-3);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tv-statusbar__toggle:hover {
+  background: var(--tv-face-hi);
+  color: var(--tv-text);
+}
+
+.tv-statusbar__toggle--on { color: var(--tv-text); }
+
+.tv-statusbar__toggle:focus-visible {
+  outline: 2px solid var(--tv-accent);
+  outline-offset: -2px;
+}
+
+.tv-statusbar__count {
+  min-width: 15px;
+  padding: 0 4px;
+  border-radius: 7px;
+  background: var(--tv-accent-wash);
+  color: var(--tv-text);
+  font-size: 10px;
+  line-height: 15px;
+  text-align: center;
+}
+
+/* Below the phone breakpoint the labels go and the icons stay: the toggles are
+   the part that has to survive, and at 400px the two words do not. */
+@media (max-width: 560px) {
+  .tv-statusbar__toggle span:not(.tv-statusbar__count) { display: none; }
+}

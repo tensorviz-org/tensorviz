@@ -1,0 +1,274 @@
+{
+  "version": 1,
+  "sourceNames": "anonymized",
+  "capture": {
+    "version": 1,
+    "id": "capture:0",
+    "attemptId": "attempt:0",
+    "source": {
+      "version": 1,
+      "id": "portable:ae20ffc834bb268a76aeedb9d82109eaea607b0cdf124f40b28d6aca2ace8f71",
+      "workspaceSessionId": "portable",
+      "workspaceId": "portable",
+      "modelId": "portable",
+      "modelFile": "file-0.py",
+      "className": "Model",
+      "generation": 0,
+      "files": [
+        {
+          "path": "file-0.py",
+          "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "documentVersion": null,
+          "role": "source"
+        }
+      ],
+      "dependencyScope": "complete",
+      "configDigest": null,
+      "environmentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceMode": "saved"
+    },
+    "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "preparationDigest": null,
+    "automatic": null,
+    "inputDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "stateDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "backend": "runtime",
+    "backendVersion": "1",
+    "torchVersion": "2.7.1",
+    "jaxVersion": null,
+    "normalizations": [
+      "dispatcher operations"
+    ],
+    "status": "complete",
+    "rootInvocationId": "call:0",
+    "inputs": {
+      "args": [
+        {
+          "kind": "value",
+          "id": "h"
+        }
+      ],
+      "kwargs": {}
+    },
+    "output": {
+      "kind": "value",
+      "id": "b"
+    },
+    "definitions": [
+      {
+        "id": "definition:0",
+        "qualifiedName": "model.Model",
+        "sourceBindingIds": []
+      }
+    ],
+    "modules": [
+      {
+        "id": "module:0",
+        "definitionId": "definition:0",
+        "paths": [
+          ""
+        ],
+        "constructorBindingIds": [],
+        "constructorClassVerified": false,
+        "initializerArguments": null
+      }
+    ],
+    "invocations": [
+      {
+        "id": "call:0",
+        "moduleId": "module:0",
+        "parentId": null,
+        "sequence": 0,
+        "endSequence": 3,
+        "arguments": {
+          "args": [
+            {
+              "kind": "value",
+              "id": "h"
+            }
+          ],
+          "kwargs": {}
+        },
+        "output": {
+          "kind": "value",
+          "id": "b"
+        },
+        "status": "completed",
+        "diagnosticId": null,
+        "training": false,
+        "gradEnabled": false,
+        "parameterCount": 0,
+        "parameterCountUnavailable": null,
+        "callSiteDigest": null,
+        "sourceBindingIds": []
+      }
+    ],
+    "operations": [
+      {
+        "id": "add1",
+        "sequence": 1,
+        "invocationId": "call:0",
+        "target": "aten.add.Tensor",
+        "schemaSignature": "aten::add.Tensor(Tensor self, Tensor other, *, Scalar alpha=1) -> Tensor",
+        "arguments": {
+          "args": [
+            {
+              "kind": "value",
+              "id": "h"
+            },
+            {
+              "kind": "int",
+              "value": "1"
+            }
+          ],
+          "kwargs": {}
+        },
+        "output": {
+          "kind": "value",
+          "id": "a"
+        },
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": []
+      },
+      {
+        "id": "add2",
+        "sequence": 2,
+        "invocationId": "call:0",
+        "target": "aten.add.Tensor",
+        "schemaSignature": null,
+        "arguments": {
+          "args": [
+            {
+              "kind": "value",
+              "id": "a"
+            },
+            {
+              "kind": "value",
+              "id": "a"
+            }
+          ],
+          "kwargs": {}
+        },
+        "output": {
+          "kind": "value",
+          "id": "b"
+        },
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": []
+      }
+    ],
+    "values": [
+      {
+        "id": "h",
+        "objectId": "object:h",
+        "storageId": "storage:h",
+        "version": 0,
+        "shape": [
+          2,
+          4
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requiresGrad": false,
+        "aliasOf": null,
+        "previousVersion": null,
+        "logicalVersion": 0,
+        "stride": [
+          4,
+          1
+        ],
+        "storageOffset": 0,
+        "logicalBytes": 32,
+        "producer": null,
+        "origin": "input",
+        "state": []
+      },
+      {
+        "id": "a",
+        "objectId": "object:a",
+        "storageId": "storage:a",
+        "version": 0,
+        "shape": [
+          2,
+          4
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requiresGrad": false,
+        "aliasOf": null,
+        "previousVersion": null,
+        "logicalVersion": 0,
+        "stride": [
+          4,
+          1
+        ],
+        "storageOffset": 0,
+        "logicalBytes": 32,
+        "producer": {
+          "operationId": "add1",
+          "kind": "output",
+          "path": []
+        },
+        "origin": "operation",
+        "state": []
+      },
+      {
+        "id": "b",
+        "objectId": "object:b",
+        "storageId": "storage:b",
+        "version": 0,
+        "shape": [
+          2,
+          4
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requiresGrad": false,
+        "aliasOf": null,
+        "previousVersion": null,
+        "logicalVersion": 0,
+        "stride": [
+          4,
+          1
+        ],
+        "storageOffset": 0,
+        "logicalBytes": 32,
+        "producer": {
+          "operationId": "add2",
+          "kind": "output",
+          "path": []
+        },
+        "origin": "operation",
+        "state": []
+      }
+    ],
+    "sourceBindings": [],
+    "diagnostics": [],
+    "coverage": {
+      "scope": "executed_path",
+      "operationsSeen": 2,
+      "invocationsSeen": 1,
+      "omissions": [],
+      "modules": [
+        {
+          "modulePath": "",
+          "status": "observed",
+          "invocationIds": [
+            "call:0"
+          ],
+          "reason": null
+        }
+      ]
+    },
+    "limits": {
+      "operations": 100,
+      "invocations": 100,
+      "values": 100,
+      "bytes": 1000000
+    }
+  }
+}

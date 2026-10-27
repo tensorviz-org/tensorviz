@@ -3,6 +3,7 @@
 ## Contents
 
 - [Unreleased](#unreleased)
+- [0.1.19](#0119)
 - [0.1.18](#0118)
 - [0.1.17](#0117)
 - [0.1.14](#0114)
@@ -24,7 +25,7 @@
 - [0.0.2](#002)
 - [0.0.1](#001)
 
-Extension **0.1.18**. The plugin host in this repository is **0.3.20**.
+Extension **0.1.19**. The plugin host in this repository is **0.3.20**.
 
 This tree is the visualization product: Open as Graph, graph diff, execution
 cache (`off`, `shadow`, and `on`), code focus, graph export, MCP, Hugging Face open, source
@@ -33,6 +34,10 @@ training-step capture, product analytics, the hosted website application, and
 release publication are not in this tree.
 
 ## Unreleased
+
+## 0.1.19
+
+- Show captured dictionary keys and keyword input names on Input/Output cards, module boundaries and port tooltips. Older graph files recover names from their retained capture; unnamed values use readable one-based labels.
 
 - Give the graph more room: device/host details now share the model toolbar, and focused modules use one compact breadcrumb and Flow row instead of a second title banner. Back, sibling switching and the full run configuration remain available.
 

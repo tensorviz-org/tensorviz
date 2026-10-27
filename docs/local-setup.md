@@ -10,7 +10,7 @@ This is the only version table. Other pages link here.
 | --- | --- |
 | Development Node.js | 22. CI uses Node.js 22. The plugin host requires Node.js 22 or newer. |
 | Development Python | 3.12. CI uses Python 3.12. |
-| Extension | 0.1.18 (`extension/package.json`) |
+| Extension | 0.1.19 (`extension/package.json`) |
 | Plugin host | 0.3.20 (`plugin/package.json`) |
 | VS Code | 1.106 or newer (`engines.vscode` is `^1.106.0`). Cursor and VSCodium can install the same VSIX. |
 | Backend service | Python 3.11 or newer (`MIN_BACKEND_PYTHON` in `extension/src/runtime.ts`, `backend/extension_environment.py`) |

@@ -55,6 +55,7 @@ function renderCard(data: ModelNodeData) {
 const boundaryPort = (direction: 'in' | 'out', extra: Partial<CapturePort> = {}): CapturePort => ({
   ...captureDocument.semantic.nodes.flatMap(node => node.metadata.capturePorts ?? [])[0],
   id: direction, direction, argumentKind: 'value', shape: [1, 10, 32], dtype: 'torch.float32',
+  displayName: null,
   paths: direction === 'in' ? [['inputs', 'args', 0]] : [['output']], ...extra,
 } as CapturePort);
 
@@ -97,7 +98,7 @@ it('sizes captured cards for their content and reserves extra room for warnings 
   expect(moduleCardHeight({ ...data, shapeEvidence: 'stale' })).toBeGreaterThan(height);
   expect(moduleCardHeight({ ...data, shapeEvidence: 'unknown' })).toBeGreaterThan(height);
   const ports = Array.from({ length: 12 }, (_, i) => boundaryPort(i < 6 ? 'in' : 'out', { id: `port-${i}` }));
-  // Multiple ports are numbered (In 0 … Out 5), so all twelve stay one compact line.
+  // Unnamed interfaces use concise labels, so all twelve stay one compact line.
   expect(moduleCardHeight({ ...data, capturePorts: ports })).toBe(height - 2 * 26 + 12 * 26);
 });
 
@@ -111,7 +112,7 @@ it.each([false, true])('leaves static-analysis notes to the source-notes list (e
   expect(moduleCardHeight(noted)).toBe(moduleCardHeight(plain));
 });
 
-it('numbers several boundary values and keeps their argument paths as titles', () => {
+it('shows readable names and reserves space for every boundary value', () => {
   const ports = [
     boundaryPort('in', { id: 'x', paths: [['x']] }),
     boundaryPort('in', { id: 'tokens', paths: [['context', 'tokens']] }),
@@ -119,10 +120,10 @@ it('numbers several boundary values and keeps their argument paths as titles', (
     boundaryPort('out', { id: 'states', paths: [['hidden', 'states']] }),
   ];
   const data = { ...capturedModule(), capturePorts: ports };
-  expect(moduleCardHeight(data)).toBe(204);
+  expect(moduleCardHeight(data)).toBe(232);
   renderCard(data);
   const rows = within(screen.getByRole('group', { name: 'Input and output shapes' }));
-  for (const [label, path] of [['In 0', 'x'], ['In 1', 'context.tokens'], ['Out 0', 'y'], ['Out 1', 'hidden.states']]) {
+  for (const [label, path] of [['In x', 'x'], ['In context.tokens', 'context.tokens'], ['Out y', 'y'], ['Out hidden.states', 'hidden.states']]) {
     expect(rows.getByText(label)).toHaveAttribute('title', path);
   }
   expect(rows.getAllByTitle('(1, 10, 32) · float32')).toHaveLength(4);
@@ -244,9 +245,9 @@ it('preserves every boundary value, including scalar, unknown and non-tensor out
     boundaryPort('out', { id: 'literal', paths: [['output', 2]], argumentKind: 'int', valueId: null, shape: null, dtype: null }),
   ] });
   const rows = within(screen.getByRole('group', { name: 'Input and output shapes' }));
-  expect(rows.getByText('In 0')).toHaveAttribute('title', 'inputs.args[0]');
-  expect(rows.getByText('In 1')).toHaveAttribute('title', 'inputs.kwargs.tokens');
-  expect(rows.getByText('Out 0')).toHaveAttribute('title', 'output[0]');
+  expect(rows.getByText('In 1')).toHaveAttribute('title', 'Input 1');
+  expect(rows.getByText('In tokens')).toHaveAttribute('title', 'tokens');
+  expect(rows.getByText('Out 1')).toHaveAttribute('title', 'Output 1');
   expect(rows.getByTitle('(1, 4) · int64')).toBeInTheDocument();
   expect(rows.getByTitle('() · float32')).toBeInTheDocument();
   expect(rows.getByTitle('shape unknown · dtype unknown')).toBeInTheDocument();

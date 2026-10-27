@@ -24,11 +24,11 @@ it('shows every measured operand when a matrix operation has no single input sum
   for (const value of ['(96)', '(8, 32)', '(32, 96)', '(8, 96)']) expect(rows).toHaveTextContent(value);
 });
 
-it('numbers several operands from 0 and keeps each argument path in the row title', () => {
+it('keeps operation operand numbering and uses readable input names in tooltips', () => {
   render(<TensorSummary data={data([port('bias', 'in', [96]), port('x', 'in', [8, 32], 1), port('result', 'out', [8, 96])])} />);
   const rows = screen.getByRole('group', { name: 'Operation input and output shapes' });
   expect(Array.from(rows.querySelectorAll('.operation-tensor-label'), label => label.textContent)).toEqual(['IN 0', 'IN 1', 'OUT']);
-  expect(rows.querySelector('[data-direction="in"]')).toHaveAttribute('title', 'arguments.args[0] · float32');
+  expect(rows.querySelector('[data-direction="in"]')).toHaveAttribute('title', 'Input 1 · float32');
 });
 
 it('shows only tensor shapes even when old capture data contains operation options', () => {

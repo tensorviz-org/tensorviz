@@ -4,7 +4,7 @@ import { portLabel, portType } from '../canvas/capturePorts';
 import { cardParams } from '../ide/cardParams';
 
 /** Short boundary labels (In, Out, In x) share one line with their value; longer
- *  port paths keep the two-line row. Shared by the renderer and cardMetrics. */
+ *  names keep the two-line row. Shared by the renderer and cardMetrics. */
 export const compactBoundaryLabel = (label: string): boolean => label.length <= 6;
 export const BOUNDARY_ROW_COMPACT = 26; // 22px row + 4px gap
 export const BOUNDARY_ROW_FULL = 40;    // 36px row + 4px gap
@@ -32,13 +32,13 @@ export function moduleBoundaryRows(data: ModelNodeData): Array<{ id: string; lab
     const inputs = data.capturePorts.filter(port => port.direction === 'in').length;
     const outputs = data.capturePorts.length - inputs;
     const ordinal = { in: 0, out: 0 };
-    // Several values are numbered (In 0, In 1) so every row stays one compact line;
-    // the argument path is the row's title.
-    return data.capturePorts.map((port, index) => {
+    return data.capturePorts.map(port => {
       const direction = port.direction === 'in' ? 'In' : 'Out';
       const multiple = (port.direction === 'in' ? inputs : outputs) > 1;
-      const number = ordinal[port.direction]++;
-      return { id: port.id, label: multiple ? `${direction} ${number}` : direction, value: portType(port), path: portLabel(port, index) };
+      const index = ordinal[port.direction]++;
+      const named = (port.displayName && !/^\d+$/.test(port.displayName)) || port.paths.some(path => path[1] === 'kwargs');
+      return { id: port.id, label: multiple || named ? portLabel(port, index, direction) : direction,
+        value: portType(port), path: portLabel(port, index) };
     });
   }
   // Legacy snapshots carry single-tensor shapes. Trace provenance takes priority

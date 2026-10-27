@@ -2397,6 +2397,19 @@ const schema: object = {
           "title": "Direction",
           "type": "string"
         },
+        "displayName": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Displayname"
+        },
         "dtype": {
           "anyOf": [
             {

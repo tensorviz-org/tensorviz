@@ -1047,6 +1047,7 @@ class DisplayPort(ProjectionPort):
     shape: Annotated[list[Nat], Field(max_length=32)] | None
     dtype: Id | None
     device: Id | None
+    displayName: Text | None = None
 
     @model_validator(mode="after")
     def measured(self):

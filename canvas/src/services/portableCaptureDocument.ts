@@ -48,7 +48,7 @@ export function validateCaptureDocument(document: GraphDocumentV2, capture: Capt
     if (ref.kind === 'value') check(value && value.producer === null && !inputValues.has(value.id) && node.kind === 'layer');
     if (ref.kind === 'input' || ref.kind === 'output') check(ref.semanticId === capture.id && node.kind === ref.kind && !node.metadata.parentId);
     const record = op ?? call;
-    const expected: Array<{ path: Array<string | number>; argument: Argument; direction: Port['direction'] }> = record ? [
+    const expected: Array<{ path: Array<string | number>; argument: Argument; direction: Port['direction']; displayName?: string }> = record ? [
       ...inputLeaves(record.arguments, 'arguments').map(entry => ({ ...entry, direction: 'in' as const })),
       ...argumentLeaves(record.output, ['output']).map(entry => ({ ...entry, direction: 'out' as const })),
     ] : ref.kind === 'input' ? inputs.map(entry => ({ ...entry, direction: 'out' as const }))
@@ -78,6 +78,10 @@ export function validateCaptureDocument(document: GraphDocumentV2, capture: Capt
           check(!uses.has(port.id)); uses.set(port.id, { value: port.valueId, kind: ref.kind === 'output' ? 'result' : path[0] === 'effects' ? 'effect' : 'argument' });
         }
       }
+      // Rebuild presentation from the retained tree, including older files that
+      // never carried dictionary keys in their ports. File labels are not evidence.
+      const name = port.paths.map(path => expectedPaths.get(JSON.stringify(path))?.displayName ?? '').join(' / ');
+      port.displayName = name && Array.from(name).length <= 4096 ? name : null;
     }
     check(pathsSeen === expected.length && (!value || own.length === 1));
     const status = record?.status ?? (ref.kind === 'output' && capture.output === null ? 'interrupted' : 'completed');

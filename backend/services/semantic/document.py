@@ -10,6 +10,7 @@ import json
 from models.architecture_models import GraphDocumentV2
 from .contracts import CaptureProjection, CaptureReference, DisplayPort, IntLiteral, ProjectionPort, ValueRef
 from .projection import project_capture
+from .port_names import port_names
 from .source_join import CaptureJoin
 
 
@@ -122,10 +123,18 @@ def capture_document(payload, *, name, graph_id, model_file, source_digests, sou
             counts[node.parentId] += counts[node.id]
     port_map = {}
     node_ports = defaultdict(list)
+    names = {}
+    for node in projection.nodes:
+        record = ops.get(node.semanticId) if node.kind == "operation" else calls.get(node.semanticId) if node.kind == "invocation" else None
+        names[node.id] = (port_names(record.arguments, record.output) if record is not None else
+                         port_names(capture.inputs, None, "inputs") if node.kind == "input" else
+                         port_names(None, capture.output) if node.kind == "output" else {})
     for port in projection.ports:
         value = values.get(port.valueId)
+        display_name = " / ".join(names[port.nodeId].get(tuple(path), "") for path in port.paths)
         display = DisplayPort(**port.model_dump(), shape=value.shape if value else None,
-                              dtype=value.dtype if value else None, device=value.device if value else None)
+                              dtype=value.dtype if value else None, device=value.device if value else None,
+                              displayName=display_name if display_name and len(display_name) <= 4096 else None)
         port_map[port.id] = display
         node_ports[port.nodeId].append(display)
 

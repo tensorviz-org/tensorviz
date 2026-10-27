@@ -136,7 +136,8 @@ both directions. These rows also appear in the ReactFlow module renderer.
 
 The rows use the module call's canonical `capturePorts`, not the synthetic child
 ports used to route connections through a collapsed card. Multiple inputs or
-outputs retain separate rows with their argument/result paths. Scalar tensors
+outputs retain separate rows with their recorded dictionary keys or keyword names.
+Unnamed values use concise numbered labels; see [input and output names](capture-boundary-names.md). Scalar tensors
 display `()`, missing tensor metadata remains explicitly unknown, and non-tensor
 arguments show their recorded kind. An empty captured interface stays empty.
 Legacy snapshots use the existing provenance-aware single-tensor shape fallback;

@@ -31,6 +31,26 @@ def test_python_producer_matches_shared_browser_fixture():
     assert fixture_document().model_dump(mode="json", by_alias=True) == json.loads(FIXTURE.read_text())
 
 
+def test_boundary_names_use_recorded_keys_without_rewriting_ports_or_values(context):
+    class Net(nn.Module):
+        def forward(self, x, *, attention_mask):
+            return {"patch_tokens": x + 1, "pooled": (x.mean(1), attention_mask), "extra.key": {2: x}}
+
+    _, record = capture(Net(), context, kwargs={"attention_mask": torch.ones(2, 4)})
+    original = record.model_dump_json()
+    result = document(record)
+    nodes = {node.metadata["captureRef"]["kind"]: node for node in result.semantic.nodes}
+    assert [p["displayName"] for p in nodes["input"].metadata["capturePorts"]] == ["1", "attention_mask"]
+    expected = ["patch_tokens", "pooled[0]", "pooled[1]", '["extra.key"][2]']
+    assert [p["displayName"] for p in nodes["output"].metadata["capturePorts"]] == expected
+    assert [p["displayName"] for p in nodes["invocation"].metadata["capturePorts"] if p["direction"] == "out"] == expected
+    projected = {p.id: p.model_dump(mode="json") for p in project_capture(record).ports}
+    for node in result.semantic.nodes:
+        for port in node.metadata["capturePorts"]:
+            assert all(port[key] == value for key, value in projected[port["id"]].items())
+    assert record.model_dump_json() == original
+
+
 def test_slice_groups_use_exact_source_expressions_not_just_the_same_line(tmp_path):
     from tests.source_review.test_semantic_source_bindings import prepared, run
 

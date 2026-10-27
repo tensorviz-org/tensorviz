@@ -49,6 +49,9 @@ Local checks passed, with no skipped tests:
 
 - Full canvas suite: 3,295 tests in 183 suites.
 - Backend document, contract and portable-capture suites: 136 tests, PyTorch 2.14.1.
+- Source-edit API suite after refreshing 16 document fixtures: 96 tests. Only
+  capture-port `displayName` fields changed; 132 frontend fixture-consumer tests
+  passed after the refresh.
 - Shared contracts: 119 tests; shared build and protocol/semantic/validation checks.
 - Extension compile and unit tests: 1,652 tests.
 - Production viewer build and Chromium QA at desktop and narrow sizes, including
@@ -63,3 +66,7 @@ CI environment was not run. Regular Playwright was used because the Browser plug
 was unavailable. This PR does not claim an installed extension/plugin run, GPU/JAX
 capture, full backend suite, full TypeScript check, release or deployment.
 GitHub Actions were kept idle; validation was local.
+
+The fixture refresh follows producer-parity failures found by the companion
+extension branch's broader backend run. This repository's full backend suite was
+not run; the affected source-edit API suite passed here.

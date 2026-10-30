@@ -318,3 +318,7 @@ VS Code may release clean documents while another model runs. Losing an in-memor
 document revision alone does not invalidate saved execution; changed saved bytes,
 physical file identities, dirty buffers and revisions of still-loaded documents do.
 
+
+## Class-scoped input declarations
+
+`# tensorviz: input=2,8` declares one tensor; semicolon-separated shapes declare multiple arguments. Only real Python comments count. Ownership follows the selected class, adjacent declaration comments and supported inherited declarations. Unrelated classes, strings and docstrings cannot lend an input shape to a model. Contradictory declarations remain unresolved. Opening, generated source, profiles and worker capture use the same declaration resolver.

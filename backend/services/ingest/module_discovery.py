@@ -72,9 +72,13 @@ EXTERNAL_MODULE_BASES = {
 }
 
 
-def module_declarations(sources: dict[str, str], *, framework_bases=None) -> set[tuple[str, int, str]]:
-    """Return (file, class line, name), without importing any supplied source."""
-    index = ModuleIndex.build(sources)
+def module_declarations(sources: dict[str, str], *, framework_bases=None, index=None) -> set[tuple[str, int, str]]:
+    """Return (file, class line, name), without importing any supplied source.
+
+    Pass ``index`` to reuse a ModuleIndex already built from exactly these sources.
+    """
+    if index is None:
+        index = ModuleIndex.build(sources)
     exports, parents, locations = {}, {}, {}
 
     for file, source in sources.items():

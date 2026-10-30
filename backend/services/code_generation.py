@@ -437,17 +437,17 @@ class CodeGenerationService:
         if unreproducible:
             code_parts.append(self._unreproducible_header(unreproducible))
         code_parts.append(imports)
-        # What to call forward with, said once where the tracer can read it.
-        declaration = self.input_declaration(root_nodes, root_edges, input_shape)
-        if declaration:
-            code_parts.append(declaration)
         if custom_defs:
             code_parts.append(custom_defs)
         if module_classes:
             code_parts.extend(module_classes)
         if hollow_classes:
             code_parts.extend(hollow_classes)
-        code_parts.append(main_class)
+        # What to call forward with, said once where the tracer can read it. It sits
+        # directly above the model: graph setup gives one outside every class to no
+        # class when the helper modules above are models too.
+        declaration = self.input_declaration(root_nodes, root_edges, input_shape)
+        code_parts.append(declaration + "\n" + main_class if declaration else main_class)
         code_parts.append(usage_example)
 
         return "\n\n".join(code_parts)
@@ -483,12 +483,11 @@ class CodeGenerationService:
         usage_example = self._generate_usage_example(class_name, input_shape, graph.nodes, graph.edges)
 
         parts = [imports]
-        declaration = self.input_declaration(graph.nodes, graph.edges, input_shape)
-        if declaration:
-            parts.append(declaration)
         if custom_defs:
             parts.append(custom_defs)
-        parts.extend([main_class, usage_example])
+        # Directly above the model, as in generate_hierarchical_code.
+        declaration = self.input_declaration(graph.nodes, graph.edges, input_shape)
+        parts.extend([declaration + "\n" + main_class if declaration else main_class, usage_example])
         return "\n\n".join(parts)
     
 

@@ -41,9 +41,9 @@ class ParallelBranches(nn.Module):
     declared = resolved(source, cls='ParallelBranches')
     other = resolved(source, cls='FeedForward')
     assert declared['status'] == 'complete', declared
-    assert declared['draft']['profile']['inputs']['kwargs']['x']['shape'] == [2, 32]
+    assert declared['draft']['profile']['inputs']['args'][0]['shape'] == [2, 32]
     assert not declared.get('runtimeInputs')
-    assert any('input= comment' in entry['detail'] for entry in declared['evidence'])
+    assert any('Explicit input declaration' in entry['detail'] for entry in declared['evidence'])
     assert other['draft']['profile']['inputs']['kwargs']['x']['shape'] == [1, 32]
 
 
@@ -58,7 +58,7 @@ class ResidualClassifier(nn.Module):
         return self.stem(x)
 ''', cls='ResidualClassifier')
     assert result['status'] == 'complete', result
-    assert result['draft']['profile']['inputs']['kwargs']['x']['shape'] == [1, 3, 32, 32]
+    assert result['draft']['profile']['inputs']['args'][0]['shape'] == [1, 3, 32, 32]
     assert not result.get('runtimeInputs')
     assert not any('example spatial size' in entry['detail'] for entry in result['evidence'])
 

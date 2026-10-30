@@ -24,12 +24,14 @@ from tests.discovery.test_graph_setup_resolution import LINEAR
                                         'required', 'nested', 'attention', 'required_config',
                                         'recurrent', 'grouped_conv', 'transposed_conv',
                                         'normalized_attention', 'keyword_attention', 'sequential_norm',
-                                        'inline_example', 'block_count', 'namespace_config', 'package_config', 'constructor_config'])
+                                        'inline_example', 'block_count', 'namespace_config', 'package_config', 'constructor_config', 'declared_input'])
 def test_resolved_recipe_captures_once_and_preserves_forward_failure(tmp_path, fail, construction):
     factory = construction == 'factory'
     source = LINEAR
     if construction == 'sequence':
         source = source.replace('return self.fc(x)', 'batch, sequence, width = x.shape; return self.fc(x)')
+    elif construction == 'declared_input':
+        source = '# tensorviz: input=5,8\n' + source
     elif construction == 'patch':
         source = source.replace('width=8', 'width=8, patch_size=14').replace(
             'nn.Linear(width, 4)', 'nn.Conv2d(3, width, patch_size, stride=patch_size)').replace(
@@ -151,6 +153,8 @@ class Block(nn.Module):
     envelope = json.loads(process.stdout)
     assert process.returncode == (4 if fail else 0), envelope.get('error')
     diagnostics = envelope['result']['diagnostics']
+    if construction == 'declared_input':
+        assert diagnostics['example_input'] == [[5, 8]], 'capture must use the declared shape, not a synthetic batch of one'
     assert diagnostics['execution']['planCurrent'] is True
     assert diagnostics['timings_ms']['input_candidates_tried'] == 1
     capture = diagnostics['semantic_capture']

@@ -99,63 +99,151 @@ def test_the_expression_form_is_left_alone_rather_than_guessed_at():
     assert declared_input_shape("") is None
 
 
-def test_a_comment_above_a_class_belongs_to_that_class_only():
-    """A line written above one class is not the other class's example input."""
-    source = '''import torch.nn as nn
+def test_both_tiers_read_declarations_with_one_stdlib_only_rule():
+    """The drawing and the worker share one reader, so they cannot drift.
+
+    The worker cannot import the parser. The worker runs with the user's own
+    repository first on ``sys.path``, and importing ``utils.code_parser`` pulls in
+    ``models.graph_models`` — which any workspace with a ``models/`` package of its
+    own, meaning most of them, would shadow. That is not hypothetical: it was
+    tried, and every worker test failed with the fixture's own ``models`` package
+    shadowing the backend's.
+
+    So both import ``input_declarations``, the worker relatively, and that module
+    imports nothing but the standard library. If the two ever stopped sharing it,
+    the graph that is drawn and the graph that is run could disagree about which
+    class a declaration belongs to, which is the bug this whole file exists for.
+    """
+    import ast
+    import sys
+    from pathlib import Path
+
+    from services.ingest import input_declarations, service
+    from utils import code_parser
+
+    assert service.input_declarations is input_declarations
+    assert code_parser.applicable is input_declarations.applicable
+    tree = ast.parse(Path(input_declarations.__file__).read_text(encoding="utf-8"))
+    imported = {alias.name.split(".")[0] for node in ast.walk(tree) if isinstance(node, ast.Import)
+                for alias in node.names}
+    imported |= {node.module.split(".")[0] if node.level == 0 else "." for node in ast.walk(tree)
+                 if isinstance(node, ast.ImportFrom)}
+    assert imported <= set(sys.stdlib_module_names) | {"__future__"}, imported
 
 
-class FeedForward(nn.Module):
+# ── one model's declaration is not another's input ───────────────────────────
+#
+# Setup reads a declaration as belonging to the model class it sits above or
+# inside. The drawing took the first declaration in the file for every class, and
+# the worker gave a declaration outside every class to every class, so the same
+# class could be drawn, saved and run with three different inputs.
+
+#: Two models with different input widths, A ``Linear(8, 4)`` and B ``Linear(16, 4)``.
+TWO_MODELS = '''import torch.nn as nn
+
+
+{a}class A(nn.Module):
     def __init__(self):
         super().__init__()
-        self.fc = nn.Linear(64, 64)
+        self.fc = nn.Linear(8, 4)
 
     def forward(self, x):
         return self.fc(x)
 
 
-# tensorviz: input=2,16,64
-class TinyEncoder(nn.Module):
+{b}class B(nn.Module):
     def __init__(self):
         super().__init__()
-        self.fc = nn.Linear(64, 64)
+        self.fc = nn.Linear(16, 4)
 
     def forward(self, x):
         return self.fc(x)
 '''
-    assert declared_input_shape(source, "TinyEncoder") == [2, 16, 64]
-    assert declared_input_shape(source, "FeedForward") is None
+EACH = TWO_MODELS.format(a="# tensorviz: input=2,8\n", b="# tensorviz: input=3,16\n")
+ONLY_A = TWO_MODELS.format(a="# tensorviz: input=2,8\n", b="")
+#: Not directly above or inside either class, so it cannot say which one it is for.
+STRAY = "# tensorviz: input=2,8\n" + TWO_MODELS.format(a="", b="")
+
+
+def _drawn(code: str, cls: str, **kwargs) -> str:
+    result = CodeParserService().parse_pytorch_code(CodeParseRequest(code=code, **kwargs))
+    assert result.get("success"), result
+    graph = next(e["graph"] for e in result["graphs"] if e["name"] == cls)
+    return next(n for n in graph.nodes if n.id == "input").data.parameters["shape"]
+
+
+def test_each_model_class_is_drawn_with_its_own_declaration():
+    assert (_drawn(EACH, "A"), _drawn(EACH, "B")) == ("2,8", "3,16")
+    assert declared_input_shape(EACH, "B") == [3, 16]
+
+
+def test_a_class_without_a_declaration_of_its_own_is_not_drawn_with_another_classs():
+    # B infers its own width instead of being fed A's eight.
+    assert (_drawn(ONLY_A, "A"), _drawn(ONLY_A, "B")) == ("2,8", "1,16")
+    assert declared_input_shape(ONLY_A, "B") is None
+
+
+def test_a_declaration_that_belongs_to_no_class_is_drawn_for_none():
+    assert (_drawn(STRAY, "A"), _drawn(STRAY, "B")) == ("1,8", "1,16")
+    assert declared_input_shape(STRAY, "A") is None
+
+
+def test_declaration_text_inside_a_string_is_not_a_declaration():
+    docstring = '"""\n# tensorviz: input=5,8\n"""\n'
+    assert declared_input_shape(docstring) is None
+    assert _input_shape(docstring + UNGUESSABLE.replace("# tensorviz: input=2,8", "")) == ""
+
+
+def test_carriage_return_line_breaks_are_read_as_python_reads_them():
+    # Python reads a lone carriage return as a line break. Tokenizing the comments line
+    # by line did not, so valid source was refused as a syntax error or not drawn.
+    note = ONLY_A.replace("A(nn.Module):\n    def", "A(nn.Module):\n    # a note\r    def")
+    old_mac = EACH.replace("\n", "\r")
+    assert (_drawn(note, "A"), _drawn(note, "B")) == ("2,8", "1,16")
+    assert (_drawn(old_mac, "A"), _drawn(old_mac, "B")) == ("2,8", "3,16")
+    assert declared_input_shape(old_mac, "B") == [3, 16]
+
+
+def _run_with(tmp_path, source: str, cls: str, encoding: str = "utf-8"):
+    """The shapes the worker feeds ``cls`` when nothing else supplies an input."""
     from services.ingest import service
 
-    own = service._scoped_input_match(source, "TinyEncoder")
-    assert own is not None and own.group("value").strip() == "2,16,64"
-    assert service._scoped_input_match(source, "FeedForward") is None
-    parsed = CodeParserService().parse_pytorch_code(CodeParseRequest(code=source))
-    shapes = {}
-    for entry in parsed["graphs"]:
-        node = next(node for node in entry["graph"].nodes if node.id == "input")
-        shapes[entry["name"]] = node.data.parameters["shape"]
-    assert shapes["TinyEncoder"] == "2,16,64"
-    assert shapes["FeedForward"] != "2,16,64"
-    # An explicit caller shape still outranks the comment on every class.
-    assert _input_shape(source, input_shape=[4, 8]) == "4,8"
+    model = tmp_path / "model.py"
+    model.write_text(source, encoding=encoding)
+    recipe = service._input_from_comment(str(model), cls)
+    return None if recipe is None else [tuple(tensor.shape) for tensor in recipe[0]]
 
 
-def test_both_tiers_spell_the_declaration_the_same_way():
-    """The two patterns are duplicated on purpose, and may not drift.
+def test_the_worker_feeds_each_class_the_declaration_the_drawing_gives_it(tmp_path):
+    assert (_run_with(tmp_path, EACH, "A"), _run_with(tmp_path, EACH, "B")) == ([(2, 8)], [(3, 16)])
+    # It used to hand A's declaration, and a stray one, to B as well.
+    assert _run_with(tmp_path, ONLY_A, "B") is None
+    assert _run_with(tmp_path, STRAY, "B") is None
+    # One model in the file: wherever the declaration sits, it is that model's.
+    assert _run_with(tmp_path, UNGUESSABLE, "Net") == [(2, 8)]
 
-    The worker cannot import the parser's copy. The worker runs with the user's
-    own repository first on ``sys.path``, and importing ``utils.code_parser``
-    pulls in ``models.graph_models`` — which any workspace with a ``models/``
-    package of its own, meaning most of them, would shadow. That is not
-    hypothetical: it was tried, and every worker test failed with the fixture's
-    own ``models`` package shadowing the backend's.
 
-    So the duplication stays and this assertion guards it. If the two ever
-    disagree, the graph that is drawn and the graph that is run disagree about
-    what counts as a declaration, which is the bug this whole file exists for.
-    """
-    from services.ingest import service
+def test_the_worker_reads_a_file_saved_with_a_byte_order_mark_by_the_same_rule(tmp_path):
+    # Python imports a file saved as "UTF-8 with BOM", but a BOM left in the text is
+    # a syntax error to ast, so the worker fell back to the file's first declaration
+    # and fed B what A or no class declared.
+    bom = dict(encoding="utf-8-sig")
+    assert _run_with(tmp_path, EACH, "B", **bom) == [(3, 16)]
+    assert _run_with(tmp_path, ONLY_A, "B", **bom) is None
+    assert _run_with(tmp_path, STRAY, "B", **bom) is None
 
-    from utils.code_parser import INPUT_COMMENT
 
-    assert service._INPUT_COMMENT.pattern == INPUT_COMMENT.pattern
+def test_the_worker_still_reads_a_declaration_in_a_file_python_cannot_parse(tmp_path):
+    # A buffer mid-edit still deserves whatever the file declares.
+    assert _run_with(tmp_path, "class B(:\n    # tensorviz: input=3,16\n", "B") == [(3, 16)]
+    # So does source nested too deep for ast to build, which raises RecursionError.
+    too_deep = ONLY_A + "print(" + "+".join(["1"] * 100_000) + ")\n"
+    assert _run_with(tmp_path, too_deep, "B") == [(2, 8)]
+
+
+def test_the_worker_reads_each_class_its_own_in_a_file_too_deep_to_prove_modules_in(tmp_path):
+    # Python imports a module-level sum of 2,000 terms, but proving which classes are
+    # modules walks it a frame per term and ran out of stack, so the trace failed.
+    deep = "print(" + "+".join(["1"] * 2_000) + ")\n"
+    assert (_run_with(tmp_path, EACH + deep, "A"), _run_with(tmp_path, EACH + deep, "B")) == ([(2, 8)], [(3, 16)])
+    assert _run_with(tmp_path, ONLY_A + deep, "B") is None

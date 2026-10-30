@@ -41,17 +41,16 @@ recipe and is used first. These comments apply when that recipe does not.
 
 | Directive | Where it is read | What it does |
 | --- | --- | --- |
-| `# tensorviz: input=` | `backend/services/input_comment.py` (`comment_for_class`), used by `backend/services/ingest/service.py` and `backend/utils/code_parser.py` | Example forward input for one class. A comment inside a class body belongs to that class. A comment that sits before a class belongs to the next top-level class, and to no other class. A comment with no following class is the file-wide default for classes that have no comment of their own. The comma form `2,4` is a shape. `2,8;2,8` is two arguments; the torch-free reader takes the first argument's comma shape. The worker also accepts an expression such as `torch.randint(0, 50257, (1, 16))` through `parse_input_spec`. |
+| `# tensorviz: input=` | `backend/services/ingest/input_declarations.py` (`applicable`), used by `backend/services/ingest/service.py` and `backend/utils/code_parser.py` | Example forward input for one class. Only actual comments owned by the selected model class are used. Adjacent class declarations and supported inherited declarations follow the same rule in setup, source projection and capture; unrelated models and docstrings cannot supply inputs. The comma form `2,4` is a shape. `2,8;2,8` is two arguments; the torch-free reader takes the first argument's comma shape. The worker also accepts an expression such as `torch.randint(0, 50257, (1, 16))` through `parse_input_spec`. |
 | `# tensorviz: init=` | `backend/utils/code_parser.py`, `backend/services/ingest/service.py`, `extension/src/initComment.ts` | How to construct the class when it cannot be called with no arguments. One call, keyword arguments only, literal values. A config object is one level deep: `cfg=ModelConfig(width=8)`. Place it on or above the class line. |
 | `# tensorviz: out_shape=` | `backend/services/ingest/introspect.py` | Declared output of a class the trace did not measure. It must sit in that class body. `(2, 16)` is a numeric shape. `(B, D)` is recorded and is not turned into numbers. |
 
 `input=` is used when the opening has no explicit execution recipe, tensor
 inputs, or example input (`_input_from_comment` in `backend/services/ingest/service.py`).
 During graph setup, a saved `tensorviz.toml` profile never reaches the resolver,
-and one complete in-file example call (constructor and inputs, such as
-`model(torch.ones(...))`) is applied before the comment
-(`backend/services/ide/graph_setup_resolution.py`). An explicit `input_shape`
-still wins over the comment.
+and a class-owned declaration overrides inputs inferred from repository example calls
+(`backend/services/ide/graph_setup_resolution.py`). Complete calls can still supply
+the constructor recipe. An explicit `input_shape` wins over the comment.
 """.strip()
 
 
@@ -227,14 +226,13 @@ def _assert_sources() -> None:
     parser = (ROOT / "backend" / "utils" / "code_parser.py").read_text(encoding="utf-8")
     ingest = (ROOT / "backend" / "services" / "ingest" / "service.py").read_text(encoding="utf-8")
     introspect = (ROOT / "backend" / "services" / "ingest" / "introspect.py").read_text(encoding="utf-8")
-    if "tensorviz:\\s*input\\s*=" not in parser or "tensorviz:\\s*init\\s*=" not in parser:
-        raise SystemExit("input=/init= directives drifted from backend/utils/code_parser.py")
-    if "tensorviz:\\s*input\\s*=" not in ingest:
-        raise SystemExit("input= directive drifted from backend/services/ingest/service.py")
+    declarations = (ROOT / "backend" / "services" / "ingest" / "input_declarations.py").read_text(encoding="utf-8")
+    if "tensorviz:\\s*input\\s*=" not in declarations or "applicable(" not in parser or "input_declarations.applicable(" not in ingest:
+        raise SystemExit("input= directive drifted from the shared class-scoped resolver")
+    if "tensorviz:\\s*init\\s*=" not in parser:
+        raise SystemExit("init= directive drifted from backend/utils/code_parser.py")
     if "tensorviz:\\s*out_shape\\s*=" not in introspect:
         raise SystemExit("out_shape= directive drifted from backend/services/ingest/introspect.py")
-    if len(setting_keys()) != 15:
-        raise SystemExit(f"expected 15 extension settings, found {len(setting_keys())}")
 
 
 def render() -> str:

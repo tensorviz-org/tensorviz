@@ -35,6 +35,9 @@ class Symbolic(nn.Module):
         return self.fc(x)
 
 
+# A negative sum on purpose: neither block runs, so the only thing that can say
+# what they produce is the declaration in their own source.
+# tensorviz: input=torch.full((2, 16), -1.0)
 class Branchy(nn.Module):
     def __init__(self):
         super().__init__()
@@ -47,8 +50,3 @@ class Branchy(nn.Module):
             x = self.declared(x)
             x = self.symbolic(x)
         return self.head(x)
-
-
-# A negative sum on purpose: neither block runs, so the only thing that can say
-# what they produce is the declaration in their own source.
-# tensorviz: input=torch.full((2, 16), -1.0)

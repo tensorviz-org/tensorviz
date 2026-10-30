@@ -128,3 +128,26 @@ def test_an_embedding_still_falls_back_to_the_expression_form():
     declaration = _declaration(nodes, edges)
     assert "randint" in declaration, declaration
     assert declared_input_shape(declaration) is None
+
+
+def test_the_declaration_sits_directly_above_the_model_class_after_its_helper_modules():
+    """Graph setup applies a declaration outside every class only when the file has one
+    model class. The generator writes helper and custom-op modules before the model, so a
+    declaration under the imports applied to none of them, and a new template opened
+    into the setup form instead of capturing."""
+    from models.graph_models import Edge, Graph, Node
+    from services.template_service import TemplateService
+    from tests.discovery.test_graph_setup_declared_inputs import shapes
+    from tests.discovery.test_graph_setup_resolution import resolved
+
+    service = CodeGenerationService()
+    nodes = [_node("x", "Input", {"shape": "1,8,4"}), _node("grn", "GRN", op="grn"), _node("out", "Output")]
+    edges = [{"id": "e1", "source": "x", "target": "grn"}, {"id": "e2", "source": "grn", "target": "out"}]
+    flat = service.generate_flat_code(Graph(nodes=[Node(**n) for n in nodes], edges=[Edge(**e) for e in edges]),
+                                      [1, 8, 4], "Model")
+    hierarchical = service.generate_hierarchical_code(TemplateService().instantiate_template("resnet", {}),
+                                                      [1, 3, 224, 224], "Model")
+    for code, helper, shape in ((flat, "GRN", [1, 8, 4]), (hierarchical, "Layer1", [1, 3, 32, 32])):
+        model = resolved(code, cls="Model")
+        assert (model["status"], shapes(model)) == ("complete", [shape])
+        assert shape not in shapes(resolved(code, cls=helper))

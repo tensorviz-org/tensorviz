@@ -4,9 +4,10 @@ from __future__ import annotations
 import ast
 import copy
 import math
+import re
 from dataclasses import dataclass
 
-from services.input_comment import declared_example
+from ..ingest.input_declarations import applicable
 from .graph_setup import _MISSING, _literal, argument
 
 
@@ -44,52 +45,10 @@ class Resolver:
         self.evidence = []
         self.steps = 0
         self.unsupported_construction = False
-        self._declared = declared_example(getattr(reader, 'sources', {}).get(file, ''), cls)
 
     def available(self):
         self.steps += 1
         return self.steps <= 20_000
-
-    def _place_declared(self, profile, discovery) -> bool:
-        """Use this class's ``# tensorviz: input=`` comment as the example input.
-
-        Returns True when a comment is present, including one that is not a
-        static shape. Callers then leave the remaining inputs for a person
-        instead of saving a guessed tensor that capture would treat as explicit.
-        """
-        if not self._declared:
-            return False
-        shapes, line = self._declared
-        if not shapes:
-            self.note('inputs', 'source',
-                      'This class has a # tensorviz: input= comment that is not a static shape. '
-                      'Save an explicit tensorviz.toml profile or use a comma-separated shape.',
-                      self.file, line)
-            return True
-        used = 0
-        for field in discovery.get('inputs') or []:
-            if used >= len(shapes) or not field.get('required') or field.get('kind') in ('varargs', 'kwargs'):
-                continue
-            if field['name'] in profile['inputs']['kwargs']:
-                continue
-            shape = shapes[used]
-            if any(type(dim) is not int or dim <= 0 for dim in shape) or math.prod(shape) > 4_194_304:
-                continue
-            tensor = dict(kind='tensor', shape=list(shape), dtype='float32', requires_grad=False,
-                          generator=dict(kind='normal', mean=0, std=1, seed=0))
-            if field['kind'] == 'positional':
-                preceding = [item for item in discovery['inputs'][:discovery['inputs'].index(field)]
-                             if item['kind'] == 'positional']
-                if len(profile['inputs']['args']) != len(preceding):
-                    continue
-                profile['inputs']['args'].append(tensor)
-            else:
-                profile['inputs']['kwargs'][field['name']] = tensor
-            used += 1
-            self.note('inputs.' + field['name'], 'source',
-                      'Example input from the # tensorviz: input= comment on this class.',
-                      self.file, line)
-        return True
 
     def note(self, field, kind, detail, file=None, line=None):
         entry = dict(field=field, kind=kind, detail=detail[:512])
@@ -611,8 +570,41 @@ class Resolver:
         tensor = dict(kind='tensor', shape=shape, dtype=dtype, requires_grad=False, generator=generator)
         return tensor, file, line, f'{name.removeprefix("torch.nn.")} input constraint; ' + '; '.join(assumptions)
 
+    def declared_inputs(self):
+        def proven():
+            from services.ingest.module_discovery import module_declarations
+            return {(line, name) for file, line, name in module_declarations(self.reader.sources, index=self.reader.index)
+                    if file == self.file}
+        # The rule the drawing, the capture worker and the project graph also follow.
+        declarations, stray = applicable(self.reader.sources[self.file], self.cls,
+                                         tree=self.reader.trees[self.file], proven=proven)
+        if not declarations and stray is not None:
+            return [], ('This file has several model classes, so an input declaration outside a class applies to none of them. '
+                        'Move it directly above or into its class, or use Inputs or tensorviz.toml.'), stray
+        if not declarations:
+            return None
+        value, line = declarations[0]
+        problem = 'The input declaration needs positive comma-separated dimensions (semicolon-separated tensors), at most 32 dimensions per tensor and 4,194,304 elements total. Use Inputs or tensorviz.toml for other values.'
+        if len(declarations) != 1:
+            return [], 'Several input declarations were found. Choose one input setup in Inputs or tensorviz.toml.', line
+        if len(value) > 4096 or len(value.split(';')) > 64:
+            return [], problem, line
+        shapes = []
+        for item in value.split(';'):
+            if not re.fullmatch(r'[0-9]+(?:\s*,\s*[0-9]+)*', item.strip()):
+                return [], problem, line
+            shape = [int(dimension) for dimension in item.split(',')]
+            if len(shape) > 32 or any(not 0 < dimension <= 2**31 - 1 for dimension in shape):
+                return [], problem, line
+            shapes.append(shape)
+        if sum(math.prod(shape) for shape in shapes) > 4_194_304:
+            return [], problem, line
+        return [dict(kind='tensor', shape=shape, dtype='float32', requires_grad=False,
+                     generator=dict(kind='normal', mean=0, std=1, seed=0)) for shape in shapes], None, line
+
     def resolve(self):
         discovery = self.discovery
+        declared = self.declared_inputs()
         profile = dict(kind='model', model=discovery['model'], mode='eval', device='cpu', seed=0,
                        grad_enabled=False, init=dict(args=[], kwargs={}), inputs=dict(args=[], kwargs={}))
         draft, unresolved = dict(profile=profile), []
@@ -670,23 +662,34 @@ class Resolver:
                                   if not reason.startswith('init.') or reason.split(':', 1)[0][5:] in unknown]
                     for name, value, file, line, detail in notes:
                         self.note(name, 'example', f'Example value {value} from {detail} dimension constraints; editable, not a recovered configuration.', file, line)
-            # A class comment is the example input. A saved tensorviz.toml profile
-            # never reaches this resolver, so an explicit profile still wins. Do not
-            # invent a 64×64 or batch-1 tensor over a comment.
-            if not self._place_declared(profile, discovery):
-                for field in discovery['inputs'] or []:
-                    if field['required'] and field['kind'] not in ('varargs', 'kwargs'):
-                        found = self.layer_input(construction, field['name'])
-                        if found:
-                            tensor, file, line, detail = found
-                            if field['kind'] == 'positional':
-                                preceding = [f for f in discovery['inputs'][:discovery['inputs'].index(field)] if f['kind'] == 'positional']
-                                if len(profile['inputs']['args']) != len(preceding):
-                                    continue
-                                profile['inputs']['args'].append(tensor)
-                            else:
-                                profile['inputs']['kwargs'][field['name']] = tensor
-                            self.note('inputs.' + field['name'], 'example', detail, file, line)
+            for field in discovery['inputs'] or []:
+                if field['required'] and field['kind'] not in ('varargs', 'kwargs'):
+                    found = self.layer_input(construction, field['name'])
+                    if found:
+                        tensor, file, line, detail = found
+                        if field['kind'] == 'positional':
+                            preceding = [f for f in discovery['inputs'][:discovery['inputs'].index(field)] if f['kind'] == 'positional']
+                            if len(profile['inputs']['args']) != len(preceding):
+                                continue
+                            profile['inputs']['args'].append(tensor)
+                        else:
+                            profile['inputs']['kwargs'][field['name']] = tensor
+                        self.note('inputs.' + field['name'], 'example', detail, file, line)
+        if declared is not None:
+            tensors, problem, line = declared
+            profile['inputs'] = dict(args=tensors, kwargs={})
+            self.evidence = [entry for entry in self.evidence if not entry['field'].startswith('inputs.')]
+            for entry in self.evidence:
+                if entry['field'] == 'call':
+                    entry.update(field='init', detail='Constructor recipe from this source call; inputs use the declaration.')
+            if problem:
+                unresolved.append('inputs: ' + problem)
+            else:
+                self.note('inputs', 'source', 'Explicit input declaration; positional float32 tensors with normal values and seed 0.', self.file, line)
+                fields = discovery['inputs']
+                if fields is not None and not any(field['kind'] == 'varargs' for field in fields):
+                    if len(tensors) > sum(field['kind'] in ('positional', 'keyword') for field in fields):
+                        unresolved.append('inputs: The input declaration supplies more positional tensors than forward accepts.')
         for group in ('init', 'inputs'):
             fields = discovery[group]
             if fields is None:
@@ -724,13 +727,14 @@ class Resolver:
             profile.pop('init')
             draft.pop('configObject', None)
             profile['factory'] = dict(file=factory['file'], callable=factory['callable'], kwargs={})
-            profile['inputs'] = dict(args=[], kwargs={})
-            unresolved = [reason for reason in unresolved if reason.startswith('inputs:')]
-            self.evidence = [entry for entry in self.evidence if not entry['field'].startswith(('init', 'inputs.'))]
-            # The comment names the forward input, not the incomplete constructor.
-            if not self._place_declared(profile, discovery):
+            if declared is None:
+                profile['inputs'] = dict(args=[], kwargs={})
+                unresolved = [reason for reason in unresolved if reason.startswith('inputs:')]
                 unresolved.extend(f"inputs.{field['name']}: provide a value." for field in discovery['inputs'] or []
                                   if field['required'])
+            else:
+                unresolved = [reason for reason in unresolved if reason.startswith(('inputs:', 'inputs.'))]
+            self.evidence = [entry for entry in self.evidence if not entry['field'].startswith(('init', 'inputs.'))]
             self.note('factory', 'example', 'A repository factory callable without arguments supplies this example variant; its result must pass capture.',
                       factory['file'], factory['line'])
         inherited_default = (not complete_examples and not draft.get('configObject')
@@ -758,7 +762,7 @@ class Resolver:
         # Optional library inputs can still be semantically required (e.g. tokens
         # or pixels). Ask the constructed model for its contract before saving an
         # empty call. Known zero-input declarations and complete calls need no probe.
-        runtime_inputs = (not self._declared and not complete_examples and (inherited_default or discovery['inputs'] != [])
+        runtime_inputs = (declared is None and not complete_examples and (inherited_default or discovery['inputs'] != [])
                           and not draft.get('configObject') and profile['inputs'] == dict(args=[], kwargs={})
                           and all(reason.startswith(('inputs:', 'inputs.')) for reason in unresolved))
         if runtime_inputs and not unresolved:

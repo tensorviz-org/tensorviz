@@ -58,7 +58,9 @@ def _class_lines(file: str) -> Dict[str, int]:
     all. Cached per file because a model has many instances of few classes.
     """
     try:
-        with open(file, encoding="utf-8", errors="ignore") as handle:
+        # "-sig" drops the BOM of a file saved as UTF-8 with BOM. Python imports such a
+        # file, but ast refuses the BOM, which would lose every class in it.
+        with open(file, encoding="utf-8-sig", errors="ignore") as handle:
             tree = ast.parse(handle.read())
     except (OSError, SyntaxError, ValueError):
         return {}
@@ -84,7 +86,8 @@ def _class_annotations(file: str) -> Dict[str, str]:
     same reason ``_class_lines`` is: a model has many instances of few classes.
     """
     try:
-        with open(file, encoding="utf-8", errors="ignore") as handle:
+        # "-sig" for the reason ``_class_lines`` gives.
+        with open(file, encoding="utf-8-sig", errors="ignore") as handle:
             source = handle.read()
         tree = ast.parse(source)
     except (OSError, SyntaxError, ValueError):

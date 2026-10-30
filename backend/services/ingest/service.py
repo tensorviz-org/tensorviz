@@ -24,6 +24,7 @@ import os
 import re
 import sys
 import time
+import tokenize
 from contextlib import contextmanager, nullcontext
 from ..python_compat import chdir
 from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Tuple
@@ -31,8 +32,8 @@ from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Tuple
 import torch
 from torch._subclasses.fake_tensor import FakeTensorMode
 
-from ..input_comment import INPUT_COMMENT as _INPUT_COMMENT, comment_for_class
 from . import inputs as input_search
+from . import input_declarations
 from ..validation.setup import package_root, ExecutionRequirement
 from ..semantic.contracts import Diagnostic
 from . import repo_scan as repo
@@ -140,14 +141,6 @@ def _ingest_repo(ref: ModelRef) -> IngestResult:
 
 
 # ─────────────────────────────────────────────────── the IDE worker path ─────────
-#: ``# tensorviz: input=2,8`` (or ``2,8;2,8`` for two arguments). Compiled as
-#: ``r"#\s*tensorviz:\s*input\s*=\s*(?P<value>[^\n]+)"`` in ``services.input_comment``,
-#: not in ``utils.code_parser``. Importing the parser pulls ``models.graph_models``, and this file is imported by
-#: the worker, which runs with the USER's repository first on ``sys.path``. A
-#: workspace with its own ``models/`` package would shadow the backend's and the
-#: worker would fail to import. ``test_declared_input_shape`` asserts the pattern
-#: the parser re-exports is this one.
-
 #: The seed every ``tier='real'`` trace runs under, so that opening the same class
 #: twice draws the same graph. Fixed rather than configurable: a data-dependent
 #: branch is steered by *declaring the input* (``# tensorviz: input=torch.full(...)``),
@@ -212,16 +205,34 @@ def parse_input_spec(value: str) -> Optional[Tuple[Tuple[Any, ...], Dict[str, An
     return (value_,), {}
 
 
-def _scoped_input_match(source: str, cls: Optional[str]):
-    """The ``# tensorviz: input=`` that belongs to ``cls``, else the file's own.
+def _scoped_input(source: str, cls: Optional[str]) -> Optional[str]:
+    """The ``# tensorviz: input=`` value that belongs to ``cls``, or None.
 
-    A comment inside the class body wins. Otherwise the comment belongs to the
-    class that follows it, so a line written above ``TinyEncoder`` is not also
-    ``FeedForward``'s input. A comment with no following class remains the
-    file-wide default (``custom/net.py``'s trailing ``2,16`` is ``Custom``'s;
-    ``Transposed`` keeps the comment inside its body).
+    A bare ``search()`` takes the first match in the file and hands it to whichever
+    class is being traced. In a file with two models that is simply the wrong tensor:
+    ``custom/net.py`` declares ``2,16`` for ``Custom`` and ``Transposed`` needs a 3-D
+    input, so ``Transposed`` was fed its file-mate's shape and died in ``transpose``.
+
+    ``input_declarations`` holds the one rule setup and the drawing follow too: in a
+    file with several model classes, a class owns the declaration directly above or
+    inside it, and one elsewhere belongs to none of them. It is imported relatively
+    and is stdlib-only, never ``utils.code_parser``: that module would pull
+    ``models.graph_models`` into the worker, which runs with the USER's repository
+    first on ``sys.path``, and a workspace ``models/`` package would shadow it. The
+    worker has no module index, so it proves which classes are modules from this
+    file's own imports, as the index does for a file on its own, and counts a
+    subclass of a model class in this file, whose base another file may prove.
     """
-    return comment_for_class(source, cls)
+    try:
+        own, _stray = input_declarations.applicable(source, cls)
+    except (SyntaxError, tokenize.TokenError, RecursionError):
+        # A buffer mid-edit still deserves whatever the file declares, so fall back
+        # to the file-wide search rather than losing the hint. Source nested too deep
+        # for ast to build cannot be imported either; the import should say so, not a
+        # RecursionError from here.
+        match = input_declarations.INPUT_COMMENT.search(source)
+        return match.group("value") if match else None
+    return own[0][0] if own else None
 
 
 #: What a construction failure should tell the user to DO. Every failure used to end
@@ -345,20 +356,22 @@ def _input_from_comment(
     file: str, cls: Optional[str] = None
 ) -> Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]:
     try:
-        with open(file, encoding="utf-8", errors="ignore") as handle:
+        # "-sig" drops the BOM of a file saved as UTF-8 with BOM. Python imports such a
+        # file, but ast refuses the BOM, and source ast refuses gets the file-wide search.
+        with open(file, encoding="utf-8-sig", errors="ignore") as handle:
             source = handle.read()
     except OSError:
         return None
-    match = _scoped_input_match(source, cls)
-    if match is None:
+    value = _scoped_input(source, cls)
+    if value is None:
         return None
-    return parse_input_spec(match.group("value"))
+    return parse_input_spec(value)
 
 
-#: ``# tensorviz: init=Net(hidden=8, depth=2)``. Duplicated from ``utils.code_parser``
-#: for exactly the reason ``_INPUT_COMMENT`` above is, and guarded by the same kind of
-#: drift test (``test_ide_init_comment``), which compares both the pattern and what the
-#: two readers do with a table of declarations.
+#: ``# tensorviz: init=Net(hidden=8, depth=2)``. Duplicated from ``utils.code_parser``,
+#: which the worker may not import for the reason ``_scoped_input`` above gives, and
+#: guarded by a drift test (``test_ide_init_comment``), which compares both the pattern
+#: and what the two readers do with a table of declarations.
 _INIT_COMMENT = re.compile(r"#\s*tensorviz:\s*init\s*=\s*(?P<value>[^\n]+)")
 
 

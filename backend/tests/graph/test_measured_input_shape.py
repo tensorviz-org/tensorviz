@@ -82,6 +82,21 @@ def test_a_measured_shape_beats_what_the_source_can_be_read_to_imply():
     assert _input_shape(literal, measured_input_shape=[8, 16]) == "8,16"
 
 
+#: A class whose own declaration is the expression form, which this tier cannot read
+#: without torch. Its first layer is a literal, so the source implies ``1,32``.
+EXPRESSION = UNGUESSABLE.replace("nn.Linear(width, width)", "nn.Linear(32, 4)").replace(
+    "class Net", "# tensorviz: input=torch.randn(4, 32)\nclass Net"
+)
+
+
+def test_a_measured_shape_does_not_stand_in_for_a_declaration_this_tier_cannot_read():
+    # The class has said what it is fed, so a saved shape is not an answer for it: it
+    # can be older than that line. It drew [4, 16] over a declaration and a first
+    # layer that both say 32.
+    assert _input_shape(EXPRESSION) == "1,32"
+    assert _input_shape(EXPRESSION, measured_input_shape=[4, 16]) == "1,32"
+
+
 def test_an_empty_measurement_is_not_a_measurement():
     # The extension sends what the envelope carried. A trace that produced no
     # tensor carries an empty list, and an empty list must fall through to the
@@ -171,3 +186,71 @@ def test_the_multifile_route_carries_the_measured_shape_to_the_drawn_input(clien
 
 def test_the_multifile_route_still_lets_the_file_declaration_win(client: TestClient):
     assert _multifile(client, DECLARED, measured_input_shape=[1, 3, 224, 224]) == "2,8"
+
+
+# ── a declaration is one class's, on both routes ─────────────────────────────
+#
+# Both routes draw every class in the file. The file's first declaration used to
+# be every class's, so a second model was drawn with the first one's input, and
+# that outranked even what its own last trace measured.
+
+#: Two models with different input widths; only ``A`` declares.
+ONLY_A = '''import torch.nn as nn
+
+
+# tensorviz: input=2,8
+class A(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc = nn.Linear(8, 4)
+
+    def forward(self, x):
+        return self.fc(x)
+
+
+class B(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc = nn.Linear(16, 4)
+
+    def forward(self, x):
+        return self.fc(x)
+'''
+EACH = ONLY_A.replace("class B(", "# tensorviz: input=3,16\nclass B(")
+
+
+@pytest.mark.parametrize("route", [_parse, _multifile], ids=["parse", "multifile"])
+def test_each_route_draws_the_selected_classs_own_declaration(client: TestClient, route):
+    assert route(client, EACH, cls="A") == "2,8"
+    assert route(client, EACH, cls="B") == "3,16"
+
+
+@pytest.mark.parametrize("route", [_parse, _multifile], ids=["parse", "multifile"])
+def test_another_classs_declaration_does_not_outrank_a_measured_shape(client: TestClient, route):
+    assert route(client, ONLY_A, cls="B", measured_input_shape=[5, 16]) == "5,16"
+    # A's own declaration still beats its measurement.
+    assert route(client, ONLY_A, cls="A", measured_input_shape=[5, 8]) == "2,8"
+
+
+@pytest.mark.parametrize("route", [_parse, _multifile], ids=["parse", "multifile"])
+def test_each_route_draws_a_class_with_an_unreadable_declaration_from_its_source(client: TestClient, route):
+    # The extension sends the saved shape for every class now, including one whose own
+    # declaration is the expression form this tier cannot read.
+    expression_a = ONLY_A.replace("input=2,8", "input=torch.randn(4, 8)")
+    assert route(client, expression_a, cls="A", measured_input_shape=[5, 16]) == "1,8"
+    assert route(client, expression_a, cls="B", measured_input_shape=[5, 16]) == "5,16"
+
+
+def test_asking_each_class_for_its_own_declaration_builds_the_module_index_once(monkeypatch):
+    # Every class is asked before it is drawn with the saved shape. The index that
+    # counts the models is built once per parse, and not for a file without a declaration.
+    from services.ingest import module_discovery
+
+    builds, build = [], module_discovery.module_declarations
+    monkeypatch.setattr(module_discovery, "module_declarations",
+                        lambda *args, **kwargs: builds.append(args) or build(*args, **kwargs))
+    for code, expected in [(ONLY_A, 1), (ONLY_A.replace("# tensorviz: input=2,8\n", ""), 0)]:
+        builds.clear()
+        result = CodeParserService().parse_pytorch_code(CodeParseRequest(code=code, measured_input_shape=[5, 8]))
+        assert [graph["name"] for graph in result["graphs"]] == ["A", "B"]
+        assert len(builds) == expected

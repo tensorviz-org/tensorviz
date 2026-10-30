@@ -6,7 +6,7 @@ from typing import Dict, List, Any, NamedTuple, Optional, Tuple, Set
 from models.graph_models import Graph, Node, Edge, LayerData, LayerType, CodeParseRequest
 from core.op_registry import spec_for
 from utils.residual_roles import annotate_residual_edges
-from services.input_comment import INPUT_COMMENT, declared_input_shape
+from services.ingest.input_declarations import applicable
 from services.torch_imports import canonical_name, torch_imports
 from services.validation.signatures import forward_declaration
 from utils.source_flow import Flow, UNKNOWN, bind_helper, local_methods
@@ -123,10 +123,33 @@ def _is_self_super_call(node: ast.AST, current_class: Optional[str] = None) -> b
 
 
 
-#: ``# tensorviz: input=2,8`` (or ``2,8;2,8`` for two arguments). Compiled as
-#: ``r"#\s*tensorviz:\s*input\s*=\s*(?P<value>[^\n]+)"`` in ``services.input_comment``,
-#: which the capture worker imports too. This module re-exports that pattern so the
-#: graph that is drawn and the graph that is run cannot disagree.
+def declared_input_shape(
+    source: str, cls: Optional[str] = None, *, tree: Optional[ast.AST] = None, proven=None
+) -> Optional[List[int]]:
+    """The shape the ``# tensorviz: input=`` comment for class ``cls`` declares, or ``None``.
+
+    ``# tensorviz: input=2,8`` (or ``2,8;2,8`` for two arguments) is the escape hatch
+    for a forward whose input cannot be guessed, and the only one that lives in the
+    user's own source. Which class it belongs to is decided in
+    ``services.ingest.input_declarations``, the one rule setup, the capture worker and
+    the project graph also follow: in a file with several model classes, only a
+    declaration directly above or inside ``cls`` is read. ``tree`` and ``proven`` are
+    passed through to it.
+
+    Only the plain comma-separated form is read, and only its first argument. This
+    tier draws a single Input node, and the expression form the worker also accepts
+    (``torch.randint(0, 50257, (1, 16))``) needs torch to evaluate, which is exactly
+    what this tier promises not to import. A declaration it cannot read is left to
+    the inference below rather than guessed at.
+    """
+    own, _stray = applicable(source or "", cls, tree=tree, proven=proven)
+    if not own:
+        return None
+    first = own[0][0].split(";")[0].strip()
+    if not re.fullmatch(r"\d+(\s*,\s*\d+)*", first):
+        return None
+    dims = [int(part) for part in first.split(",")]
+    return dims or None
 
 
 #: ``# tensorviz: init=Net(hidden=8, depth=2)`` on or above the class line. The
@@ -134,9 +157,9 @@ def _is_self_super_call(node: ast.AST, current_class: Optional[str] = None) -> b
 #: and the companion to ``input=``: that one says what the model is fed, this one says
 #: how the model is built.
 #:
-#: Duplicated in ``services/ingest/service.py`` for the same reason ``INPUT_COMMENT``
-#: is — the worker cannot import this module without the user's own ``models`` package
-#: shadowing the backend's. ``test_ide_init_comment`` asserts the two cannot drift.
+#: Duplicated in ``services/ingest/service.py`` because the worker cannot import this
+#: module without the user's own ``models`` package shadowing the backend's.
+#: ``test_ide_init_comment`` asserts the two cannot drift.
 INIT_COMMENT = re.compile(r"#\s*tensorviz:\s*init\s*=\s*(?P<value>[^\n]+)")
 
 
@@ -346,7 +369,7 @@ class CodeParserService:
                     "graphs": []
                 }
             
-            # Honour, in order: what the caller asked for, what the FILE declares,
+            # Honour, in order: what the caller asked for, what the CLASS declares,
             # what a previous trace MEASURED, then what can be discovered from the
             # module, then the default.
             #
@@ -363,11 +386,32 @@ class CodeParserService:
             # is a better answer than one read off a literal — and it is the only
             # thing that makes the drawn Input node agree with the measured shapes
             # on the cards beneath it for a model nothing in the source describes.
-            # One file can declare a different example for each class. A comment
-            # belongs to the class that follows it (or to the class whose body
-            # holds it), and a trailing file-wide comment is only the default for
-            # a class that has none. An explicit request shape still wins.
-            discovered_fallback = self._discover_input_shape(tree)
+            # It stands in only for a class without a declaration of its own: one
+            # whose declaration this tier cannot read (the expression form) is drawn
+            # from its source, since the saved shape can be older than that line.
+            #
+            # The declaration is read per class, by the rule setup and the worker
+            # follow: in a file with several models one class's declaration is not
+            # another's input, and one that belongs to no class is drawn for none.
+            # Counting the models needs a module index, built at most once per parse
+            # and only for a file with a declaration and several classes. Classes
+            # whose base the caller resolved in another file count as proven too.
+            proof: List[Set[Tuple[int, str]]] = []
+
+            def proven() -> Set[Tuple[int, str]]:
+                if not proof:
+                    from services.ingest.module_discovery import module_declarations
+                    proof.append({(line, name) for _, line, name in module_declarations({"buffer.py": request.code})}
+                                 | {(node.lineno, node.name) for node in tree.body if isinstance(node, ast.ClassDef)
+                                    and any(ast.unparse(base) in (extra_module_bases or ()) for base in node.bases)})
+                return proof[0]
+
+            def measured_input_shape(class_name: str) -> Optional[List[int]]:
+                if request.measured_input_shape and not applicable(request.code, class_name, tree=tree, proven=proven)[0]:
+                    return request.measured_input_shape
+                return None
+
+            inferred_input_shape = self._discover_input_shape(tree)
 
             # Convert each model class to a graph. A class that instantiates
             # another user-defined nn.Module (self.block = MyBlock()) gets a
@@ -383,9 +427,9 @@ class CodeParserService:
             for class_name, class_node in model_classes.items():
                 discovered_input_shape = (
                     request.input_shape
-                    or declared_input_shape(request.code, class_name)
-                    or request.measured_input_shape
-                    or discovered_fallback
+                    or declared_input_shape(request.code, class_name, tree=tree, proven=proven)
+                    or measured_input_shape(class_name)
+                    or inferred_input_shape
                 )
                 try:
                     graph = self._convert_class_to_graph(

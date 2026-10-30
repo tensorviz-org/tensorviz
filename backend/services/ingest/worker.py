@@ -692,11 +692,12 @@ def _train_step_batch_error(args: Any) -> Optional[str]:
 
     if args.input and parse_input_spec(args.input) is not None:
         return None
-    if _input_from_comment(args.file) is not None:
+    # The class the run traces, so the check reads the declaration the run will use.
+    if _input_from_comment(args.file, args.cls) is not None:
         return None
     return (
         "--kind train_step needs a batch: pass --input (e.g. --input 2,8) or put a "
-        "`# tensorviz: input=...` comment in the model's file"
+        "`# tensorviz: input=...` comment directly above the model class"
     )
 
 

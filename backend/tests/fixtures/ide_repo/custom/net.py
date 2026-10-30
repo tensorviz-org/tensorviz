@@ -16,6 +16,7 @@ import torch.nn as nn
 from models.blocks import MyBlock
 
 
+# tensorviz: input=2,16
 class Custom(nn.Module):
     def __init__(self):
         super().__init__()
@@ -28,8 +29,8 @@ class Custom(nn.Module):
 
 class Transposed(nn.Module):
     # tensorviz: input=2,8,4
-    # Its own, not the file's: the trailing file-scope hint below is Custom's 2-D
-    # shape, and `x.transpose(1, 2)` needs three dimensions.
+    # Its own: Custom's declaration above is 2-D, and `x.transpose(1, 2)` needs
+    # three dimensions.
     def __init__(self, width=8):
         super().__init__()
         self.mix = nn.Linear(width, width)
@@ -37,6 +38,3 @@ class Transposed(nn.Module):
     def forward(self, x):
         x = x.transpose(1, 2)
         return self.mix(x)
-
-
-# tensorviz: input=2,16

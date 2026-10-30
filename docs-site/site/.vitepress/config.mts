@@ -14,44 +14,28 @@ const r = (p: string) => route(p)
 const item = (text: string, p: string) => ({ text, link: r(p) })
 
 const sidebar = [
-  { text: 'Overview', items: [item('Documentation index', 'docs/README.md'), item('Repository README', 'README.md')] },
-  { text: 'Quickstart', items: [item('Open a model', 'docs/quickstart.md'), item('Small example (HTML)', 'docs/getting-started.html')] },
-  { text: 'Concepts', items: [
-    item('Capture, files, and hosts', 'docs/concepts.md'), item('Graph files', 'docs/graph-files.md'),
-    item('Saved profiles (tensorviz.toml)', 'docs/model-validation-profiles.md')] },
-  { text: 'Guides', items: [
-    item('Open a graph', 'docs/graph-opening.md'), item('Setup and inputs', 'docs/graph-setup.md'), item('Model libraries', 'docs/graph-libraries.md'),
-    item('Canvas', 'docs/canvas.md'), item('Code focus', 'docs/code-focus.md'), item('Source proposals', 'docs/source-editing.md'),
-    item('Graph diff', 'docs/graph-diff-review/README.md'), item('Review a pull request', 'docs/graph-diff-review/pr-workflow.md'),
-    item('Python environments', 'docs/environment-recovery.md'), item('JAX and Flax', 'docs/jax-support.md'),
-    item('Hugging Face models', 'docs/hugging-face-models.md'), item('Share to tensorviz.dev', 'docs/share-to-website.md')] },
-  { text: 'Agents', items: [
-    item('Connect MCP', 'docs/mcp.md'), item('MCP tools', 'docs/mcp-tools.md'), item('MCP security', 'docs/mcp-security.md'),
-    item('Coding-agent plugin', 'docs/agent-plugin.md')] },
-  { text: 'Reference', items: [
-    item('Settings, commands, tools', 'docs/reference.md'), item('Local browser broker', 'docs/local-browser-broker.md'),
-    item('Extension README', 'extension/README.md'), item('Extension changelog', 'extension/CHANGELOG.md')] },
-  { text: 'Extension walkthrough', collapsed: true, items: [
-    item('Repository', 'extension/walkthrough/repository.md'), item('Environment', 'extension/walkthrough/environment.md'),
-    item('Graph', 'extension/walkthrough/graph.md'), item('Validate', 'extension/walkthrough/validate.md'),
-    item('Source edit', 'extension/walkthrough/source-edit.md'), item('Agent', 'extension/walkthrough/agent.md'),
-    item('Export', 'extension/walkthrough/export.md')] },
-  { text: 'Contribute', items: [
-    item('Local setup', 'docs/local-setup.md'), item('Plugin build', 'docs/plugin-build.md'), item('Licensing', 'docs/licensing.md'),
-    item('Contributing', 'CONTRIBUTING.md'), item('Security', 'SECURITY.md'), item('Code of conduct', 'CODE_OF_CONDUCT.md'),
-    item('Agent instructions', 'AGENTS.md')] },
-  { text: 'Packages and examples', collapsed: true, items: [
-    item('contracts', 'packages/contracts/README.md'), item('graph-host', 'packages/graph-host/README.md'),
-    item('Plugin (plugins/tensorviz)', 'plugins/tensorviz/README.md'),
-    item('tensorviz-research example', 'examples/tensorviz-research/README.md'), item('tensorviz-test example', 'examples/tensorviz-test/README.md')] },
-  { text: 'Packaged templates', collapsed: true, items: [
-    item('public-plugin README', 'docs/public-plugin/README.md'), item('Installation', 'docs/public-plugin/docs/installation.md'),
-    item('BUILD', 'docs/public-plugin/BUILD.md'), item('PRIVACY', 'docs/public-plugin/PRIVACY.md'),
-    item('SUPPORT', 'docs/public-plugin/SUPPORT.md'), item('TERMS', 'docs/public-plugin/TERMS.md'),
-    { text: 'Stubs', collapsed: true, items: [
-      item('standalone-install', 'docs/standalone-install.md'), item('standalone-permissions', 'docs/standalone-permissions.md'),
-      item('standalone-cursor', 'docs/standalone-cursor.md'), item('standalone-panel', 'docs/standalone-panel.md'),
-      item('standalone-t3', 'docs/standalone-t3.md'), item('package-names', 'docs/package-names.md')] }] },
+  { text: 'Start here', items: [
+    { text: 'Get TensorViz', link: '/' }, item('Quickstart', 'docs/quickstart.md'),
+    item('Installation options', 'docs/install.md')] },
+  { text: 'Use TensorViz', items: [
+    item('Open a model', 'docs/graph-opening.md'), item('Explore the graph', 'docs/canvas.md'),
+    item('Follow the code', 'docs/code-focus.md'), item('Review changes', 'docs/graph-diff-review/README.md'),
+    item('Reuse a capture', 'docs/execution-cache.md'), item('Edit your model', 'docs/source-editing.md'),
+    item('Export and share', 'docs/graph-files.md')] },
+  { text: 'Setup & help', collapsed: true, items: [
+    item('Python environments', 'docs/environment-recovery.md'), item('Model inputs', 'docs/graph-setup.md'),
+    item('Coding-agent plugin', 'docs/agent-plugin.md'), item('Connect your editor to an agent', 'docs/mcp.md'),
+    item('JAX and Flax', 'docs/jax-support.md'), item('Hugging Face', 'docs/hugging-face-models.md')] },
+  { text: 'Reference', collapsed: true, items: [
+    item('All guides', 'docs/README.md'), item('Settings and commands', 'docs/reference.md'),
+    item('How capture works', 'docs/concepts.md'), item('Saved model profiles', 'docs/model-validation-profiles.md'),
+    item('Model libraries', 'docs/graph-libraries.md'), item('MCP tools', 'docs/mcp-tools.md'),
+    item('MCP security', 'docs/mcp-security.md'), item('Canvas reference', 'docs/reference/canvas.md'),
+    item('Graph review reference', 'docs/reference/graph-review.md')] },
+  { text: 'Contribute', collapsed: true, items: [
+    item('Build from source', 'docs/local-setup.md'), item('Build the plugin', 'docs/plugin-build.md'),
+    item('Contributing', 'CONTRIBUTING.md'), item('Licensing', 'docs/licensing.md'),
+    item('Security', 'SECURITY.md'), item('Extension changelog', 'extension/CHANGELOG.md')] },
 ]
 
 // VitePress serialises this function into the client bundle, so constants are inlined via eval.
@@ -107,12 +91,10 @@ export default async () => {
       logo: { light: '/logo-light.svg', dark: '/logo-dark.svg', alt: 'TensorViz' },
       siteTitle: 'TensorViz',
       nav: [
-        { text: 'Quickstart', link: r('docs/quickstart.md'), activeMatch: '^/docs/(quickstart|getting-started)' },
-        { text: 'Concepts', link: r('docs/concepts.md'), activeMatch: '^/docs/(concepts|graph-files|model-validation)' },
-        { text: 'Guides', link: r('docs/graph-opening.md'), activeMatch: '^/docs/(graph-(?!files)|canvas|code-focus|source-editing|environment|jax|hugging|share)' },
-        { text: 'Agents', link: r('docs/mcp.md'), activeMatch: '^/docs/(mcp|agent-plugin)' },
-        { text: 'Reference', link: r('docs/reference.md'), activeMatch: '^/(docs/(reference|local-browser)|extension/)' },
-        { text: 'Contribute', link: r('docs/local-setup.md'), activeMatch: '^/(docs/(local-setup|plugin-build|licensing)|CONTRIBUTING|SECURITY|CODE_OF)' },
+        { text: 'Quickstart', link: r('docs/quickstart.md') },
+        { text: 'Guides', link: r('docs/README.md') },
+        { text: 'Reference', link: r('docs/reference.md') },
+        { text: 'Contribute', link: r('docs/local-setup.md') },
       ],
       sidebar,
       socialLinks: [{ icon: 'github', link: `https://github.com/${REPO}` }],

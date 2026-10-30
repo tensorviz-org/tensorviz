@@ -1,5 +1,4 @@
-// Presentation-only content layer: copies the repo docs (unchanged text) into the
-// VitePress root, rewrites links to site routes, and generates the landing page.
+// Copy repository docs into VitePress, adapt links, and render the install-first home.
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -94,7 +93,8 @@ function readmes(parent) {
 const rootDocs = ['README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CODE_OF_CONDUCT.md', 'AGENTS.md']
 const files = [
   ...rootDocs.filter((f) => fs.existsSync(path.join(SRC, f))),
-  ...walk(path.join(SRC, 'docs'), (name) => name.endsWith('.md') || name === 'getting-started.html'),
+  ...walk(path.join(SRC, 'docs'), (name) => name.endsWith('.md') || name === 'getting-started.html')
+    .filter((file) => !file.startsWith('docs/public-plugin/') && !/^docs\/(standalone-|package-names\.md$)/.test(file)),
   ...walk(path.join(SRC, 'extension'), (name) => name.endsWith('.md')),
   ...readmes('packages'),
   ...readmes('plugins'),
@@ -126,7 +126,7 @@ const transformMd = (p, text) => {
     if (c) return `> [!${CALLOUT[c[1].toLowerCase()]}]\n> ${c[2]}`
     return line.replace(/\]\(([^)\s]+)((?:\s+"[^"]*")?)\)/g, (m0, t, title) => `](${rewriteTarget(p, t)}${title})`)
   })
-  return lines.join('\n')
+  return lines.join('\n').replace(/<!-- install-options:start -->[\s\S]*?<!-- install-options:end -->/g, '<InstallOptions />')
 }
 
 for (const f of files) {
@@ -168,57 +168,10 @@ outline: false
   sources['docs/getting-started.md'] = 'docs/getting-started.html'
 }
 
-// 3. landing page generated from README.md + docs/README.md (plain doc page, no hero)
-const readme = fs.readFileSync(path.join(SRC, 'README.md'), 'utf8')
-const para = readme.split(/\n\s*\n/).find((b) => /^TensorViz shows/.test(b.trim())).trim()
-const sentences = para.match(/[^.]+\.(?=\s|$)/g).map((s) => s.trim())
-const strip = (s) => s.replace(/`/g, '')
-const tagline = strip(sentences[0])
-const detail = strip(sentences[1])
-const tryBlock = readme.split(/^## Try it\s*$/m)[1]
-const tryCode = tryBlock.match(/```sh\n([\s\S]*?)```/)[1].replace(/\n$/, '')
-const tryNoteMd = tryBlock.split('```')[2].trim().split(/\n\s*\n/)[0].trim()
-const mdLinks = (t, from) => t.replace(/\]\(([^)\s]+)\)/g, (m0, u) => `](${rewriteTarget(from, u)})`)
-const idx = fs.readFileSync(path.join(SRC, 'docs/README.md'), 'utf8')
-const order = ['Quickstart', 'Concepts', 'Guides', 'Agents', 'Reference', 'Contribute']
-const rows = []
-for (const sec of idx.split(/^## /m).slice(1)) {
-  const title = sec.split('\n')[0].trim()
-  if (!order.includes(title)) continue
-  const links = [...sec.matchAll(/^- \[([^\]]+)\]\(([^)]+)\)/gm)].map((m) => ({ text: m[1], href: rewriteTarget('docs/README.md', m[2]) }))
-  rows.push(`| [${title}](${links[0].href}) | ${links.map((l) => `[${l.text}](${l.href})`).join(', ')} |`)
-}
-const home = `---
-title: TensorViz documentation
-titleTemplate: false
-outline: false
-editLink: false
----
-
-# TensorViz
-
-${mdLinks(para, 'README.md')}
-
-## Quickstart
-
-From the repository root:
-
-\`\`\`sh
-${tryCode}
-\`\`\`
-
-${mdLinks(tryNoteMd, 'README.md')}
-
-## Sections
-
-<div class="sections">
-
-| Section | Pages |
-| --- | --- |
-${rows.join('\n')}
-
-</div>
-`
+// 3. Dedicated homepage content; contributor README changes cannot break it.
+const home = transformMd('docs-site/home.md', fs.readFileSync(path.join(here, 'home.md'), 'utf8'))
+const tagline = 'Install TensorViz, open a model, and explore its graph.'
+sources['index.md'] = 'docs-site/home.md'
 fs.writeFileSync(path.join(OUT, 'index.md'), home)
-fs.writeFileSync(path.join(OUT, '.vitepress/generated.json'), JSON.stringify({ sha: commit, ref: REF, base, sources, tryCode, detail, tagline }, null, 2))
+fs.writeFileSync(path.join(OUT, '.vitepress/generated.json'), JSON.stringify({ sha: commit, ref: REF, base, sources, tagline }, null, 2))
 console.log(`prepared ${Object.keys(sources).length} pages @ ${REF} (${commit.slice(0, 7)})`)

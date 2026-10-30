@@ -6,6 +6,7 @@ import './style.css'
 import Layout from './Layout.vue'
 import Mermaid from './Mermaid.vue'
 import EmbedFrame from './EmbedFrame.vue'
+import InstallOptions from './InstallOptions.vue'
 
 export default {
   extends: DefaultTheme,
@@ -13,5 +14,6 @@ export default {
   enhanceApp({ app }) {
     app.component('Mermaid', Mermaid)
     app.component('EmbedFrame', EmbedFrame)
+    app.component('InstallOptions', InstallOptions)
   },
 } satisfies Theme

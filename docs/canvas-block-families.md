@@ -96,4 +96,4 @@ forced-colors mode the glyphs use the system text color and selection uses the s
 highlight. Keyboard
 focus has its own ring, separate from the selection outline.
 
-Themes are in [Canvas](canvas.md#canvas-appearance).
+Themes are in [Canvas](reference/canvas.md#canvas-appearance).

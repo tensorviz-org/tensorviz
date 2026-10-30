@@ -40,7 +40,7 @@ without another chooser. Ambiguous choices, missing libraries and broken saved
 paths still lead to inline recovery; another workspace folder's Python is never
 adopted automatically. Readiness metadata alone does not certify a capture:
 model dependencies and the private worker are checked again before execution.
-See [unified onboarding](canvas.md#automatic-readiness-and-one-starting-screen).
+See [unified onboarding](reference/canvas.md#automatic-readiness-and-one-starting-screen).
 
 TensorViz reads `requirements.txt` and `[project].dependencies` in `pyproject.toml`
 for names and version constraints. Known mappings cover common PyTorch libraries

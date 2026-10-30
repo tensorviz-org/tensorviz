@@ -279,3 +279,39 @@ body { font-size: 15px; line-height: 1.6; }
 
 .vp-doc td:last-child { min-width: 220px; }
 .vp-doc .sections td:last-child { min-width: 0; }
+
+/* Install-first documentation: keep one choice and one command in view. */
+.install-options { margin: 32px 0 40px; border: 1px solid var(--tv-line-strong); border-radius: 12px; overflow: hidden; }
+.install-tabs { display: flex; border-bottom: 1px solid var(--tv-line); background: var(--tv-code-bg); }
+.install-tabs button { flex: 1; min-width: 0; padding: 16px 12px; font: inherit; font-size: 13px; line-height: 1.4; color: var(--tv-fg-2); border-bottom: 2px solid transparent; }
+.install-tabs button[aria-selected="true"] { color: var(--tv-fg); border-bottom-color: var(--tv-fg); background: var(--vp-c-bg); }
+.install-options button:focus-visible, .install-panel:focus-visible { outline: 2px solid var(--tv-fg); outline-offset: -4px; }
+.install-panel { padding: 26px; }
+.vp-doc .install-panel h2 { border: 0; margin: 0 0 8px; padding: 0; font-size: 23px; line-height: 1.35; letter-spacing: -.025em; }
+.vp-doc .install-panel p { margin: 8px 0 16px; font-size: 14px; line-height: 1.65; }
+.install-choices { display: flex; flex-wrap: wrap; gap: 6px; margin: 20px 0 12px; }
+.install-choices button { border: 1px solid var(--tv-line); border-radius: 6px; padding: 5px 12px; font-size: 12px; color: var(--tv-fg-2); }
+.install-choices button[aria-pressed="true"] { border-color: var(--tv-fg-3); color: var(--tv-fg); background: var(--tv-soft); }
+.vp-doc .install-panel .install-requirements { font-size: 12px; color: var(--tv-fg-2); }
+.install-command { margin: 16px 0; border: 1px solid var(--tv-line); border-radius: 8px; overflow: hidden; background: var(--tv-code-bg); }
+.install-command-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--tv-line); font-size: 11px; color: var(--tv-fg-2); }
+.install-command-bar button { font-size: 11px; color: var(--tv-fg); }
+.vp-doc .install-command pre { margin: 0; padding: 14px; border: 0; background: transparent; white-space: pre-wrap; overflow-wrap: anywhere; }
+.vp-doc .install-command pre code { padding: 0; font-size: 12px; line-height: 1.8; color: var(--tv-fg); background: transparent; }
+.install-copy-status { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.vp-doc .install-panel .install-next { font-size: 13px; color: var(--tv-fg-2); }
+.install-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin: 16px 0; }
+.vp-doc a.install-primary { display: inline-block; border: 1px solid var(--tv-fg); border-radius: 7px; padding: 8px 14px; background: var(--tv-fg); color: var(--vp-c-bg); font-size: 13px; font-weight: 600; text-decoration: none; }
+.vp-doc .install-panel > a, .install-actions > a { font-size: 13px; }
+.vp-doc .guide-links p { padding: 12px 0; margin: 0; border-bottom: 1px solid var(--tv-line); color: var(--tv-fg-2); }
+.vp-doc .guide-links a { color: var(--tv-fg); }
+.vp-doc details { margin: 24px 0; border: 1px solid var(--tv-line); border-radius: 8px; padding: 14px 18px; }
+.vp-doc summary { cursor: pointer; font-weight: 500; font-size: 14px; }
+@media (max-width: 640px) {
+  .install-tabs button { padding: 13px 7px; font-size: 11px; }
+  .install-panel { padding: 20px 16px; }
+  .install-choices button { min-height: 44px; }
+  .install-command-bar button { min-height: 40px; }
+  .vp-doc .install-panel h2 { font-size: 21px; }
+  .install-actions { align-items: flex-start; }
+}

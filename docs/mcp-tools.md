@@ -489,7 +489,7 @@ choose a `value` ValueRef from its `choices`. This selects one operand use even 
 `a + a`. Do not submit a variable name, source expression or layout-based producer
 selection. Available values are proven against source order across the captured
 shared calls; this does not establish shape compatibility. Native review checks
-that the patch changes only that operand to the chosen name. See [captured tensor reconnection](source-editing.md#captured-tensor-reconnection).
+that the patch changes only that operand to the chosen name. See [captured tensor reconnection](reference/source-editing.md#captured-tensor-reconnection).
 
 `straight_line_unary_insert_v1` enables `kind: "insert_unary_op"`. Copy the exact
 target, argument path, expected input ValueRef and expression scope, and choose
@@ -535,7 +535,7 @@ uses. A capability is tied to one captured source revision and cannot be reused
 after retargeting. The host re-derives the recipe, checks source/configuration
 dependencies and opens the native diff; only native Apply writes source. Preparation
 is static and does not validate new tensor shapes. No-op requests report unchanged
-source. Other captured operations cannot use the legacy layer-edit intents. See [authority and transport](source-editing.md#authority-and-transport).
+source. Other captured operations cannot use the legacy layer-edit intents. See [authority and transport](reference/source-editing.md#authority-and-transport).
 
 
 `constructor_scalar_v1` enables `kind: "set_constructor_literal"` for an invocation.

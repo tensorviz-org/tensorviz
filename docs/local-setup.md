@@ -1,10 +1,19 @@
-# Local setup
+# Build from source
 
-Commands run from the repository root unless a path says otherwise.
+Use this guide to develop TensorViz or build your own package. To use a published package, see [Install TensorViz](install.md).
+
+Clone the repository first:
+
+```sh
+git clone https://github.com/tensorviz-org/tensorviz.git
+cd tensorviz
+```
+
+Commands below run from that folder.
 
 ## Versions
 
-This is the only version table. Other pages link here.
+These are the versions in this source checkout. Published packages have their own release versions; see [installation options](install.md).
 
 | Piece | Version |
 | --- | --- |
@@ -66,6 +75,10 @@ updates. Deployment requires a configured GitHub Pages site and the repository
 Actions variable `PAGES_ENABLED=true`; it is off by default. See the
 [site guide](../docs-site/README.md).
 
+The docs header and favicon use the original mark from
+[`canvas/public/favicon.svg`](../canvas/public/favicon.svg). Keep the three logo
+assets in `docs-site/site/public/` aligned with it.
+
 ## tldraw key
 
 Export `REACT_APP_TLDRAW_LICENSE_KEY` in the shell only if you have a key and you are building something you will give to other people. Do not write the key into the repository. Local development and the dev `package` script can omit it. Release packaging fails when the key is unset and does not print it: the extension script `package:release` and `node scripts/package.mjs --release` under `plugin/`. `npm run package:source-development --prefix plugin` stays unverified. See [licensing](licensing.md).
@@ -88,7 +101,6 @@ Canvas unit tests are the `npm test --prefix canvas` command above. The canvas p
 `semantic:check` and `validation:check` need `PYTHON=./venv/bin/python` so they import the backend dependencies. A VSIX needs the webview first. `npm run vsix --prefix extension` builds it:
 
 ```sh
-npm run build:webview --prefix extension
 npm run vsix --prefix extension
 ```
 

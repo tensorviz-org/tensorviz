@@ -1,53 +1,38 @@
-# Focus code
+# Follow the code
 
-Open a model's Canvas and switch **Code focus** on in the header. Selecting a node reveals its mapped source beside Canvas; double-click or Enter navigates to it. With Code focus off, graph exploration keeps the editor in place, while explicit file:line links still open source. The adjacent **Code focus options** menu controls **Dim unrelated code**, scope, parameter references and opacity. Both the native sidebar and the extension's browser view offer these controls.
+Select a layer in the graph to find the Python that defines it.
 
-| Scope | Source kept readable |
+## Jump to source
+
+Switch **Code focus** on in the Canvas header. Selecting a node reveals its mapped source beside the graph; double-click or press **Enter** to navigate to it.
+
+With Code focus off, exploring the graph keeps the editor in place. You can still choose a node's file:line link to open its source explicitly.
+
+## Dim unrelated code
+
+1. Open **Code focus options** beside the header switch.
+2. Enable **Dim unrelated code**.
+3. Choose how much context to keep visible.
+
+| Scope | What stays readable |
 | --- | --- |
-| Model / class | The complete class enclosing the node's verified source location |
-| Function | The function enclosing that location; parameter selections can include several methods |
-| Node / expression | The mapped source lines or chosen parameter reference lines |
+| Model / class | The enclosing model class |
+| Function | The enclosing function |
+| Node / expression | The mapped source lines |
 
-Selecting an `nn.Parameter` state card exposes **Parameter source**:
-**Declaration**, **Uses**, or **Both**. For example, **Function + Uses** retains
-`forward` and an uncalled `reset_scale` method if both directly reference that
-parameter. **Model / class** retains the class while marking the chosen references.
-It does not jump into PyTorch's `Parameter` implementation.
+Use **Surrounding code opacity** to make the rest of the file more or less visible. For a parameter card, **Parameter source** lets you keep its declaration, uses, or both.
 
-**Surrounding code opacity** ranges from 10% to 60%. Preferences persist in the
-user's `tensorviz.codeFocus` setting. The default is off, with Node / expression,
-Both and 25% opacity selected. Turning it on, changing scope and selecting a node
-never edit source or move the text cursor. A single selection reveals its source
-without moving keyboard focus away from Canvas. Multiple selections retain the
-union of their ranges in visible editors.
+This changes highlighting only. It does not edit source. Code focus is available in the editor extension and its browser view.
 
-The most recent graph selection owns editor focus. Turning the control off,
-clearing the selection, hiding/disconnecting its view, editing source, changing
-the projection or starting graph review (including a Canvas agent's draft graph)
-clears its decorations. Reopening Canvas
-restores focus after its current selection is reported. Empty, edge-only, mixed
-node/edge, oversized and partially unmapped selections leave code undimmed.
-Unavailable scope/reference ranges display an explanation instead of dimming the
-whole file. Standalone plugin views and graph review do not offer this control.
+## If nothing is highlighted
 
-All ranges are whole source lines, including decorators for class/function context.
-VS Code applies opacity decorations while preserving normal syntax colors.
+The selected node needs a verified source location. Editing the file, starting a graph review, or clearing the selection clears old highlighting. Save and refresh the graph, then select the layer again.
 
-The backend attaches focus ranges to the existing verified projection span map.
-Captured layers defined in other workspace files, including classes passed as
-constructor arguments, focus and open in their own files. Captured state cards gain source navigation only when their registered names all
-resolve to the same declaration. Display names alone are never evidence. Shared
-names with conflicting or missing declarations remain unmapped.
+[Open a model](graph-opening.md) · [Review changes](graph-diff-review/README.md)
 
-Parameter references include direct receiver attribute reads in the declaring
-class's methods, including uncalled methods and in-place updates. These are source
-references, not evidence that those methods ran. Nested scopes, receiver rebinding,
-dynamic aliases, inherited uses in other classes, and external library definitions
-are not inferred. Multiple declarations or parameter reassignment refuse ambiguous
-uses. More than 256 references retains the declaration with an explicit limitation.
+<details>
+<summary>Mapping rules and limits</summary>
 
-The host checks the active projection identity, dependency digest and current
-editor contents before decorating. Pending async reads cannot restore old marks
-after selection changes or view teardown. Source refresh must finish before
-decorations can be reapplied. The frontend sends node IDs through the existing
-view-selection bridge; it never supplies editor paths or source ranges.
+[Code focus reference](reference/code-focus.md)
+
+</details>

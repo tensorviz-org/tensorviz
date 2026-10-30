@@ -1,66 +1,62 @@
-# TensorViz documentation
+# TensorViz guides
 
-The activity bar and command category say **tensorViz**. These pages say TensorViz for the product and keep UI strings, file names, and command ids as they appear in the editor.
+Start with installation, then follow the task you want to do.
 
-Engines and Python minima: [versions](local-setup.md#versions).
+## Start here
 
-## Quickstart
+- [Install TensorViz](install.md) — coding-agent plugin, editor extension, or source build.
+- [Open your first model](quickstart.md) — from installation to a graph.
 
-- [Open a model](quickstart.md)
-- [Small example the tests run](getting-started.html#example)
+## Explore your model
 
-## Concepts
+- [Open a model](graph-opening.md)
+- [Explore the graph](canvas.md)
+- [Read input and output names](capture-boundary-names.md)
+- [Follow the code](code-focus.md)
+- [Reuse a capture](execution-cache.md)
 
-- [Capture, files, and hosts](concepts.md)
-- [Graph files](graph-files.md)
-- [Execution cache](execution-cache.md)
-- [Saved profiles (`tensorviz.toml`)](model-validation-profiles.md)
+## Make and share changes
 
-## Guides
+- [Review model changes](graph-diff-review/README.md)
+- [Review a GitHub pull request](graph-diff-review/pr-workflow.md)
+- [Edit your model](source-editing.md)
+- [Export and share](graph-files.md)
 
-- [Open a graph](graph-opening.md)
-- [Setup and inputs](graph-setup.md)
-- [Model libraries](graph-libraries.md)
-- [Canvas](canvas.md)
-- [Canvas block families](canvas-block-families.md)
-- [Input and output names](capture-boundary-names.md)
-- [Semantic capture contract](semantic-capture-contract.md)
-- [Code focus](code-focus.md)
-- [Source proposals](source-editing.md)
-- [Graph diff](graph-diff-review/README.md)
-- [Review a pull request](graph-diff-review/pr-workflow.md)
+## Setup and help
+
 - [Python environments](environment-recovery.md)
+- [Model inputs](graph-setup.md)
+- [Coding-agent plugin](agent-plugin.md)
+- [Connect your editor to an agent](mcp.md)
 - [JAX and Flax](jax-support.md)
 - [Hugging Face models](hugging-face-models.md)
-- [Share a graph to tensorviz.dev](share-to-website.md)
 
-## Agents
+<details>
+<summary>Reference</summary>
 
-- [Connect MCP](mcp.md)
-- [MCP tools](mcp-tools.md)
-- [MCP security](mcp-security.md)
-- [Coding-agent plugin](agent-plugin.md)
-
-## Reference
-
-- [Settings, commands, tools, `tensorviz.toml`, source directives](reference.md)
+- [Settings and commands](reference.md)
+- [Capture concepts](concepts.md)
+- [Saved model profiles](model-validation-profiles.md)
+- [Supported model libraries](graph-libraries.md)
+- [MCP tools](mcp-tools.md) and [security](mcp-security.md)
+- [Canvas reference](reference/canvas.md) and [block families](canvas-block-families.md)
+- [Graph review reference](reference/graph-review.md)
+- [Semantic capture contract](semantic-capture-contract.md)
 - [Local browser broker](local-browser-broker.md)
 
-## Contribute
+</details>
 
-- [Local setup](local-setup.md)
-- [Plugin build](plugin-build.md)
+<details>
+<summary>Build and contribute</summary>
+
+- [Build from source](local-setup.md)
+- [Build the plugin](plugin-build.md)
+- [Contributing](../CONTRIBUTING.md)
+- [Licensing](licensing.md) and [security](../SECURITY.md)
 - [Dependency maintenance](dependency-maintenance.md)
 - [Local agent QA recording](local-agent-recording.md)
-- [Licensing](licensing.md)
-- [Contributing](../CONTRIBUTING.md)
-- [Security](../SECURITY.md)
 - [Extension changelog](../extension/CHANGELOG.md)
+- [Readable boundary names release](release-boundary-names-2026-10-27.md)
+- [Extension source sync](sync-2026-10-30.md)
 
-`docs/public-plugin/` is a template copied into a compiled plugin archive by `plugin/scripts/export-public.mjs`. It is not a source-tree guide, and this index does not link to it.
-
-`docs/standalone-install.md`, `docs/standalone-permissions.md`, `docs/standalone-cursor.md`, `docs/standalone-panel.md`, `docs/standalone-t3.md`, and `docs/package-names.md` are short stubs copied into the source-development archive. The guides they point at are above.
-
-- [Readable boundary names release (2026-10-27)](release-boundary-names-2026-10-27.md)
-
-- [Extension source sync (2026-10-30)](sync-2026-10-30.md)
+</details>

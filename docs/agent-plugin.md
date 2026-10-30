@@ -1,181 +1,71 @@
 # tensorViz coding-agent plugin
 
-## Contents
+The plugin lets Claude Code, Codex, or Cursor open a local PyTorch model, capture one forward call, and read the graph. It shows the same canvas as the editor extension. You do not need the extension to use the plugin.
 
-- [Requirements](#requirements)
-- [Install](#install)
-- [Permissions](#permissions)
-- [Model graph panel](#model-graph-panel)
-- [What the plugin runs](#what-the-plugin-runs)
-- [Build](#build)
-
-The plugin lets Claude Code, Codex, or Cursor open a local PyTorch model, capture
-one forward pass, and read the graph. It is the same product as the VS Code
-extension, in a different host. Current versions: extension **0.1.18**, plugin
-host **0.3.20**.
-
-| Package | Source | What you install |
-| --- | --- | --- |
-| Coding-agent plugin | `plugin/` and `plugins/tensorviz/` | A local archive built from this repo, or the plugin directory after that build |
-| VS Code extension | `extension/` | A VSIX. See the [quickstart](quickstart.md) |
-
-Both display as **tensorViz**. The plugin id used by the Codex installer is
-`tensorviz@tensorviz-standalone`. The extension id is `tensorviz.tensorviz`.
-Those ids are stable. Renaming one would install a second copy.
-
-Use one TensorViz host per agent. The plugin has its own stdio MCP server. The
-extension has a separate loopback HTTP endpoint, documented in [MCP](mcp.md).
-Do not point the same agent at both.
-
-The VS Code extension is optional. It is not required to run the plugin, and the
-plugin does not install the extension.
-
-## Requirements
-
-- Node.js on the agent's `PATH`. The version is in the [versions table](local-setup.md#versions).
-- A Python that meets the tool-service minimum in that same table. Capture uses a project environment you
-  select, with that model's dependencies.
-- A local model project. tensorViz does not ask for its own provider API key.
-  Your coding client's account still applies.
-
-Build the host before you install it. This repository does not publish a
-compiled runtime or a marketplace release. See [Plugin build](plugin-build.md).
+Use one TensorViz host per agent. Do not connect the same agent to both the plugin and the extension.
 
 ## Install
 
-From a built source-development archive:
+Use your client’s terminal CLI. If it is not installed, start with the [installation requirements](install.md#plugin).
 
-1. Check the archive against its `.sha256` file.
-2. Extract it into a directory you will keep. Keep the previous extract if you
-   want a rollback copy.
-3. From your model checkout, run the archive's installer:
+The published plugin is a preview for Apple Silicon macOS with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js installation. Allow internet access for that first download.
 
-```sh
-sh /path/to/tensorviz/plugins/tensorviz/scripts/install.sh
-```
-
-The installer needs the Node.js version in the [versions table](local-setup.md#versions). It refuses to run against a bare git checkout
-that has not been packaged, because the packaged host is not in `plugins/tensorviz/`
-until you build. A preflight without changes:
+Codex:
 
 ```sh
-node /path/to/tensorviz/plugins/tensorviz/scripts/install.cjs
+codex plugin marketplace add tensorviz-org/tensorviz-plugins
+codex plugin add tensorviz@tensorviz-standalone
 ```
 
-Installation is for that agent's user profile on this machine, not inside the
-model repo. Start a new chat afterward. An existing chat keeps the tools it
-already loaded.
-
-Codex can be configured by the installer. Claude Code registers the extracted
-archive root as a local marketplace, then installs `tensorviz` for your user.
-The plugin folder alone is not that marketplace catalog. Cursor can use the VS
-Code extension in this repo instead of the plugin archive: install the VSIX and
-run **Connect coding agent (MCP)**.
-
-If an older TensorViz connection is already enabled, choose **Use the tensorViz
-plugin** in the guided installer. It disables matching user-owned connections
-and keeps a recovery receipt. A manual entry named exactly `tensorviz` is moved
-to a disabled name such as `tensorviz-previous`, because Codex can hide plugin
-tools while that exact name exists. Unrelated connections are left alone.
-Project-owned MCP settings are reported, not overwritten.
-
-## Permissions
-
-The installer asks once. Accepting covers local project reads, Python
-inspection, model and setup execution, saving `tensorviz.toml`, and installing
-reviewed dependencies into the selected environment. It applies to this OS user,
-across projects. Model code runs with your user permissions. Graph text returned
-to the agent can become part of that client's conversation.
-
-The Codex setting the installer writes is only:
-
-```toml
-[plugins."tensorviz@tensorviz-standalone".mcp_servers.tensorviz]
-default_tools_approval_mode = "approve"
-```
-
-Other plugins, global approval settings, and per-tool overrides stay as they
-were. Organization policy still wins. The installer reports a policy it cannot
-change.
-
-Status and revocation, from the installed plugin:
+Claude Code:
 
 ```sh
-node /path/to/plugin/scripts/permissions.cjs --status
-node /path/to/plugin/scripts/permissions.cjs --revoke
+claude plugin marketplace add tensorviz-org/tensorviz-plugins
+claude plugin install tensorviz@tensorviz-standalone --scope user
 ```
 
-Revoke stops later execution and setup. It does not kill a worker that is
-already running. Read-only views of a graph you already captured stay available.
-A declined decision is remembered, so the plugin stops instead of asking on
-every call. `open_graph` can return `action: request_permission`; that asks
-again, and it cannot grant permission by itself.
+Cursor: follow [Install in Cursor](https://github.com/tensorviz-org/tensorviz-plugins#install-in-cursor).
 
-The consent file is `permissions/standalone.json` under the user data directory
-from `applicationData()` in `plugin/src/environment.ts`:
+T3 Code uses your Codex profile. See the [public catalog](https://github.com/tensorviz-org/tensorviz-plugins).
 
-| Platform | Directory |
-| --- | --- |
-| macOS | `~/Library/Application Support/TensorViz/standalone` |
-| Windows | `%LOCALAPPDATA%\TensorViz\standalone` |
-| Linux | `$XDG_DATA_HOME/tensorviz/standalone`, or `~/.local/share/tensorviz/standalone` when `XDG_DATA_HOME` is unset |
+Start a new chat afterward. Platform limits and source builds are on the [Install](install.md) page.
 
-It is separate from the project and from the plugin install. Uninstalling the
-plugin does not delete the consent file. Revoke it explicitly.
+## First graph
 
-Unknown inputs and interpreter choices still need an answer when the project
-does not resolve them. Consent does not start a model on its own, and it does
-not replace an installed Torch or CUDA build.
+1. Open your model project in the client and start a new chat.
+2. Ask, for example: "Open `Net` in `models/net.py` as a TensorViz graph."
+3. When asked, choose a CPython 3.12 environment that can import the model, and confirm example inputs.
+
+Opening a graph executes one forward call. Ask to **inspect source only** if you want a preview that does not run the model. Saved `tensorviz.toml` recipes are reused. After you edit the source, ask the agent to refresh the graph.
 
 ## Model graph panel
 
-After the plugin is connected, ask the agent to open the **Model graph** panel
-with `open_graph_panel`, or use the client's plugin view if it has one. An empty
-panel does not start Python. Ask the agent to `open_graph` on the model you
-want. The panel shows the same canvas as the plugin browser: shapes, inputs,
-refresh, and local graph review.
+Ask the agent to show the **Model graph** panel. Clients without a panel can open the graph in a local browser page instead. An empty panel does not start Python.
 
-`open_graph_panel` returning does not prove the panel drew the graph. A current
-view from `list_models`, after the canvas reports a render, is what shows that
-the panel is up. Clients without that panel use `open_graph_view` and a local
-browser page.
+Closing the panel does not cancel a capture or edit source. Reopen **Model graph** if it disconnects; the capture is kept.
 
-Closing the panel does not cancel a capture or edit source. Reopen **Model
-graph** if the panel disconnects; the capture is kept. Up to eight panels can
-attach to one plugin process. A panel with no traffic expires after five
-minutes.
+## Permissions
 
-The panel and the browser talk to the local Node host. They do not receive the
-loopback credential, and they cannot grant execution permission.
+On first use, TensorViz asks for permission to run model and setup code, save `tensorviz.toml`, and install reviewed dependencies in the selected environment. That permission applies to your OS user across projects; your client’s tool controls still apply.
 
-## What the plugin runs
+- Model code runs with your user permissions.
+- Graph text returned to the agent can become part of that client's conversation.
+- Consent does not start a model on its own. Unknown inputs and interpreter choices still need an answer.
+- Uninstalling the plugin does not delete the saved permission.
 
-The plugin service is `backend/standalone_server.py`. It binds **127.0.0.1**
-on a free port, requires a launch token, and does not bind `0.0.0.0`. The
-browser only accepts that loopback host. The shared backend
-(`start.sh`, `backend/server_v2.py`) also defaults to `127.0.0.1` and refuses a
-non-loopback bind unless `TENSORVIZ_LOCAL_TOKEN` is set. `AUTH_DISABLED` does
-not allow that bind. See [service bind](local-setup.md#service-bind).
+Disable the plugin in your client to stop that client from using its tools. Source-build status and revocation commands are in the [source-package reference](reference/agent-plugin.md#permissions).
 
-Capture uses the project Python you select. The tool service can use a separate
-interpreter. Changing the capture environment does not restart the service.
-See [environment recovery](environment-recovery.md).
+## Help
 
-Saved `tensorviz.toml` recipes are reused. Missing setup is asked for, or the
-agent can fill it through `open_graph`. **Inspect source only** does not execute
-the model. After you save a source edit, refresh the graph to capture again.
+| Problem | What to try |
+| --- | --- |
+| No tensorViz tools in a chat | Check that the plugin is enabled, then start a new chat |
+| Duplicate tools | Disable the older TensorViz plugin or MCP entry. Keep one host |
+| Python environment rejected | Select CPython 3.12 for this preview |
+| Capture succeeds but no graph appears | Ask the agent to show the Model graph panel or open the browser graph |
 
-## Build
+More: [environment recovery](environment-recovery.md), [setup and inputs](graph-setup.md), [support and compatibility](https://github.com/tensorviz-org/tensorviz-plugins/blob/main/SUPPORT.md).
 
-```sh
-npm run build --prefix plugin
-npm run build:browser --prefix plugin
-npm run build:panel --prefix plugin
-npm run package:source-development --prefix plugin
-```
+## Develop the plugin
 
-`npm run package:source-development --prefix plugin` writes
-`plugin/dist/tensorviz-<version>.tar.gz` and
-`plugin/dist/tensorviz-cursor-<version>.tar.gz`, each with a `.sha256` file.
-Details, including the tldraw key and what this repo does not publish, are in
-[Plugin build](plugin-build.md).
+Building from source, the source archive installer, service details, and panel limits are in the [plugin reference](reference/agent-plugin.md) and [plugin build](plugin-build.md).

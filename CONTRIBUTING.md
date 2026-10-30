@@ -4,7 +4,7 @@ Issues and pull requests go to [tensorviz-org/tensorviz](https://github.com/tens
 
 ## Setup
 
-Follow [README](README.md#try-it) and [docs/local-setup.md](docs/local-setup.md).
+Follow [Build from source](docs/local-setup.md).
 Node.js and Python versions are in the [versions table](docs/local-setup.md#versions).
 Install the CPU PyTorch requirements before running backend tests.
 

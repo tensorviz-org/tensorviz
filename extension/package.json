@@ -369,7 +369,7 @@
         }
       ]
     },
-    "//viewsContainers": "A committed SVG under extension/icons/ (extension/media/ is gitignored \u2014 it is where the built React app is staged \u2014 so an icon there would never be committed). icons/tensorviz.svg is the website brand mark drawn with stroke=currentColor and a transparent background so VS Code can tint it to the active/inactive activity-bar color.",
+    "//viewsContainers": "A committed SVG under extension/icons/ (extension/media/ is gitignored — it is where the built React app is staged — so an icon there would never be committed). icons/tensorviz.svg is the website brand mark drawn with stroke=currentColor and a transparent background so VS Code can tint it to the active/inactive activity-bar color.",
     "viewsContainers": {
       "activitybar": [
         {
@@ -430,7 +430,7 @@
           {
             "id": "openRepo",
             "title": "Open your models",
-            "description": "Open the folder your `nn.Module` classes live in. tensorViz reads them with an AST scan \u2014 nothing is imported or executed. To try tensorViz first, open an empty folder and create an MLP or small CNN from the built-in starters.\n[Open Folder](command:workbench.action.files.openFolder) \u00b7 [Try a starter model](command:tensorviz.newModelFromTemplate)",
+            "description": "Open the folder your `nn.Module` classes live in. tensorViz reads them with an AST scan — nothing is imported or executed. To try tensorViz first, open an empty folder and create an MLP or small CNN from the built-in starters.\n[Open Folder](command:workbench.action.files.openFolder) · [Try a starter model](command:tensorviz.newModelFromTemplate)",
             "media": {
               "markdown": "walkthrough/repository.md"
             },
@@ -452,7 +452,7 @@
           {
             "id": "openAsGraph",
             "title": "See a class as a graph",
-            "description": "Choose **Open as Graph** above an `nn.Module` class or in the Models view. The first capture needs model configuration and example inputs; tensorViz fills what it can and asks for missing values beside a source-only preview. Not sure what to enter? Connect your coding agent through MCP and ask it to prepare the setup. You can also fill the form yourself. Setup is saved in `tensorviz.toml` for later captures.\n[Open as Graph](command:tensorviz.openAsGraph) \u00b7 [Get setup help with MCP](command:tensorviz.connectMcp)",
+            "description": "Choose **Open as Graph** above an `nn.Module` class or in the Models view. The first capture needs model configuration and example inputs; tensorViz fills what it can and asks for missing values beside a source-only preview. Not sure what to enter? Connect your coding agent through MCP and ask it to prepare the setup. You can also fill the form yourself. Setup is saved in `tensorviz.toml` for later captures.\n[Open as Graph](command:tensorviz.openAsGraph) · [Get setup help with MCP](command:tensorviz.connectMcp)",
             "media": {
               "markdown": "walkthrough/graph.md"
             },
@@ -479,7 +479,7 @@
           {
             "id": "agent",
             "title": "Connect your coding agent",
-            "description": "Open the chat icon in Canvas to use your installed, signed-in Codex or Claude Code agent directly. Minimize preserves the conversation; source changes require native Apply/Discard. No provider key or global MCP configuration is needed for Canvas chat. You can also connect from an existing agent chat through MCP. The tensorViz plugin installs separately in your coding agent and works with VS Code closed. **Connect coding agent (MCP)** optionally connects an agent to this VS Code extension; keep VS Code open for that connection. Use one TensorViz host per agent to avoid duplicate tools. The agent can use open_graph to capture a model, complete missing setup and request dependency installation in the capture environment. It can also inspect and focus the graph and propose native source reviews. Connection opt-in persists across restarts; **Disconnect coding agents (MCP)** revokes sessions and disables reconnection.\n[Turn MCP on](command:tensorviz.connectMcp) \u00b7 [Turn MCP off](command:tensorviz.disconnectMcp)",
+            "description": "Open the chat icon in Canvas to use your installed, signed-in Codex or Claude Code agent directly. Minimize preserves the conversation; source changes require native Apply/Discard. No provider key or global MCP configuration is needed for Canvas chat. You can also connect from an existing agent chat through MCP. The tensorViz plugin installs separately in your coding agent and works with VS Code closed. **Connect coding agent (MCP)** optionally connects an agent to this VS Code extension; keep VS Code open for that connection. Use one TensorViz host per agent to avoid duplicate tools. The agent can use open_graph to capture a model, complete missing setup and request dependency installation in the capture environment. It can also inspect and focus the graph and propose native source reviews. Connection opt-in persists across restarts; **Disconnect coding agents (MCP)** revokes sessions and disables reconnection.\n[Turn MCP on](command:tensorviz.connectMcp) · [Turn MCP off](command:tensorviz.disconnectMcp)",
             "media": {
               "markdown": "walkthrough/agent.md"
             },
@@ -531,19 +531,19 @@
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "**Developer override.** Absolute path to a canvas checkout, used as the backend source instead of the one tensorViz ships with. You do not need this: the backend is bundled with the app and packaged inside the extension, and is found first. It exists for running against a checkout. When set, it is used as-is \u2014 tensorViz will not fall back to guessing if it does not validate."
+          "markdownDescription": "**Developer override.** Absolute path to a canvas checkout, used as the backend source instead of the one tensorViz ships with. You do not need this: the backend is bundled with the app and packaged inside the extension, and is found first. It exists for running against a checkout. When set, it is used as-is — tensorViz will not fall back to guessing if it does not validate."
         },
         "tensorviz.pythonPath": {
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "Absolute Python path offered in the environment picker and used for model execution when this workspace folder has no saved choice. Use tensorViz: Select Python Environment to choose a Conda/venv for the model\u2019s owning folder. The tensorViz service has its own Python. Missing capture/model libraries require approval and existing Torch/CUDA versions are preserved."
+          "markdownDescription": "Absolute Python path offered in the environment picker and used for model execution when this workspace folder has no saved choice. Use tensorViz: Select Python Environment to choose a Conda/venv for the model’s owning folder. The tensorViz service has its own Python. Missing capture/model libraries require approval and existing Torch/CUDA versions are preserved."
         },
         "tensorviz.devServerUrl": {
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "Load the canvas from this URL instead of the app bundled with the extension \u2014 for developing the frontend against a live `npm start`. When empty (the default) the backend serves the built app on a port chosen at launch. The value is used verbatim, and its origin becomes the panel's `frame-src`."
+          "markdownDescription": "Load the canvas from this URL instead of the app bundled with the extension — for developing the frontend against a live `npm start`. When empty (the default) the backend serves the built app on a port chosen at launch. The value is used verbatim, and its origin becomes the panel's `frame-src`."
         },
         "tensorviz.graphSurface": {
           "type": "string",
@@ -601,11 +601,11 @@
           "enumDescriptions": [
             "No execution cache. Every Run executes your model exactly as before.",
             "Diagnostic only: every Run still executes your model. tensorViz also keeps the result in memory and, when a later Run has exactly the same inputs, compares the two and writes the outcome to the tensorViz output channel. A stored result is never shown.",
-            "Preview: when a Run has exactly the same inputs as an earlier Run in this window, tensorViz shows that earlier result instead of running your model again, labelled \"Reused identical result … (no Python ran)\". Use Run fresh to execute anyway."
+            "Default: when a Run has exactly the same inputs as an earlier Run in this window, tensorViz shows that earlier result instead of running your model again, labelled \"Reused identical result … (model not run again)\". Use Run fresh to execute anyway."
           ],
-          "default": "off",
+          "default": "on",
           "scope": "machine-overridable",
-          "markdownDescription": "Reuse of identical runs (preview). A Run can reuse an earlier identical result only with the same saved sources, configuration, inputs and seed, environment variables, Python environment and tensorViz backend, on CPU, with nothing read from outside the tracked files. `shadow` only checks this, without changing what you see; `on` shows the earlier result without running Python. Agent (MCP) runs always execute. Results are kept in memory for this window only and are never written to disk; **tensorViz: Clear Execution Cache** drops them. Takes effect on the next Run."
+          "markdownDescription": "Reuse of identical runs (on by default; set `off` to always run). A Run can reuse an earlier identical result only with the same saved sources, configuration, inputs and seed, environment variables, Python environment and tensorViz backend, on CPU, with nothing read, listed or checked for outside the tracked files and no native code loaded beyond Python's, torch's and numpy's own. `shadow` only checks this, without changing what you see; `on` shows the earlier result instead of running your model again (Python still runs briefly to check that nothing changed). Agent (MCP) runs always run. Results are kept in memory for this window only and are never written to disk; **tensorViz: Clear Execution Cache** drops them. Takes effect on the next Run."
         },
         "tensorviz.executionCache.maxSizeMB": {
           "type": "number",

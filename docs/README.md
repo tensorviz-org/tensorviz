@@ -13,6 +13,7 @@ Engines and Python minima: [versions](local-setup.md#versions).
 
 - [Capture, files, and hosts](concepts.md)
 - [Graph files](graph-files.md)
+- [Execution cache](execution-cache.md)
 - [Saved profiles (`tensorviz.toml`)](model-validation-profiles.md)
 
 ## Guides

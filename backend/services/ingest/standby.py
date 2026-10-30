@@ -14,7 +14,10 @@ Single use is the whole point. A long-lived process that had imported the user's
 model would serve the old module from ``sys.modules`` after an edit, and carry
 seeds, thread counts and patched classes from one run into the next. Here the
 user's code is still imported only after the request, into a process nothing else
-has touched.
+has touched. Installed packages it pre-loaded can still change while it waits (an edit
+in site-packages, a reinstall): when the request arrives it rechecks the stamps it took
+of their files (``reuse_audit.remember_preloaded``) and, if any changed, replaces
+itself with the ordinary bootstrap (``_continue_fresh``, POSIX only).
 
 stdin is also the parent-death pipe (``worker_lifetime.guard_parent_pipe``). The
 host writes one line and nothing more, so after the request has been read the
@@ -31,6 +34,9 @@ import sys
 import types
 
 MAX_REQUEST = 4 * 1024 * 1024
+#: The environment this process started with, taken before torch or anything pre-loaded
+#: could change it: what an ordinary launch of the request starts from (``_continue_fresh``).
+STARTED_ENVIRON = dict(os.environ)
 
 
 def _read_request():
@@ -66,13 +72,14 @@ PRELOAD = (
     'ingest.tensor_inputs', 'ingest.worker_lifetime', 'ingest.execution_setup', 'ingest.execution_evidence',
     'ingest.execution_values', 'semantic.contracts', 'semantic.execution_plan', 'semantic.recorder',
     'semantic.source_bindings', 'semantic.construction', 'validation.setup',
-    'validation.contracts', 'validation.config', 'validation.source',
+    'validation.contracts', 'validation.config', 'validation.source', 'ingest.reuse_audit',
 )
 
 
 def _preload(bootstrap):
     """Load the private capture package, so the run that claims this standby finds it
-    imported. Best effort: any failure leaves the process as if nothing was
+    imported, and return its reuse audit module, which has stamped what is loaded. Best
+    effort: any failure returns None and leaves the process as if nothing was
     pre-loaded, and the run imports what it needs itself, as it always has.
 
     ``bootstrap.py`` is loaded under a private name and removed again, so no module
@@ -94,15 +101,19 @@ def _preload(bootstrap):
                 importlib.import_module(f'{loader.PACKAGE}.{module}')
             except ImportError:
                 pass
+        # Fingerprint what is loaded now, before waiting: a file edited while this process
+        # waits must keep the fingerprint of the code it loaded (see reuse_audit).
+        audit = sys.modules[f'{loader.PACKAGE}.ingest.reuse_audit']
+        audit.remember_preloaded()
     except Exception:  # noqa: BLE001 - pre-loading is an optimisation, never a failure
-        return False
-    return True
+        return None
+    return audit
 
 
 def main():
     import torch  # noqa: F401  (the work this process exists to do early)
     bootstrap = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bootstrap.py')
-    _preload(bootstrap)
+    audit = _preload(bootstrap)
     try:
         request = _read_request()
     except Exception as error:
@@ -111,10 +122,33 @@ def main():
     if request is None:
         return 0
     argv, env = request
+    if audit is not None and os.name == 'posix' and audit.preloaded_changed():
+        _continue_fresh(bootstrap, argv, env)
     os.environ.update(env)
     sys.argv = [bootstrap, *argv]
     _run_as_main(bootstrap)
     return 0
+
+
+def _continue_fresh(bootstrap, argv, env):
+    """Become the ordinary worker this request would have spawned. A file this process
+    pre-loaded changed while it waited (an installed package edited or reinstalled), so
+    the modules it holds are not what the run should execute.
+
+    ``exec`` keeps the pid, the process group, the stdio pipes and the host's timers, so
+    the host still cancels, kills and times the run and reads its envelope as before;
+    stdin, the parent-death pipe, is already past the request line. The new process gets
+    the environment this one started with plus the request's, and the arguments an
+    ordinary launch has. POSIX only: on Windows exec starts another process, which the
+    host would read as this one ending without output; there, and if exec fails, the run
+    continues here and the cache never serves its result (the stamps it reports predate
+    the edit)."""
+    sys.stderr.write('tensorViz standby: pre-loaded files changed; continuing as a fresh worker\n')
+    sys.stderr.flush()
+    try:
+        os.execve(sys.executable, [sys.orig_argv[0], bootstrap, *argv], {**STARTED_ENVIRON, **env})
+    except Exception as error:  # noqa: BLE001 - exec failed and changed nothing: run here, as before
+        sys.stderr.write(f'tensorViz standby could not restart: {error}\n')
 
 
 def _run_as_main(script):

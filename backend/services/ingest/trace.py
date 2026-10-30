@@ -283,7 +283,8 @@ class _Provenance(TorchDispatchMode):
             key = filename if absolute else (filename, os.getcwd())
             resolved = files.get(key)
             if resolved is None:
-                resolved = os.path.realpath(filename if absolute else os.path.abspath(filename))
+                resolved = "" if filename.startswith("<") else os.path.realpath(
+                    filename if absolute else os.path.abspath(filename))
                 if not resolved.startswith(self.frame_roots) or resolved.startswith(self._own_directory):
                     resolved = ""
                 files[key] = resolved

@@ -9,7 +9,7 @@ import { resolveExecutionPlan, resolveCapturePreparation, resolveRetainedPlan, e
   type ExecutionSnapshot, type PreparationSnapshot, type CandidateRequest, type ResolvedExecutionPlan } from './executionPlanCore';
 import { candidateRequest, candidateEvidence, type CandidateEvidence, type CandidateInput, type CandidateRunResult } from './candidateExecution';
 import { sameExecutionGuards } from './executionGuard';
-import { ExecutionResultStore, emptyStats, outcomeUnstorable, requestIneligible, servableEntry, shadowDifference, storedRunMeta,
+import { ExecutionResultStore, dropEnvironmentFiles, emptyStats, outcomeUnstorable, requestIneligible, servableEntry, shadowDifference, storedRunMeta,
   resultKey, resultKeyParts, DEFAULT_MAX_SIZE_MB, type ExecutionCacheMode, type ExecutionCacheSettings, type ExecutionCacheStats,
   type ReusedCapture } from './executionCache';
 import type { RunSpec } from '@tensorviz/contracts/protocol';
@@ -67,10 +67,10 @@ export interface TraceRequest {
   cls?: string;
   /** `--input`: shapes ("2,8", "2,8;2") or a Python expression. Optional.
    *
-   *  Set from the class's remembered input (`inputMemory.ts`), which only ever holds a
-   *  value a PERSON supplied. It OUTRANKS the file's `# tensorviz: input=` inside
-   *  `services/ingest/service.py::ingest_source`, which is why the memory stands aside
-   *  for a file that declares one rather than passing this blindly. */
+   *  It OUTRANKS the traced class's `# tensorviz: input=` inside
+   *  `services/ingest/service.py::ingest_source`. No host sets it today: the Canvas
+   *  passes `undefined`, and the remembered `input` in `inputMemory.ts` that once
+   *  filled it is no longer read. */
   input?: string;
   /** Bounded positional tensor descriptions, used by MCP instead of expressions. */
   tensorInputs?: TensorInputs;
@@ -118,7 +118,7 @@ export interface TraceRequest {
   onResolvedPlan?: (snapshot: Pick<ExecutionSnapshot, 'plan' | 'applicabilityDigest'>) => void;
   onCapturePrepared?: (snapshot: Pick<PreparationSnapshot, 'preparation' | 'applicabilityDigest'>) => void;
   /** Opt in to the execution cache (`executionCache.ts`). Only interactive Canvas runs set
-   *  it; MCP and candidate runs do not. In shadow mode the worker
+   *  it; MCP and candidate runs never do. In shadow mode the worker
    *  still runs; the cache is only compared with the fresh result, never served. In `on`
    *  mode `allow` may return a stored identical result without launching the worker;
    *  `bypass` (Run fresh) always runs and replaces the stored entry. */
@@ -149,7 +149,9 @@ export interface WorkerEnvelope {
   spans: Record<string, unknown>;
   error: WorkerError | null;
   worker: { python?: string; torch?: string; elapsed_ms?: number; interpreter?: string; platform?: string;
-    planId?: string; planDigest?: string; candidateExecution?: unknown; candidateBaseCurrent?: boolean; candidatePostconditions?: unknown };
+    planId?: string; planDigest?: string; candidateExecution?: unknown; candidateBaseCurrent?: boolean;
+    candidatePlanCurrent?: boolean; candidatePlanDigest?: string; candidatePostconditions?: unknown;
+    checkpointCompatibility?: unknown };
 }
 
 export type TraceOutcome = (
@@ -485,9 +487,10 @@ export interface TraceWorkerHost {
   interpreter(file: string): Promise<string | undefined>;
   trusted(): boolean;
   documents(root: string): import('./executionPlanCore').DocumentStates;
-  /** Current execution-cache setting, read once per run so a change applies to the next
-   *  run without a reload. Absent (the standalone plugin host) means off. */
-  executionCache?(): ExecutionCacheSettings | undefined;
+  /** Current execution-cache setting for the run's file (`resource`), or for the window when
+   *  `resource` is undefined, read on every run so a change, or a folder-level value, applies
+   *  to the next run without a reload. Absent (the standalone plugin host) means off. */
+  executionCache?(resource?: string): ExecutionCacheSettings | undefined;
 }
 
 /** A shadow lookup prepared before launch: the key and whatever the store held for it. */
@@ -508,7 +511,7 @@ export class TraceWorkerCore {
   /** At most one pre-started, single-use worker for the next ordinary run. */
   private standby: Standby | undefined;
   private disposed = false;
-  /** Per-window execution-cache store; exists only while the mode is not off. */
+  /** Per-window execution-cache store; exists only while the window-level mode is not off. */
   private resultStore: ExecutionResultStore | undefined;
   private cacheCounters: ExecutionCacheStats = emptyStats();
   /** Shadow comparisons run after the caller has its result, one at a time, in order. */
@@ -558,17 +561,21 @@ export class TraceWorkerCore {
     return entries;
   }
 
-  /** The store and mode when the cache is not off, else undefined — and a store left over
-   *  from an earlier mode is dropped. Off does nothing beyond reading the setting. */
-  private cacheStore(): { store: ExecutionResultStore; mode: Exclude<ExecutionCacheMode, 'off'> } | undefined {
-    let settings: ExecutionCacheSettings | undefined;
-    try { settings = this.options.executionCache?.(); } catch { settings = undefined; }
-    const mode = settings?.mode;
-    if (mode !== 'shadow' && mode !== 'on') {
+  /** The store and this run's mode when the cache is not off, else undefined. The one store
+   *  serves every folder of the window, so only the window-level setting drops it (when off)
+   *  or sizes it; a folder set to off skips the cache for its own runs and leaves the store.
+   *  Off does nothing beyond reading the settings. */
+  private cacheStore(resource: string): { store: ExecutionResultStore; mode: Exclude<ExecutionCacheMode, 'off'> } | undefined {
+    let windowLevel: ExecutionCacheSettings | undefined, settings: ExecutionCacheSettings | undefined;
+    try { windowLevel = this.options.executionCache?.(); } catch { windowLevel = undefined; }
+    try { settings = this.options.executionCache?.(resource); } catch { settings = undefined; }
+    if (windowLevel?.mode !== 'shadow' && windowLevel?.mode !== 'on') {
       if (this.resultStore) { this.resultStore.clear(); this.resultStore = undefined; }
       return undefined;
     }
-    const megabytes = Number.isFinite(settings!.maxSizeMB) && settings!.maxSizeMB! > 0 ? settings!.maxSizeMB! : DEFAULT_MAX_SIZE_MB;
+    const mode = settings?.mode;
+    if (mode !== 'shadow' && mode !== 'on') return undefined;
+    const megabytes = Number.isFinite(windowLevel!.maxSizeMB) && windowLevel!.maxSizeMB! > 0 ? windowLevel!.maxSizeMB! : DEFAULT_MAX_SIZE_MB;
     this.resultStore ??= new ExecutionResultStore({ maxBytes: megabytes * 1024 * 1024 });
     this.resultStore.resize(megabytes * 1024 * 1024);
     return { store: this.resultStore, mode };
@@ -839,7 +846,7 @@ export class TraceWorkerCore {
         ok: false,
         reason: 'tensorViz could not find your Python interpreter.',
         detail:
-          'Select one with the Python extension ("Python: Select Interpreter") and save the file again.',
+          'Choose Python in TensorViz with Open as Graph or Select Python Environment, then retry.',
       };
     }
     if (request.expectedInterpreter && interpreter !== request.expectedInterpreter) {
@@ -924,7 +931,7 @@ export class TraceWorkerCore {
         [CANDIDATE_REQUEST_ENV]: candidate ? bootstrap?.file : undefined };
       // Execution cache (shadow): key and lookup before launch. Off mode reads the setting
       // and nothing else.
-      const cache = this.cacheStore();
+      const cache = this.cacheStore(resource);
       const store = cache?.store;
       const lookup = store && deferShadow ? this.shadowLookup(store, request, executionSnapshot, !!candidate, args, runEnv, chosen) : undefined;
       if (lookup) args = lookup.args;
@@ -950,7 +957,9 @@ export class TraceWorkerCore {
         this.cacheCounters.hits += 1;
         this.cacheCounters.served += 1;
         this.channel.appendLine(`[cache] served ${lookup!.key.slice(0, 12)}: reused identical result of attempt `
-          + `${served.reused.attemptId} from ${new Date(served.reused.capturedAt).toISOString()} (no Python ran)`);
+          + `${served.reused.attemptId} from ${new Date(served.reused.capturedAt).toISOString()} (model not run again)`);
+        // `servableEntry` has rechecked the installed files; callers keep the verdict only.
+        dropEnvironmentFiles(served.envelope);
         return { ok: true, envelope: served.envelope, exitCode: EXIT.ok, executionCurrent, recheckExecution, reused: served.reused };
       }
       const loggedArgs = args.map((arg, index) => ['--execution', '--diagnostic-job'].includes(args[index - 1]) ? '<structured execution setup>' : arg);
@@ -958,6 +967,9 @@ export class TraceWorkerCore {
       let stdout = '';
       const finish = <T extends TraceOutcome>(result: T): T => {
         if (store && lookup) deferShadow!(this.shadowRecord(store, lookup, result, stdout));
+        // After `shadowRecord` has its verdict: it stores and compares the stdout text, which
+        // keeps the installed-file list for the recheck before serving.
+        dropEnvironmentFiles(result.envelope);
         return result;
       };
       // Only the ordinary private-bootstrap launch has a standby equivalent. Candidate

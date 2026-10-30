@@ -58,14 +58,18 @@ export async function userInterpreter(resource: vscode.Uri): Promise<string | un
 export interface TraceWorkerOptions {
   timeoutMs?: number;
   interpreter?: (resource: vscode.Uri) => Promise<string | undefined>;
-  /** Read `tensorviz.executionCache.*` on every run (default). Tests pass their own. */
-  executionCache?: () => ExecutionCacheSettings | undefined;
+  /** Read `tensorviz.executionCache.*` for the run's file, or the window with no resource, on
+   *  every run (default). Tests pass their own. */
+  executionCache?: (resource?: vscode.Uri) => ExecutionCacheSettings | undefined;
 }
 
-/** `tensorviz.executionCache.*`, read per run so a change applies to the next Run. */
-export function executionCacheSettings(): ExecutionCacheSettings {
-  const config = vscode.workspace.getConfiguration('tensorviz');
-  const mode = config.get<string>('executionCache.mode', 'off');
+/** `tensorviz.executionCache.*` for a run's file, read per run so a change applies to the next
+ *  Run. Scoped to the file because the setting is machine-overridable: a folder of a multi-root
+ *  workspace can set its own value. With no resource it is the window's value, which alone
+ *  drops or sizes the store every folder shares. */
+export function executionCacheSettings(resource?: vscode.Uri): ExecutionCacheSettings {
+  const config = vscode.workspace.getConfiguration('tensorviz', resource);
+  const mode = config.get<string>('executionCache.mode', 'on');
   return { mode: mode === 'shadow' || mode === 'on' ? mode : 'off', maxSizeMB: config.get<number>('executionCache.maxSizeMB', 96) };
 }
 
@@ -76,7 +80,17 @@ export class TraceWorker extends TraceWorkerCore {
       interpreter: file => (options.interpreter ?? userInterpreter)(vscode.Uri.file(file)),
       trusted: workspaceTrusted,
       documents: executionDocumentStates,
-      executionCache: options.executionCache ?? executionCacheSettings,
+      executionCache: file => (options.executionCache ?? executionCacheSettings)(file === undefined ? undefined : vscode.Uri.file(file)),
     });
   }
+}
+
+/** A trace worker the window owns rather than one page or command. VS Code disposes
+ *  `context.subscriptions` after deactivate(), which retires the worker's warm standby
+ *  Python and drops its execution-cache store; a page's own dispose only cancels the run. */
+export function windowTraceWorker(context: Pick<vscode.ExtensionContext, 'subscriptions'>, backendDir: string,
+  channel: vscode.OutputChannel, options: TraceWorkerOptions = {}): TraceWorker {
+  const worker = new TraceWorker(backendDir, channel, options);
+  context.subscriptions.push(worker);
+  return worker;
 }

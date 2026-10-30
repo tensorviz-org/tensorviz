@@ -12,6 +12,7 @@
  * whose entry passes `servableEntry` is returned instead of launching the worker; a
  * miss runs and is stored exactly as in shadow). */
 import { createHash } from 'node:crypto';
+import { statSync } from 'node:fs';
 import * as os from 'node:os';
 import { isDeepStrictEqual } from 'node:util';
 import { backendDigest } from './backendIdentity';
@@ -105,10 +106,10 @@ export function resultKey(parts: ResultKeyParts): string {
 /**
  * Why this request may not use the cache, or undefined when it may.
  *
- * Callers opt in with `reuse: 'allow'` (Canvas opening and Validate runs); MCP runs and
- * candidate runs do not. Everything that is not a plain, seeded, deterministic CPU forward
- * of a resolved plan is excluded here as well, so a caller that opts in by mistake still
- * cannot cache an excluded run.
+ * Callers opt in with `reuse: 'allow'` (Canvas opening and Validate runs); MCP and
+ * candidate runs never do. Everything that is not
+ * a plain, seeded, deterministic CPU forward of a resolved plan is excluded here as well,
+ * so a caller that opts in by mistake still cannot cache an excluded run.
  */
 export function requestIneligible(request: TraceRequest, snapshot: ExecutionSnapshot | undefined, candidate: boolean): string | undefined {
   if (request.reuse !== 'allow' && request.reuse !== 'bypass') return 'not_requested';
@@ -127,7 +128,40 @@ export function requestIneligible(request: TraceRequest, snapshot: ExecutionSnap
   return undefined;
 }
 
-interface ReuseDiagnostics { storable?: unknown; reasons?: unknown; untrackedReads?: unknown }
+interface ReuseDiagnostics { storable?: unknown; reasons?: unknown; untrackedReads?: unknown; environment?: unknown }
+
+/** `[path, fingerprint or null]` per installed file a storable run read (`reuse_audit.py`). */
+type EnvironmentFiles = Array<[string, string | null]>;
+
+function environmentFiles(value: unknown): EnvironmentFiles | undefined {
+  return Array.isArray(value) && value.every(item => Array.isArray(item) && item.length === 2 && typeof item[0] === 'string'
+    && (item[1] === null || typeof item[1] === 'string')) ? value as EnvironmentFiles : undefined;
+}
+
+/** Drop the installed-file list from `envelope`'s reuse report, in place, keeping its verdict
+ *  (`storable`, `reasons`, `untrackedReads`). A real run lists about 2,000 files; only the
+ *  stored entry needs them, to recheck before serving, and it keeps the worker's own text. */
+export function dropEnvironmentFiles(envelope: WorkerEnvelope | undefined): void {
+  const reuse = (envelope?.result as { diagnostics?: { reuse?: ReuseDiagnostics | null } } | null)?.diagnostics?.reuse;
+  if (reuse && typeof reuse === 'object') delete reuse.environment;
+}
+
+/**
+ * The worker's `reuse_audit.fingerprint` for `file`, computed here: `size:mtimeNs`, plus
+ * `:ctimeNs` except on Windows (where Python reports creation time instead), or null when
+ * nothing is there. Any other stat failure is undefined, which matches no recorded value.
+ */
+export function environmentFingerprint(file: string): string | null | undefined {
+  try {
+    const info = statSync(file, { bigint: true, throwIfNoEntry: false });
+    if (!info) return null;
+    const stamp = `${info.size}:${info.mtimeNs}`;
+    return process.platform === 'win32' ? stamp : `${stamp}:${info.ctimeNs}`;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return code === 'ENOENT' || code === 'ENOTDIR' ? null : undefined;
+  }
+}
 
 /** Why this finished run may not be stored, or undefined when it may. */
 export function outcomeUnstorable(outcome: TraceOutcome, snapshot: ExecutionSnapshot): string | undefined {
@@ -149,6 +183,8 @@ export function outcomeUnstorable(outcome: TraceOutcome, snapshot: ExecutionSnap
     const reasons = Array.isArray(reuse.reasons) ? reuse.reasons.filter(r => typeof r === 'string') : [];
     return `worker:${reasons.join('+') || 'unknown'}`;
   }
+  // Without the installed files it read, a stored result could not be rechecked before serving.
+  if (!environmentFiles(reuse.environment)) return 'no_environment_report';
   return undefined;
 }
 
@@ -309,8 +345,10 @@ function withCurrentDocumentVersions(envelope: WorkerEnvelope, stored: ResolvedE
  * (the caller deletes the entry and runs fresh). Checks, in order: the entry and metadata
  * parse and fit the size cap; the protocol version; the entry was produced under exactly
  * this applicability digest; the worker certified the plan current and the run storable
- * (`outcomeUnstorable` rules on the stored envelope); the semantic capture validates against
- * the ORIGINAL attempt and plan, is complete, its root call completed and no call failed.
+ * (`outcomeUnstorable` rules on the stored envelope); every installed file the run read still
+ * has the fingerprint it had then (the key holds package versions only, which an in-place edit
+ * or a same-version reinstall keeps); the semantic capture validates against the ORIGINAL
+ * attempt and plan, is complete, its root call completed and no call failed.
  */
 export function servableEntry(entry: { text: string; meta?: string } | undefined, snapshot: ExecutionSnapshot, protocol: number):
   { ok: true; envelope: WorkerEnvelope; reused: ReusedCapture } | { ok: false; reason: string } {
@@ -327,6 +365,8 @@ export function servableEntry(entry: { text: string; meta?: string } | undefined
     if (meta.planDigest !== snapshot.applicabilityDigest) return { ok: false, reason: 'plan_digest' };
     const unstorable = outcomeUnstorable({ ok: true, envelope, exitCode: 0, executionCurrent: true }, snapshot);
     if (unstorable) return { ok: false, reason: `stored_${unstorable}` };
+    const installed = environmentFiles((envelope.result as { diagnostics: { reuse: ReuseDiagnostics } }).diagnostics.reuse.environment)!;
+    if (installed.some(([file, stamp]) => environmentFingerprint(file) !== stamp)) return { ok: false, reason: 'environment_changed' };
     const capture = completeCapture(envelope, meta.attemptId, meta.plan, meta.planDigest);
     if (!capture || capture.id !== meta.captureId) return { ok: false, reason: 'capture' };
     const plan = withCurrentDocumentVersions(envelope, meta.plan, snapshot.plan);
@@ -552,10 +592,11 @@ export function emptyStats(): ExecutionCacheStats {
 }
 
 /** The user-visible label for a reused result. Local time of the original run; the date as
- *  well when it was not today. */
+ *  well when it was not today. Serving still runs the user's Python to resolve and recheck
+ *  the plan, so the label says what was skipped: running the model. */
 export function reusedResultLabel(capturedAt: number, now = Date.now()): string {
   const then = new Date(capturedAt), today = new Date(now);
   const time = then.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const when = then.toDateString() === today.toDateString() ? time : `${then.toLocaleDateString()} ${time}`;
-  return `Reused identical result from ${when} (no Python ran).`;
+  return `Reused identical result from ${when} (model not run again).`;
 }

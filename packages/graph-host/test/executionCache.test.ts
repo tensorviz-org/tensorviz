@@ -1,10 +1,12 @@
 import * as assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import {
-  ALLOWED_DOCUMENT_VERSION_LISTS, ALLOWED_GENERATION_PATHS, ALLOWED_TIMING_PATHS, ExecutionResultStore, envDigest, firstDifference, machineFacts,
-  normaliseEnvelope, outcomeUnstorable, requestIneligible, resultKey, resultKeyParts, shadowDifference, type ResultKeyParts,
+  ALLOWED_DOCUMENT_VERSION_LISTS, ALLOWED_GENERATION_PATHS, ALLOWED_TIMING_PATHS, ExecutionResultStore, envDigest, environmentFingerprint,
+  firstDifference, machineFacts, normaliseEnvelope, outcomeUnstorable, requestIneligible, resultKey, resultKeyParts, reusedResultLabel,
+  shadowDifference, type ResultKeyParts,
 } from '@tensorviz/graph-host/executionCache';
 import { backendDigest, BACKEND_IDENTITY_FILE, resetBackendDigestCache } from '@tensorviz/graph-host/backendIdentity';
 import type { ExecutionSnapshot } from '@tensorviz/graph-host/executionPlanCore';
@@ -163,7 +165,7 @@ suite('execution cache eligibility', () => {
   }
 });
 
-function envelope(reuse: unknown = { storable: true, reasons: [], untrackedReads: 0 }, extra: Record<string, unknown> = {}): WorkerEnvelope {
+function envelope(reuse: unknown = { storable: true, reasons: [], untrackedReads: 0, environment: [] }, extra: Record<string, unknown> = {}): WorkerEnvelope {
   return { protocol_version: 1, result: { graph: {}, diagnostics: { execution: { planDigest: DIGEST, planCurrent: true },
     semantic_capture: { id: 'capture:1' }, semantic_capture_error: null, reuse, ...extra } }, spans: {}, error: null, worker: {} };
 }
@@ -188,6 +190,12 @@ suite('execution cache storability', () => {
     ['old backend without a reuse report', okOutcome(envelope(null)), 'no_reuse_report'],
     ['untracked read', okOutcome(envelope({ storable: false, reasons: ['untracked_workspace_read'], untrackedReads: 1 })), 'worker:untracked_workspace_read'],
     ['write', okOutcome(envelope({ storable: false, reasons: ['write'], untrackedReads: 0 })), 'worker:write'],
+    ['native code', okOutcome(envelope({ storable: false, reasons: ['native_code'], untrackedReads: 0 })), 'worker:native_code'],
+    // Without the installed files it read, a stored result could not be rechecked before serving.
+    ['storable report without installed-file fingerprints', okOutcome(envelope({ storable: true, reasons: [], untrackedReads: 0 })),
+      'no_environment_report'],
+    ['malformed installed-file fingerprints', okOutcome(envelope({ storable: true, reasons: [], untrackedReads: 0,
+      environment: [['/venv/lib/site-packages/x.py', 12]] })), 'no_environment_report'],
   ];
   for (const [name, outcome, reason] of cases) {
     test(`never stored: ${name}`, () => assert.equal(outcomeUnstorable(outcome, snapshot()), reason));
@@ -267,7 +275,7 @@ function captured(run: { plan: string; source: string; attempt: string; capture:
         modules: [{ path: 'fc', constructorBindingIds: [b1] }],
         invocations: [{ path: 'fc', sourceBindingIds: [b1, b0] }],
         operations: [{ op: 'aten.addmm', sourceBindingIds: [b1] }] },
-      reuse: { storable: true, reasons: [], untrackedReads: 0 } } },
+      reuse: { storable: true, reasons: [], untrackedReads: 0, environment: [] } } },
   };
 }
 const runA = { plan: 'plan-a', source: 'source:run-a', attempt: 'attempt-a', capture: 'capture:1111', generation: 3,
@@ -352,5 +360,46 @@ suite('execution cache allowed differences', () => {
     assert.equal(firstDifference({ b: [1] }, { b: [1, 2] }), '.b[length]');
     assert.equal(firstDifference({ a: null }, { a: {} }), '.a');
     assert.equal(firstDifference({ a: 1 }, { b: 1 }), '.a');
+  });
+});
+
+suite('execution cache installed-file fingerprints', () => {
+  // The worker records them (reuse_audit.fingerprint) and the host compares them before
+  // serving. If the two disagreed on the format, every run that read an installed file would
+  // be refused; if they agreed on too little, an edit would be missed.
+  test('the host computes the worker\'s fingerprint for a file, a folder and a missing path', function () {
+    this.timeout(30_000);   // a cold interpreter start
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'tv-fingerprint-'));
+    try {
+      const file = path.join(dir, 'layers.py');
+      writeFileSync(file, 'WIDTH = 3\n');
+      const paths = [file, dir, path.join(dir, 'absent.py'), path.join(file, 'below-a-file')];
+      const script = 'import importlib.util, json, sys\n'
+        + 'spec = importlib.util.spec_from_file_location("reuse_audit", sys.argv[1])\n'
+        + 'module = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(module)\n'
+        + 'print(json.dumps([module.fingerprint(p) for p in sys.argv[2:]]))\n';
+      const audit = path.join(__dirname, '../../../backend/services/ingest/reuse_audit.py');
+      const python = spawnSync(process.env.TENSORVIZ_TEST_PYTHON || process.env.PYTHON || 'python3', ['-I', '-c', script, audit, ...paths], { encoding: 'utf8' });
+      if (python.error) this.skip();
+      assert.equal(python.status, 0, python.stderr);
+      const expected = JSON.parse(python.stdout) as (string | null)[];
+      assert.deepEqual(paths.map(environmentFingerprint), expected);
+      assert.equal(expected[2], null);
+      assert.equal(expected[3], null);
+      writeFileSync(file, 'WIDTH = 30\n');
+      assert.notEqual(environmentFingerprint(file), expected[0], 'an in-place edit changes it');
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+suite('reused result label', () => {
+  test('says the model was not run again, not that no Python ran', () => {
+    // Serving still runs the user's interpreter to resolve the plan and recheck it.
+    const captured = new Date(2026, 9, 25, 14, 2);
+    const label = reusedResultLabel(captured.getTime(), new Date(2026, 9, 25, 16, 0).getTime());
+    // Same day: the time alone, in the machine's locale (its digits need not be ASCII).
+    const time = captured.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    assert.equal(label, `Reused identical result from ${time} (model not run again).`);
+    assert.doesNotMatch(label, /Python/);
   });
 });

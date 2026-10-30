@@ -244,3 +244,97 @@ def test_preload_prints_nothing_and_eof_still_exits_cleanly():
     out, err = process.communicate(b'', timeout=60)
     assert process.returncode == 0
     assert out == b''
+
+
+# --- Execution-cache audit of what was pre-loaded ---------------------------------
+
+def test_standby_fingerprints_what_it_preloaded_before_it_waits():
+    """A file edited while the standby waits must keep its pre-edit stamp: the run that
+    claims this process executes the code loaded before the edit."""
+    import torch
+    from services.ingest.reuse_audit import fingerprint
+    script = ('import importlib.util, json, sys, torch\n'
+              f'spec = importlib.util.spec_from_file_location("standby_under_test", {str(STANDBY)!r})\n'
+              'standby = importlib.util.module_from_spec(spec); spec.loader.exec_module(standby)\n'
+              f'assert standby._preload({str(BOOTSTRAP)!r})\n'
+              'audit = sys.modules["_tensorviz_capture_worker.ingest.reuse_audit"]\n'
+              'print(json.dumps(audit._remembered.get(torch.__spec__.origin)))\n')
+    process = subprocess.run([sys.executable, '-B', '-c', script], cwd=BACKEND, env=env(), capture_output=True, text=True, timeout=120)
+    assert process.returncode == 0, process.stderr[-2000:]
+    real = os.path.realpath(torch.__file__)
+    assert json.loads(process.stdout)[0] == [torch.__spec__.origin, real, fingerprint(real)]
+
+
+def test_standby_and_fresh_runs_report_the_same_installed_files(tmp_path):
+    """The host compares a stored result with the next run, which may be either kind: the
+    installed files they report (including those loaded before the audit) must agree."""
+    import torch
+    from tests.capture.test_reuse_audit import PLAIN, _plan, _workspace
+    root = _workspace(tmp_path / 'ws', PLAIN)
+    request = ['--resolved-execution', '--workspace', str(root), '--file', str(root / 'model.py'), '--cls', 'Model',
+               '--json', '--reuse-audit']
+    fresh = subprocess.run([sys.executable, str(BOOTSTRAP), *request], cwd=BACKEND, capture_output=True, timeout=120,
+                           env=env(TENSORVIZ_EXECUTION_PLAN=str(_plan(root, tmp_path))))
+    process = start()
+    time.sleep(3)  # pre-loaded, and waiting
+    out, err = process.communicate((json.dumps({'argv': request, 'env': {
+        'TENSORVIZ_EXECUTION_PLAN': str(_plan(root, tmp_path))}}) + '\n').encode(), timeout=120)
+    assert process.returncode == fresh.returncode == 0, err.decode()[-2000:]
+    standby, ordinary = (json.loads(text)['result']['diagnostics']['reuse'] for text in (out, fresh.stdout))
+    assert standby == ordinary and standby['storable'] is True
+    assert os.path.realpath(torch.__file__) in dict(standby['environment'])
+
+
+@pytest.mark.skipif(os.name == 'nt', reason='the hand-off to a fresh worker is POSIX only')
+@pytest.mark.parametrize('change, launch', [('unchanged', 'legacy'), ('edited', 'legacy'), ('relinked', 'legacy'),
+                                            ('edited', 'plan')])
+def test_a_standby_whose_preloaded_files_changed_continues_as_a_fresh_worker(model, tmp_path, change, launch):
+    """A module the standby loaded before it began to wait is edited, or its link re-pointed
+    (``brew upgrade`` links the new keg and may keep the old one), before its request
+    arrives: the run must execute the new code, as an ordinary launch would. The process
+    replaces itself, so the host's pid, process group and pipes still reach the run. The host
+    claims a standby only for a resolved plan, whose file it names in the request's
+    environment alone (the standby started without it), so the new process must get that too."""
+    site = tmp_path / 'site'
+    site.mkdir()
+    (site / 'sitecustomize.py').write_text('import preloadedwidth\n')  # loaded before the standby waits
+    library = site / 'preloadedwidth.py'
+    kegs = [tmp_path / 'Cellar' / version / 'preloadedwidth.py' for version in ('1.0', '2.0')]
+    if change == 'relinked':
+        for keg, width in zip(kegs, (3, 30)):
+            keg.parent.mkdir(parents=True)
+            keg.write_text(f'def width():\n    return {width}\n')
+        library.symlink_to(kegs[0])
+    else:
+        library.write_text('def width():\n    return 3\n')
+    while_waiting = {'unchanged': 'pass',
+                     'edited': f'pathlib.Path({str(library)!r}).write_text("def width():\\n    return 30\\n")',
+                     'relinked': f'os.remove({str(library)!r}); os.symlink({str(kegs[1])!r}, {str(library)!r})'}[change]
+    marker = tmp_path / 'seen.json'
+    model.write_text(MODEL.format(body='        import os, json, preloadedwidth; json.dump([preloadedwidth.width(), '
+                                       f'os.getpid(), os.getpgid(0)], open({str(marker)!r}, "w"))'))
+    request = {'argv': argv(model), 'env': {}}
+    if launch == 'plan':  # as traceWorkerCore's claimStandby sends it
+        from tests.capture.test_reuse_audit import _plan, _workspace
+        root = _workspace(tmp_path / 'ws', model.read_text())
+        request = {'argv': ['--resolved-execution', '--workspace', str(root), '--file', str(root / 'model.py'), '--cls', 'Model',
+                            '--json'], 'env': {'TENSORVIZ_EXECUTION_PLAN': str(_plan(root, tmp_path))}}
+    # The standby itself, with the edit landing while it waits for its request.
+    script = ('import importlib.util, os, pathlib, sys\n'
+              f'spec = importlib.util.spec_from_file_location("standby_under_test", {str(STANDBY)!r})\n'
+              'standby = importlib.util.module_from_spec(spec); spec.loader.exec_module(standby)\n'
+              'read = standby._read_request\n'
+              'def changed_while_waiting():\n'
+              f'    {while_waiting}\n'
+              '    return read()\n'
+              'standby._read_request = changed_while_waiting\n'
+              'sys.exit(standby.main())\n')
+    process = subprocess.Popen([sys.executable, '-c', script], cwd=BACKEND, env=env(PYTHONPATH=str(site)),
+                               stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+    out, err = process.communicate((json.dumps(request) + '\n').encode(), timeout=120)
+    envelope = json.loads(out)
+    assert process.returncode == 0 and envelope['error'] is None, (envelope['error'], err.decode()[-2000:])
+    assert json.loads(marker.read_text()) == [3 if change == 'unchanged' else 30, process.pid, process.pid]
+    assert (b'continuing as a fresh worker' in err) is (change != 'unchanged')
+    if launch == 'plan':
+        assert envelope['result']['diagnostics']['execution']['planCurrent'] is True

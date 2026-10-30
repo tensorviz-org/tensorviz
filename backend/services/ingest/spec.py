@@ -15,7 +15,7 @@ ModelGraph with ``data.parentId`` is the only shape that round-trips correctly.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from pydantic import BaseModel, Field
 from ..semantic.contracts import Diagnostic
@@ -34,7 +34,7 @@ TraceTier = Literal["fake", "real", "tree-only", "jaxpr"]
 #: already is, in ``timings_ms["input_candidates_tried"]``. Encoding the number in
 #: this string would make the set open and every reader a parser.
 InputProvenance = Literal[
-    # The file's own `# tensorviz: input=...` line.
+    # The model class's own `# tensorviz: input=...` line.
     "declared",
     # The caller's `--input` / `example_input=`, which outranks the file.
     "explicit",
@@ -92,14 +92,19 @@ class ReuseReport(BaseModel):
     """Whether this run's result may be stored by the host's execution cache.
 
     Filled by ``services/ingest/reuse_audit.py`` for resolved-plan model runs only: a run
-    that wrote a file, spawned a process, opened a socket, or read a file the plan's
-    digests, the interpreter's versions and the backend digest do not cover is not
-    storable. Reasons are a closed set and no path is reported."""
+    that wrote a file, spawned a process, opened a socket, loaded untrusted native code, or
+    read, listed or checked for a file the plan's digests, the interpreter's versions and
+    the backend digest do not cover is not storable. Reasons are a closed set and no
+    untracked path is reported. ``environment`` lists, for a storable run, the files under
+    the interpreter's own trees it read, or had loaded as modules before the audit started,
+    with their stat fingerprints ([path, fingerprint or null when absent]); the host
+    rechecks them before serving."""
 
     storable: bool
-    reasons: List[Literal["write", "untracked_workspace_read", "untracked_external_read", "subprocess", "network"]] = Field(
-        default_factory=list)
+    reasons: List[Literal["write", "untracked_workspace_read", "untracked_external_read", "subprocess", "network",
+                          "native_code"]] = Field(default_factory=list)
     untrackedReads: int = 0
+    environment: List[Tuple[str, Optional[str]]] = Field(default_factory=list)
 
 
 class IngestDiagnostics(BaseModel):

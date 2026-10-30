@@ -32,7 +32,7 @@ if (argv.some(a => a.endsWith('host_snapshot.py'))) {
       worker: { planId, elapsed_ms: Math.random() },
       execution: { planDigest: plan.applicabilityDigest, planCurrent: true, resolvedPlan: { id: planId, source: { id: 'source:' + planId, generation: 1 } } },
       semantic_capture: { id: 'capture:' + crypto.randomUUID(), attemptId: 'a-' + crypto.randomUUID(), source: { id: 'source:' + planId, generation: 1 }, sourceBindings: [] },
-      semantic_capture_error: null, reuse: s.reuse || { storable: true, reasons: [], untrackedReads: 0 } } } }) + '\n');
+      semantic_capture_error: null, reuse: s.reuse || { storable: true, reasons: [], untrackedReads: 0, environment: [] } } } }) + '\n');
   process.exit(s.exit || 0);
 } else process.exit(2);
 `;
@@ -210,6 +210,61 @@ suite('TraceWorkerCore execution cache (shadow hook)', function () {
       await go(w, request());
       assert.deepEqual(cacheLines(), ['[cache] not eligible (not_requested)', '[cache] not eligible (no_seed)']);
       assert.equal(w.executionCacheStats().entries, 0);
+    } finally { w.dispose(); }
+  });
+
+  test('the mode is read for the run\'s own file, so a folder-level value of a multi-root workspace applies', async () => {
+    const asked: unknown[] = [];
+    const w = new TraceWorkerCore(backend, { appendLine: line => lines.push(line) }, {
+      interpreter: async () => python, trusted: () => true, documents: () => ({}),
+      executionCache: (...resource: unknown[]) => { asked.push(...resource); return { mode: 'off' }; },
+    });
+    try {
+      await go(w, request());
+      assert.deepEqual(asked, [path.join(workspace, 'm.py')]);
+      assert.deepEqual(cacheLines(), []);
+    } finally { w.dispose(); }
+  });
+
+  test('one store serves every folder: a folder set to off skips only its own runs and keeps other folders\' entries', async () => {
+    const other = path.join(root, 'other');
+    mkdirSync(other);
+    writeFileSync(path.join(other, 'm.py'), 'class M: pass\n');
+    // The window level (no resource) is shadow; the other folder sets off, then a tiny size.
+    let folder: ExecutionCacheSettings = { mode: 'off' };
+    const w = new TraceWorkerCore(backend, { appendLine: line => lines.push(line) }, {
+      interpreter: async () => python, trusted: () => true, documents: () => ({}),
+      executionCache: resource => resource?.startsWith(other + path.sep) ? folder : settings,
+    });
+    const elsewhere = () => request({ file: path.join(other, 'm.py'), workspace: other });
+    try {
+      await go(w, request());
+      await go(w, elsewhere());
+      assert.equal(w.executionCacheStats().entries, 1, 'the off folder\'s run left the shared store alone');
+      // Only the window-level size caps the shared store.
+      folder = { mode: 'shadow', maxSizeMB: 1e-6 };
+      await go(w, elsewhere());
+      assert.equal(w.executionCacheStats().entries, 2);
+      await go(w, request());
+      assert.equal(cacheLines().at(-1), '[cache] shadow hit: identical');
+      // The off folder's run launched as with the cache off: not audited.
+      assert.equal(readFileSync(path.join(backend, 'runs.log'), 'utf8'), 'run audited\nrun\nrun audited\nrun audited\n');
+    } finally { w.dispose(); }
+  });
+
+  test('the window-level off still drops the shared store, whatever the run\'s folder says', async () => {
+    let windowLevel: ExecutionCacheSettings = { mode: 'shadow' };
+    const w = new TraceWorkerCore(backend, { appendLine: line => lines.push(line) }, {
+      interpreter: async () => python, trusted: () => true, documents: () => ({}),
+      executionCache: resource => resource === undefined ? windowLevel : settings,
+    });
+    try {
+      await go(w, request());
+      assert.equal(w.executionCacheStats().entries, 1);
+      windowLevel = { mode: 'off' };
+      await go(w, request());
+      assert.equal(w.executionCacheStats().entries, 0);
+      assert.equal(cacheLines().length, 1, 'no lookup while the window is off');
     } finally { w.dispose(); }
   });
 

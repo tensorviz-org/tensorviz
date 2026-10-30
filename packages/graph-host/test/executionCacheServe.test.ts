@@ -4,8 +4,11 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { TraceWorkerCore, WORKER_PROTOCOL_VERSION, type TraceOutcome, type TraceRequest } from '@tensorviz/graph-host/traceWorkerCore';
 import { disposeSnapshotHelpers } from '@tensorviz/graph-host/hostSnapshot';
-import { ExecutionResultStore, MAX_ENTRY_BYTES, servableEntry, type ExecutionCacheSettings } from '@tensorviz/graph-host/executionCache';
+import { environmentFingerprint, ExecutionResultStore, MAX_ENTRY_BYTES, servableEntry, type ExecutionCacheSettings } from '@tensorviz/graph-host/executionCache';
 import type { ExecutionSnapshot } from '@tensorviz/graph-host/executionPlanCore';
+import { AttemptLedger } from '@tensorviz/graph-host/attemptLedger';
+import { multifileProjectionBody } from '@tensorviz/graph-host/workspaceSourceCore';
+import type { LocalBrowserTargetIdentity } from '@tensorviz/contracts/protocol';
 
 const FIXTURE = path.join(__dirname, '../../../tests/fixtures/contracts/semantic-capture.json');
 
@@ -48,12 +51,14 @@ if (argv.some(a => a.endsWith('host_snapshot.py'))) {
       worker: { planId, elapsed_ms: Math.random() },
       execution: { planDigest: plan.applicabilityDigest, planCurrent: true, resolvedPlan: plan.plan },
       semantic_capture: capture, semantic_capture_error: null,
-      reuse: s.reuse || { storable: true, reasons: [], untrackedReads: 0 } } } }) + '\n');
+      reuse: s.reuse || { storable: true, reasons: [], untrackedReads: 0, environment: s.environment || [] } } } }) + '\n');
   process.exit(s.exit || 0);
 } else process.exit(2);
 `;
 
 type Ok = Extract<TraceOutcome, { ok: true }>;
+const target: LocalBrowserTargetIdentity = { workspaceFolder: '/ws', file: 'm.py', cls: 'M',
+  sourceDigest: 'a'.repeat(64), documentVersion: 1, backendRevision: 1 };
 const captureId = (outcome: TraceOutcome) => (outcome.envelope?.result as any)?.diagnostics?.semantic_capture?.id as string;
 
 suite('TraceWorkerCore execution cache (on: serving)', function () {
@@ -117,7 +122,7 @@ suite('TraceWorkerCore execution cache (on: serving)', function () {
         'the post-projection freshness recheck still re-resolves the plan');
       const stats = w.executionCacheStats();
       assert.equal(stats.served, 1); assert.equal(stats.hits, 1); assert.equal(stats.serveRejected, 0);
-      assert.ok(lines.some(line => /^\[cache\] served [0-9a-f]{12}: reused identical result of attempt .* \(no Python ran\)$/.test(line)));
+      assert.ok(lines.some(line => /^\[cache\] served [0-9a-f]{12}: reused identical result of attempt .* \(model not run again\)$/.test(line)));
     } finally { w.dispose(); }
   });
 
@@ -219,6 +224,73 @@ suite('TraceWorkerCore execution cache (on: serving)', function () {
       await go(w); await go(w);
       assert.equal(launches(), 2);
       assert.equal(w.executionCacheStats().entries, 0);
+    } finally { w.dispose(); }
+  });
+
+  // The key holds package versions only. A same-version reinstall or an in-place edit of an
+  // installed module keeps them, so the files the stored run read are re-stat'ed first.
+  test('on: an installed file the stored run read is rechecked; an in-place edit runs fresh', async () => {
+    const w = worker();
+    try {
+      const installed = path.join(root, 'site-packages', 'fakelib', '__init__.py');
+      mkdirSync(path.dirname(installed), { recursive: true });
+      writeFileSync(installed, 'WIDTH = 3\n');
+      state({ environment: [[installed, environmentFingerprint(installed)]] });
+      await go(w);
+      assert.ok((await go(w) as Ok).reused, 'unchanged: served');
+      writeFileSync(installed, 'WIDTH = 30\n');
+      const edited = await go(w) as Ok;
+      assert.equal(edited.reused, undefined);
+      assert.equal(launches(), 2, 'ran fresh');
+      assert.ok(lines.includes('[cache] stored result not servable (environment_changed); dropped, running fresh'));
+    } finally { w.dispose(); }
+  });
+
+  test('on: an installed file that was absent when the stored run looked for it, and now exists, runs fresh', async () => {
+    const w = worker();
+    try {
+      const optional = path.join(root, 'site-packages', 'optional_plugin.py');
+      state({ environment: [[optional, null]] });
+      await go(w);
+      assert.ok((await go(w) as Ok).reused, 'still absent: served');
+      mkdirSync(path.dirname(optional), { recursive: true });
+      writeFileSync(optional, 'ENABLED = True\n');
+      assert.equal((await go(w) as Ok).reused, undefined);
+      assert.equal(launches(), 2);
+    } finally { w.dispose(); }
+  });
+
+  // A real run lists about 2,000 installed files (about 0.4 MB). Only the stored entry needs
+  // them, for that recheck; the outcome is kept in attempt ledger bodies (16 MB retention
+  // limit) and posted as the projection's trace_result on every traced refresh.
+  test('the installed-file list stays in the stored entry, out of the outcome callers keep and post', async () => {
+    const w = worker();
+    try {
+      const installed = path.join(root, 'site-packages', 'fakelib', '__init__.py');
+      mkdirSync(path.dirname(installed), { recursive: true });
+      writeFileSync(installed, 'WIDTH = 3\n');
+      state({ environment: [[installed, environmentFingerprint(installed)]] });
+      const fresh = await go(w) as Ok;
+      const served = await go(w) as Ok;
+      assert.equal(fresh.reused, undefined);
+      assert.ok(served.reused);
+      const entries = (store(w) as unknown as { entries: Map<string, { text: string }> }).entries;
+      assert.ok([...entries.values()][0].text.includes(installed), 'the stored text keeps the list for the recheck');
+      const io = { list: async () => ['m.py'], read: async () => 'class M: pass\n', openDocument: () => undefined };
+      for (const [name, outcome] of [['fresh', fresh], ['served', served]] as const) {
+        assert.deepEqual((outcome.envelope.result as any).diagnostics.reuse,
+          { storable: true, reasons: [], untrackedReads: 0 }, `${name}: the verdict stays`);
+        const ledger = new AttemptLedger();
+        ledger.begin(name, target, 'manual', null).captured(outcome);
+        const slots = ledger.state(target);
+        const retained = ledger.capture((slots.lastCompleteCaptureId ?? slots.lastPartialCaptureId)!)!;
+        assert.ok(retained.envelope && !JSON.stringify(retained.envelope).includes(installed), `${name}: not in the ledger body`);
+        const body = await multifileProjectionBody({ io, file: 'm.py', cls: 'M', source: 'class M: pass\n', trace: outcome.envelope });
+        assert.ok(body.trace_result && !JSON.stringify(body.trace_result).includes(installed), `${name}: not in trace_result`);
+      }
+      writeFileSync(installed, 'WIDTH = 30\n');
+      assert.equal((await go(w) as Ok).reused, undefined, 'serving still rechecks the stored list');
+      assert.ok(lines.includes('[cache] stored result not servable (environment_changed); dropped, running fresh'));
     } finally { w.dispose(); }
   });
 

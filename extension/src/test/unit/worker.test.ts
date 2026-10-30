@@ -12,6 +12,7 @@ import {
   WORKER_PROTOCOL_VERSION,
   parseEnvelope,
   runProcess,
+  windowTraceWorker,
   workerArgs,
   workerEnv,
   workspaceTrusted,
@@ -249,7 +250,7 @@ suite('TraceWorker interpreter probe cache', () => {
    *  The real `userInterpreter` asks the Python extension, so this is not a
    *  contrivance: run() does async work between cancelling and probing, and how
    *  much decides whether it reads the cache the cancelled probe just wrote. */
-  function worker(interpreter: string, resolveDelays: number[] = []): TraceWorker {
+  function worker(interpreter: string | undefined, resolveDelays: number[] = []): TraceWorker {
     const channel = { appendLine() {}, append() {}, dispose() {} } as unknown as vscode.OutputChannel;
     let call = 0;
     return new TraceWorker(process.cwd(), channel, {
@@ -264,6 +265,16 @@ suite('TraceWorker interpreter probe cache', () => {
       timeoutMs: 10_000,
     });
   }
+
+  test('an unselected interpreter refuses a retained plan and points to TensorViz selection', async () => {
+    const trace = worker(undefined);
+    try {
+      const outcome = await trace.run({ file: '/ws/net.py', cls: 'Net', expectedInterpreter: '/previously-selected-python' });
+      assert.ok(!outcome.ok);
+      assert.equal(outcome.envelope, undefined);
+      assert.match(outcome.detail!, /TensorViz.*Select Python Environment/);
+    } finally { trace.dispose(); }
+  });
 
   test('a different selected interpreter refuses before probing or executing', async () => {
     const trace = worker('/no-longer-the-selected-python');
@@ -350,5 +361,20 @@ suite('TraceWorker interpreter probe cache', () => {
     } finally {
       trace.dispose();
     }
+  });
+});
+
+suite('TraceWorker owned by the window', () => {
+  test('is disposed with the extension, so its warm standby does not outlive deactivation', () => {
+    const context = { subscriptions: [] as vscode.Disposable[] };
+    const channel = { appendLine() {}, append() {}, dispose() {} } as unknown as vscode.OutputChannel;
+    const worker = windowTraceWorker(context, process.cwd(), channel);
+    let disposed = 0;
+    const dispose = worker.dispose.bind(worker);
+    worker.dispose = () => { disposed += 1; dispose(); };
+    // What VS Code does after deactivate(). That dispose() retires a real standby is
+    // prestartedWorker.test.ts's teardown ("dispose must not leave a standby behind").
+    for (const subscription of context.subscriptions) subscription.dispose();
+    assert.equal(disposed, 1);
   });
 });

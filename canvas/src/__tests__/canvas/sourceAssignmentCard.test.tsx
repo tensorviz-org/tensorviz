@@ -18,7 +18,6 @@ let mockDetail: DetailTier = 'inspection';
 jest.mock('../../canvas/graphDetail', () => ({ useGraphDetail: () => mockDetail }));
 jest.mock('../../canvas/graphQueryState', () => ({
   graphSearchResult: { get: () => ({}) }, searchStateFor: () => undefined,
-  graphOverlayScale: { get: () => ({ values: new Map() }) },
 }));
 const mockSpanmap: Record<string, unknown> = {};
 jest.mock('../../ide/projection', () => ({ localBrowserMode: () => true, currentProjection: () => ({ spanmap: mockSpanmap }),

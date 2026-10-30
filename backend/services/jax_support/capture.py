@@ -5,6 +5,7 @@ Only unconditional call bodies are expanded; control-flow primitives retain
 their boundary and explicitly disclose unexpanded bodies.
 """
 from pathlib import Path
+import re
 from uuid import uuid4
 
 from ..semantic.contracts import CaptureSnapshot
@@ -31,7 +32,7 @@ class JaxprCapture:
                 'Custom PyTrees normalize to registered child keys; static PyTree metadata is not serialized',
                 'Unconditional JIT, checkpoint and custom derivative call bodies are expanded; control-flow bodies remain opaque',
                 'Primitive named tuples normalize to tuples; primitive enums serialize by qualified member name',
-                'No runtime timing, storage aliases, peak memory, or eager execution coverage is claimed'],
+                'No storage aliases, peak memory, or eager execution coverage is claimed'],
             status='complete', rootInvocationId='call:0', inputs=dict(args=[], kwargs={}), output=None,
             definitions=[], modules=[], invocations=[], operations=[], values=[], sourceBindings=[], diagnostics=[],
             coverage=dict(scope='traced_program', operationsSeen=0, invocationsSeen=0, omissions=[], modules=[]),
@@ -114,7 +115,8 @@ class JaxprCapture:
                 continue
             if file not in self.source_lines:
                 raw = path.read_bytes()
-                self.source_lines[file] = raw.decode('utf-8').splitlines() if hashlib.sha256(raw).hexdigest() == files[file] else []
+                # Frame line numbers count only \r\n, \r and \n, as the AST does.
+                self.source_lines[file] = re.split(r'\r\n?|\n', raw.decode('utf-8')) if hashlib.sha256(raw).hexdigest() == files[file] else []
             lines = self.source_lines[file]
             line = frame.line_num
             if not 1 <= line <= len(lines) or not lines[line - 1]:
@@ -124,7 +126,7 @@ class JaxprCapture:
                 self.bindings.add(identity)
                 self.data['sourceBindings'].append(dict(id=identity, snapshotId=self.plan.source.id,
                     kind='call', quality='candidate', anchors=[dict(file=file, digest=files[file],
-                        startLine=line, startColumn=0, endLine=line, endColumn=len(lines[line - 1].encode()),
+                        startLine=line, startColumn=0, endLine=line, endColumn=len(lines[line - 1].encode('utf-16-le')) // 2,
                         scope=frame.function_name[:4096], tokenDigest=hashlib.sha256(lines[line - 1].encode()).hexdigest())]))
             return [identity]
         return []

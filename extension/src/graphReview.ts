@@ -7,7 +7,7 @@ import { changedReviewFiles, gitReviewSourceSet, resolveReviewRevision, reviewGi
 import { collectSourceSet, SourceSet, vscodeSourceIO } from './workspaceSources';
 import type { GraphReviewRequest, GraphReviewState, IdeMultifileProjectionResponse, IdeMultifileSpan, LocalBrowserTargetIdentity, ProjectionPayload } from '@tensorviz/contracts/protocol';
 import type { LocalBrowserHostPublish } from '@tensorviz/graph-host/localBrowserHostTransport';
-import { discoverReview, reviewCoverage, ReviewInventory, ReviewModelRoot, ReviewSession } from './reviewSnapshots';
+import { discoverReview, reviewCoverage, reviewDirectory, reviewFilePath, ReviewInventory, ReviewModelRoot, ReviewSession } from './reviewSnapshots';
 import { GraphToolError } from '@tensorviz/graph-host/mcpGraph';
 
 export interface GraphReviewSpec { before: string; after: string; mergeBase?: boolean }
@@ -16,6 +16,8 @@ interface Review {
   sources: { before: SourceSet; after: SourceSet };
 }
 const scheme = 'tensorviz-git-review';
+/** A file's identity through directory aliases; unset when it cannot be resolved. */
+const onDisk = (folder: string, file: string) => { try { return reviewFilePath(path.join(folder, file)); } catch { return undefined; } };
 
 /** Window-owned immutable review. Webviews can request only cached node IDs. */
 export class GraphReview implements vscode.Disposable {
@@ -73,7 +75,7 @@ export class GraphReview implements vscode.Disposable {
     this.sourceEpoch++;
     const review = this.review;
     if (!review || (!this.session?.data.after.working && review.spec.after !== 'WORKTREE') || uri.scheme !== 'file' || review.state.stale) return;
-    const relative = path.relative(review.target.workspaceFolder, uri.fsPath);
+    const relative = path.relative(reviewDirectory(review.target.workspaceFolder), reviewFilePath(uri.fsPath));
     if (relative.startsWith('..') || path.isAbsolute(relative) || !relative.endsWith('.py')) return;
     if (this.session) this.session.stale = true;
     review.state = { ...review.state, stale: true };
@@ -170,7 +172,10 @@ export class GraphReview implements vscode.Disposable {
       session.selected = id;
       const root = model?.after ?? model?.before;
       const live = this.options.target();
-      const liveContext = live && live.workspaceFolder === session.data.folder && live.file === root?.file && live.cls === root?.cls
+      // The Canvas traces a nested project from its own root (modelProjectRoot);
+      // review names files from the Git toplevel. The same file on disk is the same model.
+      const liveFile = live && onDisk(live.workspaceFolder, live.file);
+      const liveContext = live && root && session.data.folder && live.cls === root.cls && liveFile && liveFile === onDisk(session.data.folder, root.file)
         ? { workspaceFolder: live.workspaceFolder, file: live.file, cls: live.cls } : undefined;
       const coverage = reviewCoverage(session.inventory, model);
       const expandedSources = (side: 'before' | 'after'): SourceSet => {

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import { reviewGit } from '@tensorviz/graph-host/gitReviewSources';
-import { gitSnapshot, indexSnapshot, ReviewSession, ReviewSnapshot, workingSnapshot } from './reviewSnapshots';
+import { gitSnapshot, indexSnapshot, reviewFilePath, ReviewSession, ReviewSnapshot, workingSnapshot } from './reviewSnapshots';
 import { githubRepository, GitHubRead, loadPullRequest, parsePullRequestUrl } from './githubReview';
 import { sha256Text } from './workspaceSources';
 
@@ -11,7 +11,7 @@ function query(uri: vscode.Uri): Record<string, unknown> {
 }
 function filename(uri: vscode.Uri): string {
   const value = query(uri);
-  return typeof value.path === 'string' ? value.path : uri.fsPath;
+  return reviewFilePath(typeof value.path === 'string' ? value.path : uri.fsPath);
 }
 export async function workspaceGitFolder(uri?: vscode.Uri): Promise<string | undefined> {
   const selected = uri && vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filename(uri)));

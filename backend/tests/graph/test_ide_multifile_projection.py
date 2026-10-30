@@ -444,6 +444,31 @@ def test_every_span_points_at_its_own_file_with_that_files_digest(client: TestCl
     assert data["spanmap"]["enc1"]["file"] == ROOT
 
 
+def test_dependency_spans_count_utf16_columns_against_their_own_file(client: TestClient):
+    # Python's AST counts UTF-8 bytes; the editor counts UTF-16 code units. Each
+    # span converts against the text of the file it names, not the root's.
+    root = (
+        "from torch import nn\nfrom blocks import Block\nclass Net(nn.Module):\n"
+        "    def __init__(self):\n        super().__init__()\n        self.block = Block()\n"
+        "    def forward(self, x):\n        return self.block(x)\n"
+    )
+    blocks = (
+        "from torch import nn\nclass Block(nn.Module):\n    def __init__(self, d_μ=4):\n"
+        "        super().__init__()\n        self.seq = nn.Sequential(nn.Linear(d_μ, 4), nn.ReLU())\n"
+        "    def forward(self, x):\n        return self.seq(x)\n"
+    )
+    sources = [{"file": file, "source": text, "digest": _sha(text)} for file, text in (("model.py", root), ("blocks.py", blocks))]
+    data = _project(client, {
+        "protocol_version": multifile.IDE_PROJECTION_PROTOCOL_VERSION,
+        "root": {"file": "model.py", "cls": "Net", "source_digest": sources[0]["digest"]},
+        "sources": sources,
+    })
+    line = blocks.split("\n")[4]
+    relu = next(span for key, span in data["spanmap"].items() if key.startswith("relu@"))
+    assert relu["file"] == "blocks.py"
+    assert (relu["start"], relu["end"]) == ([5, line.index("nn.ReLU")], [5, line.rindex(")")])
+
+
 def test_dependency_set_covers_every_file_the_projection_consumed(client: TestClient):
     data = _project(client)
     by_file = {d["file"]: d["digest"] for d in data["dependencies"]}

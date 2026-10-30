@@ -2,4 +2,5 @@
 pytest>=8,<9
 transformers==4.57.6
 diffusers==0.36.0
+timm==1.0.30
 accelerate>=1,<2

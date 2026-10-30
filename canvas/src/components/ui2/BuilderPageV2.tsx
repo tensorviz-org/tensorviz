@@ -778,8 +778,8 @@ export default function BuilderPageV2({
   // read out was already on the card or the toolbar. What was only there moved:
   // Export Package to the toolbar beside Export Code, because a package belongs to
   // the model and not to whichever node is selected. Parameter editing did not
-  // move, because it already exists as SourceEditForm, which goes through the
-  // native review every other source change uses instead of writing the canvas.
+  // move: it lived in the cards' source edit form until node editing left the
+  // Canvas on 2026-10-27.
 
   const moreControl = readOnlyLocalBrowser ? <LocalCanvasMenu actions={moreTools} nodes={canvasGraph?.nodes || []}
     viewMode={snapshot.canvasViewMode} svgOverview={svgOverview} canvasTool={snapshot.canvasToolId} /> : (

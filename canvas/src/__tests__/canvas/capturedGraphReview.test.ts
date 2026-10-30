@@ -83,6 +83,13 @@ test('removal highlights the retained before-side layer and modifications highli
   document.semantic.metadata.sourceCorrespondence[0].invocationIds.push(extra[1].metadata.captureRef.semanticId);
   const modified = capturedGraphReview(state, buildGraphReview(state), capture)!;
   expect(modified.counts).toMatchObject({ added: 0, modified: 1 });
+  expect(modified.changes).toHaveLength(2);
+  expect(modified.changes.map(change => modified.focusNodes?.get(change.id))).toEqual(extra.map(node => node.node_id));
+  expect(modified.changes.map(change => change.label)).toEqual([
+    'output_projection · call 1/2', 'output_projection · call 2/2',
+  ]);
+  expect(modified.initialChangeId).toBe(modified.changes[0].id);
+  for (const change of modified.changes) expect(modified.nodes.get(change.id)?.after).toBe('output_projection');
   for (const node of extra) expect(modified.projections.diff.reviewGraph.nodes.find(item => item.id === node.node_id)?.data.diffStatus).toBe('modified');
 });
 
@@ -141,4 +148,100 @@ test('never borrows a capture for another model or a source-only projection', ()
   expect(capturedGraphReview(state, source, { ...capture, cls: 'OtherModel' })).toBeNull();
   expect(capturedGraphReview(state, source, { ...capture, traced: false })).toBeNull();
   expect(capturedGraphReview({ ...state, liveContext: undefined }, source, capture)).toBeNull();
+});
+
+test('finds an omitted deep declaration through exact captured constructor evidence', () => {
+  const { state, capture, extra } = conditionalLayers();
+  state.before = JSON.parse(JSON.stringify(state.after));
+  const key = '@declaration:["model.py","Block","proj"]';
+  for (const side of ['before', 'after'] as const) {
+    const span = { file: 'model.py', start: [20, 8], end: [20, 50], kind: 'decl' };
+    (state[side].document as GraphDocumentV2).semantic.metadata.reviewDeclarations = { complete: true, entries: {
+      [key]: { label: 'Block.proj', digest: side, ambiguous: false, span },
+    } };
+    state[side].spanmap[key] = span as any;
+  }
+  const document = capture.document as GraphDocumentV2;
+  document.semantic.metadata.sourceDeclarationCalls = { [key]: extra.map(node => node.metadata.captureRef.semanticId) };
+  const source = buildGraphReview(state);
+  expect(source.changes).toHaveLength(1);
+  expect(source.changes[0].label).toBe('Block.proj');
+  expect(source.counts.modified).toBe(1);
+  expect(source.projections.diff.reviewGraph.nodes.some(node => node.id.includes('@declaration:'))).toBe(false);
+  const review = capturedGraphReview(state, source, capture)!;
+  expect(review.changes).toHaveLength(2);
+  expect(review.changes.map(change => review.focusNodes?.get(change.id))).toEqual(extra.map(node => node.node_id));
+  capture.dependencies = [{ file: 'model.py', digest: 'stale' }];
+  const stale = capturedGraphReview(state, source, capture)!;
+  expect(stale.changes[0].detail).toContain('Not located in this capture');
+  expect(stale.projections.diff.reviewGraph.nodes.find(node => node.id === extra[0].node_id)?.data.diffStatus).toBeUndefined();
+});
+
+/** The extension traces a nested project from that project's root, so the capture
+ * names files from there; Git review names the same files from the repository root. */
+const nestedProject = (prefix: string) => {
+  const fixture = conditionalLayers();
+  const { state, capture } = fixture;
+  for (const side of ['before', 'after'] as const) {
+    state[side].file = `${prefix}model.py`;
+    state[side].dependencies = state[side].dependencies!.map(entry => ({ ...entry, file: prefix + entry.file }));
+  }
+  state.models = [{ id: 'm', label: state.after.cls, file: `${prefix}model.py`, status: 'modified' }];
+  state.selectedModel = 'm';
+  state.liveContext = { workspaceFolder: `/ws/${prefix.slice(0, -1)}`, file: capture.file, cls: capture.cls };
+  return fixture;
+};
+
+test('joins the registered layers of a nested project\'s capture traced from that project\'s root', () => {
+  for (const prefix of ['my-proj/', 'données/']) {
+    const { state, capture, extra } = nestedProject(prefix);
+    expect(capture.dependencies).toEqual([{ file: 'model.py', digest: 'after' }]);
+    const review = capturedGraphReview(state, buildGraphReview(state), capture)!;
+    for (const [i, name] of Array.from(['output_projection', 'output_linear'].entries())) {
+      const change = review.changes.find(change => change.label === name)!;
+      expect(change.detail).not.toContain('Not located in this capture');
+      expect(review.focusNodes?.get(change.id)).toBe(extra[i].node_id);
+      expect(review.projections.diff.reviewGraph.nodes.find(node => node.id === extra[i].node_id)?.data.diffStatus).toBe('added');
+    }
+    // A stale capture, or one whose file is not the reviewed file, still locates nothing.
+    const stale = capturedGraphReview(state, buildGraphReview(state), { ...capture, dependencies: [{ file: 'model.py', digest: 'other-version' }] })!;
+    const elsewhere = { ...state, models: [{ ...state.models![0], file: `${prefix}net.py` }] };
+    const other = capturedGraphReview(elsewhere, buildGraphReview(elsewhere), capture)!;
+    for (const unlocated of [stale, other]) {
+      expect(unlocated.changes.find(change => change.label === 'output_projection')?.detail).toContain('Not located in this capture');
+    }
+  }
+});
+
+test('finds a nested project\'s deep declaration from the capture\'s project-relative constructor key', () => {
+  for (const prefix of ['my-proj/', 'données/']) {
+    const { state, capture, extra } = nestedProject(prefix);
+    state.before = JSON.parse(JSON.stringify(state.after));
+    const key = `@declaration:${JSON.stringify([`${prefix}model.py`, 'Block', 'proj'])}`;
+    for (const side of ['before', 'after'] as const) {
+      const span = { file: `${prefix}model.py`, start: [20, 8], end: [20, 50], kind: 'decl' };
+      (state[side].document as GraphDocumentV2).semantic.metadata.reviewDeclarations = { complete: true, entries: {
+        [key]: { label: 'Block.proj', digest: side, ambiguous: false, span },
+      } };
+      state[side].spanmap[key] = span as any;
+    }
+    (capture.document as GraphDocumentV2).semantic.metadata.sourceDeclarationCalls = {
+      '@declaration:["model.py","Block","proj"]': extra.map(node => node.metadata.captureRef.semanticId) };
+    const review = capturedGraphReview(state, buildGraphReview(state), capture)!;
+    expect(review.changes.map(change => change.label)).toEqual(['Block.proj · call 1/2', 'Block.proj · call 2/2']);
+    expect(review.changes.map(change => review.focusNodes?.get(change.id))).toEqual(extra.map(node => node.node_id));
+  }
+});
+
+test('does not turn a missing or bounded declaration inventory into added layers', () => {
+  const { state } = setup();
+  state.after = JSON.parse(JSON.stringify(state.before));
+  (state.after.document as GraphDocumentV2).semantic.metadata.reviewDeclarations = { complete: true, entries: {
+    '@deep': { label: 'Block.proj', digest: 'changed', span: { file: 'model.py', start: [20, 8], end: [20, 50], kind: 'decl' } },
+  } };
+  expect(buildGraphReview(state).counts.added).toBe(0);
+  (state.before.document as GraphDocumentV2).semantic.metadata.reviewDeclarations = { complete: false, entries: {} };
+  const review = buildGraphReview(state);
+  expect(review.counts.added).toBe(0);
+  expect(review.changes.some(change => change.detail.includes('declaration comparison is incomplete'))).toBe(true);
 });

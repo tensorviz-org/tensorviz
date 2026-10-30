@@ -117,9 +117,12 @@ export class McpGraphService {
     const provenance = params._shape_provenance;
     const span = object(projection.spanmap[String(node.node_id)]);
     const source = typeof span.file === 'string' ? { file: span.file, start: span.start, end: span.end, kind: span.kind, digest: span.digest } : null;
-    const input = shape(projection.traced ? params._in_shape : meta.inputShape ?? data.inputShape ?? params.input_shape);
+    // Unreached/limited captures may retain placeholder shapes. Apply the same
+    // evidence boundary to inputs and outputs so neither becomes a measurement.
+    const traceShapesAvailable = ['observed', 'state', 'declared'].includes(String(provenance));
+    const input = shape(projection.traced ? (traceShapesAvailable ? params._in_shape : undefined) : meta.inputShape ?? data.inputShape ?? params.input_shape);
     const output = shape(projection.traced
-      ? (['observed', 'state', 'declared'].includes(String(provenance)) ? params._out_shape : undefined)
+      ? (traceShapesAvailable ? params._out_shape : undefined)
       : meta.outputShape ?? data.outputShape ?? params.output_shape);
     return { nodeId: node.node_id, kind: node.kind, operation: node.op,
       parameters: Object.fromEntries(Object.entries(params).filter(([key]) => !key.startsWith('_'))),
@@ -139,6 +142,17 @@ export class McpGraphService {
     return { edgeId: edge.edge_id, sourceNodeId: edge.source_node_id, targetNodeId: edge.target_node_id,
       sourcePort: edge.source_port, targetPort: edge.target_port,
       ...(object(edge.metadata).captureEdge ? { captureEdge: object(edge.metadata).captureEdge } : {}) };
+  }
+
+  /** Canvas can attach the same verified facts without a model-initiated tool round trip. */
+  inspectNodes(ref: ModelRef, nodeIds: string[], edgeOffset = 0, limit = 50): JsonObject {
+    const { model, nodes, edges } = this.require(ref);
+    const selected = this.select(nodes, nodeIds), ids = new Set(nodeIds);
+    const connections = edges.filter(edge => ids.has(String(edge.source_node_id)) || ids.has(String(edge.target_node_id)));
+    return { ...this.reference(model), target: model.target,
+      nodes: selected.map(node => this.node(node, model.projection)),
+      edges: connections.slice(edgeOffset, edgeOffset + limit).map(edge => this.edge(edge)), edgeCount: connections.length,
+      nextEdgeOffset: edgeOffset + limit < connections.length ? edgeOffset + limit : null };
   }
 
   register(server: McpServer, discovery = true): void {
@@ -171,14 +185,6 @@ export class McpGraphService {
     }, args.nodeOffset === 0 && args.edgeOffset === 0));
     server.registerTool('inspect_nodes', { description: 'Inspect selected layers, source references, tensor-shape provenance and connected edges. Does not execute the model.',
       inputSchema: { ...modelRefSchema, nodeIds: nodeIdsSchema, edgeOffset: z.number().int().min(0).default(0), limit: z.number().int().min(1).max(200).default(50) }, annotations,
-    }, args => this.toolResult('inspect_nodes', () => {
-      const { model, nodes, edges } = this.require(args);
-      const selected = this.select(nodes, args.nodeIds), ids = new Set(args.nodeIds);
-      const connections = edges.filter(edge => ids.has(String(edge.source_node_id)) || ids.has(String(edge.target_node_id)));
-      return { ...this.reference(model), target: model.target,
-        nodes: selected.map(node => this.node(node, model.projection)),
-        edges: connections.slice(args.edgeOffset, args.edgeOffset + args.limit).map(edge => this.edge(edge)), edgeCount: connections.length,
-        nextEdgeOffset: args.edgeOffset + args.limit < connections.length ? args.edgeOffset + args.limit : null };
-    }, args.edgeOffset === 0));
+    }, args => this.toolResult('inspect_nodes', () => this.inspectNodes(args, args.nodeIds, args.edgeOffset, args.limit), args.edgeOffset === 0));
   }
 }

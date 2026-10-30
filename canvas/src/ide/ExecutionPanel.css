@@ -50,12 +50,6 @@
 .execution-mode { margin: 6px 0 10px; }
 .execution-mode dd { display: flex; align-items: center; gap: 12px; }
 .execution-surface .execution-edit { padding: 2px 4px; border: 0; font-size: 11px; color: var(--canvas-accent); gap: 4px; white-space: nowrap; }
-.execution-timing-toggle { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
-.execution-timing-toggle input { margin: 0; accent-color: var(--canvas-accent); }
-.execution-timing-fields { display: grid; gap: 6px; margin: 10px 0; }
-.execution-timing-fields label { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.execution-timing-fields input { width: 58px; box-sizing: border-box; border: 1px solid var(--canvas-line); border-radius: 4px; background: var(--canvas-field); color: var(--canvas-text); padding: 4px 6px; font: inherit; font-variant-numeric: tabular-nums; }
-.execution-timing-fields input:focus-visible, .execution-timing-toggle input:focus-visible { outline: 2px solid var(--canvas-accent); outline-offset: 2px; }
 .execution-origin { margin-bottom: 12px; font-size: 11px; }
 .execution-origin ul { padding-left: 16px; }
 .execution-origin code { display: block; }

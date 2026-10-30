@@ -61,11 +61,10 @@ suite('extension manifest', () => {
     assert.equal(properties['tensorviz.analytics.projectToken'], undefined);
     assert.equal(properties['tensorviz.analytics.host'], undefined);
   });
-  test('the deprecated capture-on-save setting stays in the manifest and does not execute', () => {
-    const setting = contributes.configuration.properties['tensorviz.traceOnSave'];
-    assert.equal(setting.default, false);
-    assert.equal(contributes.configurationDefaults['tensorviz.traceOnSave'], false);
-    assert.match(setting.deprecationMessage, /Saving refreshes source only/);
+  test('saved model validation is enabled by default with an active opt-out setting', () => {
+    assert.equal(contributes.configuration.properties['tensorviz.traceOnSave'].default, true);
+    assert.equal(contributes.configurationDefaults['tensorviz.traceOnSave'], true);
+    assert.equal(contributes.configuration.properties['tensorviz.traceOnSave'].deprecationMessage, undefined);
   });
 
   test('contributes the first-run walkthrough the code opens', () => {

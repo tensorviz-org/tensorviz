@@ -96,6 +96,21 @@ def test_refuses_every_canonical_invalid_message(corpus):
         assert is_local_browser_message(message, expected_workspace_session_id) is False, message
 
 
+def test_view_selection_carries_code_focus_as_an_optional_boolean(corpus):
+    session, valid, _ = corpus
+    selection = next(item for item in valid if item['type'] == 'viewSelection' and 'tooLarge' not in item and 'follow' not in item)
+    overflow = next(item for item in valid if item['type'] == 'viewSelection' and item.get('tooLarge') is True and 'follow' not in item)
+    focus = next(item for item in valid if item['type'] == 'focusView')
+    for message in (selection, overflow):
+        assert is_local_browser_message(message, session) is True  # views that send no Code focus
+        for follow in (False, True):
+            assert is_local_browser_message({**message, 'follow': follow}, session) is True
+        # 0 and 1 compare equal to the booleans in Python but are not JSON booleans.
+        for follow in (None, 0, 1, 'edit', [True]):
+            assert is_local_browser_message({**message, 'follow': follow}, session) is False
+    assert is_local_browser_message({**focus, 'follow': True}, session) is False
+
+
 def test_target_identity_requires_workspace_folder_and_raw_digest():
     target = {
         "workspaceFolder": "workspace-a",

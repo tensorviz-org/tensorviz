@@ -81,3 +81,40 @@ test('review receipts belong to their connected view and every terminal result h
     await fs.rm(foreign, { recursive: true, force: true });
   }
 });
+
+test('a live model opened at a nested project root is the context of its Git review, and the same class elsewhere is not', async () => {
+  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-review-nested-')));
+  const signal = new AbortController().signal;
+  let live, published;
+  const review = new StandaloneReview({ signal, busy: () => false, prepare: async () => {}, connect: async () => {},
+    target: () => live, publish: message => { published = message.state; }, view: async () => { throw new Error('Existing view must be reused'); },
+    views: { list: () => [{ viewId: 'chosen' }] },
+    post: async (route, body) => route.endsWith('/index') ? {
+      models: [{ file: 'model.py', cls: 'Net', line: 1, endLine: 1, fingerprint: 'Net', dependencies: ['model.py'] }], notes: [],
+    } : { source_digest: body.root.source_digest, cls: body.root.cls, traced: false, spanmap: {}, document: { semantic: { nodes: [] } } },
+  });
+  const git = args => reviewGit(root, args);
+  try {
+    // A folder that is not a Python name is its own project, as open_graph may be rooted there.
+    await fs.mkdir(path.join(root, 'my-proj'));
+    for (const file of ['model.py', 'my-proj/model.py']) await fs.writeFile(path.join(root, file), 'class Net: pass\n');
+    await git(['init', '-q']); await git(['add', '.']);
+    await git(['-c', 'user.name=Test', '-c', 'user.email=test@localhost', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'base']);
+    for (const file of ['model.py', 'my-proj/model.py']) await fs.writeFile(path.join(root, file), 'class Net: width = 64\n');
+    const context = async (file, target) => {
+      live = { ...target, cls: 'Net', sourceDigest: 'live', documentVersion: 0, backendRevision: 1 };
+      await review.invoke({ workspaceRoot: root, file, cls: 'Net', viewId: 'chosen' }, signal);
+      assert.equal(published.after.file, file);
+      return published.liveContext;
+    };
+    const nested = { workspaceFolder: path.join(root, 'my-proj'), file: 'model.py' };
+    assert.deepEqual(await context('my-proj/model.py', nested), { ...nested, cls: 'Net' });
+    assert.equal(await context('model.py', nested), undefined, 'the same class in another file is another model');
+    const top = { workspaceFolder: root, file: 'model.py' };
+    assert.deepEqual(await context('model.py', top), { ...top, cls: 'Net' });
+    assert.equal(await context('my-proj/model.py', top), undefined);
+  } finally {
+    review.close();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});

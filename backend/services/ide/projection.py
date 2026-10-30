@@ -30,8 +30,9 @@ import ast
 from copy import deepcopy
 import hashlib
 import os
+import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Set, Tuple
 
 from core.op_registry import spec_for
 from models.architecture_models import GraphDocumentV2
@@ -113,6 +114,42 @@ def digest_of(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def utf16_columns(source: str) -> Callable[[int, int], int]:
+    """``column(line, byte offset)``: an AST column as UTF-16 code units.
+
+    Python's AST counts UTF-8 bytes; VS Code, the Canvas and the capture's source
+    anchors count UTF-16 code units, so every span this backend emits does too.
+    Lines split as the AST numbers them: str.splitlines() also breaks at form
+    feeds, U+0085 and U+2028, and would read an earlier line's text.
+    """
+    lines = re.split(r"\r\n?|\n", source)
+
+    def column(line: int, offset: int) -> int:
+        text = lines[line - 1] if 0 < line <= len(lines) else ""
+        if text.isascii():
+            return offset
+        return len(text.encode("utf-8")[:offset].decode("utf-8", "ignore").encode("utf-16-le")) // 2
+
+    return column
+
+
+def utf16_spans(spans: Dict[str, Dict[str, Any]], sources: Mapping[str, str]) -> Dict[str, Dict[str, Any]]:
+    """AST-tier spans with UTF-16 columns, each converted against its own file."""
+    columns: Dict[str, Callable[[int, int], int]] = {}
+    converted: Dict[str, Dict[str, Any]] = {}
+    for node_id, span in spans.items():
+        file = span.get("file")
+        if file in sources and file not in columns:
+            columns[file] = utf16_columns(sources[file])
+        column = columns.get(file)
+        converted[node_id] = span if column is None else {
+            **span,
+            "start": [span["start"][0], column(*span["start"])],
+            "end": [span["end"][0], column(*span["end"])],
+        }
+    return converted
+
+
 def review_class(source: str, cls: str, rel_file: str) -> Dict[str, Any]:
     """Source facts missed by layer lowering, without evaluating defaults or bodies."""
     tree = ast.parse(source)
@@ -125,8 +162,9 @@ def review_class(source: str, cls: str, rel_file: str) -> Dict[str, Any]:
             positional[len(positional) - len(init.args.defaults):], init.args.defaults)}
         defaults.update({arg.arg: ast.unparse(value) for arg, value in zip(
             init.args.kwonlyargs, init.args.kw_defaults) if value is not None})
-    span = dict(file=rel_file, start=[target.lineno, target.col_offset],
-                end=[target.end_lineno, target.end_col_offset], kind="decl")
+    column = utf16_columns(source)
+    span = dict(file=rel_file, start=[target.lineno, column(target.lineno, target.col_offset)],
+                end=[target.end_lineno, column(target.end_lineno, target.end_col_offset)], kind="decl")
     declarations: Dict[str, List[Dict[str, Any]]] = {}
     assignments: Dict[str, List[Dict[str, Any]]] = {}
     resets: List[int] = []
@@ -171,14 +209,32 @@ def review_class(source: str, cls: str, rel_file: str) -> Dict[str, Any]:
                     value=ast.unparse(statement.value),
                     title=ast.unparse(statement.value.func) if isinstance(statement.value, ast.Call)
                     and isinstance(statement.value.func, (ast.Name, ast.Attribute)) else "Assignment",
-                    span=dict(file=rel_file, start=[statement.lineno, statement.col_offset],
-                              end=[statement.end_lineno, statement.end_col_offset], kind="decl")))
+                    span=dict(file=rel_file, start=[statement.lineno, column(statement.lineno, statement.col_offset)],
+                              end=[statement.end_lineno, column(statement.end_lineno, statement.end_col_offset)], kind="decl")))
             # Retain branch/loop conditions without selecting or executing a branch.
             # Nested functions/classes bind a different scope and are not members here.
             if isinstance(statement, (ast.If, ast.While, ast.For)):
                 condition = ast.dump(statement.iter if isinstance(statement, ast.For) else statement.test, include_attributes=False)
                 collect(statement.body, guards + ((type(statement).__name__, condition, "body"),))
                 collect(statement.orelse, guards + ((type(statement).__name__, condition, "else"),))
+            # Handler, context and case bodies bind members too, with the guards
+            # review_declarations gives the same statements.
+            elif isinstance(statement, ast.With):
+                condition = repr([ast.dump(item, include_attributes=False) for item in statement.items])
+                collect(statement.body, guards + (("With", condition, "body"),))
+            elif isinstance(statement, (ast.Try, ast.TryStar)):
+                kind = type(statement).__name__
+                collect(statement.body, guards + ((kind, "", "body"),))
+                for handler in statement.handlers:
+                    condition = ast.dump(handler.type, include_attributes=False) if handler.type else ""
+                    collect(handler.body, guards + ((kind, condition, "except"),))
+                collect(statement.orelse, guards + ((kind, "", "else"),))
+                collect(statement.finalbody, guards + ((kind, "", "finally"),))
+            elif isinstance(statement, ast.Match):
+                subject = ast.dump(statement.subject, include_attributes=False)
+                for case in statement.cases:
+                    condition = ast.dump(ast.match_case(pattern=case.pattern, guard=case.guard, body=[]), include_attributes=False)
+                    collect(case.body, guards + (("Match", subject, condition),))
 
     if init:
         collect(init.body)
@@ -219,7 +275,7 @@ def review_class(source: str, cls: str, rel_file: str) -> Dict[str, Any]:
     removable = {tuple(fact["span"]["start"]) for fact in facts.get("assignments", {}).values()
                  if not fact["ambiguous"] and not fact["conditional"]}
     if structure_init:
-        structure_init.body = [n for n in structure_init.body if not ((n.lineno, n.col_offset) in removable
+        structure_init.body = [n for n in structure_init.body if not ((n.lineno, column(n.lineno, n.col_offset)) in removable
             and (isinstance(n, ast.AnnAssign) or isinstance(n, ast.Assign) and len(n.targets) == 1))]
     facts["structureDigest"] = digest_of(ast.dump(structure, include_attributes=False))
     return facts
@@ -991,7 +1047,7 @@ def project(
     for node in renamed["nodes"]:
         adopt_custom_class(node, classes=classes)
         _annotate(node, attributes=attributes)
-    spans = _spanmap(renamed["nodes"], attributes=attributes, rel_file=rel_file)
+    spans = utf16_spans(_spanmap(renamed["nodes"], attributes=attributes, rel_file=rel_file), {rel_file: source})
 
     graph_id = graph_id_for(rel_file, cls)
     if trace is None:

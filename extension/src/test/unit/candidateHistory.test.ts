@@ -4,6 +4,7 @@ import { CandidateReview } from '../../candidateReview';
 import type { CandidateEvidence, CandidateRunResult } from '@tensorviz/graph-host/candidateExecution';
 import type { CandidateExecution } from '../../executionPlan';
 import { canonicalFixture } from '../../../../tests/fixtures/semantic.cjs';
+import { candidateCheckpointFixture } from '../candidateCheckpointFixture';
 
 const initial = () => new CandidateReview(canonicalFixture().capture, new AbortController().signal,
   () => true, async () => { throw new Error('never execute'); }).snapshot();
@@ -18,6 +19,48 @@ function result(): CandidateRunResult {
 const query = (value: CandidateEvidence) => ({ captureId: value.capture!.id, sourceId: value.capture!.source.id, path: [], offset: 0, limit: 50 });
 
 suite('bounded private candidate history', () => {
+  test('load failures retain immutable checkpoint pages without a forward capture', () => {
+    const history = new CandidateHistory(), value = candidateCheckpointFixture(), id = history.begin('owner', initial());
+    history.complete('owner', id, { ...initial(), runtime: 'failed' }, value);
+    value.checkpoint.entries[0].name = 'mutated';
+    history.close('owner');
+    const first = history.inspectCheckpoint('owner', id, { limit: 1 });
+    assert.equal(first.checkpoint!.loadStatus, 'failed'); assert.equal(first.items![0].name, 'left.weight');
+    assert.equal(first.checkpoint!.counts.shapeDifferences, 2); assert.equal(first.nextOffset, 1);
+    const second = history.inspectCheckpoint('owner', id, { offset: first.nextOffset!, limit: 1 });
+    assert.equal(second.items![0].name, 'right.weight'); assert.equal(second.nextOffset, null);
+    first.items![0].name = 'reader_mutation';
+    assert.equal(history.inspectCheckpoint('owner', id).items![0].name, 'left.weight');
+    assert.equal(history.get('owner', id).capture, null); assert.equal(history.get('owner', id).review, 'historical');
+    assert.throws(() => history.inspectCheckpoint('other', id), /no longer retained/);
+    assert.throws(() => history.inspectCheckpoint('owner', id, { offset: -1 }), /bounded checkpoint/);
+    assert.throws(() => history.inspectCheckpoint('owner', id, { limit: 201 }), /bounded checkpoint/);
+    history.forget('owner'); assert.throws(() => history.inspectCheckpoint('owner', id), /no longer retained/);
+    history.complete('owner', id, initial(), value); assert.deepEqual(history.list('owner'), []);
+  });
+
+  test('checkpoint-only reports share the byte limit and cannot be revived after eviction or expiry', () => {
+    let now = 0;
+    const value = candidateCheckpointFixture(), size = Buffer.byteLength(JSON.stringify(value.checkpoint));
+    const history = new CandidateHistory({ ...CANDIDATE_HISTORY_LIMITS, totalBytes: size, ttlMs: 100 }, () => now);
+    const first = history.begin('one', initial()); history.complete('one', first, initial(), value);
+    const second = history.begin('two', initial()); history.complete('two', second, initial(), value);
+    assert.throws(() => history.inspectCheckpoint('one', first), /evicted/);
+    assert.equal(history.inspectCheckpoint('two', second).checkpoint!.loadStatus, 'failed');
+    assert.equal(history.get('one', first).unavailable, 'not_captured', 'checkpoint eviction must not invent a capture');
+    now = 100; assert.throws(() => history.inspectCheckpoint('two', second), /no longer retained/);
+  });
+
+  for (const field of ['source', 'resource', 'comparison']) test(`retention refuses forged checkpoint ${field}`, () => {
+    const history = new CandidateHistory(), value = candidateCheckpointFixture(), id = history.begin('one', initial());
+    if (field === 'source') value.checkpoint.sourceDigest = '0'.repeat(64);
+    if (field === 'resource') value.checkpoint.checkpoint.digest = '0'.repeat(64);
+    if (field === 'comparison') value.checkpoint.entries[0].shape = 'same';
+    history.complete('one', id, { ...initial(), runtime: 'failed' }, value);
+    assert.equal(history.get('one', id).summary.runtime, 'failed');
+    assert.throws(() => history.inspectCheckpoint('one', id), /invalid_checkpoint/);
+  });
+
   test('retains immutable canonical pages separately from worker envelopes and plans', () => {
     const history = new CandidateHistory(), value = evidence(), original = structuredClone(value);
     const id = history.begin('one', initial()); history.complete('one', id, initial(), value);

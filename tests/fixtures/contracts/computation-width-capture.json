@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "python": "3.12.14",
+  "torch": "2.7.1",
+  "scope": "Real CPU dispatch capture with a test-owned context; candidate forwards are independent shape oracles, not native review acceptance",
+  "capture": {
+    "version": 1,
+    "id": "capture:857e2ac7-d00c-4bcd-8f96-070a6e1cfa1b",
+    "attemptId": "attempt:width-oracle",
+    "source": {
+      "version": 1,
+      "id": "source:width-oracle",
+      "workspaceSessionId": "session:oracle",
+      "workspaceId": "workspace:oracle",
+      "modelId": "model:width",
+      "modelFile": "tooling/ml_shape_oracles.py",
+      "className": "WidthPath",
+      "generation": 0,
+      "files": [{"path": "tooling/ml_shape_oracles.py", "digest": "aec2fa9800dbe6a18e164c331ecad494ee9cc4f766acfcc285f54b931fbfc164", "documentVersion": null, "role": "source"}],
+      "dependencyScope": "partial",
+      "configDigest": null,
+      "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "sourceMode": "saved"
+    },
+    "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "preparationDigest": null,
+    "automatic": null,
+    "inputDigest": null,
+    "stateDigest": null,
+    "backend": "runtime",
+    "backendVersion": "1",
+    "torchVersion": "2.7.1",
+    "jaxVersion": null,
+    "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch"],
+    "status": "complete",
+    "rootInvocationId": "invocation:0",
+    "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+    "output": {"kind": "value", "id": "tensor4"},
+    "definitions": [{"id": "definition:0", "qualifiedName": "__main__.WidthPath", "sourceBindingIds": []}],
+    "modules": [{"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": [], "constructorClassVerified": false, "initializerArguments": null}],
+    "invocations": [{"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 4, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor4"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 144, "parameterCountUnavailable": null, "sourceBindingIds": []}],
+    "operations": [
+      {"id": "operation:0", "sequence": 1, "invocationId": "invocation:0", "target": "aten.mm.default", "schemaSignature": "aten::mm(Tensor self, Tensor mat2) -> Tensor", "arguments": {"args": [{"kind": "value", "id": "tensor0"}, {"kind": "value", "id": "tensor1"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor2"}, "effects": [], "status": "completed", "diagnosticId": null, "sourceBindingIds": []},
+      {
+        "id": "operation:1",
+        "sequence": 2,
+        "invocationId": "invocation:0",
+        "target": "aten.view.default",
+        "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+        "arguments": {"args": [{"kind": "value", "id": "tensor2"}, {"kind": "list", "items": [{"kind": "int", "value": "2"}, {"kind": "int", "value": "3"}, {"kind": "int", "value": "-1"}]}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor3"},
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": []
+      },
+      {"id": "operation:2", "sequence": 3, "invocationId": "invocation:0", "target": "aten.add.Tensor", "schemaSignature": "aten::add.Tensor(Tensor self, Tensor other, *, Scalar alpha=1) -> Tensor", "arguments": {"args": [{"kind": "value", "id": "tensor3"}, {"kind": "value", "id": "tensor3"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor4"}, "effects": [], "status": "completed", "diagnosticId": null, "sourceBindingIds": []}
+    ],
+    "values": [
+      {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [2, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 96, "producer": null, "origin": "input", "state": []},
+      {"id": "tensor1", "objectId": "object1", "storageId": "storage1", "version": 0, "shape": [12, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": true, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 576, "producer": null, "origin": "state", "state": [{"kind": "parameter", "name": "weight"}]},
+      {"id": "tensor2", "objectId": "object2", "storageId": "storage2", "version": 0, "shape": [2, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []},
+      {"id": "tensor3", "objectId": "object3", "storageId": "storage2", "version": 0, "shape": [2, 3, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor2", "previousVersion": null, "logicalVersion": 0, "stride": [12, 4, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:1", "kind": "output", "path": []}, "origin": "operation", "state": []},
+      {"id": "tensor4", "objectId": "object4", "storageId": "storage3", "version": 0, "shape": [2, 3, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 4, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:2", "kind": "output", "path": []}, "origin": "operation", "state": []}
+    ],
+    "sourceBindings": [],
+    "diagnostics": [],
+    "coverage": {"scope": "executed_path", "operationsSeen": 3, "invocationsSeen": 1, "omissions": [], "modules": [{"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null}]},
+    "limits": {"operations": 100, "invocations": 100, "values": 100, "bytes": 1048576}
+  },
+  "candidates": [{"width": 12, "status": "passed", "shape": [2, 3, 4]}, {"width": 15, "status": "passed", "shape": [2, 3, 5]}, {"width": 16, "status": "failed", "shape": null}]
+}

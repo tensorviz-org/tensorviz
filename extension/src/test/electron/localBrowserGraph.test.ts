@@ -9,12 +9,9 @@
  * OS" is the TENSORVIZ_LOCAL_BROWSER_LINK_FILE seam, so the run never opens a
  * tab on the developer's machine.
  *
- * These used to invoke the command with NO argument and rely on it resolving the
- * class under the cursor. That resolution is gone: `open()` answers an unnamed
- * class with the PROJECT now (localBrowserGraph.ts), which this suite cannot
- * reach because it deliberately runs with no folder open — so all six tests sat
- * waiting for a session that was never minted. They name their class the way the
- * CodeLens and the Models view do, which is the only contract left.
+ * Models live in disposable workspace folders and name their class the way the
+ * CodeLens and Models view do. Execution cases select the folder's Python through
+ * the real picker; the static-opening case deliberately leaves it unselected.
  *
  * The third test is step 6's leg: a scripted view client bootstraps with the
  * fragment credential exactly as the page does and drives the live relay —
@@ -23,17 +20,17 @@
  * echoes no focusNode back, and a cursor entering a node's span answers with
  * focusNode. The scripted view synchronizes exactly as the page does —
  * snapshotRequest on connect, then the ordered target stream — and navigates
- * only once the current projection is settled. Opening and retargeting never
- * execute the model; an explicitly enabled trace-on-save may later replace it.
+ * only once the current projection is settled. The unconfigured navigation fixture
+ * stays source-only; separate execution cases select their owning folder's Python.
  */
 
 import * as assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import * as vscode from 'vscode';
+import { selectManagedEnvironment } from './workspaceFixture';
 
 import {
   connectLocalWebSocket,
@@ -191,7 +188,7 @@ async function attachView(
   await connectedMessage;
   return { close: () => socket.close(), messages, send: message => {
     assert.ok(socket.sendText(JSON.stringify({ protocolVersion: LOCAL_BROWSER_PROTOCOL_VERSION,
-      workspaceSessionId: session.workspaceSessionId, messageId: `msg-${messages.length}`, ...message })));
+      workspaceSessionId: session.workspaceSessionId, messageId: `view-${messages.length}`, ...message })));
   } };
 }
 
@@ -219,9 +216,10 @@ suite('localBrowserGraph', () => {
 
     // A copy of the fixture, because a later test types into resid.py without
     // saving; the checkout's copy is a fixture other suites read.
-    workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tensorviz-local-browser-'));
+    workspaceDir = path.join(process.env.TENSORVIZ_TEST_WORKSPACE!, 'browser');
     fs.cpSync(FIXTURE, workspaceDir, { recursive: true });
     modelsDir = path.join(workspaceDir, 'models');
+    assert.equal(vscode.workspace.getWorkspaceFolder(vscode.Uri.file(modelsDir))?.uri.fsPath, modelsDir);
     residUri = vscode.Uri.file(path.join(modelsDir, 'resid.py'));
     linkFile = path.join(workspaceDir, 'links.txt');
     process.env[LINK_FILE_ENV] = linkFile;
@@ -229,8 +227,7 @@ suite('localBrowserGraph', () => {
     const extension = vscode.extensions.getExtension(EXTENSION_ID);
     assert.ok(extension, `${EXTENSION_ID} was not loaded by the extension host`);
     api = ((await extension.activate()) as { __test: TestApi }).__test;
-    // No folder is open in this run, so the checkout is the repo the backend
-    // runs from; the target's workspaceFolder is then the file's own directory.
+    // The backend source and the model's owning workspace are separate.
     await vscode.workspace
       .getConfiguration('tensorviz')
       .update('repoPath', REPO, vscode.ConfigurationTarget.Global);
@@ -578,8 +575,10 @@ suite('localBrowserGraph', () => {
       afterRefusal.selection = new vscode.Selection(l1Line, 0, l1Line, 0);
       const focus = await until("the editor's focusNode for l1", 30_000, () => {
         stillOpen();
-        return received.find((m) => m.type === 'focusNode' && m.nodeId === 'l1');
+        return received.find((m) => m.type === 'focusNode' && (m.nodeIds as string[] | undefined)?.includes('l1'));
       });
+      assert.deepEqual(focus.nodeIds, ['l1'],
+        'only the layer owns this line; review-only declaration keys must not reach live focus');
       assert.deepEqual(focus.target, live);
     } finally {
       socket.close();
@@ -627,7 +626,7 @@ suite('localBrowserGraph', () => {
   test('tensor slices, addition and methods show final expression shapes and refresh after saving', async function () {
     this.timeout(300_000);
     const project = path.join(workspaceDir, 'tensor-expression-project');
-    fs.mkdirSync(project);
+    assert.equal(vscode.workspace.getWorkspaceFolder(vscode.Uri.file(project))?.uri.fsPath, project);
     const uri = vscode.Uri.file(path.join(project, 'expressions.py'));
     fs.writeFileSync(uri.fsPath, [
       'import torch',
@@ -664,6 +663,7 @@ inputs = { args = [{ kind = "tensor", shape = [1, 8], dtype = "int64", requires_
       const document = await vscode.workspace.openTextDocument(uri);
       const editor = await vscode.window.showTextDocument(document);
       await vscode.commands.executeCommand('tensorviz.openAsGraph', { uri: uri.toString(), cls: 'TensorExpressions' });
+      await selectManagedEnvironment();
       const expected = (length: number) => [
         { line: 12, column: 30, label: ` → 1x${length}` },
         { line: 13, column: 30, label: ` → 1x${length}x32` },
@@ -706,7 +706,7 @@ inputs = { args = [{ kind = "tensor", shape = [1, 8], dtype = "int64", requires_
     // Other cases deliberately leave dirty buffers; saved-profile validation
     // checks the whole project, so this measurement owns a separate project.
     const measuredDir = path.join(workspaceDir, 'measured-project');
-    fs.mkdirSync(measuredDir);
+    assert.equal(vscode.workspace.getWorkspaceFolder(vscode.Uri.file(measuredDir))?.uri.fsPath, measuredDir);
     const uri = vscode.Uri.file(path.join(measuredDir, 'measured.py'));
     fs.writeFileSync(uri.fsPath, [
       'import torch.nn as nn',
@@ -744,6 +744,7 @@ inputs = { args = [{ kind = "tensor", shape = [2, 8], dtype = "float32", require
       const cursor = lineOf(document.getText(), 'def forward');
       editor.selection = new vscode.Selection(cursor, 0, cursor, 0);
       await vscode.commands.executeCommand('tensorviz.openAsGraph', { uri: uri.toString(), cls: 'Measured' });
+      await selectManagedEnvironment();
       await until('the source projection of Measured', 60_000, () => {
         const target = api.localBrowserTarget();
         return target?.cls === 'Measured' && target.backendRevision > 0 ? target : undefined;
@@ -762,16 +763,23 @@ inputs = { args = [{ kind = "tensor", shape = [2, 8], dtype = "float32", require
       await until('the initial capture to finish', 30_000, () => !api.localBrowserTracePending());
       const view = await attachView(api.backendOrigin()!, api.localBrowserSession()!);
       try {
-        view.send({ type: 'validateRequest', requestId: 'shape-capture', target: api.localBrowserTarget() });
-        const receipt = await until('validation result', 120_000, () =>
-          view.messages.find(message => message.type === 'validateResult' && message.requestId === 'shape-capture'));
+        view.send({ type: 'validateRequest', requestId: 'run-model', target: api.localBrowserTarget() });
+        const review = await until('the manual execution review', 30_000, () => {
+          const state = view.messages.find(message => message.type === 'graphOpening' &&
+            (message.state as { execution?: { phase: string } })?.execution?.phase === 'review')?.state as
+            { id: string; target: LocalBrowserTarget; execution: { id: string; device: string } } | undefined;
+          return state;
+        });
+        assert.ok(!view.messages.some(message => message.type === 'validateResult' && message.requestId === 'run-model'),
+          'manual execution waits for Run in the review');
+        view.send({ type: 'graphSetupRequest', requestId: 'approve-run-model', openingId: review.id, target: review.target,
+          action: { kind: 'execution', action: 'run', reviewId: review.execution.id, device: review.execution.device } });
+        const receipt = await until('the Run model result', 120_000, () =>
+          view.messages.find(message => message.type === 'validateResult' && message.requestId === 'run-model'));
         assert.equal(receipt.status, 'passed', JSON.stringify(receipt));
-        const timed = await inlayHints(uri, document.lineCount);
-        assert.deepEqual(timed.map(hint => hint.label), [' → 2x16', ' → 2x8']);
-        const raw = await vscode.commands.executeCommand<vscode.InlayHint[]>('vscode.executeInlayHintProvider', uri, new vscode.Range(0, 0, document.lineCount, 0));
-        const tooltip = (raw![0].tooltip as vscode.MarkdownString).value;
-        assert.match(tooltip, /2x16/);
-        assert.doesNotMatch(tooltip, /CPU|µs|latency/i);
+        assert.equal('validationPassed' in receipt, false);
+        const hints = await inlayHints(uri, document.lineCount);
+        assert.deepEqual(hints.map(hint => hint.label), [' \u2192 2x16', ' \u2192 2x8'], 'a run shows shapes, never timing');
       } finally { view.close(); }
       await editor.edit((builder) => builder.replace(
         new vscode.Range(0, 0, document.lineCount, 0),

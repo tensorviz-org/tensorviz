@@ -9,6 +9,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { isHostFile } from './workspaceFiles';
+import { splitBesideCanvas } from './canvasSplit';
 import { randomUUID } from 'node:crypto';
 import type { TensorInputs } from '@tensorviz/graph-host/tensorInputs';
 import type { ExecutionSpec, ExecutionJob } from '@tensorviz/graph-host/executionSpec';
@@ -94,7 +95,7 @@ interface ProjectResponse {
 export interface LocalBrowserTraceSupport {
   worker: { run(request: TraceRequest): Promise<TraceOutcome>; cancel(): void; checkCapturedSetup?: TraceWorker['checkCapturedSetup'] };
   trusted(): Promise<boolean>;
-  settings(): { onSave: boolean; tier: 'real' | 'fake' };
+  settings(resource?: vscode.Uri): { onSave: boolean; tier: 'real' | 'fake' };
   /** Every envelope a trace produced, so it can be written down as a run —
    *  for the browser session the run lives under the TARGET's folder. */
   onEnvelope?: (
@@ -252,8 +253,8 @@ function asNodeSpan(value: unknown): NodeSpan | undefined {
  *  projection.ts's rule. A MULTI-file projection adds one new case to the old
  *  rule: tied innermost widths happen when several instances share one
  *  declaration (`enc1.fc` and `enc2.fc` are both Block's `self.fc = ...` line),
- *  and answering with just one would be a silent guess — so all ties are
- *  returned, sorted for determinism, and the page disambiguates. */
+ *  so all ties are returned, sorted for determinism. The page uses its graph
+ *  hierarchy to automatically focus the outermost matching layer. */
 function nodesAtLine(spanmap: Record<string, unknown>, file: string, line: number): string[] {
   let best: string[] = [];
   let bestWidth = Number.MAX_SAFE_INTEGER;
@@ -321,6 +322,7 @@ export function constructionRefusal(envelope: WorkerEnvelope | undefined, cls: s
 
 export class LocalBrowserSync implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
+  /** `traceTier = auto`: which models are large enough to draw with fake tensors. */
   private active: BrowserActive | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -396,6 +398,13 @@ export class LocalBrowserSync implements vscode.Disposable {
     return this.active?.identity;
   }
 
+  /** Includes verified runtime imports even while an edit has invalidated their capture. */
+  isModelSource(uri: vscode.Uri): boolean {
+    if (!isHostFile(uri) || !this.active) return false;
+    const rel = relativeInside(this.active.folder, uri.fsPath);
+    return !!rel && (rel === this.active.rel || this.active.dependencies.has(rel) || this.active.capturedSources.has(rel));
+  }
+
   /** A same-model command can reuse the view only while its source is unchanged. */
   async sourcesCurrent(): Promise<boolean> {
     const active = this.active, generation = this.generation;
@@ -439,7 +448,15 @@ export class LocalBrowserSync implements vscode.Disposable {
   } | undefined {
     const active = this.active;
     if (!active?.last || active.staleReason || !sameTargetIdentity(target, active.identity)) return undefined;
-    return { projection: active.last, dependencies: new Map(active.dependencies) };
+    const dependencies = new Map(active.dependencies);
+    // A configuration import need not produce a displayed layer. The verified
+    // imports of this measured graph are still source dependencies. Do not retain
+    // that authority after a new source-only projection replaces the capture.
+    if (active.last.traced) for (const [file, digest] of active.capturedSources) {
+      if (dependencies.has(file) && dependencies.get(file) !== digest) return undefined;
+      dependencies.set(file, digest);
+    }
+    return { projection: active.last, dependencies };
   }
 
   /** True while a trace this loop scheduled has not concluded — armed but not
@@ -546,6 +563,7 @@ export class LocalBrowserSync implements vscode.Disposable {
       // With an explicit execution there is nothing left to guess, and nothing may be
       // allowed to creep back in: no remembered input, and no `# tensorviz: init=`
       // override — the profile's own `init` travels inside `execution`.
+      const tier = execution ? 'real' : support.settings(active.uri).tier;
       const outcome = await support.worker.run({ tensorInputs: execution ? undefined : tensorInputs,
         execution, job, workspace: active.folder,
         expectedInterpreter: guard?.spec.interpreter.executable,
@@ -562,7 +580,7 @@ export class LocalBrowserSync implements vscode.Disposable {
           return !changed && current() && targetCurrent() && await support.trusted();
         },
         timeoutMs: timeoutMs ?? DEFAULT_TIMEOUT_MS, file: active.uri.fsPath, cls: active.cls,
-        tier: execution ? 'real' : support.settings().tier,
+        tier,
         ...(execution ? {} : { overrides: overridesArgument(declaredInit(source, active.cls)) }),
         ...(reuse && execution && !job ? { reuse } : {}),
         input: undefined });
@@ -685,7 +703,9 @@ export class LocalBrowserSync implements vscode.Disposable {
         last: previous.last ? { ...previous.last, greyed: true } : undefined,
         staleReason: 'Refreshing saved source. Previous measurements are out of date.' } : {}),
       dependencies: new Map(),
-      capturedSources: new Map(),
+      // Keep following known runtime imports if this same model's next run fails
+      // before it can report imports. This retains membership, not measured shapes.
+      capturedSources: new Map(sameModel ? previous.capturedSources : []),
       shapes: new Map(),
     };
     // The previous class's measured shapes are not this class's: drop them before
@@ -821,6 +841,7 @@ export class LocalBrowserSync implements vscode.Disposable {
           detail: `${span.file} changed after this projection; wait for the refresh and click again`,
         };
       }
+      await splitBesideCanvas();
       const editor = await vscode.window.showTextDocument(document, {
         viewColumn: vscode.ViewColumn.One,
         preserveFocus: false,
@@ -1030,8 +1051,9 @@ export class LocalBrowserSync implements vscode.Disposable {
           cls: active.cls,
           source: document,
           documentVersion: version,
-          // What a previous trace measured, so the drawn Input node agrees with the
-          // shapes on the cards below it. The backend ranks it below
+          // What a trace measured, as an earlier build stored it in the view sidecar
+          // (this host only reads it), so the drawn Input node agrees with the shapes
+          // on the cards below it. The backend ranks it below the class's own
           // `# tensorviz: input=`, so it is a hint and never an override.
           measuredInputShape: this.inputMemory(active, document).input_shape,
           trace,
@@ -1169,9 +1191,9 @@ export class LocalBrowserSync implements vscode.Disposable {
     return path.join(active.folder, VIEWS_DIR, `${active.rel}#${active.cls}.view.json`);
   }
 
-  /** What this class is fed, as the sidecar remembers it — and nothing at all when
-   *  `source` declares its own input, because the `.py` is the truth
-   *  (`inputMemory.ts` owns that rule). */
+  /** What this class is fed, as the sidecar remembers it (`inputMemory.ts` owns the
+   *  rules). Only the measured shape is used here; the remembered `input` is never
+   *  passed to a trace. */
   private inputMemory(active: BrowserActive, source: string): InputMemory {
     return inputMemoryFor(this.sidecarPath(active), source);
   }

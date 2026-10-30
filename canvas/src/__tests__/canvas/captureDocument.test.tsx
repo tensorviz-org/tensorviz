@@ -7,9 +7,6 @@ import { reconcileModuleView } from '../../services/canvasLayout';
 import { portCardHeight, endpointOnSide } from '../../canvas/capturePorts';
 import { CaptureBoundaryRows } from '../../canvas/CaptureBoundaryRows';
 import { moduleContents } from '../../services/modulePresentation';
-import { overlayScale } from '../../canvas/graphOverlay';
-import { applyProjection } from '../../ide/projection';
-import { ProjectionPayload } from '../../ide/protocol.generated';
 
 jest.mock('../../ide/bridge', () => ({ postToHost: jest.fn() }));
 beforeEach(() => { window.__TENSORVIZ_LOCAL_BROWSER__ = true; });
@@ -32,20 +29,16 @@ test('actual Python-produced document retains semantic references, typed ports a
   expect(new Set(incoming.map(e => e.sourceHandle)).size).toBe(1);
 });
 
-test('canonical metric evidence survives conversion/collapse and disappears on stale projection', () => {
+test('canonical parameter and output-byte evidence survives conversion and collapse', () => {
   const graph = convert();
   const root = graph.nodes.find(n => n.data.captureRef?.kind === 'invocation')!;
-  expect(overlayScale(graph.nodes, 'params').values.get(root.id)?.value).toBe(0);
-  expect(overlayScale(graph.nodes, 'activation')).toMatchObject({ min: 32, max: 32 });
+  expect(root.data.parameterCount).toBe(0);
+  expect(root.data.outputTensor?.logicalBytes).toBe(32);
   const restored = graphDocumentV2ToModelGraph(modelGraphToDocumentV2(graph, context));
-  expect(overlayScale(restored.nodes, 'activation')).toEqual(overlayScale(graph.nodes, 'activation'));
+  expect(restored.nodes.map(n => [n.data.parameterCount, n.data.outputTensor]))
+    .toEqual(graph.nodes.map(n => [n.data.parameterCount, n.data.outputTensor]));
   const collapsed = reconcileModuleView(graph.nodes.map(n => n.id === root.id ? { ...n, data: { ...n.data, expanded: false } } : n), graph.edges);
-  expect(overlayScale(collapsed.nodes, 'activation').values.get(root.id)?.value).toBe(32);
-  expect(overlayScale(collapsed.nodes, 'activation').values.size).toBeLessThan(overlayScale(graph.nodes, 'activation').values.size);
-  const stale = applyProjection({ document: fixture, graphId: 'captured-model', file: 'model.py', cls: 'Model',
-    sourceDigest: 'same-source', traced: true, greyed: true, viewRestored: true } as unknown as ProjectionPayload, graph.nodes)!;
-  expect(overlayScale(stale.nodes, 'activation').values.size).toBe(0);
-  expect(overlayScale(stale.nodes, 'params').values.size).toBe(0);
+  expect(collapsed.nodes.find(n => n.id === root.id)!.data.outputTensor?.logicalBytes).toBe(32);
 });
 
 test('collapse only changes display ports and round trips without persisting synthetic facts', () => {

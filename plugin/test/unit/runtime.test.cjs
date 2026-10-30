@@ -5,6 +5,44 @@ const os = require('node:os');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 const { ManagedRuntime } = require('../../out/host/runtime.cjs');
+const { withResourceLock } = require('../../out/host/locks.cjs');
+
+test('a second host waits for shared provisioning, reuses its result and can cancel without disturbing its owner', async () => {
+  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-runtime-wait-')));
+  let approved;
+  const runtime = new ManagedRuntime(path.resolve(__dirname, '../../../plugins/tensorviz/backend'), path.join(root, 'state'),
+    { approve: async plan => { approved = plan; } });
+  try {
+    if (!runtime.availability().available) {
+      await assert.rejects(runtime.provisionService(root, new AbortController().signal), { code: 'MANAGED_RUNTIME_UNSUPPORTED' });
+      return;
+    }
+    const location = await runtime.location(root, 'service');
+    let releaseOwner, ownerAcquired;
+    const acquired = new Promise(resolve => { ownerAcquired = resolve; });
+    const owner = withResourceLock(location.directory, new AbortController().signal, async () => {
+      ownerAcquired();
+      await new Promise(resolve => { releaseOwner = resolve; });
+      await fs.mkdir(path.dirname(location.interpreter), { recursive: true });
+      await fs.writeFile(location.interpreter, 'readiness must not execute Python');
+      await fs.writeFile(location.record, location.owner);
+      await fs.writeFile(location.ready, location.owner);
+    });
+    await acquired;
+    const controller = new AbortController();
+    const cancelled = runtime.provisionService(root, controller.signal);
+    while (!approved) await new Promise(resolve => setTimeout(resolve, 5));
+    controller.abort();
+    await assert.rejects(cancelled, { name: 'AbortError' });
+    await assert.rejects(withResourceLock(location.directory, new AbortController().signal, async () => {}), { code: 'RESOURCE_BUSY' });
+    let completed = false;
+    const waiter = runtime.provisionService(path.join(root, 'another'), new AbortController().signal).then(result => { completed = true; return result; });
+    await new Promise(resolve => setTimeout(resolve, 150));
+    assert.equal(completed, false, 'the second host must not fail or install into a locked environment');
+    releaseOwner(); await owner;
+    assert.equal(await waiter, location.interpreter);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
 
 test('managed provisioning writes nothing on decline and trusts only matching completed ownership records', async () => {
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-runtime-contract-')));

@@ -1,24 +1,14 @@
 import React from 'react';
-import CanvasTooltip from '../components/CanvasTooltip';
 import { track, useEditor } from 'tldraw';
 import { nodeIdToShapeId } from './canvasShapeId';
 import { cameraDuration } from './reducedMotion';
-import { formatOverlayValue, OverlayMetric } from './graphOverlay';
 import {
-  graphOverlayMetric,
-  graphOverlayScale,
   graphSearchQuery,
   graphSearchResult,
   graphNodes,
 } from './graphQueryState';
 import { scopedNodeLabel } from './nodeScope';
 import { operationDisplayName } from './operationDisplayName';
-
-const METRICS: Array<{ id: OverlayMetric; label: string; help: string }> = [
-  { id: 'none', label: 'Off', help: 'Use the normal node colors without a metric overlay.' },
-  { id: 'params', label: 'Parameters', help: 'Color nodes by their exact parameter counts. Nodes without a current count remain uncolored.' },
-  { id: 'activation', label: 'Output tensor bytes', help: 'Color nodes by the measured logical size of their output tensor. This is not peak GPU memory; shared storage can be counted more than once.' },
-];
 
 /** Screen-space, like the focus controls: a query is about the whole graph, so
  *  it must stay readable at any zoom. */
@@ -38,7 +28,7 @@ export const GraphQueryPanel = track(function GraphQueryPanel() {
   };
 
   return (
-    <section className="graph-query" aria-label="Search and overlays">
+    <section className="graph-query" aria-label="Graph search">
       <div className="graph-query-row">
         <span aria-hidden="true">⌕</span>
         <input
@@ -84,48 +74,6 @@ export const GraphQueryPanel = track(function GraphQueryPanel() {
           {result.groups.length > 8 && <p className="graph-query-count">+{result.groups.length - 8} more places</p>}
         </div>
       )}
-
-      <GraphOverlayControls />
     </section>
   );
-});
-
-/** Metrics are presentation state and can also be controlled outside tldraw. */
-export const GraphOverlayControls = track(function GraphOverlayControls() {
-  const scale = graphOverlayScale.get();
-  const metric = graphOverlayMetric.get();
-  const evidence = metric === 'params' ? 'exact parameter counts' : 'complete output tensor measurements';
-  return <>
-      <div className="graph-query-overlay" role="group" aria-label="Overlay metric">
-        <span>Overlay</span>
-        {METRICS.map(entry => (
-          <CanvasTooltip key={entry.id} text={entry.help}><button
-            type="button"
-            aria-pressed={metric === entry.id}
-            onClick={() => graphOverlayMetric.set(entry.id)}
-          >
-            {entry.label}
-          </button></CanvasTooltip>
-        ))}
-      </div>
-
-      {metric !== 'none' && (
-        <div className="graph-query-legend">
-          {scale.values.size === 0 ? (
-            <span>No current {evidence} available.</span>
-          ) : (
-            <>
-              <i className="graph-query-ramp" />
-              <span>{formatOverlayValue(scale.min, scale.unit)}</span>
-              <span className="graph-query-legend-max">{formatOverlayValue(scale.max, scale.unit)}</span>
-              {/* Rule 12: say what was left out rather than colouring a guess. */}
-              {scale.unmeasured > 0 && (
-                <small>{scale.unmeasured} uncoloured — no current {evidence}</small>
-              )}
-            </>
-          )}
-          {metric === 'activation' && <small>Logical footprint of one tensor output per call; not peak memory. Shared storage may be counted more than once.</small>}
-        </div>
-      )}
-    </>;
 });

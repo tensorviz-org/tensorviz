@@ -5,6 +5,7 @@ import type { TraceOutcome } from './traceWorkerCore';
 import type { AttemptLedger } from './attemptLedger';
 import type { CaptureSnapshot } from './semanticCapture';
 import { inspectSemanticEvidence, type CaptureSelection } from './mcpSemanticEvidence';
+import { readCheckpointEvidence, checkpointEvidencePage, type CheckpointRequest, type CheckpointEvidence } from './checkpointEvidence';
 
 export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 export const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
@@ -41,7 +42,7 @@ export function freezeGraph(graph: McpGraphService, model: McpModel, capture?: C
 
 /** Keep structured facts, not arbitrary Python exception text, stdout or source bodies. */
 export function captureRunEvidence(outcome: TraceOutcome, workspace: string,
-  retained?: ReturnType<AttemptLedger['capture']>): JsonObject {
+  retained?: ReturnType<AttemptLedger['capture']>, checkpointRequest?: CheckpointRequest): JsonObject {
   const envelope = outcome.envelope;
   const diagnostics = object(object(envelope?.result).diagnostics);
   const error = envelope?.error;
@@ -51,12 +52,15 @@ export function captureRunEvidence(outcome: TraceOutcome, workspace: string,
     const relative = path.relative(root, frame.file);
     return !path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`);
   }).map(frame => ({ file: frame.file, line: frame.line, function: frame.name })) ?? [];
-  const { importedSources, ...worker } = (envelope?.worker ?? {}) as JsonObject;
+  const { importedSources, checkpointCompatibility: failedCheckpoint, ...worker } = (envelope?.worker ?? {}) as JsonObject;
+  const { checkpointCompatibility, ...setup } = object(diagnostics.execution);
+  const checkpoint = readCheckpointEvidence(checkpointCompatibility ?? failedCheckpoint, checkpointRequest);
   const accepted = retained?.record.format === 'semantic' && !retained.record.unavailable
     ? object(object(retained.envelope?.result).diagnostics).semantic_capture : undefined;
   const captureUnavailable = accepted ? null : retained?.record.semanticRejection ?? retained?.record.unavailable
     ?? (diagnostics.semantic_capture != null ? 'not_validated' : 'not_captured');
-  return clone({ setup: diagnostics.execution ?? (importedSources ? { importedSources } : null), execution: diagnostics.run_evidence ?? null,
+  return clone({ setup: diagnostics.execution ? setup : (importedSources ? { importedSources } : null), execution: diagnostics.run_evidence ?? null,
+    checkpoint: checkpoint ?? null,
     capture: accepted ?? null, captureUnavailable,
     worker: envelope?.worker ? worker : null, exitCode: outcome.exitCode ?? null,
     error: outcome.ok ? null : {
@@ -71,6 +75,7 @@ export function captureRunEvidence(outcome: TraceOutcome, workspace: string,
 }
 
 function records(value: unknown): JsonObject[] { return Array.isArray(value) ? value.map(object) : []; }
+
 function page(items: JsonObject[], offset: number, limit: number): JsonObject {
   const selected: JsonObject[] = [];
   let size = 0;
@@ -100,7 +105,7 @@ export function inspectEvidence(snapshot: JsonObject, evidence: JsonObject | und
   if (semantic) return { ...semantic, error: evidence?.error ?? null,
     ...(section === 'summary' ? { graphNodeCount: records(snapshot.nodes).length, graphEdgeCount: records(snapshot.edges).length,
       executionMode: object(evidence?.setup).mode ?? null, environment: object(evidence?.setup).environment ?? evidence?.worker ?? null,
-      sections: ['graph', 'setup', 'capture', 'failure', 'operations', 'modules'] } : {}) };
+      sections: ['graph', 'setup', 'outputs', 'checkpoint', 'capture', 'failure', 'operations', 'modules'] } : {}) };
   if (section === 'graph') {
     return { snapshot: { modelId: snapshot.modelId, revision: snapshot.revision, target: snapshot.target,
       traced: snapshot.traced, truncated: snapshot.truncated, capture: snapshot.capture ?? null }, nodes: page(records(snapshot.nodes), offset, limit),
@@ -124,6 +129,15 @@ export function inspectEvidence(snapshot: JsonObject, evidence: JsonObject | und
       planFiles: page(records(source.files), offset, limit),
       checkpointKeys: page([...keys('missingKeys'), ...keys('unexpectedKeys')], offset, limit) };
   }
+  if (section === 'outputs') {
+    const outputs = object(execution.outputs), { leaves, containers, ...summary } = outputs;
+    return { outputs: Object.keys(outputs).length ? summary : null,
+      leaves: page(records(leaves).map(({ values, value: _value, ...leaf }) => ({ ...leaf,
+        valuesRetained: values !== undefined })), offset, limit),
+      containers: page(records(containers), offset, limit),
+      detail: 'Observed final-output metadata only. Raw tensor/scalar values are not returned; compare_runs uses retained values internally.' };
+  }
+  if (section === 'checkpoint') return checkpointEvidencePage(evidence?.checkpoint as CheckpointEvidence | undefined, offset, limit);
   if (section === 'operations') return { ...page(records(execution.operations), offset, limit), truncated: execution.truncated ?? [] };
   if (section === 'modules') return { calls: page(records(execution.moduleCalls), offset, limit),
     coverage: page(records(execution.coverage), offset, limit), truncated: execution.truncated ?? [] };
@@ -156,5 +170,5 @@ export function inspectEvidence(snapshot: JsonObject, evidence: JsonObject | und
     graphNodeCount: records(snapshot.nodes).length, graphEdgeCount: records(snapshot.edges).length,
     reachedModuleCount: Array.isArray(execution.coverage) ? records(execution.coverage).filter(module => module.reached).length : null,
     unreachedModuleCount: Array.isArray(execution.coverage) ? records(execution.coverage).filter(module => !module.reached).length : null,
-    truncated: execution.truncated ?? [], sections: ['graph', 'setup', 'failure', 'operations', 'modules'] };
+    truncated: execution.truncated ?? [], sections: ['graph', 'setup', 'outputs', 'checkpoint', 'failure', 'operations', 'modules'] };
 }

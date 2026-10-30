@@ -25,7 +25,8 @@ suite('confirmed native Apply receipts', () => {
     assert.deepEqual(first.evidence, base); assert.deepEqual(first.target, target);
     assert.equal(first.receipt.appliedAt, 20); assert.equal(first.receipt.unavailable, null);
     assert.ok(!JSON.stringify(store.summary('review')).includes(base.reviewedSource));
-    first.evidence!.reviewedSource = 'changed'; first.target.cls = 'Other'; first.receipt.file = 'other.py';
+    assert.equal(first.evidence!.version, 1);
+    (first.evidence as AppliedSourceEvidence).reviewedSource = 'changed'; first.target.cls = 'Other'; first.receipt.file = 'other.py';
     assert.deepEqual(store.read('review')!.evidence, base); assert.equal(store.summary('review')!.file, 'model.py');
     now = 30; store.confirm('review', reservation); store.discard('review', reservation);
     assert.equal(store.summary('review')!.appliedAt, 20, 'late callbacks cannot renew retention');

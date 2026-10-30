@@ -1061,6 +1061,38 @@ def test_view_control_binds_selection_and_focus_to_the_actual_socket(client):
             assert host.receive_json() == answer
 
 
+def test_view_selection_relays_code_focus_unchanged(client):
+    session = mint(client)
+    sid = session['workspaceSessionId']
+    host = connect_control_host(client, session)
+    with entered(host):
+        view, connected, _ = connect_view(client, cookie_key_of(bootstrap(client, session)), session)
+        with entered(view):
+            view_id = connected['session']['viewId']
+            assert host.receive_json()['viewId'] == view_id
+            selection = dict(viewId=view_id, target=target(), nodeIds=['fc'], edgeIds=[])
+            numbers = iter(range(1200, 1300))
+
+            def relayed(fields):
+                # A selection without Code focus always reaches VS Code, so the host's next
+                # message shows whether the one before it was relayed or refused.
+                message = envelope('viewSelection', sid, next(numbers), **fields)
+                legacy = envelope('viewSelection', sid, next(numbers), **selection)
+                view.send_json(message)
+                view.send_json(legacy)
+                received = host.receive_json()
+                if received == legacy:
+                    return False
+                assert received == message and host.receive_json() == legacy
+                return True
+
+            assert relayed(dict(selection, follow=False))
+            assert relayed(dict(selection, follow=True))
+            assert relayed(dict(selection, nodeIds=[], tooLarge=True, follow=True))
+            assert not relayed(dict(selection, follow='edit'))
+            assert view.receive_json()['code'] == 'INVALID_MESSAGE'
+
+
 def test_canvas_agent_requests_bind_to_the_socket_and_replies_are_private_to_the_view(client):
     session = mint(client)
     sid = session['workspaceSessionId']

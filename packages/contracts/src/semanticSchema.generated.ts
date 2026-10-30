@@ -3079,19 +3079,6 @@ const schema: object = {
         "arguments": {
           "$ref": "#/definitions/Arguments"
         },
-        "callSiteDigest": {
-          "anyOf": [
-            {
-              "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Callsitedigest"
-        },
         "diagnosticId": {
           "anyOf": [
             {
@@ -3850,6 +3837,26 @@ const schema: object = {
           "title": "Sourcebindingids",
           "type": "array"
         },
+        "sourceFlattenCall": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SourceFlattenCall"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sourceShapeCall": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SourceShapeCall"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "status": {
           "enum": [
             "completed",
@@ -4516,6 +4523,35 @@ const schema: object = {
       "title": "ResolvedExecutionPlan",
       "type": "object"
     },
+    "ReviewedPythonSource": {
+      "additionalProperties": false,
+      "properties": {
+        "beforeDigest": {
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+          "title": "Beforedigest",
+          "type": "string"
+        },
+        "file": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*//)(?!.*/$)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\\\:\\x00-\\x1f]+(?![\\s\\S])",
+          "title": "File",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 262144,
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "beforeDigest",
+        "source"
+      ],
+      "title": "ReviewedPythonSource",
+      "type": "object"
+    },
     "RunAttempt": {
       "additionalProperties": false,
       "properties": {
@@ -5133,6 +5169,147 @@ const schema: object = {
       "title": "SourceBinding",
       "type": "object"
     },
+    "SourceCandidateExecution": {
+      "additionalProperties": false,
+      "description": "Exact reviewed source set; successful replay is not a recipe verdict.",
+      "properties": {
+        "baseAttemptId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Baseattemptid",
+          "type": "string"
+        },
+        "baseCaptureId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Basecaptureid",
+          "type": "string"
+        },
+        "basePlanDigest": {
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+          "title": "Baseplandigest",
+          "type": "string"
+        },
+        "baseSourceId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Basesourceid",
+          "type": "string"
+        },
+        "baseWorkspaceId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Baseworkspaceid",
+          "type": "string"
+        },
+        "changes": {
+          "items": {
+            "$ref": "#/definitions/SourceChangeIdentity"
+          },
+          "maxItems": 16,
+          "minItems": 1,
+          "title": "Changes",
+          "type": "array"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "plan": {
+          "$ref": "#/definitions/ResolvedExecutionPlan"
+        },
+        "version": {
+          "const": 2,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "id",
+        "baseCaptureId",
+        "baseAttemptId",
+        "baseSourceId",
+        "baseWorkspaceId",
+        "basePlanDigest",
+        "changes",
+        "plan"
+      ],
+      "title": "SourceCandidateExecution",
+      "type": "object"
+    },
+    "SourceCandidateRequest": {
+      "additionalProperties": false,
+      "description": "Private exact-file proposal; execution still requires the host Run action.",
+      "properties": {
+        "capture": {
+          "$ref": "#/definitions/CaptureSnapshot"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "plan": {
+          "$ref": "#/definitions/ResolvedExecutionPlan"
+        },
+        "reviewedSources": {
+          "items": {
+            "$ref": "#/definitions/ReviewedPythonSource"
+          },
+          "maxItems": 16,
+          "minItems": 1,
+          "title": "Reviewedsources",
+          "type": "array"
+        },
+        "version": {
+          "const": 2,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "id",
+        "plan",
+        "capture",
+        "reviewedSources"
+      ],
+      "title": "SourceCandidateRequest",
+      "type": "object"
+    },
+    "SourceChangeIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "afterDigest": {
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+          "title": "Afterdigest",
+          "type": "string"
+        },
+        "beforeDigest": {
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+          "title": "Beforedigest",
+          "type": "string"
+        },
+        "file": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*//)(?!.*/$)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\\\:\\x00-\\x1f]+(?![\\s\\S])",
+          "title": "File",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "beforeDigest",
+        "afterDigest"
+      ],
+      "title": "SourceChangeIdentity",
+      "type": "object"
+    },
     "SourceCorrespondence": {
       "additionalProperties": false,
       "description": "Revision-specific evidence for a source card, not proof that an expression ran.",
@@ -5297,6 +5474,98 @@ const schema: object = {
       "title": "SourceEditScope",
       "type": "object"
     },
+    "SourceFlattenArgument": {
+      "additionalProperties": false,
+      "properties": {
+        "parameter": {
+          "enum": [
+            "start_dim",
+            "end_dim"
+          ],
+          "title": "Parameter",
+          "type": "string"
+        },
+        "sourcePath": {
+          "items": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "maxLength": 128,
+                "type": "string"
+              }
+            ]
+          },
+          "maxItems": 64,
+          "title": "Sourcepath",
+          "type": "array"
+        },
+        "value": {
+          "maximum": 31,
+          "minimum": -32,
+          "title": "Value",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "parameter",
+        "sourcePath",
+        "value"
+      ],
+      "title": "SourceFlattenArgument",
+      "type": "object"
+    },
+    "SourceFlattenCall": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "items": {
+            "$ref": "#/definitions/SourceFlattenArgument"
+          },
+          "maxItems": 2,
+          "title": "Arguments",
+          "type": "array"
+        },
+        "bindingId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Bindingid",
+          "type": "string"
+        },
+        "callable": {
+          "enum": [
+            "torch.flatten",
+            "torch.Tensor.flatten"
+          ],
+          "title": "Callable",
+          "type": "string"
+        },
+        "endDim": {
+          "maximum": 31,
+          "minimum": -32,
+          "title": "Enddim",
+          "type": "integer"
+        },
+        "startDim": {
+          "maximum": 31,
+          "minimum": -32,
+          "title": "Startdim",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "callable",
+        "bindingId",
+        "startDim",
+        "endDim",
+        "arguments"
+      ],
+      "title": "SourceFlattenCall",
+      "type": "object"
+    },
     "SourceFloatLiteral": {
       "additionalProperties": false,
       "properties": {
@@ -5323,6 +5592,91 @@ const schema: object = {
         "value"
       ],
       "title": "SourceFloatLiteral",
+      "type": "object"
+    },
+    "SourceShapeCall": {
+      "additionalProperties": false,
+      "properties": {
+        "bindingId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Bindingid",
+          "type": "string"
+        },
+        "callable": {
+          "enum": [
+            "torch.reshape",
+            "torch.Tensor.reshape",
+            "torch.Tensor.view"
+          ],
+          "title": "Callable",
+          "type": "string"
+        },
+        "dimensions": {
+          "items": {
+            "$ref": "#/definitions/SourceShapeDimension"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Dimensions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "callable",
+        "bindingId",
+        "dimensions"
+      ],
+      "title": "SourceShapeCall",
+      "type": "object"
+    },
+    "SourceShapeDimension": {
+      "additionalProperties": false,
+      "properties": {
+        "dimension": {
+          "maximum": 31,
+          "minimum": 0,
+          "title": "Dimension",
+          "type": "integer"
+        },
+        "sourcePath": {
+          "items": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "maxLength": 128,
+                "type": "string"
+              }
+            ]
+          },
+          "maxItems": 64,
+          "title": "Sourcepath",
+          "type": "array"
+        },
+        "tensorDimension": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SourceTensorDimension"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "$ref": "#/definitions/IntLiteral"
+        }
+      },
+      "required": [
+        "sourcePath",
+        "dimension",
+        "value"
+      ],
+      "title": "SourceShapeDimension",
       "type": "object"
     },
     "SourceSnapshot": {
@@ -5434,6 +5788,29 @@ const schema: object = {
         "sourceMode"
       ],
       "title": "SourceSnapshot",
+      "type": "object"
+    },
+    "SourceTensorDimension": {
+      "additionalProperties": false,
+      "properties": {
+        "axis": {
+          "maximum": 31,
+          "minimum": -32,
+          "title": "Axis",
+          "type": "integer"
+        },
+        "valueId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Valueid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "valueId",
+        "axis"
+      ],
+      "title": "SourceTensorDimension",
       "type": "object"
     },
     "SourceValueChoice": {
@@ -5847,6 +6224,12 @@ const schema: object = {
     "setLiteralEdit": {
       "$ref": "#/definitions/SetLiteralEdit"
     },
+    "sourceCandidateExecution": {
+      "$ref": "#/definitions/SourceCandidateExecution"
+    },
+    "sourceCandidateRequest": {
+      "$ref": "#/definitions/SourceCandidateRequest"
+    },
     "state": {
       "$ref": "#/definitions/CaptureState"
     }
@@ -5857,9 +6240,11 @@ const schema: object = {
     "state",
     "plan",
     "candidateExecution",
+    "sourceCandidateExecution",
     "captureReconciliationRequest",
     "captureReconciliation",
     "candidateRequest",
+    "sourceCandidateRequest",
     "candidatePostconditions",
     "preparation",
     "correspondence",

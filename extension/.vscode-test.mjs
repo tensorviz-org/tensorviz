@@ -27,6 +27,8 @@ const onlySuite = process.env.TENSORVIZ_TEST_ONLY;
 // ide/scripts/smoke.sh --print-binary <bundle>; test-cli uses useInstallation.fromPath.
 const forkBinary = process.env.TENSORVIZ_IDE_BINARY;
 const editorBinary = forkBinary || process.env.TENSORVIZ_TEST_EDITOR_BINARY;
+// Fork branding is a separate compatibility contract, not stock VS Code acceptance.
+if (!forkBinary) deselected.push('forkIdentity');
 
 // Preseed from TENSORVIZ_TEST_PYTHON to avoid first-use prompts. runtimeFlow disables
 // this for its consent/provisioning cases; do not treat preseeded runs as first-install proof.
@@ -51,20 +53,52 @@ function isolatedLaunchArgs(label) {
   return [...shared.launchArgs, `--user-data-dir=${profile}`];
 }
 
+function isolatedWorkspace(label, source) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), `tensorviz-workspace-${label}-`));
+  if (source) fs.cpSync(source, directory, { recursive: true });
+  process.once('exit', () => fs.rmSync(directory, { recursive: true, force: true }));
+  return directory;
+}
+
+// Model Python choices belong to workspace folders. Open all disposable roots at
+// launch; converting a single-folder window while a test runs can reload its host.
+const suitesWorkspace = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'tensorviz-electron-workspace-')));
+process.env.TENSORVIZ_TEST_WORKSPACE = suitesWorkspace;
+const modelFolders = ['empty', 'canvas', 'browser/models', 'browser/tensor-expression-project', 'browser/measured-project'];
+for (const folder of modelFolders) fs.mkdirSync(path.join(suitesWorkspace, folder), { recursive: true });
+const workspaceFile = path.join(suitesWorkspace, 'acceptance.code-workspace');
+fs.writeFileSync(workspaceFile, JSON.stringify({ folders: modelFolders.map(folder => ({ path: folder })) }));
+process.once('exit', () => fs.rmSync(suitesWorkspace, { recursive: true, force: true }));
+
 // zeroCeremony needs the fixture folder open to test workspace-wide model discovery.
-const ZERO_CEREMONY_FIXTURE =
+const ZERO_CEREMONY_SOURCE =
   process.env.TENSORVIZ_ZERO_CEREMONY_FIXTURE ??
   fileURLToPath(new URL('../backend/tests/fixtures/ide_repo', import.meta.url));
+
+const ZERO_CEREMONY_FIXTURE = isolatedWorkspace('zeroCeremony', ZERO_CEREMONY_SOURCE);
+const selected = name => !onlySuite || new RegExp(`^${onlySuite} `).test(`${name} behavior`);
 
 // Electron suites use a real host; unit suites run separately with the vscode stub.
 export default defineConfig([
   {
     ...shared,
+    label: 'runtimeFlow',
+    launchArgs: isolatedLaunchArgs('runtimeFlow'),
+    workspaceFolder: isolatedWorkspace('runtimeFlow'),
+    files: 'out/test/electron/runtimeFlow.test.js',
+    mocha: {
+      ...shared.mocha,
+      ...(backendFree || !selected('runtimeFlow') ? { grep: '^notSelected ' } : {}),
+    },
+  },
+  {
+    ...shared,
     label: 'suites',
+    workspaceFolder: workspaceFile,
     launchArgs: isolatedLaunchArgs('suites'),
-    // First-use provisioning must precede any suite that starts a backend from
-    // the preseeded runtime. test-cli deduplicates the overlap with the glob.
-    files: ['out/test/electron/runtimeFlow.test.js', 'out/test/electron/**/!(coldDiscovery).test.js'],
+    // First-use owns a separate host: its repaired runtime may still serve a live
+    // backend, and later suites must never delete or replace that interpreter.
+    files: 'out/test/electron/**/!(runtimeFlow|coldDiscovery|zeroCeremony).test.js',
     mocha: {
       ...shared.mocha,
       // Anchor the suite name: a test title can mention another suite. Exclude
@@ -82,19 +116,20 @@ export default defineConfig([
     mocha: {
       ...shared.mocha,
       // A dedicated process is essential: another suite's warm backend masks this bug.
-      ...(backendFree || (onlySuite && onlySuite !== 'coldDiscovery') ? { grep: '^notSelected ' } : {}),
+      ...(backendFree || !selected('coldDiscovery') ? { grep: '^notSelected ' } : {}),
     },
   },
   {
     ...shared,
     label: 'zeroCeremony',
     launchArgs: isolatedLaunchArgs('zeroCeremony'),
+    env: { TENSORVIZ_ZERO_CEREMONY_FIXTURE: ZERO_CEREMONY_FIXTURE },
     files: 'out/test/electron/zeroCeremony.test.js',
     workspaceFolder: ZERO_CEREMONY_FIXTURE,
     mocha: {
       ...shared.mocha,
       // Selecting another suite also deselects this separate configuration.
-      ...(onlySuite && onlySuite !== 'zeroCeremony' ? { grep: `^${onlySuite} ` } : {}),
+      ...(backendFree || !selected('zeroCeremony') ? { grep: '^notSelected ' } : {}),
     },
   },
 ]);

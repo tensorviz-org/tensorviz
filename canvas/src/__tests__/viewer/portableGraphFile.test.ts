@@ -211,3 +211,16 @@ it.each(contractCases)('agrees with the Python contract: $name', ({ patches, val
 });
 
 
+it('opens an older file with module timing and call-site digests by dropping them', () => {
+  const value = clone(portable) as any;
+  for (const call of value.capture.invocations) {
+    call.latency = { cpuTotalUs: [4, 8], cpuSelfUs: [1, 2], deviceTotalUs: null, deviceMethod: null };
+    call.callSiteDigest = null;
+  }
+  value.capture.latencyProfile = { status: 'measured', reason: null, device: 'cpu', warmupIterations: 3,
+    iterations: 2, measuredInvocations: value.capture.invocations.length, benchmarkSamplesMs: [0.1, 0.2] };
+  const capture = requirePortableCapture(value);
+  expect(capture).toEqual(portable);
+  const imported = parseGraphFile(JSON.stringify(createGraphFile(graph(), { name: 'Older model', status: 'traced', capture })));
+  expect(JSON.stringify(imported)).not.toMatch(/latency|callSiteDigest/i);
+});

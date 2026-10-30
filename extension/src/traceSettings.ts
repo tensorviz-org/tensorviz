@@ -1,8 +1,4 @@
-/** How the sidebar decides whether a save may execute the model.
-
-`tensorviz.traceOnSave` remains in the manifest so an old workspace value still
-loads, and its deprecation text says a save does not execute. This reader never
-turns that value into a capture. */
-export function browserTraceSettings(read: (section: string) => unknown): { onSave: false; tier: 'real' | 'fake' } {
-  return { onSave: false, tier: read('traceTier') === 'fake' ? 'fake' : 'real' };
+/** Saved model validation is enabled unless the user explicitly opts out. */
+export function browserTraceSettings(read: (section: string) => unknown): { onSave: boolean; tier: 'real' | 'fake' } {
+  return { onSave: read('traceOnSave') !== false, tier: read('traceTier') === 'fake' ? 'fake' : 'real' };
 }

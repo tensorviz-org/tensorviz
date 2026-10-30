@@ -1722,7 +1722,46 @@
             "stateValueIds": [],
             "reason": null
           }
-        ]
+        ],
+        "reviewDeclarations": {
+          "entries": {
+            "@declaration:[\"model.py\",\"Model\",\"activation\"]": {
+              "label": "Model.activation",
+              "digest": "3f9a90b2a6d13f1d503e08054b291711c21bd4f88268c8873e0e15d2ccec4e56",
+              "ambiguous": false,
+              "span": {
+                "file": "model.py",
+                "start": [
+                  7,
+                  8
+                ],
+                "end": [
+                  7,
+                  47
+                ],
+                "kind": "decl"
+              },
+              "constructor": {
+                "file": "model.py",
+                "start": [
+                  7,
+                  26
+                ],
+                "end": [
+                  7,
+                  47
+                ],
+                "kind": "decl"
+              }
+            }
+          },
+          "complete": true
+        },
+        "sourceDeclarationCalls": {
+          "@declaration:[\"model.py\",\"Model\",\"activation\"]": [
+            "invocation:1"
+          ]
+        }
       }
     },
     "view": {

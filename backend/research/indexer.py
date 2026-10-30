@@ -45,7 +45,7 @@ from research.classify import (
     literal,
     scan_body,
 )
-from utils.code_parser import INPUT_COMMENT
+from services.ingest.input_declarations import applicable
 from research.contracts import (
     DATAFLOW_RELATIONSHIPS,
     Experiment,
@@ -214,8 +214,10 @@ def analyse_file(
     # says what shape to run through it" and offered a declaration for something
     # already declared.
     #
-    # File-scoped, which is how `declared_input_shape` reads it too: the comment sits
-    # at the top of the module, not inside the class.
+    # Class-scoped, by the rule setup, the drawing and the worker follow
+    # (`input_declarations`): in a file with several models, a model owns the comment
+    # directly above or inside it, and one elsewhere in the file declares for none.
+    # This file's own models are the proof of which classes are models.
     #
     # Whether it can be RESOLVED to a shape is a separate question — the expression
     # form (`torch.randint(1, 16, (1, 10))`) needs torch, which this tier will not
@@ -223,10 +225,10 @@ def analyse_file(
     # that is the only question the verdict asks.
     _promote_local_subclasses(facts)
 
-    if INPUT_COMMENT.search(source):
-        for definition in facts.definitions:
-            if definition.kind == "model":
-                definition.params["_input_comment"] = True
+    models = {(d.lineno, d.name) for d in facts.definitions if d.kind == "model"}
+    for definition in facts.definitions:
+        if definition.kind == "model" and applicable(source, definition.name, tree=tree, proven=lambda: models)[0]:
+            definition.params["_input_comment"] = True
 
     module_body = [
         stmt for stmt in tree.body if not isinstance(stmt, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))

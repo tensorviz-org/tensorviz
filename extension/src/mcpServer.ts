@@ -42,7 +42,7 @@ export class GraphMcpServer {
   private closing?: Promise<void>;
 
   constructor(private readonly register: (server: McpServer, sessionId: string) => (() => void) | void, hostId?: string,
-    private readonly bearerToken?: string) {
+    private readonly bearerToken?: string, private readonly retainIdleSessions = false) {
     this.hostId = hostId ?? randomUUID();
   }
 
@@ -75,12 +75,15 @@ export class GraphMcpServer {
     const bound = listener.address();
     if (!bound || typeof bound === 'string') throw new Error('MCP did not bind a TCP port.');
     this.address = `http://127.0.0.1:${bound.port}`;
-    this.timer = setInterval(() => {
-      for (const session of this.sessions.values()) {
-        if (Date.now() - session.touched > IDLE_MS) void session.server.close();
-      }
-    }, 60_000);
-    this.timer.unref();
+    // A private Canvas endpoint is bounded by its owning agent process/window.
+    if (!this.retainIdleSessions) {
+      this.timer = setInterval(() => {
+        for (const session of this.sessions.values()) {
+          if (Date.now() - session.touched > IDLE_MS) void session.server.close();
+        }
+      }, 60_000);
+      this.timer.unref();
+    }
     return this.connection!;
   }
 

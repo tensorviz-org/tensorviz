@@ -21,11 +21,11 @@ export interface LocalBrowserContextValue {
   sourceEdits?: LocalBrowserSourceEditClient | null;
   captures?: LocalBrowserCaptureClient | null;
   portableExports?: LocalBrowserPortableClient | null;
-  canProposeSourceEdits?: boolean;
   navigation?: {
     header: HTMLDivElement | null;
     footer: HTMLDivElement | null;
-    headerCollapsed?: boolean;
+    /** Icon-only controls: the header is too narrow for its labels on one row. */
+    compact?: boolean;
     inputsOpen: boolean;
     changeInputs(): void;
   };

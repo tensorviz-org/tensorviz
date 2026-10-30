@@ -35,6 +35,7 @@ import { ConnectionLayer } from './ConnectionLayer';
 import { ConnectionGraph, ConnectionGraphContext, cancelConnection } from './connectionDrag';
 import { GraphEdgeLike } from './connectivity';
 import { EDGE_HIT_PX, findEdgeAtPoint, findEdgeWithMidpoint, selectedEdgeId } from './edgeSelection';
+import { doubleClickedShapeId } from './doubleClickTarget';
 import { EdgeInsertLayer } from './EdgeInsertLayer';
 import { NodeParametersPopover } from './NodeParametersPopover';
 import { GraphFocusOverlay, GraphNavigationContext } from './GraphFocusOverlay';
@@ -223,16 +224,13 @@ const SelectionWatcher = track(function SelectionWatcher({
     };
   }, [editor, onShapeClick, canEditParameters]);
 
-  // Report a double-click on a shape. tldraw's own click detector already
-  // debounces this into a `double_click` event with the shape it landed on, and
-  // its 'up' phase is the one that means the gesture finished — the 'down' and
-  // 'settle' phases of the same click would fire the callback three times.
+  // Report a finished double-click on a shape. tldraw's click detector reports it
+  // on the canvas without naming the shape; doubleClickedShapeId resolves it the
+  // way the select tool does.
   useEffect(() => {
     const handleEvent = (info: TLEventInfo) => {
-      if (info.name !== 'double_click') return;
-      const click = info as TLEventInfo & { phase?: string; shape?: { id: TLShapeId } };
-      if (click.phase !== 'up' || !click.shape) return;
-      onShapeDoubleClick?.(click.shape.id);
+      const shapeId = doubleClickedShapeId(editor, info);
+      if (shapeId) onShapeDoubleClick?.(shapeId);
     };
     editor.on('event', handleEvent);
     return () => {

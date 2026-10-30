@@ -24,7 +24,7 @@
     "package:release": "node scripts/package.mjs --release",
     "check": "tsc --noEmit",
     "test": "npm run check && npm run build && npm run build:panel && node --test test/unit/*.test.cjs",
-    "test:capture": "node --test test/integration/*.test.cjs",
+    "test:capture": "node --test --test-concurrency=1 test/integration/*.test.cjs",
     "test:dependencies": "node --test test/network/*.test.cjs",
     "test:runtime": "node --test test/network/runtime.cjs",
     "test:codex": "node --test test/clients/codex.cjs",
@@ -37,7 +37,8 @@
     "build:native:host": "npm run build && node scripts/build-native-host.mjs",
     "test:native:installer": "node --test test/native/installer.cjs",
     "package:source-development": "npm run check && npm run build && npm run build:browser && npm run build:panel && node scripts/package.mjs --allow-source-development",
-    "test:source-package": "node --test test/package/*.cjs"
+    "test:source-package": "node --test test/package/*.cjs",
+    "pretest:capture": "node test/check-capture-fixtures.cjs && npm run check && npm run build && npm run build:browser && npm run build:panel"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "1.7.5",

@@ -93,6 +93,19 @@ def test_dynamic_discovery_note_names_the_actual_unresolved_construct(client):
     assert 'importlib.import_module()' in result['notes'][0]['detail']
 
 
+def test_review_indexes_the_snapshot_once(client, monkeypatch):
+    # Model discovery reads the index review already built for its dependencies,
+    # rather than indexing the whole snapshot a second time.
+    from services.ide.module_index import ModuleIndex
+    build, builds = ModuleIndex.build.__func__, []
+    monkeypatch.setattr(ModuleIndex, 'build', classmethod(lambda cls, sources: builds.append(sources) or build(cls, sources)))
+    result = index(client, {'blocks.py': 'from torch import nn\nclass Block(nn.Module):\n    def forward(self,x): return x\n',
+                            'model.py': 'from blocks import Block\nclass Net(Block): pass\n'})
+    assert result.status_code == 200, result.text
+    assert {item['cls'] for item in result.json()['models']} == {'Block', 'Net'}
+    assert len(builds) == 1
+
+
 def test_discovery_rejects_forged_source_digest_and_paths(client):
     result = index(client, {'../outside.py': 'pass'})
     assert result.status_code == 400

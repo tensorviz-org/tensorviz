@@ -293,6 +293,9 @@ def _fail(envelope: _Envelope, exc: BaseException, node_id: Optional[str] = None
     if requirement is not None:
         from ..semantic.contracts import Diagnostic
         envelope.error["diagnostic"] = Diagnostic.model_validate(requirement.diagnostic).model_dump(mode="json")
+        checkpoint = getattr(requirement, 'checkpoint_compatibility', None)
+        if checkpoint is not None:
+            envelope.worker['checkpointCompatibility'] = checkpoint
 
 
 #: A capture holds real activations alive and runs a real backward. Anything past a

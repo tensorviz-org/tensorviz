@@ -120,6 +120,63 @@ def test_the_input_comment_counts_as_a_declared_input():
     assert verdict_for(net.kind, net.label, net.params).state == "ready"
 
 
+def test_the_input_comment_counts_only_for_the_model_it_belongs_to():
+    """In a file with several models, a declaration is the one directly above or
+    inside its class, as setup, the drawing and the worker read it. Any declaration
+    in the file used to mark every model "ready", including one only a string held.
+    """
+    from research.indexer import analyse_file
+
+    model = (
+        "class {name}(nn.Module):\n"
+        "    def __init__(self):\n"
+        "        super().__init__()\n"
+        "        self.fc = nn.Linear(8, 8)\n"
+        "\n"
+        "    def forward(self, x):\n"
+        "        return self.fc(x)\n"
+        "\n"
+        "\n"
+    )
+    source = (
+        'NOTE = "# tensorviz: input=2,8"\n'
+        "import torch.nn as nn\n"
+        "\n"
+        "\n"
+        "# tensorviz: input=2,8\n" + model.format(name="A") + model.format(name="B")
+    )
+    flagged = {d.name: bool(d.params.get("_input_comment")) for d in analyse_file("net.py", source).definitions}
+    assert flagged == {"A": True, "B": False}
+    flagged = {d.name: bool(d.params.get("_input_comment"))
+               for d in analyse_file("net.py", source.replace("\n# tensorviz: input=2,8\n", "\n")).definitions}
+    assert flagged == {"A": False, "B": False}
+
+
+def test_a_carriage_return_line_break_does_not_stop_the_project_index():
+    """Python reads a lone carriage return as a line break. Reading the comments did
+    not, and the error escaped `analyse_file`, which records a syntax error and never
+    raises it, so one such file stopped the index of the whole project."""
+    from research.indexer import analyse_file
+
+    model = (
+        "class {name}(nn.Module):\n"
+        "    # a note\r"
+        "    def __init__(self):\n"
+        "        super().__init__()\n"
+        "        self.fc = nn.Linear(8, 8)\n"
+        "\n"
+        "    def forward(self, x):\n"
+        "        return self.fc(x)\n"
+        "\n"
+        "\n"
+    )
+    source = "import torch.nn as nn\n\n\n# tensorviz: input=2,8\n" + model.format(name="A") + model.format(name="B")
+    for text in (source, source.replace("\n", "\r")):
+        facts = analyse_file("net.py", text)
+        assert facts.error is None
+        assert {d.name: bool(d.params.get("_input_comment")) for d in facts.definitions} == {"A": True, "B": False}
+
+
 def test_a_model_with_no_input_anywhere_still_says_so():
     """The counterweight. The verdict exists to refuse honestly, and a rule that
     answers `ready` for everything is the defect it was built to end."""

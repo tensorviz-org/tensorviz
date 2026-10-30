@@ -18,7 +18,7 @@ import { createLocalBrowserViewControl } from './localBrowserViewControl';
 
 import React from 'react';
 import { graphMcpHelpRequest } from './graphHelpRequest.generated';
-import { ChevronDown, ChevronUp, FileCode2, GitCompareArrows, GitPullRequest, Unplug, Workflow } from 'lucide-react';
+import { FileCode2, GitCompareArrows, GitPullRequest, Unplug, Workflow } from 'lucide-react';
 import CanvasStateScreen from './CanvasStateScreen';
 import { postToHost } from './bridge';
 import type { LocalBrowserValidationSummary } from './protocol.generated';
@@ -42,6 +42,7 @@ import {
   orderedDiagnostics,
   projectionForCanvas,
   graphOpeningPresentation,
+  sourceFocusNode,
 } from './localBrowserPresentation';
 import {
   LocalBrowserViewStatus,
@@ -59,6 +60,8 @@ import './LocalBrowserApp.css';
 import { nativeCanvasMode } from './nativeCanvasPresentation';
 import { canExportGraphFile } from './graphFileExport';
 import LocalBrowserModelMenu from './LocalBrowserModelMenu';
+import PublishGraphButton from './PublishGraphButton';
+import { useCompactHeader } from './useCompactHeader';
 import { createLocalBrowserPortableClient, type LocalBrowserPortableClient } from './localBrowserPortableClient';
 
 export interface LocalBrowserAppProps {
@@ -169,10 +172,10 @@ export default function LocalBrowserApp({
     void navigator.clipboard.writeText(reference).then(() => setSourceNotice(`Copied ${reference}`), () => setSourceNotice(reference));
   }, []);
   pageRef.current = page;
-  const reviewRef = React.useRef({ state: review, presentation: reviewPresentation, mode: reviewMode });
-  const focusedDraft = React.useRef<string | null>(null);
+  const reviewRef = React.useRef({ state: review, presentation: reviewPresentation, mode: reviewMode, index: reviewIndex });
+  const focusedReview = React.useRef<string | null>(null);
   const acceptedFocus = React.useRef<{ workspaceFolder?: string; file: string; cls: string; sourceDigest: string; nodeIds: string[] } | null>(null);
-  reviewRef.current = { state: review, presentation: reviewPresentation, mode: reviewMode };
+  reviewRef.current = { state: review, presentation: reviewPresentation, mode: reviewMode, index: reviewIndex };
   // A reconnect can deliver the pending review before its retained projection.
   // Freeze that context once it arrives, just as for an already-open Canvas.
   React.useEffect(() => {
@@ -187,10 +190,11 @@ export default function LocalBrowserApp({
     }
   }, [review, reviewCapture, page]);
   const focusReviewNode = React.useCallback((focus: string | string[]) => {
-    const { state, presentation } = reviewRef.current;
+    const { state, presentation, mode } = reviewRef.current;
     const ids = Array.isArray(focus) ? focus : [focus];
-    if (state?.proposal && presentation) {
-      const graph = presentation.projections.diff.reviewGraph;
+    if (state && presentation) {
+      const projection = presentation.projections[mode];
+      const graph = projection.reviewGraph;
       const byId = new Map(graph.nodes.map(node => [node.id, node]));
       // Focus opens the changed calls' ancestors only. A neighbour inside another
       // module is framed as that module's card, and no ancestor frame is a target.
@@ -203,12 +207,12 @@ export default function LocalBrowserApp({
         while (node?.data.parentId && !ancestors.has(node.data.parentId) && byId.has(node.data.parentId)) node = byId.get(node.data.parentId);
         return node?.id ?? id;
       };
-      const inContext = presentation.projections.diff.capturedContext;
-      const neighbors = inContext ? [] : graph.edges.filter(edge => ids.includes(edge.source) || ids.includes(edge.target))
+      const inContext = projection.capturedContext;
+      const neighbors = inContext || !state.proposal ? [] : graph.edges.filter(edge => ids.includes(edge.source) || ids.includes(edge.target))
         .flatMap(edge => [edge.source, edge.target]).map(shown);
       window.dispatchEvent(new CustomEvent('builder-command', { detail: { command: 'focus-selection', payload: {
-        nodeIds: Array.from(new Set([...ids, ...neighbors])).filter(id => !ancestors.has(id)), target: { file: state.after.file, cls: state.after.cls,
-          sourceDigest: state.after.sourceDigest, backendRevision: state.after.revision },
+        nodeIds: Array.from(new Set([...ids, ...neighbors])).filter(id => !ancestors.has(id)), target: { file: projection.file, cls: projection.cls,
+          sourceDigest: projection.sourceDigest, backendRevision: projection.revision },
         ...(inContext ? { inset: 24 } : {}),
       } } }));
     } else window.dispatchEvent(new CustomEvent('builder-command', { detail: { command: 'focus-node', payload: { nodeId: ids[0] } } }));
@@ -228,9 +232,9 @@ export default function LocalBrowserApp({
   const [executionExpanded, setExecutionExpanded] = React.useState(false);
   React.useEffect(() => { setExecutionExpanded(false); }, [page.activeTarget?.workspaceFolder, page.activeTarget?.file, page.activeTarget?.cls, review?.id]);
   const [headerTools, setHeaderTools] = React.useState<HTMLDivElement | null>(null);
-  const [headerCollapsed, setHeaderCollapsed] = React.useState(true);
+  const [headerElement, setHeaderElement] = React.useState<HTMLElement | null>(null);
+  const compactHeader = useCompactHeader(headerElement);
   const [footerTools, setFooterTools] = React.useState<HTMLDivElement | null>(null);
-  const [focusChoices, setFocusChoices] = React.useState<string[]>([]);
   /** Edge ids already proposed, so a second click cannot queue a duplicate. */
   const [declared, setDeclared] = React.useState<string[]>([]);
   /** The experiment asked for whose document has not arrived. Page state, not page
@@ -324,18 +328,18 @@ export default function LocalBrowserApp({
         hostSummary.current = message;
         hostSummaryEpoch.current++;
         setAgentValidation(message);
-        if (message.status === 'running' && !message.validationPassed) setValidationReceipt(null);
-        else setValidationReceipt({ status: message.validationPassed ? 'passed' : message.status as ValidationReceipt['status'], validationPassed: message.validationPassed, detail: message.detail,
+        if (message.status === 'running') setValidationReceipt(null);
+        else setValidationReceipt({ status: message.status as ValidationReceipt['status'], detail: message.detail,
           runId: message.runId, target: message.target, projectionRevision: message.projectionRevision, evidence: message.evidence });
       } else if (message.type === 'snapshot') {
         const summary = message.state.validation ?? null;
         hostSummary.current = summary;
         hostSummaryEpoch.current++;
         validationGeneration.current++;
-        setValidationAction(null);
+        setValidating(false);
         setAgentValidation(summary);
-        const receipt: ValidationReceipt | null = summary && (summary.status !== 'running' || summary.validationPassed)
-          ? { ...summary, status: summary.validationPassed ? 'passed' : summary.status as ValidationReceipt['status'] } : null;
+        const receipt: ValidationReceipt | null = summary && summary.status !== 'running'
+          ? { ...summary, status: summary.status as ValidationReceipt['status'] } : null;
         // Restore the result without replaying a capture animation as a new run.
         sweptReceipt.current = receipt;
         setValidationReceipt(receipt);
@@ -357,10 +361,14 @@ export default function LocalBrowserApp({
       if (!reviewing.state || reviewing.state.stale
         || (event as CustomEvent).detail !== reviewing.presentation?.projections[reviewing.mode]) return;
       if (viewId) transport.send({ type: 'graphReviewApplied', viewId, reviewId: reviewing.state.id, mode: reviewing.mode });
-      const change = reviewing.state.proposal && reviewing.presentation?.changes[0];
-      const focusKey = `${reviewing.state.id}:${reviewing.presentation?.projections.diff.contextKey ?? 'source'}`;
-      if (change && focusedDraft.current !== focusKey) {
-        focusedDraft.current = focusKey;
+      const presentation = reviewing.presentation!;
+      const index = Math.max(0, presentation.changes.findIndex(change => presentation.initialChangeId
+        ? change.id === presentation.initialChangeId : presentation.nodes.get(change.id)?.status !== 'unresolved'));
+      const change = presentation.changes[index];
+      const focusKey = `${reviewing.state.id}:${presentation.projections.diff.contextKey ?? presentation.projections.diff.graphId}`;
+      if (change && focusedReview.current !== focusKey) {
+        focusedReview.current = focusKey;
+        setReviewIndex(index);
         focusReviewNode(reviewing.presentation!.focusNodes?.get(change.id) ?? change.id);
       }
     };
@@ -382,8 +390,15 @@ export default function LocalBrowserApp({
       if (message.type === 'graphReviewFocus' && message.reviewId === reviewing.state?.id) {
         const ids = Array.from(reviewing.presentation?.nodes ?? []).filter(([id, record]) =>
           (!reviewing.presentation?.focusNodes || id.startsWith('review:')) && message.nodeIds.includes(record[message.side] ?? ''));
-        if (ids.length === 1) {
-          const [id, record] = ids[0];
+        // A change located on several captured calls lists each call under its own
+        // ID with the change's record. The host matches by line, so lowered copies
+        // and unchanged neighbours arrive too; only navigable changes decide.
+        // Revealing a call moves the cursor here too, so keep the call the navigator
+        // shows; otherwise start at the first call.
+        const listed = ids.filter(([id]) => reviewing.presentation!.changes.some(change => change.id === id));
+        if (ids.length === 1 || (listed.length && listed.every(([, record]) => record === listed[0][1]))) {
+          const current = reviewing.presentation!.changes[reviewing.index]?.id;
+          const [id, record] = listed.find(([id]) => id === current) ?? listed[0] ?? ids[0];
           if (reviewing.mode !== 'diff' && !record[reviewing.mode]) setReviewMode('diff');
           setReviewIndex(Math.max(0, reviewing.presentation!.changes.findIndex(change => change.id === id)));
           const focus = reviewing.presentation?.focusNodes?.get(id) ?? id;
@@ -393,15 +408,8 @@ export default function LocalBrowserApp({
       }
       if (message.type === 'focusNode' && !reviewing.state) {
         const choices = message.nodeIds?.length ? message.nodeIds : [message.nodeId];
-        if (choices.length === 1) {
-          setFocusChoices([]);
-          focusCanvasNode(choices[0]);
-        } else {
-          // One declaration can represent several instances. Picking the first
-          // would silently point at one copy, so the page asks the user which
-          // instance to focus instead.
-          setFocusChoices(choices);
-        }
+        const nodeId = sourceFocusNode(pageRef.current.projection?.document, choices);
+        if (nodeId) focusCanvasNode(nodeId);
       }
     });
     // A node activated on this canvas asks the host to reveal its line: the
@@ -416,11 +424,14 @@ export default function LocalBrowserApp({
           if (standalone) copyReviewSource(side, record[side]);
           else transport.send({ type: 'graphReviewRequest', action: 'reveal', reviewId: reviewing.state.id, side, nodeId: record[side] });
         }
-        const index = reviewing.presentation?.changes.findIndex(change => {
+        const changes = reviewing.presentation?.changes ?? [];
+        const shown = changes.filter(change => {
           const source = reviewing.presentation?.nodes.get(change.id);
           return change.id === nodeId || (record && source?.before === record.before && source?.after === record.after);
-        }) ?? -1;
-        if (index >= 0) setReviewIndex(index);
+        });
+        // Every captured call of one change shares its record; select the call clicked.
+        const change = shown.find(change => [reviewing.presentation?.focusNodes?.get(change.id)].flat().includes(nodeId)) ?? shown[0];
+        if (change) setReviewIndex(changes.indexOf(change));
         return;
       }
       const target = targetRef.current;
@@ -467,15 +478,17 @@ export default function LocalBrowserApp({
     if (standalone && ['edit_config', 'edit_execution', 'agent_help', 'environment', 'save_sources'].includes(action.kind)) {
       const target = page.opening.target;
       const investigation = action.kind === 'agent_help' && (page.opening.phase === 'failed' || (page.opening.environment && page.opening.environment.reason !== 'ready'));
-      const text = investigation ? graphMcpHelpRequest({ opening: page.opening })
+      const text = action.kind === 'agent_help' ? graphMcpHelpRequest({ opening: { ...page.opening, ...(action.draft ? { draft: action.draft } : {}) } })
         : action.kind === 'edit_execution' ? `${target.workspaceFolder}/tensorviz.toml · profiles.${page.opening.execution?.profileName}.${action.field.join('.')}`
         : action.kind === 'edit_config' ? `${target.workspaceFolder}/tensorviz.toml`
-        : `Prepare TensorViz setup for ${target.file}:${target.cls} in ${target.workspaceFolder}. Use source evidence and preserve my edited draft below. Ask about missing intent. Save the setup; opening then runs it once to capture the graph, so do not start other runs.\n${JSON.stringify({ draft: action.kind === 'agent_help' ? action.draft ?? page.opening.draft : page.opening.draft, discovery: page.opening.discovery })}`;
-      void navigator.clipboard.writeText(text).then(() => setSourceNotice(investigation
-        ? 'MCP investigation request copied. Paste it into your coding agent.' : `Copied: ${text}`), () => setSourceNotice(text));
-      return;
+        : `Prepare TensorViz setup for ${target.file}:${target.cls} in ${target.workspaceFolder}. Use source evidence and preserve my edited draft below. Ask about missing intent. Save the setup; opening then runs it once to capture the graph, so do not start other runs.\n${JSON.stringify({ draft: page.opening.draft, discovery: page.opening.discovery })}`;
+      void navigator.clipboard.writeText(text).then(() => setSourceNotice(action.kind === 'agent_help'
+        ? investigation ? 'MCP investigation request copied. Paste it into your coding agent.'
+          : 'Setup request copied. Paste it into your coding agent.'
+        : `Copied: ${text}`), () => setSourceNotice(text));
+      if (action.kind !== 'agent_help' || !action.draft) return;
     }
-    if (action.kind === 'agent_help') {
+    if (action.kind === 'agent_help' && !standalone) {
       window.dispatchEvent(new CustomEvent(AGENT_COMPOSE_EVENT, { detail: { opening: true } }));
       setDismissedOpeningId(page.opening.id);
     }
@@ -494,7 +507,7 @@ export default function LocalBrowserApp({
     || (page.opening?.phase === 'failed' && !page.opening.hasCapture);
   const closeInputs = () => {
     setDismissedOpeningId(page.opening?.id ?? null);
-    document.querySelector<HTMLButtonElement>('[aria-label="Change inputs"], [aria-label="Expand toolbar"]')?.focus();
+    document.querySelector<HTMLButtonElement>('[aria-label="Change inputs"]')?.focus();
   };
   React.useEffect(() => {
     if (reviewPresentation) {
@@ -503,21 +516,22 @@ export default function LocalBrowserApp({
     }
     if (projection !== null) {
       receiveProjection(projectionForCanvas(checkingPrevious && projection.traced ? { ...projection, greyed: true } : projection));
-      setFocusChoices([]);
       viewControlRef.current?.refresh();
     }
   }, [projection, checkingPrevious, reviewPresentation, reviewMode]);
   React.useEffect(() => {
-    if (!review?.id || review.proposal || usingCapturedReview) return;
+    if (!review?.id || review.proposal || usingCapturedReview || reviewPresentation?.changes.length) return;
     const timer = window.setTimeout(() => window.dispatchEvent(new CustomEvent('builder-command', { detail: { command: 'fit-view' } })), 100);
     return () => window.clearTimeout(timer);
-  }, [review?.id, review?.proposal, usingCapturedReview]);
+  }, [review?.id, review?.proposal, usingCapturedReview, reviewPresentation]);
 
   // Release the temporary stale presentation before delivering completion.
   // The capture receipt can arrive before graph opening leaves "capturing".
+  // A result shown again (a dismissed review restores it) is not a new run.
   React.useEffect(() => {
     const receipt = validationReceipt;
-    if (checkingPrevious || !receipt || sweptReceipt.current === receipt || !projection?.traced || page.greyed || page.syncState === 'stale'
+    if (checkingPrevious || !receipt || sweptReceipt.current === receipt || (!!receipt.runId && sweptReceipt.current?.runId === receipt.runId)
+      || !projection?.traced || page.greyed || page.syncState === 'stale'
       || !sameValidationTarget(receipt.target, page.activeTarget)
       || receipt.projectionRevision !== projection.revision
       || (receipt.status !== 'passed' && receipt.status !== 'failed')) return;
@@ -562,8 +576,7 @@ export default function LocalBrowserApp({
   // Validate lives here, not in the button: the client and the receipt are both
   // here, and the generation ref is what keeps a result that arrives after the
   // target moved from being shown against the new graph.
-  const [validationAction, setValidationAction] = React.useState<'validate' | null>(null);
-  const validating = validationAction !== null;
+  const [validating, setValidating] = React.useState(false);
   React.useEffect(
     () => () => {
       validationGeneration.current += 1;
@@ -592,21 +605,20 @@ export default function LocalBrowserApp({
           : null;
 
   const captureMetadata = (projection?.document as GraphDocumentV2 | undefined)?.semantic?.metadata?.capture as { backend?: string } | undefined;
-
   const runValidation = React.useCallback(async (fresh = false) => {
     if (!validation || validating || executionPending || validationDisabledReason) return;
     setExecutionExpanded(true);
     const generation = validationGeneration.current;
     const summaryEpoch = hostSummaryEpoch.current;
-    setValidationAction('validate');
+    setValidating(true);
     setValidationReceipt(null);
     const receipt = await validation.validate(fresh);
     if (generation !== validationGeneration.current) return;
-    setValidationAction(null);
+    setValidating(false);
     const summary = hostSummary.current;
     if (summaryEpoch !== hostSummaryEpoch.current && summary
       && (summary.status !== 'running' || summary.runId !== receipt.runId)) return;
-    setValidationReceipt({ ...receipt, status: receipt.validationPassed ? 'passed' : receipt.status });
+    setValidationReceipt(receipt);
   }, [validation, validating, executionPending, validationDisabledReason]);
 
   /** What the graph on screen was measured on, when nobody chose it.
@@ -658,7 +670,7 @@ export default function LocalBrowserApp({
       } : undefined,
       sourceAction: standalone ? 'copy' as const : 'reveal' as const,
       reviewing: !!review,
-      navigation: { header: headerTools, footer: footerTools, headerCollapsed,
+      navigation: { header: headerTools, footer: footerTools, compact: compactHeader,
         inputsOpen: showOpening,
         changeInputs: () => {
           if (hasOpeningPanel) {
@@ -667,7 +679,6 @@ export default function LocalBrowserApp({
           } else openingAction({ kind: 'change_inputs' });
         },
       },
-      canProposeSourceEdits: !standalone && !review && transportRef.current?.session?.capabilities.canProposeSourceEdits === true,
       validation: {
         running: validating || openingBusy || executionPending,
         runFresh: standalone ? undefined : () => { void runValidation(true); },
@@ -700,7 +711,7 @@ export default function LocalBrowserApp({
       } }),
     [page, status, sourceEdits, captures, portableExports, codeFocus, validating, validationDisabledReason,
      validationStatusLabel, validationReceipt, receiptIsCurrent, runValidation, validation, executionPending,
-     review, guessedInput, projection, openingBusy, runReopens, showOpening, hasOpeningPanel, openingAction, headerTools, footerTools, headerCollapsed, standalone],
+     review, guessedInput, projection, openingBusy, runReopens, showOpening, hasOpeningPanel, openingAction, headerTools, footerTools, compactHeader, standalone],
   );
 
   if (status !== null && status.phase === 'ended') {
@@ -758,13 +769,24 @@ export default function LocalBrowserApp({
   }
   return (
     <div className={`local-browser-canvas${review ? ' graph-review-canvas' : ''}${nativeCanvasMode() ? ' native-canvas' : ''}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <header className={`local-browser-header${headerCollapsed ? ' local-browser-header-collapsed' : ''}`} data-testid="local-browser-strip">
+      <header ref={setHeaderElement} className={`local-browser-header${compactHeader ? ' local-browser-header-compact' : ''}`} data-testid="local-browser-strip">
         <div className="local-browser-header-row">
           <div className="local-browser-header-identity">
-            {headerCollapsed || review ? <div className="local-browser-compact-title" title={review ? reviewRevisions : page.activeTarget ? `${page.activeTarget.cls} · ${page.activeTarget.file}` : 'tensorViz'}>
+            {review ? <div className="local-browser-compact-title" title={review ? reviewRevisions : page.activeTarget ? `${page.activeTarget.cls} · ${page.activeTarget.file}` : 'tensorViz'}>
               <strong>{review ? review.proposal ? 'Draft graph' : review.title || 'Graph diff' : page.activeTarget?.cls ?? 'tensorViz'}</strong>
               {review ? <span>{review.beforeLabel} → {review.afterLabel}</span> : page.activeTarget && <span>{page.activeTarget.file}</span>}
-            </div> : <LocalBrowserModelMenu target={page.activeTarget} fileActionsAvailable={!standalone} exportDisabled={showOpening || openingBusy || !canExportGraphFile(page)} />}
+            </div> : <LocalBrowserModelMenu target={page.activeTarget}>
+              {selectedEnvironment && <div className="local-browser-model-detail" title={selectedEnvironment.interpreter}>
+                <p>Used by tensorViz · Python {selectedEnvironment.python} · Torch {selectedEnvironment.torch}</p>
+                <button type="button" disabled={openingBusy || status?.phase !== 'connected' || status.hostLink !== 'connected'}
+                  onClick={() => { setDismissedOpeningId(null); openingAction({ kind: 'refresh_environments' }); }}>Change environment</button>
+              </div>}
+              {openingView.compact && page.opening?.draft?.profileName && page.opening.configFileExists !== false && !page.greyed && <div className="local-browser-model-detail">
+                <p>Saved as <strong>{page.opening.draft.profileName}</strong></p>
+                <button type="button" disabled={status?.phase !== 'connected' || status.hostLink !== 'connected'}
+                  onClick={() => openingAction({ kind: 'edit_config' })}>{standalone ? 'Copy config path' : 'Open tensorviz.toml'}</button>
+              </div>}
+            </LocalBrowserModelMenu>}
             {!review && page.opening?.execution && <ExecutionPanel state={page.opening.execution}
               bottomBoundary={footerTools?.closest('footer')}
               evidence={page.opening.execution.profileName && page.opening.execution.profileName === page.opening.draft?.profileName
@@ -784,20 +806,10 @@ export default function LocalBrowserApp({
             onClick={() => transportRef.current?.send({ type: 'graphReviewRequest', action: 'openPR' })}><GitPullRequest size={15} aria-hidden="true" /><span className="local-canvas-control-label">Open PR</span></button>}
           {nativeCanvasMode() && !review && page.activeTarget && <button type="button" className="local-canvas-control" aria-label="Review model changes" title="Compare this model across Git revisions"
             onClick={() => transportRef.current?.send({ type: 'graphReviewRequest', action: 'open' })}><GitCompareArrows size={15} aria-hidden="true" /><span className="local-canvas-control-label">Review changes</span></button>}
+          {!standalone && !review && <PublishGraphButton disabled={showOpening || openingBusy || !canExportGraphFile(page)} />}
           </div>
         </div>
-        {!headerCollapsed && !review && <>
-        {selectedEnvironment && <div className="local-browser-saved-profile" title={selectedEnvironment.interpreter}>
-            <span>Used by tensorViz · Python {selectedEnvironment.python} · Torch {selectedEnvironment.torch}</span>
-            <button type="button" className="local-canvas-control" disabled={openingBusy || status?.phase !== 'connected' || status.hostLink !== 'connected'}
-              onClick={() => { setDismissedOpeningId(null); openingAction({ kind: 'refresh_environments' }); }}>Change environment</button>
-          </div>}
-        {openingView.compact && page.opening?.draft?.profileName && page.opening.configFileExists !== false && !page.greyed && <div className="local-browser-saved-profile">
-          <span>Saved as <strong>{page.opening.draft.profileName}</strong></span>
-          <button type="button" className="local-canvas-control" disabled={status?.phase !== 'connected' || status.hostLink !== 'connected'}
-            onClick={() => openingAction({ kind: 'edit_config' })}>{standalone ? 'Copy config path' : 'Open tensorviz.toml'}</button>
-        </div>}
-
+        {!review && <>
         {page.opening?.configFileExists === false && !openingBusy && !page.greyed && <section className="local-browser-config-warning" role="status" aria-label="Missing model configuration">
           <div><strong>tensorviz.toml is missing</strong>
             <p>{page.opening.hasCapture ? 'The graph keeps its previous measurements. ' : 'Source inspection is available. '}
@@ -810,33 +822,7 @@ export default function LocalBrowserApp({
           </div>
         </section>}
 
-        {focusChoices.length > 1 && (
-          <div className="local-browser-focus-choices" role="status">
-            <span>This source line belongs to {focusChoices.length} module instances:</span>
-            {focusChoices.map((nodeId) => (
-              <button
-                type="button"
-                key={nodeId}
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('builder-command', {
-                    detail: { command: 'focus-node', payload: { nodeId } },
-                  }));
-                  setFocusChoices([]);
-                }}
-              >
-                {nodeId}
-              </button>
-            ))}
-          </div>
-        )}
-
-
         </>}
-        <button type="button" className="local-canvas-control local-browser-header-toggle"
-          aria-label={headerCollapsed ? 'Expand toolbar' : 'Collapse toolbar'} aria-expanded={!headerCollapsed}
-          title={headerCollapsed ? 'Expand toolbar' : 'Collapse toolbar'} onClick={() => setHeaderCollapsed(value => !value)}>
-          {headerCollapsed ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronUp size={14} aria-hidden="true" />}
-        </button>
       </header>
       {review?.proposal && <DraftGraphToolbar state={review} presentation={reviewPresentation} index={reviewIndex} onChange={changeReview}
         onSource={() => transportRef.current?.send({ type: 'graphReviewRequest', action: 'reveal', reviewId: review.id, side: 'after' })}
@@ -853,7 +839,7 @@ export default function LocalBrowserApp({
           acceptedFocus.current = null;
           return !!transportRef.current?.send({ type: 'graphReviewRequest', action: 'discardDraft', reviewId: review.id });
         }}
-        onContinueEditing={standalone ? undefined : () => window.dispatchEvent(new CustomEvent(AGENT_COMPOSE_EVENT))} />}
+        onContinueEditing={standalone || review.proposal?.canRevise === false ? undefined : () => window.dispatchEvent(new CustomEvent(AGENT_COMPOSE_EVENT))} />}
       {review && !review.proposal && reviewPresentation && <GraphReviewToolbar state={review} presentation={reviewPresentation} mode={reviewMode} index={reviewIndex}
         capturedContext={usingCapturedReview}
         onModel={modelId => transportRef.current?.send({ type: 'graphReviewRequest', action: 'selectModel', reviewId: review.id, modelId })}
@@ -862,7 +848,7 @@ export default function LocalBrowserApp({
         onRefresh={refreshReview} />}
       <LocalBrowserContext.Provider value={localContext}>
         {sourceNotice && <div role="status" className="local-browser-saved-profile"><span>{sourceNotice}</span><button type="button" onClick={() => setSourceNotice(null)}>Dismiss</button></div>}
-        {!standalone && !review && <CandidateReviewPanel />}
+        {!standalone && (!review || review.proposal?.canRevise === false) && <CandidateReviewPanel />}
         {!review && !executionPending && openingView.compact && <GraphRunNotice page={page} standalone={standalone} connected={status?.phase === 'connected' && status.hostLink === 'connected'} onAction={openingAction} />}
         <div className="local-browser-content">
           {hasOpeningPanel && page.opening && <div className="graph-opening-stage" hidden={!showOpening}>
@@ -978,9 +964,9 @@ export default function LocalBrowserApp({
             </div>
             </>
           )}
-          {/* A draft keeps the conversation bound to its model; a send while it is open revises that exact draft. */}
+          {/* A draft keeps chat bound to its model; typed drafts permit inspection without code revision. */}
           {!standalone && <CanvasAgentChat transport={agentTransport} target={review && !review.proposal ? null : page.activeTarget}
-            draftReview={review?.proposal ? { id: review.proposal.id, stale: review.stale } : undefined}
+            draftReview={review?.proposal ? { id: review.proposal.id, stale: review.stale, canRevise: review.proposal.canRevise } : undefined}
             connected={status?.phase === 'connected' && status.hostLink === 'connected'} />}
         </div>
       </LocalBrowserContext.Provider>

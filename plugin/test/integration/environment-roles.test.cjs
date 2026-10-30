@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
-const { createHash } = require('node:crypto');
+const { constants } = require('node:fs');
+const { readyService } = require('../fixtures/service.cjs');
 const { execFileSync } = require('node:child_process');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
@@ -11,26 +12,11 @@ const { ElicitRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
 const { chromium } = require('../../../canvas/node_modules/@playwright/test');
 const { gunzipSync } = require('node:zlib');
 
-const python = process.env.TENSORVIZ_TEST_PYTHON, other = process.env.TENSORVIZ_TEST_OTHER_PYTHON;
+const python = process.env.TENSORVIZ_TEST_CAPTURE_PYTHON, other = process.env.TENSORVIZ_TEST_OTHER_PYTHON;
 const manager = process.env.TENSORVIZ_TEST_SERVICE_PYTHON;
-const missing = process.env.TENSORVIZ_TEST_MISSING_PYTHON;
+const missingBase = process.env.TENSORVIZ_TEST_MISSING_PYTHON;
 assert.ok([python, other, manager].every(value => value && path.isAbsolute(value)), 'Set two capture interpreters and a prepared tool-service interpreter.');
-const digest = value => createHash('sha256').update(value).digest('hex');
 const inventory = executable => JSON.parse(execFileSync(executable, ['-I', '-c', 'import json,importlib.metadata as m;print(json.dumps({d.metadata["Name"].lower():d.version for d in m.distributions()}))'], { encoding: 'utf8' }));
-
-// Reuse a real prepared tool runtime; this test does not claim cold provisioning.
-async function readyService(plugin, storage) {
-  const manifest = JSON.parse(await fs.readFile(path.join(plugin, 'runtime-manifest.json'), 'utf8'));
-  const sha256 = manifest.platforms[`${process.platform}-${process.arch}`].sha256;
-  const packages = (await fs.readFile(path.join(plugin, 'backend/requirements-standalone.txt'), 'utf8')).split(/\r?\n/)
-    .map(line => line.trim()).filter(line => line && !line.startsWith('#'));
-  const directory = path.join(storage, 'service', digest(JSON.stringify([sha256, packages])).slice(0, 24));
-  const owner = JSON.stringify({ role: 'service', runtime: sha256, requirements: digest(JSON.stringify(packages)) });
-  await fs.mkdir(directory, { recursive: true });
-  await fs.symlink(path.dirname(path.dirname(manager)), path.join(directory, 'venv'));
-  await fs.writeFile(path.join(directory, 'owner.json'), owner);
-  await fs.writeFile(path.join(directory, 'ready.json'), owner);
-}
 
 test('installed plugin captures in pipless project Python and keeps its service across environment switches', { timeout: 120000 }, async () => {
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-plugin-roles-')));
@@ -75,9 +61,13 @@ test('installed plugin captures in pipless project Python and keeps its service 
 });
 
 test('installed plugin Canvas selects, repairs and resumes the retained model, with MCP help for a real failure', { timeout: 180000 }, async () => {
-  assert.ok(missing && path.isAbsolute(missing), 'Set a fresh pipless Torch/Pydantic fixture missing torchmetrics, OpenCV and SciPy.');
+  assert.ok(missingBase && path.isAbsolute(missingBase), 'Set a fresh pipless Torch/Pydantic fixture missing torchmetrics, OpenCV and SciPy.');
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-plugin-recovery-')));
   const project = path.join(root, 'project'), plugin = path.join(root, 'plugin'), storage = path.join(root, 'state');
+  // Each run owns its mutable environment; rerunning the gate starts missing again.
+  const prefix = path.join(root, 'capture');
+  await fs.cp(path.dirname(path.dirname(missingBase)), prefix, { recursive: true, verbatimSymlinks: true, mode: constants.COPYFILE_FICLONE });
+  const missing = path.join(prefix, 'bin', 'python');
   const before = inventory(missing);
   assert.ok(!before.pip && !before.scipy && !before.torchmetrics && !before['opencv-python']);
   let client, browser;
@@ -134,7 +124,7 @@ test('installed plugin Canvas selects, repairs and resumes the retained model, w
       sourceDigest: initial.opening.target.sourceDigest, action: 'select_environment', candidateId: 'not-listed' } });
     assert.equal(rejected.structuredContent.error.code, 'INVALID_REQUEST');
     await page.locator(`input[value="${candidate.id}"]`).check();
-    await page.getByRole('button', { name: 'Use selected environment', exact: true }).click();
+    await page.getByRole('button', { name: /^Use / }).click();
     await page.getByRole('heading', { name: 'Add the missing libraries', exact: true }).waitFor();
     assert.equal(await fs.stat(marker).catch(() => null), null, 'metadata and library discovery must not import the model');
     assert.deepEqual(inventory(missing), before);
@@ -152,7 +142,7 @@ test('installed plugin Canvas selects, repairs and resumes the retained model, w
     }
     await page.getByRole('button', { name: 'Install missing libraries', exact: true }).click();
     await page.getByRole('heading', { name: 'Preparing your environment', exact: true }).waitFor();
-    assert.equal(await page.getByRole('button', { name: 'Cancel', exact: true }).isVisible(), true);
+    await page.getByRole('button', { name: 'Stop', exact: true }).waitFor();
     await page.getByText('Traced — shapes measured', { exact: true }).waitFor({ timeout: 120000 });
     const ready = await poll(await call('open_graph', { requestId: initial.requestId }));
     assert.equal(ready.status, 'ready', JSON.stringify(ready));
@@ -163,6 +153,7 @@ test('installed plugin Canvas selects, repairs and resumes the retained model, w
     for (const [name, version] of Object.entries(before)) assert.equal(after[name], version);
     assert.ok(after.scipy && after.torchmetrics && after['opencv-python']);
     assert.ok(!after.pip && !after.fastapi && !after.uvicorn && !after.libcst);
+    assert.deepEqual(inventory(missingBase), before, 'repair must mutate only this run’s disposable copy');
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     assert.deepEqual([...errors], []);

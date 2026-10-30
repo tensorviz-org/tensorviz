@@ -1,0 +1,478 @@
+{
+  "version": 1,
+  "python": "3.12.14",
+  "torch": "2.7.1",
+  "scope": "Authored CPU captures and independent flatten calls; no source-edit propagation, installed or quality claim",
+  "captures": [
+    {
+      "source": "import torch\nclass Model(torch.nn.Module):\n    def forward(self, h):\n        return h.flatten()\n",
+      "inputShape": [2, 4],
+      "portable": {
+        "version": 1,
+        "sourceNames": "anonymized",
+        "capture": {
+          "version": 1,
+          "id": "capture:0954b80e-f52c-41a0-ab54-6a5fc51cb213",
+          "attemptId": "attempt:flatten",
+          "source": {
+            "version": 1,
+            "id": "portable:9215759b7369abcfdb962728b0789731cfb2d28c6b951754ce1c6eb0a219f601",
+            "workspaceSessionId": "portable",
+            "workspaceId": "portable",
+            "modelId": "portable",
+            "modelFile": "file-0.py",
+            "className": "Model",
+            "generation": 0,
+            "files": [{"path": "file-0.py", "digest": "6c8e04835dc3178c8acabf18305e7bc5b058916146d30ed1c41cf269379da80a", "documentVersion": null, "role": "source"}],
+            "dependencyScope": "complete",
+            "configDigest": null,
+            "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "sourceMode": "saved"
+          },
+          "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "preparationDigest": null,
+          "automatic": null,
+          "inputDigest": null,
+          "stateDigest": null,
+          "backend": "runtime",
+          "backendVersion": "1",
+          "torchVersion": "2.7.1",
+          "jaxVersion": null,
+          "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch", "Source bindings identify authored expressions, not independently editable dispatcher operations"],
+          "status": "complete",
+          "rootInvocationId": "invocation:0",
+          "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+          "output": {"kind": "value", "id": "tensor1"},
+          "definitions": [{"id": "definition:0", "qualifiedName": "flatten_oracle.Model", "sourceBindingIds": ["binding:7b445a9099364c28a28d9735ece08971c376160eb8219538f7f17834f4dbe74f"]}],
+          "modules": [{"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": [], "constructorClassVerified": false, "initializerArguments": null}],
+          "invocations": [{"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 2, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor1"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 0, "parameterCountUnavailable": null, "sourceBindingIds": []}],
+          "operations": [
+            {
+              "id": "operation:0",
+              "sequence": 1,
+              "invocationId": "invocation:0",
+              "target": "aten.view.default",
+              "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+              "arguments": {"args": [{"kind": "value", "id": "tensor0"}, {"kind": "list", "items": [{"kind": "int", "value": "8"}]}], "kwargs": {}},
+              "output": {"kind": "value", "id": "tensor1"},
+              "effects": [],
+              "status": "completed",
+              "diagnosticId": null,
+              "sourceBindingIds": ["binding:4a523335d8b74db78c3afab52d7ffef25d496ea5153d1b41606342a0fddd3d87"],
+              "sourceFlattenCall": {"callable": "torch.Tensor.flatten", "bindingId": "binding:4a523335d8b74db78c3afab52d7ffef25d496ea5153d1b41606342a0fddd3d87", "startDim": 0, "endDim": -1, "arguments": []}
+            }
+          ],
+          "values": [
+            {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [2, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 32, "producer": null, "origin": "input", "state": []},
+            {"id": "tensor1", "objectId": "object1", "storageId": "storage0", "version": 0, "shape": [8], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor0", "previousVersion": null, "logicalVersion": 0, "stride": [1], "storageOffset": 0, "logicalBytes": 32, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []}
+          ],
+          "sourceBindings": [
+            {
+              "id": "binding:7b445a9099364c28a28d9735ece08971c376160eb8219538f7f17834f4dbe74f",
+              "snapshotId": "portable:9215759b7369abcfdb962728b0789731cfb2d28c6b951754ce1c6eb0a219f601",
+              "kind": "definition",
+              "quality": "exact",
+              "anchors": [{"file": "file-0.py", "digest": "6c8e04835dc3178c8acabf18305e7bc5b058916146d30ed1c41cf269379da80a", "startLine": 3, "startColumn": 4, "endLine": 4, "endColumn": 26, "scope": "Model.forward", "tokenDigest": "43f894a3b9e0d8ad971a0fc48c049f6616f2af4c729023ee93cd84f64b60678c"}]
+            },
+            {
+              "id": "binding:4a523335d8b74db78c3afab52d7ffef25d496ea5153d1b41606342a0fddd3d87",
+              "snapshotId": "portable:9215759b7369abcfdb962728b0789731cfb2d28c6b951754ce1c6eb0a219f601",
+              "kind": "call",
+              "quality": "exact",
+              "anchors": [{"file": "file-0.py", "digest": "6c8e04835dc3178c8acabf18305e7bc5b058916146d30ed1c41cf269379da80a", "startLine": 4, "startColumn": 15, "endLine": 4, "endColumn": 26, "scope": "Model.forward", "tokenDigest": "aebd94e98ff020236706c9b29fc12120b2e5e3a91d53a90cc74ec951106224d2"}]
+            }
+          ],
+          "diagnostics": [],
+          "coverage": {"scope": "executed_path", "operationsSeen": 1, "invocationsSeen": 1, "omissions": [], "modules": [{"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null}]},
+          "limits": {"operations": 100, "invocations": 100, "values": 100, "bytes": 1048576}
+        }
+      }
+    },
+    {
+      "source": "import torch\nclass Model(torch.nn.Module):\n    def forward(self, h):\n        return torch.flatten(input=h, start_dim=1)\n",
+      "inputShape": [2, 3, 4],
+      "portable": {
+        "version": 1,
+        "sourceNames": "anonymized",
+        "capture": {
+          "version": 1,
+          "id": "capture:b48bc761-e466-45f1-8b0a-007ba714d439",
+          "attemptId": "attempt:flatten",
+          "source": {
+            "version": 1,
+            "id": "portable:ce0af5363d89e33b7f0ee03e18d94880c914c298a7d7509fb49c0a18a433f242",
+            "workspaceSessionId": "portable",
+            "workspaceId": "portable",
+            "modelId": "portable",
+            "modelFile": "file-0.py",
+            "className": "Model",
+            "generation": 0,
+            "files": [{"path": "file-0.py", "digest": "09e460b2ed769dbe4de00cbbdcc8ee83b648aadd60b504f2946b792bad7f4a3c", "documentVersion": null, "role": "source"}],
+            "dependencyScope": "complete",
+            "configDigest": null,
+            "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "sourceMode": "saved"
+          },
+          "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "preparationDigest": null,
+          "automatic": null,
+          "inputDigest": null,
+          "stateDigest": null,
+          "backend": "runtime",
+          "backendVersion": "1",
+          "torchVersion": "2.7.1",
+          "jaxVersion": null,
+          "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch", "Source bindings identify authored expressions, not independently editable dispatcher operations"],
+          "status": "complete",
+          "rootInvocationId": "invocation:0",
+          "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+          "output": {"kind": "value", "id": "tensor1"},
+          "definitions": [{"id": "definition:0", "qualifiedName": "flatten_oracle.Model", "sourceBindingIds": ["binding:da49c2d034e46223db30b5f51a4fae190b25c71699883aa521abaa0cf61f0b30"]}],
+          "modules": [{"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": [], "constructorClassVerified": false, "initializerArguments": null}],
+          "invocations": [{"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 2, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor1"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 0, "parameterCountUnavailable": null, "sourceBindingIds": []}],
+          "operations": [
+            {
+              "id": "operation:0",
+              "sequence": 1,
+              "invocationId": "invocation:0",
+              "target": "aten.view.default",
+              "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+              "arguments": {"args": [{"kind": "value", "id": "tensor0"}, {"kind": "list", "items": [{"kind": "int", "value": "2"}, {"kind": "int", "value": "12"}]}], "kwargs": {}},
+              "output": {"kind": "value", "id": "tensor1"},
+              "effects": [],
+              "status": "completed",
+              "diagnosticId": null,
+              "sourceBindingIds": ["binding:5e29fad0d9631ac0b8a1f5cd839b841e121fff46588b2f44e8f0a45ee95edde4"],
+              "sourceFlattenCall": {"callable": "torch.flatten", "bindingId": "binding:5e29fad0d9631ac0b8a1f5cd839b841e121fff46588b2f44e8f0a45ee95edde4", "startDim": 1, "endDim": -1, "arguments": [{"parameter": "start_dim", "sourcePath": ["kwargs", "start_dim"], "value": 1}]}
+            }
+          ],
+          "values": [
+            {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [2, 3, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 4, 1], "storageOffset": 0, "logicalBytes": 96, "producer": null, "origin": "input", "state": []},
+            {"id": "tensor1", "objectId": "object1", "storageId": "storage0", "version": 0, "shape": [2, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor0", "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []}
+          ],
+          "sourceBindings": [
+            {
+              "id": "binding:da49c2d034e46223db30b5f51a4fae190b25c71699883aa521abaa0cf61f0b30",
+              "snapshotId": "portable:ce0af5363d89e33b7f0ee03e18d94880c914c298a7d7509fb49c0a18a433f242",
+              "kind": "definition",
+              "quality": "exact",
+              "anchors": [{"file": "file-0.py", "digest": "09e460b2ed769dbe4de00cbbdcc8ee83b648aadd60b504f2946b792bad7f4a3c", "startLine": 3, "startColumn": 4, "endLine": 4, "endColumn": 50, "scope": "Model.forward", "tokenDigest": "851f8470f29cce51e7ab1b37c03ed0913ae1d970a727e8ddf91ba92b2f8a7feb"}]
+            },
+            {
+              "id": "binding:5e29fad0d9631ac0b8a1f5cd839b841e121fff46588b2f44e8f0a45ee95edde4",
+              "snapshotId": "portable:ce0af5363d89e33b7f0ee03e18d94880c914c298a7d7509fb49c0a18a433f242",
+              "kind": "call",
+              "quality": "exact",
+              "anchors": [{"file": "file-0.py", "digest": "09e460b2ed769dbe4de00cbbdcc8ee83b648aadd60b504f2946b792bad7f4a3c", "startLine": 4, "startColumn": 15, "endLine": 4, "endColumn": 50, "scope": "Model.forward", "tokenDigest": "ced90d875d31685386cb798d66b5126db19eb955d18e68113e9a8ad4453424db"}]
+            }
+          ],
+          "diagnostics": [],
+          "coverage": {"scope": "executed_path", "operationsSeen": 1, "invocationsSeen": 1, "omissions": [], "modules": [{"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null}]},
+          "limits": {"operations": 100, "invocations": 100, "values": 100, "bytes": 1048576}
+        }
+      }
+    },
+    {
+      "source": "import torch\nclass Model(torch.nn.Module):\n    def forward(self, h):\n        return h.flatten()\n",
+      "inputShape": [],
+      "portable": {
+        "version": 1,
+        "sourceNames": "anonymized",
+        "capture": {
+          "version": 1,
+          "id": "capture:5d9a2feb-641c-41e2-a749-ddefa4b29efb",
+          "attemptId": "attempt:flatten",
+          "source": {
+            "version": 1,
+            "id": "portable:9215759b7369abcfdb962728b0789731cfb2d28c6b951754ce1c6eb0a219f601",
+            "workspaceSessionId": "portable",
+            "workspaceId": "portable",
+            "modelId": "portable",
+            "modelFile": "file-0.py",
+            "className": "Model",
+            "generation": 0,
+            "files": [{"path": "file-0.py", "digest": "6c8e04835dc3178c8acabf18305e7bc5b058916146d30ed1c41cf269379da80a", "documentVersion": null, "role": "source"}],
+            "dependencyScope": "complete",
+            "configDigest": null,
+            "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "sourceMode": "saved"
+          },
+          "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "preparationDigest": null,
+          "automatic": null,
+          "inputDigest": null,
+          "stateDigest": null,
+          "backend": "runtime",
+          "backendVersion": "1",
+          "torchVersion": "2.7.1",
+          "jaxVersion": null,
+          "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch", "Source bindings identify authored expressions, not independently editable dispatcher operations"],
+          "status": "complete",
+          "rootInvocationId": "invocation:0",
+          "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+          "output": {"kind": "value", "id": "tensor1"},
+          "definitions": [{"id": "definition:0", "qualifiedName": "flatten_oracle.Model", "sourceBindingIds": ["binding:7b445a9099364c28a28d9735ece08971c376160eb8219538f7f17834f4dbe74f"]}],
+          "modules": [{"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": [], "constructorClassVerified": false, "initializerArguments": null}],
+          "invocations": [{"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 2, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor1"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 0, "parameterCountUnavailable": null, "sourceBindingIds": []}],
+          "operations": [
+            {
+              "id": "operation:0",
+              "sequence": 1,
+              "invocationId": "invocation:0",
+              "target": "aten.view.default",
+              "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+              "arguments": {"args": [{"kind": "value", "id": "tensor0"}, {"kind": "list", "items": [{"kind": "int", "value": "1"}]}], "kwargs": {}},
+              "output": {"kind": "value", "id": "tensor1"},
+              "effects": [],
+              "status": "completed",
+              "diagnosticId": null,
+              "sourceBindingIds": ["binding:4a523335d8b74db78c3afab52d7ffef25d496ea5153d1b41606342a0fddd3d87"],
+              "sourceFlattenCall": {"callable": "torch.Tensor.flatten", "bindingId": "binding:4a523335d8b74db78c3afab52d7ffef25d496ea5153d1b41606342a0fddd3d87", "startDim": 0, "endDim": -1, "arguments": []}
+            }
+          ],
+          "values": [
+            {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [], "storageOffset": 0, "logicalBytes": 4, "producer": null, "origin": "input", "state": []},
+            {"id": "tensor1", "objectId": "object1", "storageId": "storage0", "version": 0, "shape": [1], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor0", "previousVersion": null, "logicalVersion": 0, "stride": [1], "storageOffset": 0, "logicalBytes": 4, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []}
+          ],
+          "sourceBindings": [
+            {
+              "id": "binding:7b445a9099364c28a28d9735ece08971c376160eb8219538f7f17834f4dbe74f",
+              "snapshotId": "portable:9215759b7369abcfdb962728b0789731cfb2d28c6b951754ce1c6eb0a219f601",
+              "kind": "definition",
+              "quality": "exact",
+              "anchors": [{"file": "file-0.py", "digest": "6c8e04835dc3178c8acabf18305e7bc5b058916146d30ed1c41cf269379da80a", "startLine": 3, "startColumn": 4, "endLine": 4, "endColumn": 26, "scope": "Model.forward", "tokenDigest": "43f894a3b9e0d8ad971a0fc48c049f6616f2af4c729023ee93cd84f64b60678c"}]
+            },
+            {
+              "id": "binding:4a523335d8b74db78c3afab52d7ffef25d496ea5153d1b41606342a0fddd3d87",
+              "snapshotId": "portable:9215759b7369abcfdb962728b0789731cfb2d28c6b951754ce1c6eb0a219f601",
+              "kind": "call",
+              "quality": "exact",
+              "anchors": [{"file": "file-0.py", "digest": "6c8e04835dc3178c8acabf18305e7bc5b058916146d30ed1c41cf269379da80a", "startLine": 4, "startColumn": 15, "endLine": 4, "endColumn": 26, "scope": "Model.forward", "tokenDigest": "aebd94e98ff020236706c9b29fc12120b2e5e3a91d53a90cc74ec951106224d2"}]
+            }
+          ],
+          "diagnostics": [],
+          "coverage": {"scope": "executed_path", "operationsSeen": 1, "invocationsSeen": 1, "omissions": [], "modules": [{"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null}]},
+          "limits": {"operations": 100, "invocations": 100, "values": 100, "bytes": 1048576}
+        }
+      }
+    },
+    {
+      "source": "import torch\nclass Model(torch.nn.Module):\n    def forward(self, h):\n        return torch.flatten(h)\n",
+      "inputShape": [0, 4],
+      "portable": {
+        "version": 1,
+        "sourceNames": "anonymized",
+        "capture": {
+          "version": 1,
+          "id": "capture:d00c0d57-c1e5-4ac5-bb50-e025698c021f",
+          "attemptId": "attempt:flatten",
+          "source": {
+            "version": 1,
+            "id": "portable:a5d95e8bcd09daabe7b3e848e38e67b214656bbb45a60b159bd9a8dfaf53954b",
+            "workspaceSessionId": "portable",
+            "workspaceId": "portable",
+            "modelId": "portable",
+            "modelFile": "file-0.py",
+            "className": "Model",
+            "generation": 0,
+            "files": [{"path": "file-0.py", "digest": "c9532762966756e4bcc0821cbfa58f2a744d7007c6a567e049685255b5d8ff77", "documentVersion": null, "role": "source"}],
+            "dependencyScope": "complete",
+            "configDigest": null,
+            "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "sourceMode": "saved"
+          },
+          "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "preparationDigest": null,
+          "automatic": null,
+          "inputDigest": null,
+          "stateDigest": null,
+          "backend": "runtime",
+          "backendVersion": "1",
+          "torchVersion": "2.7.1",
+          "jaxVersion": null,
+          "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch", "Source bindings identify authored expressions, not independently editable dispatcher operations"],
+          "status": "complete",
+          "rootInvocationId": "invocation:0",
+          "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+          "output": {"kind": "value", "id": "tensor1"},
+          "definitions": [{"id": "definition:0", "qualifiedName": "flatten_oracle.Model", "sourceBindingIds": ["binding:911e46babd5bedbf2e3c83cc32b3be1629363e90b375149774475e1469ef8e5b"]}],
+          "modules": [{"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": [], "constructorClassVerified": false, "initializerArguments": null}],
+          "invocations": [{"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 2, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor1"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 0, "parameterCountUnavailable": null, "sourceBindingIds": []}],
+          "operations": [
+            {
+              "id": "operation:0",
+              "sequence": 1,
+              "invocationId": "invocation:0",
+              "target": "aten.view.default",
+              "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+              "arguments": {"args": [{"kind": "value", "id": "tensor0"}, {"kind": "list", "items": [{"kind": "int", "value": "0"}]}], "kwargs": {}},
+              "output": {"kind": "value", "id": "tensor1"},
+              "effects": [],
+              "status": "completed",
+              "diagnosticId": null,
+              "sourceBindingIds": ["binding:520ab3f8dd29a1a2cb5f702d1bbc0cd5ff1bd608648cd4ba8cb5cbe54a8b0606"],
+              "sourceFlattenCall": {"callable": "torch.flatten", "bindingId": "binding:520ab3f8dd29a1a2cb5f702d1bbc0cd5ff1bd608648cd4ba8cb5cbe54a8b0606", "startDim": 0, "endDim": -1, "arguments": []}
+            }
+          ],
+          "values": [
+            {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [0, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 0, "producer": null, "origin": "input", "state": []},
+            {"id": "tensor1", "objectId": "object1", "storageId": "storage0", "version": 0, "shape": [0], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor0", "previousVersion": null, "logicalVersion": 0, "stride": [1], "storageOffset": 0, "logicalBytes": 0, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []}
+          ],
+          "sourceBindings": [
+            {
+              "id": "binding:911e46babd5bedbf2e3c83cc32b3be1629363e90b375149774475e1469ef8e5b",
+              "snapshotId": "portable:a5d95e8bcd09daabe7b3e848e38e67b214656bbb45a60b159bd9a8dfaf53954b",
+              "kind": "definition",
+              "quality": "exact",
+              "anchors": [{"file": "file-0.py", "digest": "c9532762966756e4bcc0821cbfa58f2a744d7007c6a567e049685255b5d8ff77", "startLine": 3, "startColumn": 4, "endLine": 4, "endColumn": 31, "scope": "Model.forward", "tokenDigest": "1e85684c8caf33641e19d913f70a388272ddfefd072f3401c526f9eac1d3dc52"}]
+            },
+            {
+              "id": "binding:520ab3f8dd29a1a2cb5f702d1bbc0cd5ff1bd608648cd4ba8cb5cbe54a8b0606",
+              "snapshotId": "portable:a5d95e8bcd09daabe7b3e848e38e67b214656bbb45a60b159bd9a8dfaf53954b",
+              "kind": "call",
+              "quality": "exact",
+              "anchors": [{"file": "file-0.py", "digest": "c9532762966756e4bcc0821cbfa58f2a744d7007c6a567e049685255b5d8ff77", "startLine": 4, "startColumn": 15, "endLine": 4, "endColumn": 31, "scope": "Model.forward", "tokenDigest": "12900997a9aab7dcc830dc54c5a76ba278ee50d98d986f878a038ffb3e3b909d"}]
+            }
+          ],
+          "diagnostics": [],
+          "coverage": {"scope": "executed_path", "operationsSeen": 1, "invocationsSeen": 1, "omissions": [], "modules": [{"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null}]},
+          "limits": {"operations": 100, "invocations": 100, "values": 100, "bytes": 1048576}
+        }
+      }
+    },
+    {
+      "source": "import torch\nclass Model(torch.nn.Module):\n    def forward(self, h):\n        return h.flatten(-2, -1)\n",
+      "inputShape": [2, 3, 4],
+      "portable": {
+        "version": 1,
+        "sourceNames": "anonymized",
+        "capture": {
+          "version": 1,
+          "id": "capture:7d973a81-5a9b-43d9-959b-06c5f325110a",
+          "attemptId": "attempt:flatten",
+          "source": {
+            "version": 1,
+            "id": "portable:64d031624157bb88f30b1a0302bc9e4f51ef0bbe0fef13914924f3c465cf2f2f",
+            "workspaceSessionId": "portable",
+            "workspaceId": "portable",
+            "modelId": "portable",
+            "modelFile": "file-0.py",
+            "className": "Model",
+            "generation": 0,
+            "files": [{"path": "file-0.py", "digest": "85da1bedbff3a6f5adf7d6ea417e68f02d0952076c787e74a8d24bb14bf8416b", "documentVersion": null, "role": "source"}],
+            "dependencyScope": "complete",
+            "configDigest": null,
+            "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "sourceMode": "saved"
+          },
+          "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "preparationDigest": null,
+          "automatic": null,
+          "inputDigest": null,
+          "stateDigest": null,
+          "backend": "runtime",
+          "backendVersion": "1",
+          "torchVersion": "2.7.1",
+          "jaxVersion": null,
+          "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch", "Source bindings identify authored expressions, not independently editable dispatcher operations"],
+          "status": "complete",
+          "rootInvocationId": "invocation:0",
+          "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+          "output": {"kind": "value", "id": "tensor1"},
+          "definitions": [{"id": "definition:0", "qualifiedName": "flatten_oracle.Model", "sourceBindingIds": ["binding:ee9b9dd2f5f9d368e70c27faaaae6bdf5e36fd4516d8097b4059f73d9e6e8fc0"]}],
+          "modules": [{"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": [], "constructorClassVerified": false, "initializerArguments": null}],
+          "invocations": [{"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 2, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor1"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 0, "parameterCountUnavailable": null, "sourceBindingIds": []}],
+          "operations": [
+            {
+              "id": "operation:0",
+              "sequence": 1,
+              "invocationId": "invocation:0",
+              "target": "aten.view.default",
+              "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+              "arguments": {"args": [{"kind": "value", "id": "tensor0"}, {"kind": "list", "items": [{"kind": "int", "value": "2"}, {"kind": "int", "value": "12"}]}], "kwargs": {}},
+              "output": {"kind": "value", "id": "tensor1"},
+              "effects": [],
+              "status": "completed",
+              "diagnosticId": null,
+              "sourceBindingIds": ["binding:832b7de1425890770c70240c06e4bffa991e4867b3b53c21c0f68d955121777e"],
+              "sourceFlattenCall": {"callable": "torch.Tensor.flatten", "bindingId": "binding:832b7de1425890770c70240c06e4bffa991e4867b3b53c21c0f68d955121777e", "startDim": -2, "endDim": -1, "arguments": [{"parameter": "start_dim", "sourcePath": ["args", 0], "value": -2}, {"parameter": "end_dim", "sourcePath": ["args", 1], "value": -1}]}
+            }
+          ],
+          "values": [
+            {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [2, 3, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 4, 1], "storageOffset": 0, "logicalBytes": 96, "producer": null, "origin": "input", "state": []},
+            {"id": "tensor1", "objectId": "object1", "storageId": "storage0", "version": 0, "shape": [2, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor0", "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []}
+          ],
+          "sourceBindings": [
+            {
+              "id": "binding:ee9b9dd2f5f9d368e70c27faaaae6bdf5e36fd4516d8097b4059f73d9e6e8fc0",
+              "snapshotId": "portable:64d031624157bb88f30b1a0302bc9e4f51ef0bbe0fef13914924f3c465cf2f2f",
+              "kind": "definition",
+              "quality": "exact",
+              "anchors": [{"file": "file-0.py", "digest": "85da1bedbff3a6f5adf7d6ea417e68f02d0952076c787e74a8d24bb14bf8416b", "startLine": 3, "startColumn": 4, "endLine": 4, "endColumn": 32, "scope": "Model.forward", "tokenDigest": "25ff7d3e16b98c9cea7fadc4bec2ba08067af7a6cd9ba721e9a6295b38150fa9"}]
+            },
+            {
+              "id": "binding:832b7de1425890770c70240c06e4bffa991e4867b3b53c21c0f68d955121777e",
+              "snapshotId": "portable:64d031624157bb88f30b1a0302bc9e4f51ef0bbe0fef13914924f3c465cf2f2f",
+              "kind": "call",
+              "quality": "exact",
+              "anchors": [{"file": "file-0.py", "digest": "85da1bedbff3a6f5adf7d6ea417e68f02d0952076c787e74a8d24bb14bf8416b", "startLine": 4, "startColumn": 15, "endLine": 4, "endColumn": 32, "scope": "Model.forward", "tokenDigest": "ac50585164103cab7d59b983a867cdbaa5e1ae031285afc9c8226d233c2ce717"}]
+            }
+          ],
+          "diagnostics": [],
+          "coverage": {"scope": "executed_path", "operationsSeen": 1, "invocationsSeen": 1, "omissions": [], "modules": [{"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null}]},
+          "limits": {"operations": 100, "invocations": 100, "values": 100, "bytes": 1048576}
+        }
+      }
+    }
+  ],
+  "cases": [
+    {"name": "unknown binding", "patches": [{"path": ["operations", 0, "sourceFlattenCall", "bindingId"], "value": "absent"}]},
+    {"name": "nonexact binding", "patches": [{"path": ["sourceBindings", 1, "quality"], "value": "candidate"}]},
+    {"name": "different operation", "patches": [{"path": ["operations", 0, "target"], "value": "aten.reshape.default"}]},
+    {"name": "nondefault omitted start", "patches": [{"path": ["operations", 0, "sourceFlattenCall", "startDim"], "value": 1}]},
+    {"name": "nondefault omitted end", "patches": [{"path": ["operations", 0, "sourceFlattenCall", "endDim"], "value": 1}]},
+    {"name": "out of range dimension", "patches": [{"path": ["operations", 0, "sourceFlattenCall", "endDim"], "value": 32}]},
+    {"name": "duplicate parameter", "patches": [{"path": ["operations", 0, "sourceFlattenCall", "arguments"], "value": [{"parameter": "start_dim", "sourcePath": ["args", 0], "value": 0}, {"parameter": "start_dim", "sourcePath": ["args", 0], "value": 0}]}]},
+    {"name": "missing first positional argument", "patches": [{"path": ["operations", 0, "sourceFlattenCall", "arguments"], "value": [{"parameter": "end_dim", "sourcePath": ["args", 1], "value": -1}]}]},
+    {"name": "wrong source path", "patches": [{"path": ["operations", 0, "sourceFlattenCall", "arguments"], "value": [{"parameter": "start_dim", "sourcePath": ["kwargs", "end_dim"], "value": 0}]}]},
+    {"name": "wrong supplied value", "patches": [{"path": ["operations", 0, "sourceFlattenCall", "arguments"], "value": [{"parameter": "start_dim", "sourcePath": ["args", 0], "value": 1}]}]},
+    {"name": "wrong callable signature", "patches": [{"path": ["operations", 0, "sourceFlattenCall", "arguments"], "value": [{"parameter": "start_dim", "sourcePath": ["args", 1], "value": 0}]}]},
+    {"name": "wrong dispatcher shape", "patches": [{"path": ["operations", 0, "arguments", "args", 1, "items", 0, "value"], "value": "7"}]},
+    {"name": "wrong observed output", "patches": [{"path": ["values", 1, "shape"], "value": [4, 2]}]},
+    {"name": "contradictory reshape evidence", "patches": [{"path": ["operations", 0, "sourceShapeCall"], "value": {"callable": "torch.Tensor.view", "bindingId": "binding:4a523335d8b74db78c3afab52d7ffef25d496ea5153d1b41606342a0fddd3d87", "dimensions": [{"sourcePath": ["args", 0], "dimension": 0, "value": {"kind": "int", "value": "8"}}]}}]}
+  ],
+  "dimensions": [
+    {"inputShape": [], "startDim": 0, "endDim": -1, "status": "passed", "outputShape": [1]},
+    {"inputShape": [], "startDim": 1, "endDim": -1, "status": "failed", "outputShape": null},
+    {"inputShape": [], "startDim": -2, "endDim": -1, "status": "failed", "outputShape": null},
+    {"inputShape": [], "startDim": 0, "endDim": 0, "status": "passed", "outputShape": [1]},
+    {"inputShape": [], "startDim": 1, "endDim": 0, "status": "failed", "outputShape": null},
+    {"inputShape": [], "startDim": 4, "endDim": -1, "status": "failed", "outputShape": null},
+    {"inputShape": [], "startDim": -4, "endDim": 2, "status": "failed", "outputShape": null},
+    {"inputShape": [], "startDim": 0, "endDim": 1, "status": "failed", "outputShape": null},
+    {"inputShape": [0, 4], "startDim": 0, "endDim": -1, "status": "passed", "outputShape": [0]},
+    {"inputShape": [0, 4], "startDim": 1, "endDim": -1, "status": "passed", "outputShape": [0, 4]},
+    {"inputShape": [0, 4], "startDim": -2, "endDim": -1, "status": "passed", "outputShape": [0]},
+    {"inputShape": [0, 4], "startDim": 0, "endDim": 0, "status": "passed", "outputShape": [0, 4]},
+    {"inputShape": [0, 4], "startDim": 1, "endDim": 0, "status": "failed", "outputShape": null},
+    {"inputShape": [0, 4], "startDim": 4, "endDim": -1, "status": "failed", "outputShape": null},
+    {"inputShape": [0, 4], "startDim": -4, "endDim": 2, "status": "failed", "outputShape": null},
+    {"inputShape": [0, 4], "startDim": 0, "endDim": 1, "status": "passed", "outputShape": [0]},
+    {"inputShape": [2, 4], "startDim": 0, "endDim": -1, "status": "passed", "outputShape": [8]},
+    {"inputShape": [2, 4], "startDim": 1, "endDim": -1, "status": "passed", "outputShape": [2, 4]},
+    {"inputShape": [2, 4], "startDim": -2, "endDim": -1, "status": "passed", "outputShape": [8]},
+    {"inputShape": [2, 4], "startDim": 0, "endDim": 0, "status": "passed", "outputShape": [2, 4]},
+    {"inputShape": [2, 4], "startDim": 1, "endDim": 0, "status": "failed", "outputShape": null},
+    {"inputShape": [2, 4], "startDim": 4, "endDim": -1, "status": "failed", "outputShape": null},
+    {"inputShape": [2, 4], "startDim": -4, "endDim": 2, "status": "failed", "outputShape": null},
+    {"inputShape": [2, 4], "startDim": 0, "endDim": 1, "status": "passed", "outputShape": [8]},
+    {"inputShape": [2, 3, 4], "startDim": 0, "endDim": -1, "status": "passed", "outputShape": [24]},
+    {"inputShape": [2, 3, 4], "startDim": 1, "endDim": -1, "status": "passed", "outputShape": [2, 12]},
+    {"inputShape": [2, 3, 4], "startDim": -2, "endDim": -1, "status": "passed", "outputShape": [2, 12]},
+    {"inputShape": [2, 3, 4], "startDim": 0, "endDim": 0, "status": "passed", "outputShape": [2, 3, 4]},
+    {"inputShape": [2, 3, 4], "startDim": 1, "endDim": 0, "status": "failed", "outputShape": null},
+    {"inputShape": [2, 3, 4], "startDim": 4, "endDim": -1, "status": "failed", "outputShape": null},
+    {"inputShape": [2, 3, 4], "startDim": -4, "endDim": 2, "status": "failed", "outputShape": null},
+    {"inputShape": [2, 3, 4], "startDim": 0, "endDim": 1, "status": "passed", "outputShape": [6, 4]}
+  ]
+}

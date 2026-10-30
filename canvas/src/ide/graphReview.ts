@@ -8,6 +8,7 @@ import { operationDisplayName } from '../canvas/operationDisplayName';
 import { sourceParameterValues } from './cardParams';
 import { sourceAssignmentCard, sourceAssignmentsForReview, type SourceAssignmentEntry } from './sourceAssignmentCards';
 
+import { declarationLocation, declarationInventoryComplete, compareDeclarations, declarationLocations } from './reviewDeclarations';
 /** The phrase a syntax error must show, extracted from a longer review note. */
 export function reviewParseFailure(notes: readonly string[] | undefined): string | undefined {
   const note = notes?.find(item => /could not parse \S+:\d+/.test(item));
@@ -27,6 +28,8 @@ export interface ReviewNode {
   inputChanges?: { added: number; removed: number };
   /** This declaration has multiple source writes; do not choose one captured instance. */
   ambiguousDeclaration?: boolean;
+  /** Source declarations joined to exact recorded constructors, independent of lowered paths. */
+  sourceDeclaration?: { before?: string; after?: string };
 }
 export interface ReviewChange { id: string; label: string; detail: string }
 interface ReviewDeclaration { digest: string; ambiguous?: boolean }
@@ -39,10 +42,12 @@ export interface GraphReviewPresentation {
   /** Source change IDs can focus retained captured nodes without changing their identity;
    * a list focuses every call of one change together. */
   focusNodes?: Map<string, string | string[]>;
+  /** Prefer a located change when other source edits cannot be mapped to the capture. */
+  initialChangeId?: string;
   /** Draft only: the forward runs an opaque inherited base the projector did not inspect. */
   inheritedBase?: boolean;
 }
-const provenance = new Set(['_lineno', '_end_lineno', '_col_offset', '_end_col_offset', '_source_file', '_source_line', '_stmt_hash',
+const provenance = new Set(['_review_declaration', '_lineno', '_end_lineno', '_col_offset', '_end_col_offset', '_source_file', '_source_line', '_stmt_hash',
   '_shape_provenance', '_in_shape', '_out_shape', '_act_stats', '_grad_stats', '_review_binding', '_source_calls',
   '_review_scope', '_review_order', '_review_statement', '_review_scopes', '_source_arguments', '_source_result_call']);
 const canonical = (value: unknown): string => JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item)
@@ -72,6 +77,7 @@ const statementIdentity = (node: ModelNode, projection: ProjectionPayload): stri
 function identity(node: ModelNode, projection: ProjectionPayload): string | undefined {
   if (node.type === 'inputNode' || node.type === 'outputNode') return `boundary:${node.type}:${node.id}`;
   const span = spanOf(projection, node.id);
+  if (node.data.parameters._review_declaration) return `declaration:${node.data.parameters._review_declaration}:${node.data.parentId ?? ''}`;
   if (span?.kind === 'decl' && !/(?:^|[./:_])\d+(?:$|[./:_])/.test(node.id) && !['@', '#', '[', ']'].some(part => node.id.includes(part))) return `attribute:${span.file}:${node.id}`;
   if (span?.kind === 'call' && node.data.parameters._review_binding) return `binding:${span.file}:${node.data.parentId ?? ''}:${canonical(node.data.parameters._review_binding)}`;
   return statementIdentity(node, projection);
@@ -156,8 +162,19 @@ export function buildGraphReview(review: GraphReviewState): GraphReviewPresentat
   const draft = !!review.proposal;
   const assignments = draft ? sourceAssignmentsForReview(review.before.document, review.after.document) : { entries: [], unresolved: false };
   const { state, declared } = draft ? withDeclaredCards(withAssignmentSpans(review, assignments.entries)) : { state: review, declared: new Set<string>() };
-  const before = graphDocumentV2ToModelGraph(state.before.document as GraphDocumentV2);
-  const after = graphDocumentV2ToModelGraph(state.after.document as GraphDocumentV2);
+  const declarations = compareDeclarations(state.before, state.after, state.renamedFiles);
+  const originalDeclarationKey = (side: 'before' | 'after', key: string) => side === 'before'
+    ? declarations.originalBeforeKeys.get(key) ?? key : key;
+  const located = { before: declarationLocations(declarations.sides.before, declarations.eligible),
+    after: declarationLocations(declarations.sides.after, declarations.eligible) };
+  const sourceGraph = (side: 'before' | 'after') => {
+    const graph = graphDocumentV2ToModelGraph(state[side].document as GraphDocumentV2);
+    return { ...graph, nodes: graph.nodes.map(node => {
+      const span = spanOf(state[side], node.id), key = !draft && span && located[side].get(declarationLocation(span));
+      return key ? { ...node, data: { ...node.data, parameters: { ...node.data.parameters, _review_declaration: key } } } : node;
+    }) };
+  };
+  const before = sourceGraph('before'), after = sourceGraph('after');
   const beforeIdentity = state.renamedFiles ? { ...state.before, spanmap: Object.fromEntries(Object.entries(state.before.spanmap)
     .map(([id, value]) => { const span = value as IdeMultifileSpan; return [id, { ...span, file: state.renamedFiles![span.file] ?? span.file }]; })) } : state.before;
   const left = buckets(before.nodes, beforeIdentity), right = buckets(after.nodes, state.after);
@@ -289,6 +306,13 @@ export function buildGraphReview(review: GraphReviewState): GraphReviewPresentat
       ...(diff ? { review: record, diffStatus: ['added', 'removed', 'modified', 'rewired'].includes(record.status) ? record.status as ModelNodeData['diffStatus'] : undefined } : { review: { ...record, status: 'unchanged', params: {}, beforeName: undefined, inputChanges: undefined, summary: undefined }, diffStatus: undefined }),
     } };
   };
+  for (const record of Array.from(records.values())) {
+    for (const side of ['before', 'after'] as const) {
+      const span = record[side] && spanOf(state[side], record[side]!);
+      const key = !draft && span && located[side].get(declarationLocation(span));
+      if (key && declarations.containers.has(key)) { record.status = 'unchanged'; record.params = {}; }
+    }
+  }
   const counts = { added: 0, removed: 0, modified: 0, rewired: 0, unresolved: 0, unchanged: 0 };
   const changes: ReviewChange[] = [];
   const union = Array.from(originals).map(([id, pair]) => {
@@ -331,7 +355,9 @@ export function buildGraphReview(review: GraphReviewState): GraphReviewPresentat
       const current: ReviewDeclaration | undefined = rightClass.members[name];
       // Lowered cards already have constructor/connection comparison. Supplement
       // declarations the projector omitted, rather than inventing source topology.
-      if (projected.has(name) || previous?.digest === current?.digest) continue;
+      const span = spanOf(state.after, name) ?? spanOf(state.before, name);
+      const declaration = span && (located.after.get(declarationLocation(span)) ?? located.before.get(declarationLocation(span)));
+      if (projected.has(name) || previous?.digest === current?.digest || (declaration && declarations.containers.has(declaration))) continue;
       const ambiguousDeclaration: boolean = !!(previous?.ambiguous || current?.ambiguous);
       const status: ReviewNode['status'] = parseFailure || ambiguousDeclaration ? 'unresolved' : !previous ? 'added' : !current ? 'removed' : 'modified';
       const summary: string = ambiguousDeclaration ? 'Declaration has multiple assignments' : `Declaration ${status}`;
@@ -344,6 +370,41 @@ export function buildGraphReview(review: GraphReviewState): GraphReviewPresentat
       focusNodes.set(id, rootId);
     }
   }
+  const declarationCompleteness = [state.before, state.after].map(declarationInventoryComplete);
+  if (!draft && declarationCompleteness.every(value => value === true)) {
+    const evidence = declarations.sides;
+    const represented = new Set<string>();
+    for (const side of ['before', 'after'] as const) {
+      const locations = located[side];
+      for (const [id, record] of Array.from(records)) {
+        const span = record[side] && spanOf(state[side], record[side]!);
+        // An ambiguous member row already reports the several writes that keep its
+        // declaration out of capture evidence. That declaration is the same change;
+        // another target of a chained write at the same statement is not.
+        const label = `${state[side].cls}.${record[side]}`;
+        const same = span && record.ambiguousDeclaration && id.startsWith('review:member:') && Object.keys(evidence[side]).find(key =>
+          evidence[side][key].label === label && !evidence[side][key].parent && declarationLocation(evidence[side][key].span) === declarationLocation(span));
+        if (same) represented.add(same);
+        const key = span && locations.get(declarationLocation(span));
+        if (!key) continue;
+        record.sourceDeclaration = { ...record.sourceDeclaration, [side]: originalDeclarationKey(side, key) };
+        represented.add(key);
+      }
+    }
+    for (const key of Array.from(new Set([...Object.keys(evidence.before), ...Object.keys(evidence.after)]))) {
+      const previous = evidence.before[key], current = evidence.after[key];
+      if (represented.has(key) || declarations.containers.has(key) || previous?.digest === current?.digest) continue;
+      const ambiguousDeclaration = !!(previous?.ambiguous || current?.ambiguous) || !declarations.eligible.has(key);
+      const status = ambiguousDeclaration ? 'unresolved' : !previous ? 'added' : !current ? 'removed' : 'modified';
+      const summary = ambiguousDeclaration ? 'Declaration has multiple assignments' : `Declaration ${status}`;
+      const id = `review:declaration:${key}`;
+      const sides = { before: previous ? originalDeclarationKey('before', key) : undefined, after: current ? key : undefined };
+      records.set(id, { status, ...sides, sourceDeclaration: sides, ambiguousDeclaration, params: {}, summary });
+      counts[status]++;
+      changes.push({ id, label: (current ?? previous).label, detail: summary });
+      focusNodes.set(id, rootId);
+    }
+  }
   const defaults: ReviewNode['params'] = {};
   if (leftClass && rightClass) {
     for (const key of Array.from(new Set([...Object.keys(leftClass.defaults), ...Object.keys(rightClass.defaults)]))) {
@@ -352,7 +413,8 @@ export function buildGraphReview(review: GraphReviewState): GraphReviewPresentat
   }
   const defaultSummary = Object.entries(defaults).map(([key, value]) => `${key} default: ${value.before ?? 'required'} → ${value.after ?? 'required'}`).join(', ');
   const unprojected = (!changes.length || assignments.unresolved) && leftClass && rightClass && leftClass.digest !== rightClass.digest;
-  const classChange: ReviewNode | undefined = defaultSummary ? { status: 'modified', before: '@class', after: '@class', params: {},
+  const classChange: ReviewNode | undefined = !draft && declarationCompleteness.includes(false) ? { status: 'unresolved',
+    before: '@class', after: '@class', params: {}, summary: 'Source declaration comparison is incomplete. Inspect the code diff.' } : defaultSummary ? { status: 'modified', before: '@class', after: '@class', params: {},
     summary: defaultSummary } : unprojected ? { status: 'unresolved', before: '@class', after: '@class', params: {},
       summary: 'Source changed outside the projected layers. Inspect the code diff; runtime impact is unknown.' } : undefined;
   if (classChange) {

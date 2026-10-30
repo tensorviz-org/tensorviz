@@ -1,6 +1,6 @@
 import * as assert from 'node:assert/strict';
 import { CanvasAgent, type AgentRunEvent, type AgentRunInput } from '../../canvasAgent';
-import type { CanvasAgentAction, CanvasAgentState, GraphOpeningState, LocalBrowserAgentRequest } from '@tensorviz/contracts/protocol';
+import type { CanvasAgentAction, CanvasAgentAvailability, CanvasAgentState, GraphOpeningState, LocalBrowserAgentRequest } from '@tensorviz/contracts/protocol';
 
 const target = { workspaceFolder: '/project', file: 'model.py', cls: 'Net', documentVersion: 1, sourceDigest: 'a'.repeat(64), backendRevision: 1 };
 const request = (action: CanvasAgentAction, viewId = 'view'): LocalBrowserAgentRequest => ({ type: 'agentRequest', protocolVersion: 1, workspaceSessionId: 'workspace', messageId: 'message', viewId, ...action });
@@ -19,6 +19,24 @@ suite('Canvas agent session', () => {
       publish: (viewId, state) => states.push({ viewId, state }), clear: () => { cleared++; } });
   });
   teardown(() => { agent.dispose(); finish?.(); });
+
+  test('the requesting view reaches preparation and completed preparation switches to provider progress', async () => {
+    agent.dispose();
+    let prepare!: () => void;
+    agent = new CanvasAgent({ prepare: async (_target, _nodes, _draft, _signal, _intent, viewId) => {
+      assert.equal(viewId, 'requesting');
+      await new Promise<void>(resolve => { prepare = resolve; });
+      return { cwd: '/project', context: 'current context' };
+    }, run: async (_input, callback) => { emit = callback; await new Promise<void>(resolve => { finish = resolve; }); },
+    publish: (viewId, state) => states.push({ viewId, state }), clear() {} });
+    agent.handle(request(send(), 'requesting'));
+    assert.equal(latest().activity, 'Preparing your request…');
+    prepare(); await tick();
+    assert.equal(latest().activity, 'Waiting for Codex…');
+    emit({ kind: 'text', text: 'Answer' });
+    assert.equal(latest().activity, 'Writing reply…');
+    finish(); await tick(); assert.equal(latest().activity, '');
+  });
 
   test('minimizing/disconnecting does not cancel; reconnect restores completed history', async () => {
     agent.handle(request(send())); await tick();
@@ -49,11 +67,57 @@ suite('Canvas agent session', () => {
     assert.equal(latest().messages.length, 0); assert.equal(cleared, 1);
   });
 
-  test('streaming coalesces updates without losing the final reply', async () => {
+  test('the model opened by this turn keeps its conversation and proposal follow-ups', async () => {
+    agent.handle(request(send())); await tick();
+    const conversation = runs[0].conversationId;
+    const opened = { ...target, file: 'checkpoint_model.py', cls: 'CheckpointModel', backendRevision: 2 };
+    emit({ kind: 'opened_graph', text: '', target: opened });
+    emit({ kind: 'text', text: 'Checkpoint draft ready.' }); finish(); await tick();
+    assert.deepEqual(latest().context, { target: opened, nodeIds: [] }, 'old model selections cannot follow the opening');
+    agent.handle(request({ ...send('two'), action: 'send', requestId: 'two', target: opened,
+      nodeIds: [], provider: 'codex', prompt: 'Inspect the candidate', draftId: 'review' })); await tick();
+    assert.equal(runs.length, 2); assert.equal(runs[1].conversationId, conversation);
+    assert.equal(runs[1].messages[1].text, 'Checkpoint draft ready.'); assert.equal(cleared, 0);
+    finish(); await tick();
+  });
+
+  test('opened-model events cannot cross a workspace or outlive their turn', async () => {
+    agent.handle(request(send())); await tick();
+    emit({ kind: 'opened_graph', text: '', target: { ...target, workspaceFolder: '/other', cls: 'Other' } });
+    assert.deepEqual(latest().context?.target, target);
+    agent.handle(request({ action: 'stop', requestId: 'one' }));
+    emit({ kind: 'opened_graph', text: '', target: { ...target, cls: 'Other' } });
+    finish(); await tick();
+    assert.deepEqual(latest().context?.target, target); assert.equal(latest().status, 'stopped');
+  });
+
+  test('Stop retains evidence for the same chat while Clear and disposal drop it', async () => {
+    agent.dispose();
+    const resets: Array<boolean | undefined> = [];
+    agent = new CanvasAgent({ prepare: async () => ({ cwd: '/project', context: 'pinned context' }),
+      run: async input => { runs.push(input); await new Promise<void>(resolve => { finish = resolve; }); },
+      publish: (viewId, state) => states.push({ viewId, state }), clear: preserve => { resets.push(preserve); } });
+    agent.handle(request(send())); await tick();
+    const first = runs.at(-1)!.conversationId; assert.ok(first);
+    agent.handle(request({ action: 'stop', requestId: 'one' })); finish(); await tick();
+    assert.deepEqual(resets, [true]);
+    agent.handle(request(send('two'))); await tick();
+    assert.equal(runs.at(-1)!.conversationId, first); finish(); await tick();
+    agent.handle(request({ action: 'clear' }));
+    assert.equal(resets.at(-1), undefined);
+    agent.handle(request(send('three'))); await tick();
+    assert.notEqual(runs.at(-1)!.conversationId, first); finish(); await tick();
+    agent.dispose(); assert.equal(resets.at(-1), undefined);
+  });
+
+  test('streaming publishes the first text immediately and batches the remaining burst', async () => {
     agent.handle(request(send())); await tick();
     const before = states.length;
-    for (let i = 0; i < 100; i++) emit({ kind: 'text', text: 'x' });
-    assert.equal(states.length, before, 'token bursts must not publish 100 whole histories to the graph');
+    emit({ kind: 'text', text: 'x' });
+    assert.equal(states.length, before + 1, 'first text must not wait for the 80 ms batch timer');
+    assert.equal(latest().messages[1].text, 'x');
+    for (let i = 1; i < 100; i++) emit({ kind: 'text', text: 'x' });
+    assert.equal(states.length, before + 1, 'remaining tokens must not publish 99 whole histories to the graph');
     finish(); await tick();
     assert.equal(latest().messages[1].text, 'x'.repeat(100));
     assert.equal(latest().status, 'idle');
@@ -115,6 +179,24 @@ suite('Canvas agent session', () => {
     run: async input => { runs.push(input); }, publish: (viewId, state) => states.push({ viewId, state }), clear() {} });
     agent.handle(request({ action: 'sync' })); agent.openGraph(opening()); await tick();
     assert.equal(runs.length, 0); assert.equal(latest().status, 'error'); assert.match(latest().activity, /Source changed/);
+  });
+
+  test('Use Agent during an agent check leaves both agents checkable when setup is refused', async () => {
+    agent.dispose(); const checks: Array<(value: CanvasAgentAvailability) => void> = [];
+    agent = new CanvasAgent({ prepare: async () => { throw new Error('The selected model or source changed. Reopen its setup.'); },
+      inspect: () => new Promise(resolve => checks.push(resolve)),
+      run: async input => { runs.push(input); }, publish: (viewId, state) => states.push({ viewId, state }), clear() {} });
+    agent.handle(request({ action: 'discover' })); await tick();
+    assert.equal(latest().agents?.codex.status, 'checking');
+    agent.openGraph(opening()); await tick();
+    assert.match(latest().activity, /source changed/); assert.equal(runs.length, 0);
+    // Canvas disables Send and hides Refresh while the selected agent is 'checking'.
+    for (const provider of ['codex', 'claude'] as const) assert.equal(latest().agents?.[provider].status, 'unchecked', `${provider} must not wait on the abandoned check`);
+    checks.splice(0).forEach(resolve => resolve({ status: 'ready', detail: '', models: [] })); await tick();
+    assert.equal(latest().agents?.codex.status, 'unchecked', 'the abandoned check cannot report late');
+    agent.handle(request({ action: 'discover', refresh: true })); await tick();
+    checks.forEach(resolve => resolve({ status: 'ready', detail: '', models: [] })); await tick();
+    assert.equal(latest().agents?.codex.status, 'ready', 'Refresh checks again');
   });
 
   test('Stop also cancels a capture started by the automatic setup task', async () => {

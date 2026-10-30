@@ -1,8 +1,8 @@
-jest.mock('../../canvas/GraphQueryPanel', () => ({ GraphOverlayControls: () => null }));
 import reviewFixture from '../../test/fixtures/canvas/graphReview.json';
 import captureDocument from '../../test/fixtures/canvas/capture-document.json';
 import draftFixture from '../../test/fixtures/canvas/draftResNet.json';
 import nestedFixture from '../../test/fixtures/canvas/nestedAssignmentCapture.json';
+import deepDeclarationFixture from '../../test/fixtures/canvas/deepDeclarationReview.json';
 /** Step-5 local browser page, mounted: the canvas the user gets, the strip
  *  that tells the truth about it, and the ended screen when the session dies.
  *
@@ -178,7 +178,7 @@ function readyValidationPage() {
   });
   return rig;
 }
-function readyLatencyPage() {
+function readyCapturedPage() {
   const rig = readyValidationPage();
   act(() => {
     rig.emit(hostMessage('projection', { target: netTarget(), projection: netProjection({ traced: true }), traced: true, greyed: false }));
@@ -207,8 +207,8 @@ describe('LocalBrowserApp', () => {
     expect(rig.transport.send).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'graphSetupRequest', openingId: 'opening', target: netTarget(),
       action: { kind: 'edit_execution', reviewId: 'reviewed', field: ['mode'] } }));
   });
-  it('Run again requests a fresh capture review and waits for its new approval', () => {
-    const rig = readyLatencyPage();
+  it('Run again requests a fresh review and waits for its new approval', () => {
+    const rig = readyCapturedPage();
     const execution = { id: 'completed-review', phase: 'succeeded', kind: 'capture', device: 'cpu', configuredDevice: 'cpu',
       detail: 'Finished.', interpreter: '/env/bin/python', inputs: '{}', mode: 'eval', gradients: false,
       stages: [{ label: 'Capture', calls: 1 }] };
@@ -231,7 +231,7 @@ describe('LocalBrowserApp', () => {
   });
 
   it('after a reused result, Run fresh asks the host for a fresh run that still waits for its own approval', () => {
-    const rig = readyLatencyPage();
+    const rig = readyCapturedPage();
     const execution = { id: 'served-review', phase: 'succeeded', kind: 'capture', device: 'cpu', configuredDevice: 'cpu',
       detail: 'Reused identical result from 14:02 (no Python ran). Validation passed.', interpreter: '/env/bin/python', inputs: '{}',
       mode: 'eval', gradients: false, stages: [{ label: 'Capture', calls: 1 }], reused: { capturedAt: 1761400000000 } };
@@ -244,7 +244,7 @@ describe('LocalBrowserApp', () => {
     const requests = messages.filter(message => message.type === 'validateRequest');
     expect(requests).toHaveLength(1);
     expect(requests[0].fresh).toBe(true);
-    expect(requests[0].measureLatency).toBeUndefined();
+    expect(requests[0]).not.toHaveProperty('measureLatency');
     expect(messages.some(message => message.action?.action === 'run')).toBe(false);
   });
 
@@ -284,34 +284,27 @@ describe('LocalBrowserApp', () => {
     expect(rig.transport.send).not.toHaveBeenCalled();
   });
 
-  it('reviews capture workload in the Run model panel and keeps it closed across host updates after dismissal', () => {
-    const rig = readyLatencyPage();
+  it('reviews one capture in the Run model panel and keeps it closed across host updates after dismissal', () => {
+    const rig = readyCapturedPage();
     fireEvent.click(screen.getByRole('button', { name: 'Run model' }));
     expect(validationRequest(rig)).not.toHaveProperty('measureLatency');
-    const execution = { id: 'timing', phase: 'review', kind: 'capture', device: 'cpu', configuredDevice: 'cpu',
+    const execution = { id: 'review', phase: 'review', kind: 'capture', device: 'cpu', configuredDevice: 'cpu',
       detail: 'Not started', interpreter: '/env/bin/python', inputs: '{}', mode: 'eval', gradients: false,
-      stages: [{ label: 'Capture', calls: 1 }] };
-    const opening = { id: 'timing-opening', target: netTarget(), phase: 'awaiting_execution', hasCapture: true, detail: 'Review', execution };
+      stages: [{ label: 'Capture shapes and operations', calls: 1 }] };
+    const opening = { id: 'review-opening', target: netTarget(), phase: 'awaiting_execution', hasCapture: true, detail: 'Review', execution };
     act(() => rig.emit(hostMessage('graphOpening', { state: opening })));
     expect(screen.getByRole('heading', { name: 'Run model' })).toBeVisible();
-    expect(screen.queryByRole('checkbox', { name: 'Measure latency' })).toBeNull();
-    expect(screen.queryByRole('spinbutton', { name: 'Warmups per phase' })).toBeNull();
-    expect(screen.queryByText('GPU memory available')).toBeNull();
-    const timed = { ...execution, kind: 'capture', stages: [{ label: 'Reviewed workload', calls: 23 }] };
-    act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, execution: timed } })));
-    expect(screen.getByRole('heading', { name: 'Run model' })).toBeVisible();
-    expect(screen.getByText('23 forward calls')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Run', exact: true })).toBeEnabled();
+    expect(screen.getByText('1 forward call')).toBeVisible();
     expect(screen.queryByRole('checkbox', { name: 'Measure latency' })).toBeNull();
     expect((rig.transport.send as jest.Mock).mock.calls.some(([message]) => message.action?.action === 'run')).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Run', exact: true }));
     expect(rig.transport.send).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'graphSetupRequest',
-      action: { kind: 'execution', reviewId: 'timing', action: 'run', device: 'cpu' } }));
+      action: { kind: 'execution', reviewId: 'review', action: 'run', device: 'cpu' } }));
     expect(screen.getByRole('button', { name: 'Execution details' })).toHaveAttribute('aria-expanded', 'false');
-    act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, phase: 'capturing', execution: { ...timed, phase: 'running' } } })));
+    act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, phase: 'capturing', execution: { ...execution, phase: 'running' } } })));
     expect(screen.getByRole('button', { name: 'Running…' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
-    act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, execution: { ...timed, id: 'timing-refreshed' } } })));
+    act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, execution: { ...execution, id: 'review-refreshed' } } })));
     expect(screen.queryByRole('button', { name: 'Run', exact: true })).toBeNull();
   });
 
@@ -411,6 +404,44 @@ describe('LocalBrowserApp', () => {
     }
   });
 
+  it('standalone setup help shares the pending draft with MCP and the copied request without submitting it', async () => {
+    const original = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const writeText = jest.fn(async (_text: string) => undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    try {
+      const rig = makeTransport();
+      render(<LocalBrowserApp hostKind="standalone" createTransport={() => rig.transport} />);
+      act(() => {
+        rig.setStatus({ phase: 'connected', hostLink: 'connected', error: null });
+        rig.emit(hostMessage('activeTarget', { target: netTarget() }));
+        rig.emit(hostMessage('graphOpening', { state: { id: 'pending-setup', target: netTarget(), phase: 'needs_setup', hasCapture: false,
+          detail: 'Complete inputs.', discovery: { model: 'model:Net', sourceDigest: netTarget().sourceDigest,
+            init: [], inputs: [{ name: 'x', kind: 'keyword', required: true }], examples: [], factories: [], configs: [],
+            parents: [], constraints: [], truncated: false } } }));
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Set up manually' }));
+      fireEvent.change(screen.getByLabelText('x shape'), { target: { value: '3, 12' } });
+      fireEvent.change(screen.getByLabelText('x dtype'), { target: { value: 'float64' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Setup methods' }));
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy setup request' })));
+      const request = writeText.mock.calls[0][0];
+      expect(screen.getByText('Setup request copied. Paste it into your coding agent.')).toBeVisible();
+      expect(screen.queryByText(`Copied: ${request}`)).not.toBeInTheDocument();
+      expect(request).toContain('pending-setup');
+      expect(request).toContain('float64');
+      expect(request).toContain('configure_graph_setup');
+      const actions = (rig.transport.send as jest.Mock).mock.calls.map(([message]) => message).filter(message => message.type === 'graphSetupRequest');
+      expect(actions).toHaveLength(1);
+      expect(actions[0].action).toEqual({ kind: 'agent_help', draft: expect.objectContaining({ profile: expect.objectContaining({
+        inputs: { args: [], kwargs: { x: expect.objectContaining({ shape: [3, 12], dtype: 'float64' }) } },
+      }) }) });
+      fireEvent.click(screen.getByRole('button', { name: 'Set up manually' }));
+      expect(screen.getByLabelText('x shape')).toHaveValue('3, 12');
+    } finally {
+      if (original) Object.defineProperty(navigator, 'clipboard', original);
+      else delete (navigator as any).clipboard;
+    }
+  });
   it('acknowledges only the rendered review in its exact view and hides native source actions in standalone mode', () => {
     const rig = makeTransport();
     Object.defineProperty(rig.transport, 'session', { value: { viewId: 'exact-browser' } });
@@ -470,6 +501,43 @@ describe('LocalBrowserApp', () => {
     expect(currentProjection()).toBe(frozen);
   });
 
+  it.each([false, true])('focuses an ordinary Git change once its exact projection renders (captured: %s)', captured => {
+    const commands: any[] = [];
+    const listener = (event: Event) => commands.push((event as CustomEvent).detail);
+    window.addEventListener('builder-command', listener);
+    try {
+      const rig = readyValidationPage();
+      const document = JSON.parse(JSON.stringify(captureDocument));
+      const call = document.semantic.nodes.find((node: any) => node.metadata.captureRef.kind === 'invocation');
+      document.semantic.metadata.sourceCorrespondence = [{ nodeId: 'head', basis: 'registered_path',
+        captureId: call.metadata.captureRef.captureId, invocationIds: [call.metadata.captureRef.semanticId] }];
+      const live = netProjection({ traced: true, document, sourceDigest: reviewFixture.after.sourceDigest,
+        dependencies: [{ file: 'model.py', digest: reviewFixture.after.sourceDigest }] });
+      if (captured) act(() => rig.emit(hostMessage('projection', { target: netTarget(), projection: live, traced: true, greyed: false })));
+      const state = { ...reviewFixture, after: { ...reviewFixture.after, dependencies: live.dependencies }, id: 'initial-git-focus',
+        beforeLabel: 'HEAD', afterLabel: 'Working', changedFiles: ['model.py'], stale: false,
+        liveContext: { workspaceFolder: '/ws', file: live.file, cls: live.cls } };
+      act(() => rig.emit(hostMessage('graphReviewState', { state })));
+      const applied = currentProjection()!;
+      act(() => window.dispatchEvent(new CustomEvent('tensorviz-projection-rendered', { detail: { ...applied } })));
+      expect(commands.some(command => command.command === 'focus-selection')).toBe(false);
+      act(() => window.dispatchEvent(new CustomEvent('tensorviz-projection-rendered', { detail: applied })));
+      act(() => window.dispatchEvent(new CustomEvent('tensorviz-projection-rendered', { detail: applied })));
+      const focus = commands.filter(command => command.command === 'focus-selection');
+      expect(focus).toHaveLength(1);
+      expect(focus[0].payload.target).toEqual({ file: applied.file, cls: applied.cls,
+        sourceDigest: applied.sourceDigest, backendRevision: applied.revision });
+      if (captured) {
+        expect(focus[0].payload.nodeIds).toEqual([call.node_id]);
+        expect(screen.getByText('4 / 4')).toBeVisible();
+        expect(globalThis.document.querySelector('.graph-review-current')!.textContent).not.toContain('Not located in this capture');
+      }
+      act(() => rig.emit(hostMessage('graphReviewState', { state: { ...state, id: 'stale-review', stale: true } })));
+      act(() => window.dispatchEvent(new CustomEvent('tensorviz-projection-rendered', { detail: currentProjection() })));
+      expect(commands.filter(command => command.command === 'focus-selection')).toHaveLength(1);
+    } finally { window.removeEventListener('builder-command', listener); }
+  });
+
   it('selecting a highlighted captured call shows its source change in the navigator', () => {
     const rig = readyValidationPage();
     const document = JSON.parse(JSON.stringify(captureDocument));
@@ -492,17 +560,124 @@ describe('LocalBrowserApp', () => {
     expect(rig.transport.send).toHaveBeenLastCalledWith({ type: 'graphReviewRequest', action: 'reveal', reviewId: 'mapped-review', side: 'after', nodeId: 'head' });
   });
 
+  /** A Git review over a capture that calls the changed `head` module twice. */
+  const twoCallReview = (rig: TransportRig) => {
+    const document = JSON.parse(JSON.stringify(captureDocument));
+    const root = document.semantic.nodes.find((node: any) => node.metadata.captureRef.kind === 'invocation');
+    const calls = [0, 1].map(i => ({ ...JSON.parse(JSON.stringify(root)), node_id: `invocation:head:${i}`, metadata: {
+      ...root.metadata, captureLabel: `head · call ${i + 1}/2`, captureRef: { ...root.metadata.captureRef, semanticId: `call:head:${i}` } } }));
+    document.semantic.nodes.push(...calls);
+    document.semantic.metadata.sourceCorrespondence = [{ nodeId: 'head', basis: 'registered_path',
+      captureId: root.metadata.captureRef.captureId, invocationIds: calls.map(call => call.metadata.captureRef.semanticId) }];
+    const live = netProjection({ traced: true, document, sourceDigest: reviewFixture.after.sourceDigest,
+      dependencies: [{ file: 'model.py', digest: reviewFixture.after.sourceDigest }] });
+    act(() => rig.emit(hostMessage('projection', { target: netTarget(), projection: live, traced: true, greyed: false })));
+    const state = { ...reviewFixture, after: { ...reviewFixture.after, dependencies: live.dependencies }, id: 'two-call-review',
+      beforeLabel: 'HEAD', afterLabel: 'Working', changedFiles: ['model.py'], stale: false,
+      liveContext: { workspaceFolder: '/ws', file: live.file, cls: live.cls } };
+    act(() => rig.emit(hostMessage('graphReviewState', { state })));
+    return calls.map(call => call.node_id);
+  };
+
+  it('moving the editor cursor onto a change used by two captured calls focuses a call in step with the navigator', () => {
+    jest.useFakeTimers();
+    const focused: string[] = [];
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.command === 'focus-node') focused.push(detail.payload.nodeId);
+    };
+    window.addEventListener('builder-command', listener);
+    try {
+      const rig = readyValidationPage();
+      const calls = twoCallReview(rig);
+      const cursorOnHead = () => {
+        act(() => rig.emit(hostMessage('graphReviewFocus', { reviewId: 'two-call-review', side: 'after', nodeIds: ['head'] })));
+        act(() => jest.advanceTimersByTime(100));
+      };
+      expect(screen.getByText('1 / 5')).toBeVisible();
+      cursorOnHead();
+      expect(screen.getByText('4 / 5')).toBeVisible();
+      expect(screen.getByText('Linear · call 1/2')).toBeVisible();
+      expect(focused).toEqual([calls[0]]);
+      // Next reveals the second call's source, which moves the editor cursor onto
+      // the same line. That echo must keep the second call, or Next could never leave it.
+      fireEvent.click(screen.getByRole('button', { name: 'Next graph change' }));
+      expect(rig.transport.send).toHaveBeenLastCalledWith({ type: 'graphReviewRequest', action: 'reveal', reviewId: 'two-call-review', side: 'after', nodeId: 'head' });
+      cursorOnHead();
+      expect(screen.getByText('5 / 5')).toBeVisible();
+      expect(screen.getByText('Linear · call 2/2')).toBeVisible();
+      expect(focused).toEqual([calls[0], calls[1]]);
+    } finally { window.removeEventListener('builder-command', listener); jest.useRealTimers(); }
+  });
+
+  it('selecting the second captured call of a change selects that call, so Next moves on', () => {
+    const rig = readyValidationPage();
+    const calls = twoCallReview(rig);
+    act(() => reportNodeClick(calls[1]));
+    expect(screen.getByText('5 / 5')).toBeVisible();
+    expect(screen.getByText('Linear · call 2/2')).toBeVisible();
+    expect(rig.transport.send).toHaveBeenLastCalledWith({ type: 'graphReviewRequest', action: 'reveal', reviewId: 'two-call-review', side: 'after', nodeId: 'head' });
+    fireEvent.click(screen.getByRole('button', { name: 'Next graph change' }));
+    expect(screen.getByText('1 / 5')).toBeVisible();
+    act(() => reportNodeClick(calls[0]));
+    expect(screen.getByText('4 / 5')).toBeVisible();
+    expect(screen.getByText('Linear · call 1/2')).toBeVisible();
+  });
+
+  it('moving the editor cursor onto a block declaration lowered once per call focuses the call the navigator shows', () => {
+    // Real capture: `first` and `last` share one Sequential line whose ReLU became GELU.
+    // The host matches by line, so both lowered copies and their unchanged neighbours
+    // arrive with the change's calls; only those calls are navigable.
+    jest.useFakeTimers();
+    const data = deepDeclarationFixture.expanded;
+    const labels = new Map((data.capture.document.semantic.nodes as { node_id: string; metadata: { captureLabel?: string } }[])
+      .map(node => [node.node_id, node.metadata.captureLabel]));
+    const focused: (string | undefined)[] = [];
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.command === 'focus-node') focused.push(labels.get(detail.payload.nodeId));
+    };
+    window.addEventListener('builder-command', listener);
+    try {
+      const rig = makeTransport();
+      render(<LocalBrowserApp createTransport={() => rig.transport} />);
+      const target = { ...netTarget(), file: 'model.py', cls: 'Model' };
+      act(() => {
+        rig.setStatus({ phase: 'connected', hostLink: 'connected', error: null });
+        rig.emit(hostMessage('activeTarget', { target }));
+        rig.emit(hostMessage('projection', { target, projection: data.capture, traced: true, greyed: false }));
+        rig.emit(hostMessage('graphReviewState', { state: { id: 'expanded-review', beforeLabel: 'HEAD', afterLabel: 'Working',
+          changedFiles: ['model.py'], stale: false, before: data.before, after: data.after,
+          liveContext: { workspaceFolder: '/ws', file: 'model.py', cls: 'Model' } } }));
+      });
+      const cursorOnSequential = () => {
+        const nodeIds = Object.entries(data.after.spanmap).filter(([, span]) => span.start[0] === 6).map(([id]) => id);
+        act(() => rig.emit(hostMessage('graphReviewFocus', { reviewId: 'expanded-review', side: 'after', nodeIds })));
+        act(() => jest.advanceTimersByTime(100));
+      };
+      expect(screen.getByText('1 / 2')).toBeVisible();
+      cursorOnSequential();
+      expect(screen.getByText('ReLU → GELU · call 1/2')).toBeVisible();
+      expect(focused).toEqual(['first.proj.1']);
+      fireEvent.click(screen.getByRole('button', { name: 'Next graph change' }));
+      cursorOnSequential();
+      expect(screen.getByText('2 / 2')).toBeVisible();
+      expect(screen.getByText('ReLU → GELU · call 2/2')).toBeVisible();
+      expect(focused).toEqual(['first.proj.1', 'last.proj.1']);
+    } finally { window.removeEventListener('builder-command', listener); jest.useRealTimers(); }
+  });
+
   it('reviews immutable revisions in Canvas, links removed source, and restores the live projection on close', () => {
     const rig = readyValidationPage();
     const liveProjection = netProjection({ traced: true, document: { view: {}, semantic: { nodes: [], metadata: {} } } });
     act(() => rig.emit(hostMessage('projection', { target: netTarget(), projection: liveProjection, traced: true, greyed: false })));
+    // Older captures can still carry timing; the Canvas no longer shows it.
+    expect(screen.queryByRole('button', { name: 'Latency details' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run model' })).toBeVisible();
     const state = { ...reviewFixture, id: 'git-review', beforeLabel: 'base', afterLabel: 'HEAD', changedFiles: ['model.py'], stale: false };
     act(() => rig.emit(hostMessage('graphReviewState', { state })));
     expect(screen.getByRole('region', { name: 'Graph diff review' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Run model' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Measure latency' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Latency details' })).not.toBeInTheDocument();
-    expect(mockCapturedLocalContext?.canProposeSourceEdits).toBe(false);
     expect((currentProjection() as any).reviewGraph.nodes.some((node: any) => node.id === 'review:after:norm')).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: /^Before$/ }));
     expect((currentProjection() as any).reviewGraph.nodes.some((node: any) => node.id === 'review:after:norm')).toBe(false);
@@ -518,7 +693,7 @@ describe('LocalBrowserApp', () => {
     act(() => rig.emit(hostMessage('graphReviewState', { state: null })));
     expect(screen.queryByRole('region', { name: 'Graph diff review' })).not.toBeInTheDocument();
     expect((currentProjection() as any).reviewGraph).toBeUndefined();
-    expect(screen.queryByRole('button', { name: 'Latency details' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run model' })).toBeVisible();
   });
 
   it('keeps revisions and their actions in the page header so the diff toolbar spends one row on changes', () => {
@@ -544,10 +719,9 @@ describe('LocalBrowserApp', () => {
     expect(rig.transport.send).toHaveBeenLastCalledWith({ type: 'graphReviewRequest', action: 'refresh', reviewId: 'compact-review' });
   });
 
-  it('requests a review without starting profiling when Run model is clicked and retains cancellation ownership', async () => {
-    const rig = readyLatencyPage();
+  it('requests a review when Run model is clicked and retains cancellation ownership', async () => {
+    const rig = readyCapturedPage();
     expect(rig.transport.send).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'validateRequest' }));
-    expect(screen.queryByRole('button', { name: 'Measure latency' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Run model', exact: true }));
     expect(validationRequest(rig)).not.toHaveProperty('measureLatency');
     expect(screen.getByRole('button', { name: 'Running…' })).toBeDisabled();
@@ -561,7 +735,6 @@ describe('LocalBrowserApp', () => {
   it('offers the same Run model entry on a source preview before any capture', () => {
     const rig = readyValidationPage();
     expect(screen.getByRole('button', { name: 'Run model' })).toBeEnabled();
-    expect(screen.queryByRole('button', { name: 'Measure latency' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Run model' }));
     expect(validationRequest(rig)).not.toHaveProperty('measureLatency');
     expect((rig.transport.send as jest.Mock).mock.calls.some(([message]) => message.action?.action === 'run')).toBe(false);
@@ -569,7 +742,6 @@ describe('LocalBrowserApp', () => {
 
   it('warns only for confirmed absence, retains measurements and routes optional setup actions', () => {
     const rig = readyValidationPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand toolbar' }));
     const opening = { id: 'config-warning', target: netTarget(), phase: 'ready', hasCapture: true,
       detail: 'Captured.', draft: { profileName: 'net_cpu', profile: {} } };
     act(() => {
@@ -581,7 +753,10 @@ describe('LocalBrowserApp', () => {
     const warning = screen.getByRole('status', { name: 'Missing model configuration' });
     expect(warning).toHaveTextContent('previous measurements');
     expect(warning).toHaveTextContent('or edit the file manually');
+    const modelMenu = screen.getByRole('button', { name: 'Model and file actions' });
+    fireEvent.click(modelMenu);
     expect(screen.queryByText('Saved as')).toBeNull();
+    fireEvent.click(modelMenu);
     fireEvent.click(within(warning).getByRole('button', { name: 'Use Agent' }));
     expect(screen.getByRole('region', { name: 'Canvas chat' })).toBeVisible();
     expect(screen.getByRole('textbox', { name: 'Message to coding agent' })).toHaveValue('');
@@ -592,7 +767,9 @@ describe('LocalBrowserApp', () => {
     expect(screen.getByTestId('canvas-app')).toBeVisible();
     act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, configFileExists: true } })));
     expect(screen.queryByRole('status', { name: 'Missing model configuration' })).toBeNull();
+    fireEvent.click(modelMenu);
     expect(screen.getByText('Saved as')).toHaveTextContent('net_cpu');
+    fireEvent.click(modelMenu);
     act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, phase: 'source_only', hasCapture: false, configFileExists: false } })));
     expect(screen.getByRole('status', { name: 'Missing model configuration' })).toHaveTextContent('Source inspection is available');
     act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, phase: 'saving', hasCapture: false, configFileExists: false } })));
@@ -622,7 +799,9 @@ describe('LocalBrowserApp', () => {
     });
     expect(screen.getByTestId('canvas-app')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Run model' })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand toolbar' }));
+    // The saved setup sits in the model menu, not in a header row.
+    expect(screen.queryByText('Saved as')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Model and file actions' }));
     expect(screen.getByText('Saved as')).toHaveTextContent('net_cpu');
     fireEvent.click(screen.getByRole('button', { name: 'Open tensorviz.toml' }));
     expect(rig.transport.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'graphSetupRequest', openingId: 'opening', action: { kind: 'edit_config' } }));
@@ -947,12 +1126,9 @@ describe('LocalBrowserApp', () => {
     const rig = readyValidationPage();
 
     const strip = document.querySelector('.local-browser-header');
-    expect(strip).toHaveClass('local-browser-header-collapsed');
-    expect(screen.getByRole('button', { name: 'Expand toolbar' })).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('button', { name: 'Find a layer' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand toolbar' }));
+    // The header adapts to its width; there is no toggle to find controls behind.
+    expect(screen.queryByRole('button', { name: 'Expand toolbar' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Find a layer' })).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse toolbar' }));
     expect(strip!.querySelector('[data-testid="local-browser-validate"]')).not.toBeNull();
 
     const button = screen.getByRole('button', { name: 'Run model', exact: true });
@@ -1097,6 +1273,30 @@ describe('LocalBrowserApp', () => {
       });
       expect(events.mock.calls.filter(([event]) => (event as CustomEvent).detail?.command === 'validation-complete')).toHaveLength(0);
       expect(mockCapturedLocalContext?.validation?.statusLabel).toBe('Cancelled');
+    } finally { events.mockRestore(); }
+  });
+
+  it('a dismissed Run model review shows the earlier result again without replaying its sweep', async () => {
+    const events = jest.spyOn(window, 'dispatchEvent');
+    const sweeps = () => events.mock.calls.filter(([event]) => (event as CustomEvent).detail?.command === 'validation-complete');
+    try {
+      const rig = readyValidationPage();
+      const target = { ...netTarget(), backendRevision: 2 };
+      const saved = { runId: 'save-run', target, status: 'passed', detail: 'Passed.', projectionRevision: 2 };
+      await act(async () => {
+        rig.emit(hostMessage('projection', { target, projection: netProjection({ revision: 2, traced: true }), traced: true, greyed: false }));
+        rig.emit(hostMessage('validationState', saved));
+      });
+      expect(sweeps()).toHaveLength(1);
+      fireEvent.click(screen.getByRole('button', { name: 'Run model', exact: true }));
+      const request = validationRequest(rig);
+      // The host republishes the result it still holds, then cancels the request that never ran.
+      await act(async () => {
+        rig.emit(hostMessage('validationState', saved));
+        rig.emit(hostMessage('validateResult', { ...request, type: 'validateResult', status: 'cancelled', detail: 'Validation cancelled.' }));
+      });
+      expect(mockCapturedLocalContext?.validation?.statusLabel).toBe('Passed');
+      expect(sweeps()).toHaveLength(1);
     } finally { events.mockRestore(); }
   });
 
@@ -1708,7 +1908,7 @@ describe('LocalBrowserApp', () => {
     expect(toggle).toHaveFocus();
   });
 
-  it('asks which instance to focus when one source line maps to several nodes', () => {
+  it('automatically focuses the outermost matching layer without opening an instance list', () => {
     const rig = makeTransport();
     const focused: string[] = [];
     const listener = (event: Event) => {
@@ -1720,19 +1920,22 @@ describe('LocalBrowserApp', () => {
       render(<LocalBrowserApp createTransport={() => rig.transport} />);
       act(() => {
         rig.emit(hostMessage('activeTarget', { target: netTarget() }));
-        rig.emit(hostMessage('focusNode', {
-          target: netTarget(),
-          nodeId: 'enc1.fc',
-          nodeIds: ['enc1.fc', 'enc2.fc'],
+        rig.emit(hostMessage('projection', { target: netTarget(), traced: true, greyed: false,
+          projection: netProjection({ document: { semantic: { nodes: [
+            { node_id: 'operation:a', kind: 'op', metadata: { parentId: 'invocation:b' } },
+            { node_id: 'invocation:b', kind: 'module', metadata: { parentId: 'invocation:z' } },
+            { node_id: 'invocation:z', kind: 'module', metadata: { parentId: null } },
+          ] } } }),
         }));
       });
+      act(() => {
+        rig.emit(hostMessage('focusNode', { target: netTarget(), nodeId: 'operation:a',
+          nodeIds: ['operation:a', 'invocation:b', 'invocation:z'] }));
+      });
 
-      expect(focused).toEqual([], 'the page must not silently choose one instance');
-      fireEvent.click(screen.getByRole('button', { name: 'Expand toolbar' }));
-      expect(screen.getByText(/2 module instances/)).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'enc2.fc' }));
-      expect(focused).toEqual(['enc2.fc']);
-      expect(screen.queryByText(/2 module instances/)).toBeNull();
+      expect(focused).toEqual(['invocation:z']);
+      expect(screen.queryByText(/module instances/)).toBeNull();
+      expect(screen.queryByRole('button', { name: 'invocation:z' })).toBeNull();
     } finally {
       window.removeEventListener('builder-command', listener);
     }
@@ -1774,16 +1977,12 @@ describe('LocalBrowserApp', () => {
 
 });
 
-it('offers file export only after the current model opens and links to the independent viewer', () => {
+it('offers Export graph in the toolbar once the current model opens, and no graph file viewer link', () => {
   const rig = makeTransport();
   render(<LocalBrowserApp createTransport={() => rig.transport} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Expand toolbar' }));
-  expect(screen.queryByRole('button', { name: 'Export graph' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Model and file actions' }));
   expect(screen.getByRole('button', { name: 'Export graph' })).toBeDisabled();
-  const viewer = screen.getByRole('link', { name: 'Open graph file viewer' });
-  expect(viewer).toHaveAttribute('href', './viewer/index.html');
-  expect(viewer).toHaveAttribute('rel', 'noopener noreferrer');
+  fireEvent.click(screen.getByRole('button', { name: 'Model and file actions' }));
+  expect(screen.queryByRole('link', { name: 'Open graph file viewer' })).not.toBeInTheDocument();
   const commands: string[] = [];
   const listener = (event: Event) => commands.push((event as CustomEvent).detail.command);
   window.addEventListener('builder-command', listener);
@@ -1797,39 +1996,32 @@ it('offers file export only after the current model opens and links to the indep
     expect(button).toBeEnabled(); fireEvent.click(button);
     expect(commands).toContain('export-graph-file');
     act(() => rig.emit(hostMessage('activeTarget', { target: { ...netTarget(), cls: 'OtherNet' } })));
-    fireEvent.click(screen.getByRole('button', { name: 'Model and file actions' }));
     expect(screen.getByRole('button', { name: 'Export graph' })).toBeDisabled();
   } finally { window.removeEventListener('builder-command', listener); }
 });
 
 
-it('offers Add to tensorViz in place of Export graph where VS Code can upload it', () => {
+it('offers Publish in place of Export graph where VS Code can upload it', () => {
   const rig = makeTransport();
   render(<LocalBrowserApp createTransport={() => rig.transport} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Expand toolbar' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Model and file actions' }));
   // The browser page has no VS Code host to upload through, so it keeps Export graph.
-  expect(screen.queryByRole('button', { name: 'Add to tensorViz' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Publish graph' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Export graph' })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Model and file actions' }));
   const active = jest.spyOn(bridge, 'bridgeActive').mockReturnValue(true);
   const commands: string[] = [];
   const listener = (event: Event) => commands.push((event as CustomEvent).detail.command);
   window.addEventListener('builder-command', listener);
   try {
-    fireEvent.click(screen.getByRole('button', { name: 'Model and file actions' }));
-    expect(screen.getByRole('button', { name: 'Add to tensorViz' })).toBeDisabled();
-    expect(screen.queryByRole('button', { name: 'Export graph' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Model and file actions' }));
     act(() => {
       rig.emit(hostMessage('activeTarget', { target: netTarget() }));
       rig.emit(hostMessage('projection', { target: netTarget(), projection: netProjection(), traced: false, greyed: false }));
       rig.emit(hostMessage('syncState', { target: netTarget(), state: 'source-only' }));
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Model and file actions' }));
-    const share = screen.getByRole('button', { name: 'Add to tensorViz' });
-    expect(share).toBeEnabled();
-    fireEvent.click(share);
+    const publish = screen.getByRole('button', { name: 'Publish graph' });
+    expect(publish).toHaveTextContent('Publish');
+    expect(screen.queryByRole('button', { name: 'Export graph' })).not.toBeInTheDocument();
+    expect(publish).toBeEnabled();
+    fireEvent.click(publish);
     expect(commands).toContain('share-graph-file');
     expect(commands).not.toContain('export-graph-file');
   } finally {
@@ -1859,7 +2051,6 @@ it('renders project indexing failures and sends canvas expansion with the host p
 it('dismisses model actions with Escape and outside clicks without sending commands', () => {
   const rig = makeTransport();
   render(<LocalBrowserApp createTransport={() => rig.transport} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Expand toolbar' }));
   const trigger = screen.getByRole('button', { name: 'Model and file actions' });
   fireEvent.click(trigger);
   expect(screen.getByRole('group', { name: 'Model actions' })).toBeInTheDocument();
@@ -1969,6 +2160,11 @@ describe('draft graph preview', () => {
       fireEvent.click(within(toolbar).getByRole('button', { name: 'Next graph change' }));
       act(() => jest.advanceTimersByTime(100));
       expect(commands.filter(command => command.command === 'focus-selection').pop().payload.nodeIds).toEqual([calls[1]]);
+      // Selecting a call on the canvas selects that call, not the change's first one.
+      act(() => reportNodeClick(calls[2]));
+      expect(within(toolbar).getByText('blocks[0].relu → nn.GELU · previous call 3/3')).toBeVisible();
+      act(() => reportNodeClick(calls[1]));
+      expect(within(toolbar).getByText('blocks[0].relu → nn.GELU · previous call 2/3')).toBeVisible();
       // Ancestors open around the call without forcing the whole block to fit.
       for (const ancestor of ['Net', 'blocks', 'blocks.0', 'aten.addmm.default']) expect(focus.payload.nodeIds).not.toContain(id(ancestor));
       expect(focus.payload.target).toEqual({ file: projection.file, cls: projection.cls, sourceDigest: projection.sourceDigest, backendRevision: projection.revision });
@@ -2087,6 +2283,34 @@ describe('draft graph preview', () => {
     expect(screen.getByRole('textbox')).toHaveValue('add a sigmoid');
     expect(screen.getByRole('textbox')).toHaveFocus();
     expect(sentMessages(rig).filter(message => message.action !== 'discover')).toEqual([]);
+  });
+
+  it('typed drafts carry inspection context without offering a workspace-code revision', () => {
+    const rig = agentPage();
+    act(() => rig.emit(agentState(1, {})));
+    act(() => rig.emit(hostMessage('graphReviewState', { state: draftState({ proposal: { id: 'proposal-1', canRevise: false } }) })));
+    expect(screen.getByRole('button', { name: 'Accept' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Discard' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Continue editing' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^Open agent chat/ }));
+    expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', 'Ask about this draft…');
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Inspect the retained candidate result.' } });
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+    expect(sentMessages(rig).filter(message => message.type === 'agentRequest' && message.action === 'send'))
+      .toEqual([expect.objectContaining({ draftId: 'proposal-1', target: netTarget(), prompt: 'Inspect the retained candidate result.' })]);
+    expect(sentMessages(rig).some(message => message.type === 'graphReviewRequest')).toBe(false);
+  });
+
+  it('keeps candidate controls mounted for typed drafts, with their existing lifecycle', () => {
+    const panel = jest.spyOn(require('../../ide/CandidateReviewPanel'), 'CandidateReviewPanel')
+      .mockImplementation(() => <div data-testid="candidate-controls" />);
+    try {
+      const rig = agentPage();
+      act(() => rig.emit(hostMessage('graphReviewState', { state: draftState({ proposal: { id: 'typed', canRevise: false } }) })));
+      expect(screen.getByTestId('candidate-controls')).toBeInTheDocument();
+      act(() => rig.emit(hostMessage('graphReviewState', { state: draftState() })));
+      expect(screen.queryByTestId('candidate-controls')).toBeNull();
+    } finally { panel.mockRestore(); }
   });
 
   it('a Git review offers no draft decisions and leaves the chat without a draft', () => {

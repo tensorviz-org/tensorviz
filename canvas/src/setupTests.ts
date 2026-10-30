@@ -8,6 +8,13 @@ import '@testing-library/jest-dom';
 if (typeof global.TextEncoder === 'undefined') {
   global.TextEncoder = require('node:util').TextEncoder;
 }
+if (typeof global.TextDecoder === 'undefined') {
+  global.TextDecoder = require('node:util').TextDecoder;
+}
+if (typeof global.structuredClone === 'undefined') {
+  const { serialize, deserialize } = require('node:v8');
+  global.structuredClone = value => deserialize(serialize(value));
+}
 
 if (typeof global.TransformStream === 'undefined') {
   const { TransformStream, ReadableStream, WritableStream } = require('node:stream/web');

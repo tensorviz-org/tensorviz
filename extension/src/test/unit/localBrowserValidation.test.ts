@@ -76,6 +76,22 @@ suite('LocalBrowserValidation input source', () => {
     assert.ok(runs[0].guard, 'saved source/config/environment identity must reach the execution owner');
   });
 
+  test('without a review, one capture runs with the saved timeout and no profiling job', async () => {
+    const profile = { kind: 'model', model: 'net:Net', mode: 'eval', device: 'cpu', grad_enabled: false,
+      cwd: '.', tracked_files: [], init: { args: [], kwargs: {} }, seed: 0,
+      inputs: { args: [{ kind: 'tensor', shape: [1, 8], dtype: 'float32', requires_grad: false, generator: { kind: 'full', value: 1 } }], kwargs: {} },
+      limits: { timeout_ms: 1234 } };
+    const { runs, replies, manager } = harness({ snapshot: async (_r: string, name?: string) => name
+      ? { guards: {}, resolution: { status: 'resolved', spec: { profile, identity: { profile: name } } } }
+      : listing(['only'], profile), choose: async () => undefined }, 'measured');
+    manager.handle({ ...request, measureLatency: true } as never); await settle();
+    assert.equal(runs.length, 1);
+    assert.equal(runs[0].job, undefined);
+    assert.equal(runs[0].timeoutMs, 1234);
+    assert.equal((replies[0] as { status: string }).status, 'passed');
+    assert.equal('validationPassed' in replies[0], false);
+  });
+
   test('a script profile naming the class refuses instead of quietly guessing', async () => {
     const profile = { cwd: '.', tracked_files: [],
       limits: { timeout_ms: 1, max_events: 1, max_tensors: 1, max_record_bytes: 1 },
@@ -172,7 +188,7 @@ suite('LocalBrowserValidation request ownership', () => {
   });
 });
 
-suite('shared execution review', () => {
+suite('Run model runs one capture', () => {
   const profile = { kind: 'model', model: 'net:Net', cwd: '.', tracked_files: [],
     init: { args: [], kwargs: {} }, inputs: { args: [], kwargs: {} },
     mode: 'eval', device: 'cpu', grad_enabled: false, seed: 0, limits: { timeout_ms: 1000 } };
@@ -182,30 +198,22 @@ suite('shared execution review', () => {
     choose: async () => undefined };
   const settle = async () => { for (let i = 0; i < 5; i++) await new Promise(r => setImmediate(r)); };
 
-  test('the shared review runs one capture after approval', async () => {
-    const jobs: unknown[] = [];
+  test('the review runs one capture and no profiling job, even when an older page asks for latency', async () => {
+    const jobs: unknown[] = [], summaries: import('@tensorviz/contracts/protocol').LocalBrowserValidationSummary[] = [];
     const review = new ExecutionReview({ current: () => true, resources: async () => { throw new Error('Readings unavailable'); }, publish: () => {} });
     const sync = { validate: async (_t: unknown, _s: unknown, _ti: unknown, _p: unknown, measured: Function, _c: unknown, _e: unknown, job: unknown) => {
       jobs.push(job); measured(request.target, { revision: 2 });
       return { status: 'passed', detail: 'Passed.' };
     } } as unknown as LocalBrowserSync;
     const replies: LocalBrowserHostPublish[] = [];
-    new LocalBrowserValidation(sync, message => replies.push(message), profiles as never, new ValidationSummaryStore(() => {}), review)
-      .handle(request);
-    await settle(); assert.equal(jobs.length, 0); assert.equal(review.state!.profileName, 'one');
+    new LocalBrowserValidation(sync, message => replies.push(message), profiles as never, new ValidationSummaryStore(s => summaries.push(s)), review)
+      .handle({ ...request, measureLatency: true } as never);
+    await settle(); assert.equal(jobs.length, 0);
+    assert.equal(review.state!.kind, 'capture'); assert.equal(review.state!.profileName, 'one');
     review.action(request.target, 'run', { kind: 'execution', action: 'run', reviewId: review.state!.id, device: 'cpu' });
-    await settle();
-    assert.deepEqual(jobs, [undefined]);
-    assert.equal((replies[0] as { status: string }).status, 'passed');
-  });
-
-  test('a failed validation runs once', async () => {
-    let runs = 0;
-    const replies: LocalBrowserHostPublish[] = [];
-    const sync = { validate: async () => { runs++; return { status: 'failed', detail: 'Shape mismatch.' }; } } as unknown as LocalBrowserSync;
-    new LocalBrowserValidation(sync, message => replies.push(message), profiles as never).handle(request);
-    await settle();
-    assert.equal(runs, 1);
-    assert.equal((replies[0] as { status: string }).status, 'failed');
+    await settle(); assert.deepEqual(jobs, [undefined]);
+    const reply = replies[0] as import('@tensorviz/contracts/protocol').LocalBrowserValidateResultMessage;
+    assert.equal(reply.status, 'passed'); assert.equal('validationPassed' in reply, false);
+    assert.ok(summaries.every(summary => !('validationPassed' in summary)));
   });
 });

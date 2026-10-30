@@ -329,6 +329,9 @@ export type LocalBrowserViewStateMessage = LocalBrowserEnvelope<'viewState'> & {
 export type LocalBrowserViewSelectionMessage = LocalBrowserEnvelope<'viewSelection'> & {
   /** An oversized selection is explicitly unavailable, never silently narrowed. */
   tooLarge?: true;
+  /** Code focus: true opens the selection's source beside the Canvas, false leaves
+   *  the editor alone. Absent keeps the code focus setting's own behaviour. */
+  follow?: boolean;
   viewId: string;
   target: LocalBrowserTargetIdentity;
   nodeIds: string[];
@@ -455,6 +458,14 @@ export type LocalBrowserSourceEditResultMessage = LocalBrowserEnvelope<'sourceEd
   detail: string;
 };
 
+export interface CandidateCheckpointSummary {
+  loadStatus: 'succeeded' | 'failed'; complete: boolean; entries: number;
+  shapeDifferences: number; dtypeDifferences: number; registeredOnly: number; checkpointOnly: number; unknownPresence: number;
+}
+/** Read-only human-readable metadata page; structured records remain available through MCP. */
+export interface CandidateCheckpointPage {
+  runId: string; offset: number; count: number; nextOffset: number | null; text: string;
+}
 export interface CandidateReviewSnapshot {
   runId?: string;
   staticCheck: 'passed';
@@ -465,6 +476,7 @@ export interface CandidateReviewSnapshot {
   state: 'same' | 'different' | 'unavailable';
   semanticPostconditions: 'not_checked' | CandidatePostconditions['status'];
   postconditions?: CandidatePostconditions;
+  checkpoint?: CandidateCheckpointSummary;
   cleanup: 'not_run' | 'pending' | 'complete' | 'failed' | 'unavailable';
   diagnostics: string[];
 }
@@ -475,19 +487,34 @@ export interface CandidateRecord {
   capture: { captureId: string; sourceId: string } | null;
   unavailable: 'not_captured' | 'invalid_capture' | 'too_large' | 'evicted' | null;
 }
-export interface AppliedSourceReceipt {
-  appliedAt: number; file: string; beforeDigest: string; afterDigest: string;
+export interface AppliedSourceFile { file: string; beforeDigest: string; afterDigest: string }
+export interface AppliedSourceReceipt extends AppliedSourceFile {
+  appliedAt: number;
+  /** Complete source set; the legacy single-file fields identify its first entry. */
+  files?: AppliedSourceFile[];
   unavailable: 'too_large' | 'evicted' | null;
+}
+export interface AppliedSourceSetComparison {
+  baseCaptureId: string; captureId: string; sourceId: string;
+  reason: CaptureReconciliation['reason']; dependencyScope: 'complete' | 'partial';
+  inputs: 'same' | 'different' | 'unavailable'; state: 'same' | 'different' | 'unavailable';
+  semanticPostconditions: 'not_checked';
+  comparison: { equivalent: boolean | null; coverageComplete: boolean;
+    changedFieldCount: number; observedFieldCount: number; unresolvedFieldCount: number;
+    unmatchedRecordCount: number; uncertainMatchCount: number;
+    connectionChangeCount: number; unresolvedConnectionCount: number } | null;
 }
 export interface AppliedSourceObservation {
   receipt: AppliedSourceReceipt; checkedAt: number;
   source: 'reviewed_unsaved' | 'reviewed_saved' | 'reverted' | 'changed' | 'unavailable';
   captureFreshness: 'current' | 'stale' | 'unavailable';
   reconciliation: CaptureReconciliation | null;
+  sourceSetComparison?: AppliedSourceSetComparison;
   unavailable: 'source_not_saved' | 'source_changed' | 'source_unavailable' | 'evidence_unavailable'
     | 'capture_unavailable' | 'check_stale' | 'check_failed' | null;
 }
 export type CandidateAction = { kind: 'run'; retryId: string } | { kind: 'cancel'; runId: string }
+  | { kind: 'checkpoint'; runId: string; offset: number; limit: number }
   | { kind: 'list' } | { kind: 'reconcile' } | { kind: 'inspect'; runId: string; query?: CaptureInspectionQuery };
 export type LocalBrowserSourceEditReviewMessage = LocalBrowserEnvelope<'sourceEditReview'> & {
   requestId: string; target: LocalBrowserTargetIdentity; candidate: CandidateReviewSnapshot | null;
@@ -497,7 +524,8 @@ export type LocalBrowserCandidateRequestMessage = LocalBrowserEnvelope<'candidat
 };
 export type LocalBrowserCandidateResultMessage = LocalBrowserEnvelope<'candidateResult'> & {
   viewId: string; requestId: string; proposalId: string; target: LocalBrowserTargetIdentity;
-  result: { candidates: CandidateRecord[]; page: CaptureInspectionPage | null; applied?: AppliedSourceObservation } | null; detail: string;
+  result: { candidates: CandidateRecord[]; page: CaptureInspectionPage | null; applied?: AppliedSourceObservation;
+    checkpoint?: CandidateCheckpointPage } | null; detail: string;
 };
 
 export interface GraphSetupField {
@@ -615,7 +643,7 @@ export interface ExecutionReviewState {
   interpreter: string;
   profileName?: string;
   resources?: ExecutionResources;
-  /** Set on a finished invocation whose result was reused instead of run (no Python ran). */
+  /** Set on a finished invocation whose result was reused instead of run (the model was not run again). */
   reused?: ExecutionReuse;
   /** This invocation bypasses reused results (Run fresh). */
   fresh?: true;
@@ -690,8 +718,6 @@ export interface LocalBrowserValidationOutcome {
   status: 'passed' | 'failed' | 'refused' | 'cancelled';
   detail: string;
   failure?: GraphFailure;
-  /** The initial capture passed before this separate profiling attempt. */
-  validationPassed?: true;
   /** No Python ran: the graph is an earlier identical run's result (execution cache), and
    *  `capturedAt` (epoch ms) is when that run finished. */
   reused?: ExecutionReuse;
@@ -733,7 +759,6 @@ export interface LocalBrowserValidationSummary {
   status: 'running' | LocalBrowserValidationOutcome['status'];
   detail: string;
   projectionRevision?: number;
-  validationPassed?: true;
   evidence?: LocalBrowserValidationEvidence;
 }
 export type LocalBrowserValidationStateMessage = LocalBrowserEnvelope<'validationState'> & LocalBrowserValidationSummary;
@@ -757,7 +782,7 @@ export type LocalBrowserErrorMessage = LocalBrowserEnvelope<'error'> & {
 export interface GraphReviewState {
   id: string;
   /** Pending native source proposal; never a capture or an applied edit. */
-  proposal?: { id: string; unavailable?: boolean };
+  proposal?: { id: string; unavailable?: boolean; canRevise?: boolean };
   /** Standalone source-copy root; immutable Git snapshots still label each side. */
   workspaceRoot?: string;
   beforeLabel: string;
@@ -1353,14 +1378,32 @@ export function isCandidatePostconditions(value: unknown): value is CandidatePos
     && (value.recipe === null) === (value.reason === 'unsupported_recipe');
 }
 
+export function isCandidateCheckpointSummary(value: unknown): value is CandidateCheckpointSummary {
+  if (!isRecord(value) || Object.keys(value).length !== 8 || !['succeeded', 'failed'].includes(value.loadStatus as string)
+    || typeof value.complete !== 'boolean' || !isProjectCount(value.entries) || value.entries > 8192) return false;
+  const counts = ['shapeDifferences', 'dtypeDifferences', 'registeredOnly', 'checkpointOnly', 'unknownPresence'];
+  if (!counts.every(key => isProjectCount(value[key]) && (value[key] as number) <= (value.entries as number))) return false;
+  const both = value.entries - (value.registeredOnly as number) - (value.checkpointOnly as number) - (value.unknownPresence as number);
+  return both >= 0 && (value.shapeDifferences as number) <= both && (value.dtypeDifferences as number) <= both
+    && (!value.complete || value.unknownPresence === 0);
+}
+export function isCandidateCheckpointPage(value: unknown): value is CandidateCheckpointPage {
+  return isRecord(value) && Object.keys(value).length === 5 && isBoundedString(value.runId, 128)
+    && isProjectCount(value.offset) && value.offset <= 8192 && isProjectCount(value.count) && value.count <= 8192
+    && (value.nextOffset === null || (isProjectCount(value.nextOffset) && value.nextOffset > value.offset && value.nextOffset < value.count))
+    && isBoundedString(value.text, 131072);
+}
 export function isCandidateReviewSnapshot(value: unknown): value is CandidateReviewSnapshot {
-  return isRecord(value) && Object.keys(value).length === 9 + Number(value.runId !== undefined) + Number(value.postconditions !== undefined)
+  return isRecord(value) && Object.keys(value).length === 9 + Number(value.runId !== undefined) + Number(value.postconditions !== undefined) + Number(value.checkpoint !== undefined)
     && (value.runId === undefined || isBoundedString(value.runId, 128)) && value.staticCheck === 'passed'
     && ['not_run', 'running', 'succeeded', 'failed', 'refused', 'cancelled', 'timed_out'].includes(value.runtime as string)
     && ['unverified', 'current', 'stale'].includes(value.freshness as string)
     && ['unavailable', 'complete', 'partial', 'failed'].includes(value.capture as string)
     && ['same', 'different', 'unavailable'].includes(value.inputs as string)
     && ['same', 'different', 'unavailable'].includes(value.state as string)
+    && (value.checkpoint === undefined || (isCandidateCheckpointSummary(value.checkpoint)
+      && ['succeeded', 'failed'].includes(value.runtime as string) && value.cleanup === 'complete'
+      && (value.checkpoint.loadStatus !== 'failed' || (value.runtime === 'failed' && value.capture === 'unavailable'))))
     && (value.postconditions === undefined ? value.semanticPostconditions === 'not_checked'
       : isCandidatePostconditions(value.postconditions) && value.semanticPostconditions === value.postconditions.status
         && ['succeeded', 'failed'].includes(value.runtime as string) && value.cleanup === 'complete'
@@ -1375,6 +1418,7 @@ export function isCandidateRecord(value: unknown): value is CandidateRecord {
     && ['open', 'historical'].includes(value.review as string) && isCandidateReviewSnapshot(value.summary)
     && value.summary.runId === value.runId && (value.executionId === null || isBoundedString(value.executionId, 128))
     && (value.capture === null || isCaptureExportReference(value.capture))
+    && (value.summary.checkpoint?.loadStatus !== 'failed' || value.capture === null)
     && (!value.summary.postconditions || (value.summary.postconditions.executionId === value.executionId
       && (value.summary.postconditions.captureId === null || value.capture === null
         || (isRecord(value.capture) && value.summary.postconditions.captureId === value.capture.captureId))))
@@ -1397,10 +1441,40 @@ export function isCaptureReconciliation(value: unknown): value is CaptureReconci
     : value.postconditions === null && value.inputs === 'unavailable' && value.state === 'unavailable');
 }
 
+export function isAppliedSourceFiles(value: unknown): value is AppliedSourceFile[] {
+  return Array.isArray(value) && value.length > 0 && value.length <= 16 && value.every(item => isRecord(item)
+    && Object.keys(item).length === 3 && isBoundedString(item.file, 1024)
+    && /^(?!\/|[A-Za-z]:)(?!.*\\).+\.py$/.test(item.file as string)
+    && !(item.file as string).split('').some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)
+    && !(item.file as string).split('/').some(part => part === '' || part === '.' || part === '..')
+    && [item.beforeDigest, item.afterDigest].every(digest => typeof digest === 'string' && digest.length === 64 && SOURCE_DIGEST_PATTERN.test(digest))
+    && item.beforeDigest !== item.afterDigest) && new Set(value.map(item => item.file)).size === value.length;
+}
+
+export function isAppliedSourceSetComparison(value: unknown): value is AppliedSourceSetComparison {
+  if (!isRecord(value) || Object.keys(value).length !== 9
+    || ![value.baseCaptureId, value.captureId, value.sourceId].every(id => isBoundedString(id, 128))
+    || !['complete', 'partial'].includes(value.dependencyScope as string) || value.semanticPostconditions !== 'not_checked'
+    || !['reviewed_source', 'source_reverted', 'source_changed', 'dependencies_changed', 'environment_changed',
+      'different_model', 'capture_not_new', 'source_unavailable'].includes(value.reason as string)
+    || !['same', 'different', 'unavailable'].includes(value.inputs as string)
+    || !['same', 'different', 'unavailable'].includes(value.state as string)) return false;
+  if (value.reason !== 'reviewed_source') return value.comparison === null && value.inputs === 'unavailable' && value.state === 'unavailable';
+  const result = value.comparison;
+  return value.baseCaptureId !== value.captureId && isRecord(result) && Object.keys(result).length === 9
+    && (result.equivalent === null || typeof result.equivalent === 'boolean') && typeof result.coverageComplete === 'boolean'
+    && ['changedFieldCount', 'observedFieldCount', 'unresolvedFieldCount', 'unmatchedRecordCount', 'uncertainMatchCount',
+      'connectionChangeCount', 'unresolvedConnectionCount'].every(key => isProjectCount(result[key]))
+    && (result.equivalent !== false || Number(result.changedFieldCount) > 0 || Number(result.connectionChangeCount) > 0)
+    && (result.equivalent !== true || (result.coverageComplete === true && result.changedFieldCount === 0
+      && result.unresolvedFieldCount === 0 && result.unmatchedRecordCount === 0 && result.uncertainMatchCount === 0
+      && result.connectionChangeCount === 0 && result.unresolvedConnectionCount === 0));
+}
+
 export function isAppliedSourceObservation(value: unknown): value is AppliedSourceObservation {
-  if (!isRecord(value) || Object.keys(value).length !== 6 || !isRecord(value.receipt)) return false;
+  if (!isRecord(value) || Object.keys(value).length !== 6 + Number(value.sourceSetComparison !== undefined) || !isRecord(value.receipt)) return false;
   const receipt = value.receipt;
-  if (Object.keys(receipt).length !== 5 || !isProjectCount(receipt.appliedAt) || !isBoundedString(receipt.file, 4096)
+  if (Object.keys(receipt).length !== 5 + Number(receipt.files !== undefined) || !isProjectCount(receipt.appliedAt) || !isBoundedString(receipt.file, 4096)
     || ![receipt.beforeDigest, receipt.afterDigest].every(digest => typeof digest === 'string' && digest.length === 64 && SOURCE_DIGEST_PATTERN.test(digest))
     || receipt.beforeDigest === receipt.afterDigest || ![null, 'too_large', 'evicted'].includes(receipt.unavailable as null | string)
     || !isProjectCount(value.checkedAt) || value.checkedAt < receipt.appliedAt
@@ -1408,8 +1482,13 @@ export function isAppliedSourceObservation(value: unknown): value is AppliedSour
     || !['current', 'stale', 'unavailable'].includes(value.captureFreshness as string)
     || ![null, 'source_not_saved', 'source_changed', 'source_unavailable', 'evidence_unavailable', 'capture_unavailable',
       'check_stale', 'check_failed'].includes(value.unavailable as null | string)) return false;
+  if (receipt.files !== undefined && (!isAppliedSourceFiles(receipt.files) || receipt.files[0].file !== receipt.file
+    || receipt.files[0].beforeDigest !== receipt.beforeDigest || receipt.files[0].afterDigest !== receipt.afterDigest)) return false;
+  if (value.sourceSetComparison !== undefined) return receipt.files !== undefined && value.reconciliation === null
+    && value.unavailable === null && receipt.unavailable === null && value.source === 'reviewed_saved'
+    && value.captureFreshness !== 'stale' && isAppliedSourceSetComparison(value.sourceSetComparison);
   if (value.reconciliation === null) return value.unavailable !== null && value.captureFreshness !== 'current';
-  return value.unavailable === null && receipt.unavailable === null && value.source === 'reviewed_saved'
+  return receipt.files === undefined && value.unavailable === null && receipt.unavailable === null && value.source === 'reviewed_saved'
     && value.captureFreshness !== 'stale' && isCaptureReconciliation(value.reconciliation)
     && value.reconciliation.reviewedDigest === receipt.afterDigest;
 }
@@ -1456,6 +1535,8 @@ export function isCandidateAction(value: unknown): value is CandidateAction {
   if (value.kind === 'list' || value.kind === 'reconcile') return Object.keys(value).length === 1;
   if (value.kind === 'run') return Object.keys(value).length === 2 && isBoundedString(value.retryId, 128);
   if (value.kind === 'cancel') return Object.keys(value).length === 2 && isBoundedString(value.runId, 128);
+  if (value.kind === 'checkpoint') return Object.keys(value).length === 4 && isBoundedString(value.runId, 128)
+    && isProjectCount(value.offset) && value.offset <= 8192 && isProjectCount(value.limit) && value.limit >= 1 && value.limit <= 200;
   return value.kind === 'inspect' && isBoundedString(value.runId, 128)
     && Object.keys(value).length === (value.query === undefined ? 2 : 3)
     && (value.query === undefined || isCaptureInspectionQuery(value.query));
@@ -1609,8 +1690,7 @@ function isLocalBrowserSnapshotState(value: unknown): value is LocalBrowserSnaps
 
 function isLocalBrowserValidationSummary(value: unknown): value is LocalBrowserValidationSummary {
   if (!isRecord(value)) return false;
-  return Object.keys(value).length === 4 + Number(value.projectionRevision !== undefined) + Number(value.evidence !== undefined) + Number(value.validationPassed !== undefined)
-    && (value.validationPassed === undefined || value.validationPassed === true)
+  return Object.keys(value).length === 4 + Number(value.projectionRevision !== undefined) + Number(value.evidence !== undefined)
     && isLocalBrowserTarget(value.target) && isBoundedString(value.runId, 128)
     && ['running', 'passed', 'failed', 'refused', 'cancelled'].includes(value.status as string)
     && isBoundedString(value.detail, 512)
@@ -1714,7 +1794,8 @@ export function isLocalBrowserMessage(
     case 'graphReviewState':
       return record.state === null || (isRecord(record.state) && isBoundedString(record.state.id, 128)
         && (record.state.proposal === undefined || (isRecord(record.state.proposal) && isBoundedString(record.state.proposal.id, 128)
-          && (record.state.proposal.unavailable === undefined || typeof record.state.proposal.unavailable === 'boolean')))
+          && (record.state.proposal.unavailable === undefined || typeof record.state.proposal.unavailable === 'boolean')
+          && (record.state.proposal.canRevise === undefined || typeof record.state.proposal.canRevise === 'boolean')))
         && isRecord(record.state.before) && isRecord(record.state.after)
         && typeof record.state.beforeLabel === 'string' && typeof record.state.afterLabel === 'string'
         && typeof record.state.stale === 'boolean' && Array.isArray(record.state.changedFiles)
@@ -1767,8 +1848,10 @@ export function isLocalBrowserMessage(
     case 'viewSelection':
     case 'focusView': {
       const ids = (value: unknown) => Array.isArray(value) && value.length <= 100 && value.every(id => typeof id === 'string' && id.length > 0 && id.length <= 512) && new Set(value).size === value.length;
-      return Object.keys(record).length === (record.type === 'focusView' || record.tooLarge === true ? 9 : 8) &&
+      const optional = record.type === 'focusView' ? 1 : Number(record.tooLarge !== undefined) + Number(record.follow !== undefined);
+      return Object.keys(record).length === 8 + optional &&
         (record.tooLarge === undefined || (record.type === 'viewSelection' && record.tooLarge === true && Array.isArray(record.nodeIds) && record.nodeIds.length === 0 && Array.isArray(record.edgeIds) && record.edgeIds.length === 0)) &&
+        (record.follow === undefined || (record.type === 'viewSelection' && typeof record.follow === 'boolean')) &&
         typeof record.viewId === 'string' && record.viewId.length > 0 && record.viewId.length <= 128 &&
         isLocalBrowserTarget(record.target) && ids(record.nodeIds) && ids(record.edgeIds) &&
         (record.type !== 'focusView' || (typeof record.requestId === 'string' && record.requestId.length > 0 && record.requestId.length <= 128));
@@ -1897,9 +1980,8 @@ export function isLocalBrowserMessage(
       return isLocalBrowserValidationSummary(Object.fromEntries(Object.entries(record)
         .filter(([key]) => !['type', 'protocolVersion', 'workspaceSessionId', 'messageId'].includes(key))));
     case 'validateResult':
-      return Object.keys(record).length === 8 + Number(record.failure !== undefined) + Number(record.validationPassed !== undefined)
-          + Number(record.reused !== undefined)
-        && (record.validationPassed === undefined || record.validationPassed === true) && isLocalBrowserTarget(record.target) &&
+      return Object.keys(record).length === 8 + Number(record.failure !== undefined) + Number(record.reused !== undefined)
+        && isLocalBrowserTarget(record.target) &&
         (record.reused === undefined || (isExecutionReuse(record.reused) && record.status === 'passed')) &&
         (record.failure === undefined || isGraphFailure(record.failure)) &&
         isBoundedString(record.requestId, LOCAL_BROWSER_REQUEST_ID_MAX_LENGTH) &&
@@ -1928,10 +2010,14 @@ export function isLocalBrowserMessage(
         || !isBoundedString(record.requestId, 128) || !isBoundedString(record.proposalId, 128)) return false;
       if (record.type === 'candidateRequest') return Object.keys(record).length === 9 && isCandidateAction(record.action);
       return Object.keys(record).length === 10 && isBoundedString(record.detail, 512)
-        && (record.result === null || (isRecord(record.result) && Object.keys(record.result).length === 2 + Number(record.result.applied !== undefined)
+        && (record.result === null || (isRecord(record.result) && Object.keys(record.result).length === 2 + Number(record.result.applied !== undefined) + Number(record.result.checkpoint !== undefined)
           && Array.isArray(record.result.candidates) && record.result.candidates.length <= 32
           && record.result.candidates.every(isCandidateRecord)
           && (record.result.applied === undefined || isAppliedSourceObservation(record.result.applied))
+          && (record.result.checkpoint === undefined || (isCandidateCheckpointPage(record.result.checkpoint)
+            && record.result.page === null && record.result.applied === undefined && record.result.candidates.length === 1
+            && record.result.candidates[0].runId === record.result.checkpoint.runId
+            && record.result.candidates[0].summary.checkpoint?.entries === record.result.checkpoint.count))
           && (record.result.page === null || isCaptureInspectionPage(record.result.page))));
     case 'ack':
       return (

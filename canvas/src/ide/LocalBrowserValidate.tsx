@@ -7,7 +7,7 @@ import CanvasTooltip from '../components/CanvasTooltip';
 import { LocalBrowserContext } from './localBrowserContext';
 import './LocalBrowserValidate.css';
 
-export default function LocalBrowserValidate({ controls = 'all', compact = false }: { controls?: 'all' | 'run' | 'result'; compact?: boolean }): React.ReactElement | null {
+export default function LocalBrowserValidate({ controls = 'all' }: { controls?: 'all' | 'run' | 'result' }): React.ReactElement | null {
   const context = React.useContext(LocalBrowserContext);
   const validation = context?.validation;
   const [resultOpen, setResultOpen] = React.useState(false);
@@ -52,7 +52,7 @@ export default function LocalBrowserValidate({ controls = 'all', compact = false
   const ResultIcon = result?.status === 'passed' ? CheckCircle2 : result?.status === 'cancelled' ? CircleSlash : CircleAlert;
   return (
     <>
-      {controls !== 'result' && <CanvasTooltip text={reviewing ? 'Review device and inputs before Run.' : environmentPending ? 'Environment setup is running. Use Cancel to stop it.' : running ? 'Model execution is in progress. Use Cancel to stop it.' : disabledReason
+      {controls !== 'result' && <CanvasTooltip text={reviewing ? 'Review the device and inputs before Run.' : environmentPending ? 'Environment setup is running. Use Cancel to stop it.' : running ? 'Model execution is in progress. Use Cancel to stop it.' : disabledReason
         ?? (validation.reopens ? 'Run the model again with its saved setup.' : 'Choose the device and review inputs before running.')}><button
         type="button"
         className={controls === 'run' ? `local-canvas-control local-canvas-run${active ? ' local-canvas-capturing' : ''}` : 'ui2-primary-action ui2-primary-action-green'}
@@ -75,7 +75,7 @@ export default function LocalBrowserValidate({ controls = 'all', compact = false
           title="Stop the run and leave the graph as it is."
           aria-label="Cancel"
         >
-          <Square size={13} aria-hidden="true" />{!compact && <span className="local-canvas-control-label">Cancel</span>}
+          <Square size={13} aria-hidden="true" />
         </button></CanvasTooltip>
       )}
       {controls !== 'run' && result && (

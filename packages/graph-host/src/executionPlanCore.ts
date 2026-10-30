@@ -11,8 +11,12 @@ import { ownedTemporaryDirectory } from './ownedTemporary';
 
 export type ResolvedExecutionPlan = components['schemas']['ResolvedExecutionPlan'];
 export type CapturePreparation = components['schemas']['CapturePreparation'];
-export type CandidateRequest = components['schemas']['CandidateRequest'];
-export type CandidateExecution = components['schemas']['CandidateExecution'];
+export type RecipeCandidateRequest = components['schemas']['CandidateRequest'];
+export type RecipeCandidateExecution = components['schemas']['CandidateExecution'];
+export type SourceCandidateRequest = components['schemas']['SourceCandidateRequest'];
+export type SourceCandidateExecution = components['schemas']['SourceCandidateExecution'];
+export type CandidateRequest = RecipeCandidateRequest | SourceCandidateRequest;
+export type CandidateExecution = RecipeCandidateExecution | SourceCandidateExecution;
 export interface ExecutionSnapshot { plan: ResolvedExecutionPlan; applicabilityDigest: string; guards: Record<string, unknown> }
 export interface PreparationSnapshot { preparation: CapturePreparation; applicabilityDigest: string; guards: Record<string, unknown> }
 const session = randomUUID();

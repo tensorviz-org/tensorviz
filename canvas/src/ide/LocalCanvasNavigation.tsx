@@ -54,13 +54,13 @@ export default function LocalCanvasNavigation({ onFind, onReveal, hasSelection, 
   const copySource = context?.sourceAction === 'copy';
   const theme = useCanvasTheme();
   if (!navigation) return null;
-  const compact = navigation.headerCollapsed && !fullscreen;
+  const compact = navigation.compact && !fullscreen;
   const header = <>
       <div className="local-canvas-tool-group" role="group" aria-label="Graph view">
       <CodeFocusControls compact={compact} />
       {!context?.reviewing && <GraphDetailToggle level={detailLevel} compact={compact} />}
-      {!compact && <CanvasTooltip text="Find a layer by name and move the view to it. Press ⌘ / Ctrl P."><button ref={findButtonRef} type="button" className="local-canvas-control" aria-label="Find a layer" title="Find a layer (⌘P)"
-        onClick={onFind}><Search size={15} aria-hidden="true" /></button></CanvasTooltip>}
+      <CanvasTooltip text="Find a layer by name and move the view to it. Press ⌘ / Ctrl P."><button ref={findButtonRef} type="button" className="local-canvas-control" aria-label="Find a layer" title="Find a layer (⌘P)"
+        onClick={onFind}><Search size={15} aria-hidden="true" /></button></CanvasTooltip>
       </div>
       {!context?.reviewing && <div className="local-canvas-tool-group" role="group" aria-label="Model capture">
       {context?.page.opening && <CanvasTooltip text="Review the model configuration and example tensors saved in tensorviz.toml. Saving runs the model with them."><button type="button" className="local-canvas-control"
@@ -69,7 +69,7 @@ export default function LocalCanvasNavigation({ onFind, onReveal, hasSelection, 
         onClick={navigation.changeInputs} title="View or change the example inputs">
         <SlidersHorizontal size={15} aria-hidden="true" />{!compact && <span className="local-canvas-control-label">Inputs</span>}
       </button></CanvasTooltip>}
-      {!context?.reviewing && <LocalBrowserValidate controls="run" compact={compact} />}
+      {!context?.reviewing && <LocalBrowserValidate controls="run" />}
       </div>}
       <div className="local-canvas-tool-group" role="group" aria-label="Canvas tools">
       <CanvasTooltip text={theme === 'dark' ? 'Switch the Canvas to Light · Paper.' : 'Switch the Canvas to Dark · Ink.'}>
@@ -80,7 +80,7 @@ export default function LocalCanvasNavigation({ onFind, onReveal, hasSelection, 
           {!compact && <span className="local-canvas-control-label">{theme === 'dark' ? 'Light' : 'Dark'}</span>}
         </button>
       </CanvasTooltip>
-      {!context?.reviewing && !compact && more}
+      {!context?.reviewing && more}
       </div>
     </>;
   const footer = <>

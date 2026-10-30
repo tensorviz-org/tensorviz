@@ -21,12 +21,13 @@ from torch.overrides import TorchFunctionMode
 from torch.utils._python_dispatch import _disable_current_modes
 
 from .arguments import ArgumentEncoder
-from .contracts import CaptureLimits, CaptureSnapshot, InitializerArguments, SourceSnapshot
+from .contracts import CaptureLimits, CaptureSnapshot, InitializerArguments, Operation, SourceSnapshot
 from .diagnostics import forward_diagnostic
 from .identity import weak_get, weak_set
 from .initializer_arguments import unavailable as unavailable_initializer
 from .metrics import ParameterCounter, logical_bytes
 from .tensors import TensorMetadata
+from . import source_shape_call
 
 
 def _call_site_digest(value):
@@ -176,6 +177,8 @@ class SemanticRecorder:
         self.binding_bytes = 0
         self.initializer_bytes = 0
         self.initializers = {}
+        self.source_shape_calls, self.source_shape_bytes = {}, 0
+        self.source_shape_reads, self.source_shape_read_bytes, self.source_forward_bindings = {}, 0, {}
         self.data = dict(version=1, id=f"capture:{uuid4()}", attemptId=context.attempt_id,
             source=context.source.model_dump(mode="json"), planDigest=context.plan_digest,
             preparationDigest=context.preparation_digest, automatic=context.automatic,
@@ -325,6 +328,7 @@ class SemanticRecorder:
                     self.initializer_bytes += amount
                     self.initializers[record["id"]] = arguments
         self.data["modules"].append(record)
+        self.source_forward_bindings[record["id"]] = definition["sourceBindingIds"]
         weak_set(self.instances, module, record)
         return record
 
@@ -358,7 +362,6 @@ class SemanticRecorder:
                     parentId=self.stack[-1]["id"] if self.stack else None, sequence=sequence, endSequence=None,
                     arguments=arguments, output=None, status="interrupted", diagnosticId=None,
                     training=module.training, gradEnabled=torch.is_grad_enabled(),
-                    callSiteDigest=call_site() if self.stack else None,
                     sourceBindingIds=self.source_binding(self.sources.call_binding()) if self.sources else [],
                     **self.parameter_counter.measure(module))
                 # Only terminal fields need padding: bounded sequence/diagnostic
@@ -428,6 +431,8 @@ class SemanticRecorder:
             self.omit("recorder_error")
             return
         record = self.stack.pop()
+        if record is not None:
+            source_shape_call.end_invocation(self, record["id"])
         sequence = self.tick()
         if record is not None:
             record.update(endSequence=sequence, status="failed" if error is not None else "completed",
@@ -565,8 +570,11 @@ class SemanticRecorder:
                 start = recorder.data["coverage"]["operationsSeen"]
                 if escaped:
                     recorder.omit("unsupported_type")
+                source_call = source_shape_call.begin(recorder, func, args, kwargs or {})
+                result = None
                 try:
-                    return func(*args, **(kwargs or {}))
+                    result = func(*args, **(kwargs or {}))
+                    return result
                 except BaseException as error:
                     # Argument/autograd checks can fail before dispatcher entry.
                     if recorder.data["coverage"]["operationsSeen"] == start:
@@ -576,6 +584,7 @@ class SemanticRecorder:
                     raise
                 finally:
                     recorder.guard(recorder.flush)
+                    source_shape_call.finish(recorder, source_call, result)
                     if escaped:
                         recorder.guard(recorder.values.written, args)
         return Functions()
@@ -624,6 +633,15 @@ class SemanticRecorder:
                 if amount <= remaining:
                     module["initializerArguments"] = arguments
                     remaining -= amount
+            for operation in result["operations"]:
+                call = self.source_shape_calls.get(operation["id"])
+                if call is None:
+                    continue
+                observed = Operation.model_validate({**operation, **call}).model_dump(mode="json")
+                amount = size(observed) - size(operation)
+                if amount <= remaining:
+                    operation.update({key: observed[key] for key in call})
+                    remaining -= amount
             return result
         finally:
             self.pending = None
@@ -632,6 +650,9 @@ class SemanticRecorder:
             self.classes.clear()
             self.state.clear()
             self.initializers.clear()
+            self.source_shape_calls.clear()
+            self.source_shape_reads.clear()
+            self.source_forward_bindings.clear()
             self.values.objects.clear()
             self.values.storages.clear()
             self.values.storage_objects.clear()

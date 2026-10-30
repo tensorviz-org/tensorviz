@@ -1,42 +1,14 @@
 #!/usr/bin/env python3
-"""Assert on a template-validation sweep report.
+"""Require complete template and composition checks in the local gate.
 
-The gate used to `grep -q 'Single-template checks: **612/612 passed**'`. That
-pins a *denominator*: adding or removing one template broke the gate even though
-nothing regressed, and the obvious fix — editing the magic number — silently
-turns the check into a no-op, because "N/N passed" is true for any N including
-zero. It also never looked at the "Combination checks" line, which has read
-0/2 for as long as the report has existed.
-
-So this asserts the two things that actually matter:
-
-  * zero single-template failures, whatever the total is; and
-  * the total is not suspiciously small, so an empty or truncated sweep cannot
-    pass as "0 failures out of 0".
-
-Combination failures are reported loudly and compared against a documented
-baseline. They are aspp_block -> autoregressive_decoder_block in both modes, and
-they are NOT a Conv2d head fed a non-4D tensor as this docstring used to say: the
-gate runs with --disable-adapters, which chains two independently-seeded blocks
-with no shape reconciliation, so ASPP's 15-channel output meets a head declared
-at in_channels=3. Validation is right to reject that graph, and the product's own
-chaining path (plan_adapter_transition) bridges it — --enable-adapters reports
-2/2. Failing the gate on them
-would leave main red on a harness-only mode; ignoring them silently is how the
-old grep let 0/2 sit unnoticed. Printing them and holding the line at the known
-count does neither.
+The sweep uses the product's adapter planner when joining templates. Rejection of
+an unadapted, incompatible pair belongs in an explicit negative test, not in an
+allowed-failure count in the acceptance report.
 """
 from __future__ import annotations
 
 import re
 import sys
-
-# aspp_block -> autoregressive_decoder_block, in both standard and strict mode.
-# Reaching 0 means the gate's
-# combination pass chains templates the way the product does (adapters on) —
-# a reviewer's call about what the gate measures, not a number to edit; raising
-# it needs a register entry and a reviewer too.
-KNOWN_COMBINATION_FAILURES = 2
 
 # The floor belongs on the CATALOG, not on the check count. The sweep runs one check
 # per OFFERED template per validation mode, so a hardcoded check count pins the product
@@ -101,16 +73,13 @@ def main(path: str) -> int:
         detail = failures.group(1).strip() if failures else "(failure table not found)"
         problems.append(f"{single_failed} single-template failure(s):\n{detail}")
 
-    if combo_failed > KNOWN_COMBINATION_FAILURES:
+    if combo_total == 0:
+        problems.append("no combination checks ran")
+    if combo_failed:
         combos = re.search(r"## Combination Failures\n(.*?)\n## ", text, re.DOTALL)
         detail = combos.group(1).strip() if combos else "(failure table not found)"
         problems.append(
-            f"{combo_failed} combination failures, above the known {KNOWN_COMBINATION_FAILURES}:\n{detail}"
-        )
-    elif combo_failed:
-        print(
-            f"NOTE: {combo_failed} known combination failure(s), at the documented "
-            f"baseline of {KNOWN_COMBINATION_FAILURES}."
+            f"{combo_failed} combination failure(s):\n{detail}"
         )
 
     if problems:

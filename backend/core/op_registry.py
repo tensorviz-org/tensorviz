@@ -652,11 +652,26 @@ def _shape_glu(params: dict, inp: List[int], all_inputs: List[List[int]]) -> Opt
     return inp[:-1] + [inp[-1] // 2]
 
 
-def _shape_scalar_loss(params: dict, inp: List[int], all_inputs: List[List[int]]) -> Optional[List[int]]:
-    """Loss nodes return a scalar-like output shape."""
-    if not all_inputs:
-        return None
-    return [1]
+def _shape_loss(name: str):
+    """Reduced losses are zero-dimensional; unreduced losses keep their sample axes."""
+    def shape(params: dict, inp: List[int], all_inputs: List[List[int]]) -> Optional[List[int]]:
+        if not all_inputs:
+            return None
+        reduction = "none" if params.get("reduce") is False else params.get("reduction", "mean")
+        if reduction in {"mean", "sum"} or reduction == "batchmean" and name == "KLDivLoss":
+            return []
+        if reduction != "none":
+            return None
+        if name in {"CrossEntropyLoss", "NLLLoss"}:
+            return inp[:1] + inp[2:] if len(inp) > 1 else []
+        if name == "CTCLoss":
+            return [inp[1]] if len(inp) == 3 else []
+        if name in {"TripletMarginLoss", "CosineEmbeddingLoss"}:
+            return inp[:-1]
+        if name in {"MSELoss", "L1Loss", "HuberLoss", "SmoothL1Loss", "KLDivLoss"} and len(all_inputs) > 1:
+            return _broadcast_shapes(inp, all_inputs[1])
+        return list(inp)
+    return shape
 
 
 def _broadcast_shapes(s1: List[int], s2: List[int]) -> Optional[List[int]]:
@@ -1991,7 +2006,7 @@ for _loss_name in (
         out_dtype="float",
         defining_params=(),
         param_schema={},
-        shape_fn=_shape_scalar_loss,
+        shape_fn=_shape_loss(_loss_name),
         build_fn=_build_torch_nn(_loss_name),
     ))
 

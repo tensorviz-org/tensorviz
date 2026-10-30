@@ -6,6 +6,7 @@ import schema from '@tensorviz/contracts/semanticSchema.generated';
 import type { components } from '@tensorviz/contracts/semanticContracts.generated';
 import type { ResolvedExecutionPlan, CapturePreparation } from './executionPlanCore';
 import { initializerArgumentsValid } from '@tensorviz/contracts/initializerArguments';
+import { sourceShapeCallValid } from '@tensorviz/contracts/sourceShapeCall';
 
 export type CaptureSnapshot = components['schemas']['CaptureSnapshot'];
 type Argument = components['schemas']['Operation']['output'];
@@ -74,7 +75,7 @@ export function semanticCapture(value: unknown, attemptId: string, setup: Resolv
         || (call.status === 'completed') !== (call.output !== null)) return undefined;
     }
     for (const op of capture.operations) {
-      if (!args(op.arguments, op.sequence) || !tree(op.output, op.sequence + 1)
+      if (!sourceShapeCallValid(op, bindings, values, ops) || !args(op.arguments, op.sequence) || !tree(op.output, op.sequence + 1)
         || (op.invocationId !== null && !calls.has(op.invocationId))
         || (op.status === 'completed') !== (op.output !== null)) return undefined;
       for (const effect of op.effects) {

@@ -904,7 +904,42 @@
             "stateValueIds": [],
             "reason": null
           }
-        ]
+        ],
+        "reviewDeclarations": {
+          "entries": {
+            "@declaration:[\"model.py\",\"Model\",\"drop\"]": {
+              "label": "Model.drop",
+              "digest": "f6f68898533431929babc942503c4cf84261afbc59c5d3db44e27a323f443c04",
+              "ambiguous": false,
+              "span": {
+                "file": "model.py",
+                "start": [
+                  5,
+                  8
+                ],
+                "end": [
+                  5,
+                  44
+                ],
+                "kind": "decl"
+              },
+              "constructor": {
+                "file": "model.py",
+                "start": [
+                  5,
+                  20
+                ],
+                "end": [
+                  5,
+                  44
+                ],
+                "kind": "decl"
+              }
+            }
+          },
+          "complete": true
+        },
+        "sourceDeclarationCalls": {}
       }
     },
     "view": {

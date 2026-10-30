@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CandidateReviewPanel } from '../../ide/CandidateReviewPanel';
 import { LocalBrowserContext, type LocalBrowserContextValue } from '../../ide/localBrowserContext';
 import type { BrowserCandidateState } from '../../ide/localBrowserCandidateClient';
-import type { CandidateRecord, AppliedSourceObservation } from '../../ide/protocol.generated';
+import type { CandidateRecord, AppliedSourceObservation, CandidateCheckpointPage } from '../../ide/protocol.generated';
 import corpus from '../../../../tests/fixtures/contracts/local-browser-protocol.json';
 const applied = (): AppliedSourceObservation => JSON.parse(JSON.stringify(corpus)).valid
   .find((item: { messageId: string }) => item.messageId === 'applied-source-checked').result.applied;
@@ -15,6 +15,8 @@ function harness() {
       capture: 'unavailable', inputs: 'unavailable', state: 'unavailable', cleanup: 'not_run', semanticPostconditions: 'not_checked', diagnostics: [] }, records: [], detail: '' }] };
   const listeners = new Set<() => void>();
   const request = jest.fn(async (_id: string, action: any) => ({ candidates: state.reviews[0].records,
+    ...(action.kind === 'checkpoint' ? { checkpoint: {runId:action.runId,offset:action.offset,count:2,nextOffset:action.offset === 0 ? 1 : null,
+      text:action.offset === 0 ? 'left.weight: model [2,3]; checkpoint [2,4]' : 'right.weight: model [2,3]; checkpoint [2,4]'} as CandidateCheckpointPage } : {}),
     page: action.query ? { ...action.query, node: { key: null, kind: 'object', count: 0 }, items: [], total: 0, nextOffset: null } : null, detail: 'Historical evidence.' }));
   const run = jest.fn(async () => ({ candidates: null, page: null, detail: '' }));
   const client = { snapshot: () => JSON.parse(JSON.stringify(state)), onChange(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn); }; },
@@ -24,6 +26,27 @@ function harness() {
   </LocalBrowserContext.Provider>);
   return { run, request, update(fn: (value: BrowserCandidateState) => void) { act(() => { fn(state); listeners.forEach(fn => fn()); }); } };
 }
+
+test('a failed load exposes metadata on demand, pages it and clears it when selecting another run', async () => {
+  const h = harness();
+  h.update(state => {
+    const item = state.reviews[0]; item.open = false;
+    item.candidate = {...item.candidate!,runId:'load-failed',runtime:'failed',cleanup:'complete',
+      checkpoint:{loadStatus:'failed',complete:true,entries:2,shapeDifferences:2,dtypeDifferences:0,registeredOnly:0,checkpointOnly:0,unknownPresence:0}};
+    item.records = [{runId:'load-failed',startedAt:1,finishedAt:2,review:'historical',summary:item.candidate,
+      executionId:'exec',capture:null,unavailable:'not_captured'}];
+  });
+  expect(screen.getByText('Checkpoint load').nextElementSibling).toHaveTextContent('failed. Complete metadata. 2 shape differences');
+  expect(h.request.mock.calls.some(([, action]: [string, {kind: string}]) => action.kind === 'checkpoint')).toBe(false);
+  fireEvent.click(screen.getByRole('button', {name:'Inspect checkpoint load…'}));
+  await waitFor(() => expect(screen.getByLabelText('Checkpoint-load evidence')).toHaveTextContent('left.weight'));
+  fireEvent.click(screen.getByRole('button', {name:'Next checkpoint entries'}));
+  await waitFor(() => expect(screen.getByLabelText('Checkpoint-load evidence')).toHaveTextContent('right.weight'));
+  expect(screen.getByLabelText('Checkpoint-load evidence')).not.toHaveTextContent('left.weight');
+  h.update(state => { state.reviews[0].candidate = {...state.reviews[0].candidate!,runId:'new',runtime:'running',checkpoint:undefined}; });
+  expect(screen.queryByLabelText('Checkpoint-load evidence')).not.toBeInTheDocument();
+  expect(h.run).not.toHaveBeenCalled();
+});
 
 test('execution is explicit and preparation/coverage/state/postconditions remain independent', async () => {
   const h = harness(); expect(h.run).not.toHaveBeenCalled();
@@ -175,4 +198,28 @@ test.each(['reviewed_unsaved', 'reverted'] as const)('%s offers honest guidance 
   });
   expect(screen.getByText('Source at check').nextElementSibling).toHaveTextContent(source === 'reviewed_unsaved' ? 'unsaved buffer' : 'Original source restored');
   expect(screen.queryByText('Recorded requested change')).not.toBeInTheDocument(); expect(h.run).not.toHaveBeenCalled();
+});
+
+test('a multi-file capture comparison reports observed differences without certifying the requested behavior', () => {
+  const h = harness(); h.update(state => {
+    const item = state.reviews[0]; item.captured = true; item.open = false; item.outcome = 'applied';
+    item.applied = applied(); item.applied.reconciliation = null;
+    const { file, beforeDigest, afterDigest } = item.applied.receipt;
+    item.applied.receipt.files = [{ file, beforeDigest, afterDigest }, { file: 'width_config.py', beforeDigest, afterDigest }];
+    item.applied.sourceSetComparison = { baseCaptureId: 'base', captureId: 'after', sourceId: 'source', reason: 'reviewed_source',
+      dependencyScope: 'partial', inputs: 'same', state: 'different', semanticPostconditions: 'not_checked',
+      comparison: { equivalent: false, coverageComplete: true, changedFieldCount: 2, observedFieldCount: 4,
+        unresolvedFieldCount: 1, unmatchedRecordCount: 2, uncertainMatchCount: 0, connectionChangeCount: 1, unresolvedConnectionCount: 0 } };
+  });
+  expect(screen.getByText('Reviewed files').nextElementSibling).toHaveTextContent('width_config.py');
+  expect(screen.getByText('Captured computation').nextElementSibling).toHaveTextContent('Recorded computation differs.');
+  expect(screen.getByText('Requested behavior').nextElementSibling).toHaveTextContent('Not checked.');
+  expect(screen.queryByText('Recorded requested change')).not.toBeInTheDocument();
+  expect(h.run).not.toHaveBeenCalled();
+  h.update(state => { state.reviews[0].applied!.sourceSetComparison!.comparison!.equivalent = null; });
+  expect(screen.getByText('Captured computation').nextElementSibling).toHaveTextContent('Equivalence is unresolved.');
+  h.update(state => { const value = state.reviews[0].applied!.sourceSetComparison!;
+    value.reason = 'dependencies_changed'; value.inputs = 'unavailable'; value.state = 'unavailable'; value.comparison = null; });
+  expect(screen.queryByText('Captured computation')).not.toBeInTheDocument();
+  expect(screen.getByText('Recorded source comparison').nextElementSibling).toHaveTextContent('dependencies changed');
 });

@@ -2,7 +2,7 @@ import * as assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { CodeFocus } from '../../codeFocus';
 import { DEFAULT_CODE_FOCUS, type CodeFocusOptions, type LocalBrowserTargetIdentity } from '@tensorviz/contracts/protocol';
-import { documentChanges, editorState, fireConfigurationChange, openStubEditor, Range, reset, resetEditors, state } from '../vscodeStub';
+import { commands, documentChanges, editorState, fireConfigurationChange, openStubEditor, Range, reset, resetEditors, state, window } from '../vscodeStub';
 
 const file = '/workspace/model.py';
 const source = ['import torch', '', 'class Model(nn.Module):', '    def __init__(self):',
@@ -33,6 +33,16 @@ suite('codeFocus', () => {
     focus = new CodeFocus(() => current, message => messages.push(message));
   });
   teardown(() => focus.dispose());
+  // Which files a selection opened in an editor, in order.
+  const opened = () => {
+    // The stub attaches showTextDocument at runtime, outside its declared type.
+    const stub = window as typeof window & { showTextDocument(document: { uri: { fsPath: string } }): Promise<unknown> };
+    const shown: string[] = [];
+    const show = stub.showTextDocument;
+    stub.showTextDocument = async document => { shown.push(document.uri.fsPath); return show(document); };
+    teardown(() => { stub.showTextDocument = show; });
+    return shown;
+  };
   const ranges = (kind = 'dim', path = file) => {
     const call = editorState.decorationCalls.filter(c => c.fsPath === path
       && (kind === 'dim' ? c.type.options.opacity !== undefined : c.type.options.isWholeLine)).at(-1);
@@ -149,6 +159,72 @@ suite('codeFocus', () => {
     current.projection.spanmap.scale = { ...span, focus: { ...span.focus, parameter: { ...parameter, uses: [] } } };
     await focus.configure(selection(), options({ references: 'uses' }));
     assert.deepEqual(ranges(), []);
+  });
+
+  test('Code focus off never opens or dims code, and clears marks left while it was on', async () => {
+    const shown = opened();
+    await focus.select({ ...selection(), follow: true });
+    assert.equal(shown.length, 1);
+    assert.ok(ranges().length);
+    await focus.select({ ...selection(['op']), follow: false });
+    assert.deepEqual(ranges(), []);
+    assert.deepEqual(ranges('highlight'), []);
+    assert.equal(shown.length, 1, 'a selection with Code focus off must not open its source');
+    assert.match(messages.at(-1).detail, /Code focus is off/);
+    await focus.configure({ ...selection(['op']), follow: false }, options({ scope: 'class' }));
+    assert.deepEqual(ranges(), []);
+    assert.equal(shown.length, 1, 'changing focus settings with Code focus off must not open code');
+  });
+
+  test('Code focus on opens the selected source even with dimming off, without dimming it', async () => {
+    state.configuration.set('tensorviz.codeFocus', { ...DEFAULT_CODE_FOCUS });
+    focus.dispose();
+    focus = new CodeFocus(() => current, message => messages.push(message));
+    const shown = opened();
+    await focus.select({ ...selection(['op']), follow: true });
+    assert.deepEqual(shown, [file]);
+    assert.deepEqual(ranges(), []);
+    assert.match(messages.at(-1).detail, /Dimming is off/);
+    await focus.select({ ...selection(['op']), follow: true });
+    assert.equal(shown.length, 1, 'reselecting the same node does not reopen it');
+  });
+
+  test('turning Code focus on with a node selected opens its source', async () => {
+    const shown = opened();
+    await focus.select({ ...selection(['op']), follow: false });
+    assert.deepEqual(shown, []);
+    await focus.select({ ...selection(['op']), follow: true });
+    assert.deepEqual(shown, [file]);
+    assert.deepEqual(ranges('highlight'), [[8, 8]]);
+  });
+
+  test('showing source first makes room beside a Canvas that fills the window, and only then', async () => {
+    const shown = opened();
+    let fail = false;
+    const registration = commands.registerCommand('workbench.action.restoreAuxiliaryBar', () => {
+      shown.push('restore');
+      if (fail) throw new Error('command unavailable');
+    });
+    try {
+      await focus.select({ ...selection(['op']), follow: true });
+      assert.deepEqual(shown, ['restore', file]);
+      await focus.select({ ...selection(['op']), follow: true });
+      await focus.select({ ...selection(), follow: false });
+      assert.deepEqual(shown, ['restore', file], 'no source shown, so the layout is left alone');
+      fail = true;
+      await focus.select({ ...selection(), follow: true });
+      assert.deepEqual(shown, ['restore', file, 'restore', file], 'a failed restore still shows the source');
+    } finally { registration.dispose(); }
+  });
+
+  test('a view that sends no Code focus keeps the setting: Focus code off opens nothing', async () => {
+    state.configuration.set('tensorviz.codeFocus', { ...DEFAULT_CODE_FOCUS });
+    focus.dispose();
+    focus = new CodeFocus(() => current, message => messages.push(message));
+    const shown = opened();
+    await focus.select(selection(['op']));
+    assert.deepEqual(shown, []);
+    assert.match(messages.at(-1).detail, /Focus code is off/);
   });
 
   test('turning focus off from settings clears marks and disposing releases decorations', async () => {

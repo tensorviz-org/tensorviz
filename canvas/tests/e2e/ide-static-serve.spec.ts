@@ -1,23 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { ChildProcess, spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import * as net from 'node:net';
 import * as path from 'node:path';
+import { mintLocalBrowserSession, createLocalBrowserHostTransport,
+  type LocalBrowserHostTransport } from '@tensorviz/graph-host/localBrowserHostTransport';
 
 /**
- * Stage A, measured where tldraw measures it.
- *
- * tldraw 5 decides whether it is "production" from the page's own origin
- * (LicenseManager.mjs:58-60) and, on an unlicensed production origin,
- * LicenseProvider unmounts the editor five seconds later. That is the entire
- * reason the IDE serves the built app from the backend over http:// and iframes
- * it, instead of rendering it as a first-party `vscode-webview:` webview
- * (task.md D2).
- *
- * Neither the extension host nor the webview shell can read the DOM of a
- * cross-origin iframe, so no Electron test can check this. A browser can, against
- * exactly the bytes the extension ships: extension/media/app, served by
- * server_v2's StaticFiles mount, with the per-launch token in the URL.
+ * The packaged local browser Canvas needs a host-owned model session. Exercise
+ * the real broker/host transport and shipped bytes with a scripted projection;
+ * this is renderer/session acceptance, not installed extension capture evidence.
+ * A sessionless page must show reconnection, never a pretend live canvas.
  *
  * Prerequisites, both outside git: an interpreter with torch + fastapi + uvicorn
  * (TENSORVIZ_TEST_PYTHON, or BACKEND_PYTHON) and the staged app
@@ -68,7 +61,9 @@ async function waitForHealth(origin: string, budgetMs: number): Promise<void> {
 
 test.describe('the IDE build served over http', () => {
   let backend: ChildProcess | undefined;
+  let host: LocalBrowserHostTransport | undefined;
   let origin = '';
+  let pageUrl = '';
 
   test.skip(!PYTHON, 'TENSORVIZ_TEST_PYTHON / BACKEND_PYTHON is unset');
   test.skip(
@@ -97,9 +92,23 @@ test.describe('the IDE build served over http', () => {
     );
     backend.stderr?.on('data', (buffer: Buffer) => process.stderr.write(`[ide-backend] ${buffer}`));
     await waitForHealth(origin, 90_000);
+    const session = await mintLocalBrowserSession({ backendBaseUrl: origin, launchOrigin: origin, launchToken: TOKEN });
+    pageUrl = session.pageUrl;
+    host = createLocalBrowserHostTransport({ backendBaseUrl: origin, session });
+    const fixture = JSON.parse(readFileSync(path.join(REPO, 'canvas/src/test/fixtures/canvas/graphReview.json'), 'utf8')).after;
+    const projection = { ...fixture, traced: true,
+      document: JSON.parse(readFileSync(path.join(REPO, 'canvas/src/test/fixtures/canvas/capture-document.json'), 'utf8')) };
+    const target = { workspaceFolder: '/static-serve-fixture', file: projection.file, cls: projection.cls,
+      documentVersion: 1, sourceDigest: projection.sourceDigest, backendRevision: projection.revision };
+    const snapshot = () => host!.publish({ type: 'snapshot', state: { activeTarget: target, projection,
+      traced: true, greyed: false, syncState: 'runtime-traced', connectionState: 'connected' } });
+    host.onMessage(message => { if (message.type === 'snapshotRequest') snapshot(); });
+    await host.connect();
+    snapshot();
   });
 
   test.afterAll(() => {
+    host?.dispose();
     backend?.kill('SIGTERM');
   });
 
@@ -107,11 +116,14 @@ test.describe('the IDE build served over http', () => {
     const consoleErrors: string[] = [];
     page.on('pageerror', (error) => consoleErrors.push(error.message));
 
-    await page.goto(`${origin}/?token=${TOKEN}`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${origin}/?token=${TOKEN}${new URL(pageUrl).hash}`, { waitUntil: 'domcontentloaded' });
 
     // The token is a credential; the app lifts it out of the URL on startup so it
     // does not sit in a history entry or a screenshot (task.md §6.5).
     await expect.poll(() => new URL(page.url()).searchParams.get('token')).toBeNull();
+    await expect.poll(() => new URL(page.url()).hash).toBe('');
+    await expect(page.locator('.tl-container')).toBeVisible();
+    await expect(page.locator('.ui2-node-card').first()).toBeVisible();
 
     await page.waitForTimeout(LICENCE_GRACE_MS);
 
@@ -120,9 +132,16 @@ test.describe('the IDE build served over http', () => {
     );
     expect(
       containers,
-      'tldraw unmounted itself — the served origin was treated as unlicensed production',
+      'the authenticated Canvas must remain mounted after its initial render',
     ).toBeGreaterThanOrEqual(1);
     expect(consoleErrors, 'the app threw while rendering the canvas').toEqual([]);
+    expect(host!.protocolViolations).toBe(0);
+  });
+
+  test('a page without a model session asks to reconnect without mounting a graph', async ({ page }) => {
+    await page.goto(origin);
+    await expect(page.getByRole('heading', { name: 'Reconnect to your model', exact: true })).toBeVisible();
+    await expect(page.locator('.tl-container')).toHaveCount(0);
   });
 
   test('the API refuses a request that does not carry the launch token', async ({ request }) => {

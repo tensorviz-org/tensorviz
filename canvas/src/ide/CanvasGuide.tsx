@@ -21,7 +21,7 @@ export default function CanvasGuide() {
         <h3>Reading nodes</h3>
         <p>Modules group their layers and operations. Expand a module to inspect its contents; expansion does not execute Python.</p>
         <p>In a captured graph, input and output rows show shapes measured for that call. Source-only shapes are hints, not measurements. State nodes represent tensors such as parameters and buffers.</p>
-        <p>Opening a model runs it once with its saved inputs on the saved device. To run a captured model on another device, choose Run model, then Run. A passing run describes those example inputs, not every possible input.</p>
+        <p>Opening a model runs it once with its saved inputs on the saved device, or reuses an identical earlier result. To run a captured model on another device, choose Run model, then Run. A passing run describes those example inputs, not every possible input.</p>
       </section>
       <section className="local-canvas-menu-section" aria-label="Connections">
         <h3>Connections</h3>

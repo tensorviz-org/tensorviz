@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import ast
 import difflib
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -99,24 +100,31 @@ def _apply(
     return result
 
 
+def _units(text: str) -> bytes:
+    return text.encode("utf-16-le")
+
+
 def _offset(source: str, line: int, column: int) -> int:
-    """A 1-based line / 0-based column as a character offset, the way VS Code
-    resolves a Position against a document."""
-    lines = source.splitlines(keepends=True)
+    """A 1-based line / 0-based column as an offset in UTF-16 code units, the
+    way VS Code resolves a Position against a document: lines end only at
+    \\r\\n, \\r and \\n, where str.splitlines() also ends one at a form feed or
+    U+2028."""
+    lines = re.findall(r"[^\r\n]*(?:\r\n?|\n)|[^\r\n]+", source)
     if line - 1 >= len(lines):
-        return len(source)
-    return sum(len(text) for text in lines[: line - 1]) + column
+        return len(_units(source)) // 2
+    return sum(len(_units(text)) // 2 for text in lines[: line - 1]) + column
 
 
 def _replay(source: str, edits: Sequence[Dict[str, Any]]) -> str:
     """Apply edits the way ``WorkspaceEdit`` does: against the original offsets,
-    which is why they go on back to front."""
-    out = source
+    which is why they go on back to front, and in UTF-16 code units, so a column
+    counted in code points cuts the line short or leaves half a `😀` behind."""
+    out = _units(source)
     for edit in sorted(edits, key=lambda e: e["range"]["start"], reverse=True):
-        start = _offset(source, *edit["range"]["start"])
-        end = _offset(source, *edit["range"]["end"])
-        out = out[:start] + edit["newText"] + out[end:]
-    return out
+        start = 2 * _offset(source, *edit["range"]["start"])
+        end = 2 * _offset(source, *edit["range"]["end"])
+        out = out[:start] + _units(edit["newText"]) + out[end:]
+    return out.decode("utf-16-le", "surrogatepass")
 
 
 def _diff_lines(before: str, after: str) -> Dict[str, List[str]]:
@@ -547,6 +555,129 @@ class Net(nn.Module):
     )
     assert len(edited.edits) == 1
     assert "nn.Linear(8, 32)" in edited.source
+
+
+# The column conversion reads the line the AST numbers; a form feed, U+2028 or
+# U+0085 above it would make str.splitlines() read the line before instead, and
+# a split at "\n" alone finds no such line in a file that ends lines in "\r".
+@pytest.mark.parametrize("newline", ["\n", "\r\n", "\r"])
+@pytest.mark.parametrize("separator", ["", "\x0c", "#  ", "# \x85"])
+@pytest.mark.parametrize("signature,children", [
+    # Spans count UTF-16 code units and LibCST counts code points: `μ` is one of
+    # each (two UTF-8 bytes), `😀` is two UTF-16 units and one code point.
+    ("def __init__(self, d_μ=4):", "nn.Linear(d_μ, 4), nn.Linear(4, 2)"),
+    ("def __init__(self):", 'nn.Identity(note="😀"), nn.Linear(4, 2)'),
+])
+def test_set_param_edits_the_sequential_child_its_span_names_after_non_ascii_text(
+    signature, children, separator, newline
+):
+    """A span that missed its child call fell back to the whole statement, and
+    the edit went to `nn.Sequential(...)` itself, appending `out_features=3`."""
+    source = f'''import torch.nn as nn
+{separator}
+
+class Net(nn.Module):
+    {signature}
+        super().__init__()
+        self.seq = nn.Sequential({children})
+
+    def forward(self, x):
+        return self.seq(x)
+'''.replace("\n", newline)
+    spanmap = _project(source, "Net").spanmap
+    child = max((key for key in spanmap if key.startswith("linear@")), key=lambda key: spanmap[key]["start"][1])
+    result = _apply(
+        source,
+        [{"op": "set_param", "op_id": "o", "node_id": child, "param": "out_features", "value": 3}],
+    )
+    assert not result.refused
+    assert _diff_lines(source, result.source)["+"] == [
+        "+        self.seq = nn.Sequential({}){}".format(children.replace("nn.Linear(4, 2)", "nn.Linear(4, 3)"), newline)
+    ]
+
+
+def test_a_refusal_reveals_its_expression_in_utf16_columns():
+    """The extension selects a refusal's range as VS Code positions, which count
+    UTF-16 code units; LibCST counts code points, one fewer per `😀`."""
+    source = MLP.replace("def __init__(self):", "def __init__(self, width=128):").replace(
+        "nn.Linear(784, 128)", 'nn.Linear(len("😀"), width)')
+    result = _apply(
+        source,
+        [{"op": "set_param", "op_id": "o", "node_id": "fc1", "param": "out_features", "value": 32}],
+    )
+    span = _refusal(result, "o")["span"]
+    line = source.split("\n")[span["start"][0] - 1]
+    prefix = len(line[: line.index("width)")].encode("utf-16-le")) // 2
+    assert (span["start"][1], span["end"][1]) == (prefix, prefix + len("width"))
+
+
+@pytest.mark.parametrize("separator", ["\x0c", "#  ", "# \x85"])
+def test_set_param_edits_the_line_its_span_names_below_a_form_feed(separator):
+    """Python and VS Code end lines only at \\r\\n, \\r and \\n; splitlines()
+    also ends one at a form feed, U+2028 or U+0085. The edit landed a line low:
+    it kept `self.fc`, wrote a second one over `self.out`, and `forward` still
+    called the attribute that was gone."""
+    source = f'''import torch.nn as nn
+{separator}
+
+class Net(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc = nn.Linear(4, 4)
+        self.out = nn.Linear(4, 2)
+
+    def forward(self, x):
+        return self.out(self.fc(x))
+'''
+    result = _apply(
+        source,
+        [{"op": "set_param", "op_id": "o", "node_id": "fc", "param": "out_features", "value": 8}],
+    )
+    assert not result.refused
+    assert result.edits == [
+        {"range": {"start": [7, 0], "end": [8, 0]}, "newText": "        self.fc = nn.Linear(4, 8)\n"}
+    ]
+
+
+@pytest.mark.parametrize("comment", ["# 😀", "# 😀 ok"])
+def test_an_edit_to_an_unterminated_last_line_ends_at_its_utf16_length(comment):
+    """With no final newline the edit ends at the end of the last line, as a VS
+    Code position. `😀` is two UTF-16 code units and one code point, so an end
+    counted in code points stopped short of the line's end: it left half the
+    emoji, or the `k`, after the new text."""
+    source = f'''import torch.nn as nn
+
+
+class Net(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc1 = nn.Linear(4, 4)
+        self.fc2 = nn.Linear(4, 2)
+
+    def forward(self, x):
+        return self.fc2(self.fc1(x))  {comment}'''
+    result = _apply(source, [{"op": "remove_layer", "op_id": "r", "node_id": "fc2"}])
+    assert not result.refused
+    last = source.split("\n")[-1]
+    assert result.edits[-1] == {
+        "range": {"start": [11, 0], "end": [11, len(last.encode("utf-16-le")) // 2]},
+        "newText": f"        return self.fc1(x)  {comment}",
+    }
+
+
+def test_an_edit_keeps_the_last_line_break_of_a_file_whose_lines_end_in_cr():
+    """LibCST reads a final lone \\r as the end of the last line but writes the
+    module back without it, so a set_param on `fc1` came with a second edit that
+    stripped the line break off `return x`."""
+    source = MLP.replace("\n", "\r")
+    result = _apply(
+        source,
+        [{"op": "set_param", "op_id": "o", "node_id": "fc1", "param": "out_features", "value": 32}],
+    )
+    assert not result.refused
+    assert result.edits == [
+        {"range": {"start": [9, 0], "end": [10, 0]}, "newText": "        self.fc1 = nn.Linear(784, 32)\r"}
+    ]
 
 
 def test_a_rename_onto_an_existing_attribute_is_refused():

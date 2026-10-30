@@ -7,6 +7,7 @@ import { startBridge } from './bridge';
 import LocalBrowserApp from './LocalBrowserApp';
 import { CanvasErrorBoundary } from './CanvasErrorBoundary';
 import { configureCanvasTheme } from '../styles/canvasTheme';
+import { configureCodeFocusOn } from './codeFocusOn';
 import { getAssetUrls } from '@tldraw/assets/selfHosted';
 import { CanvasAssetContext } from '../canvas/TldrawCanvas';
 
@@ -18,7 +19,8 @@ window.__TENSORVIZ_IDE__ = true;
 const url = new URL(window.location.href);
 
 const view = url.searchParams.get('view');
-configureCanvasTheme(view === 'canvas' ? 'host' : 'browser');
+configureCanvasTheme(view === 'canvas' || view === 'compare' ? 'host' : 'browser');
+configureCodeFocusOn(view === 'canvas' || view === 'compare' ? 'host' : 'browser');
 
 const token = url.searchParams.get('token');
 if (token) {

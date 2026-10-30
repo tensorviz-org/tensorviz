@@ -1,0 +1,961 @@
+{
+  "version": 1,
+  "python": "3.12.14",
+  "torch": "2.7.1",
+  "scope": "Authored CPU oracle; local fixed-input shape constraints, no provider-quality or installed claim",
+  "cases": [
+    {
+      "name": "variadic",
+      "derivable": true,
+      "sources": [{"file": "model.py", "source": "import torch\nWIDTH = 4\nclass Model(torch.nn.Module):\n    def forward(self, h):\n        return h.view(-1, WIDTH)\n", "digest": "b4e88c09d3de53ab1964555a294c89e1438832d25fd5f9d0cf5ace0af96f4f37"}],
+      "queries": [
+        {
+          "query": {"file": "model.py", "symbol": "WIDTH", "direction": "downstream", "depth": 8, "limit": 100, "assumeValue": 8},
+          "page": {
+            "version": 1,
+            "indexId": "54b55eb41467f35943227ff560580e3130b34038e68d8a4e81be0d63a8b3a2ab",
+            "evidence": "source_only",
+            "scope": "supplied_python_files",
+            "files": [{"file": "model.py", "digest": "b4e88c09d3de53ab1964555a294c89e1438832d25fd5f9d0cf5ace0af96f4f37"}],
+            "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+            "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+            "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+            "omittedDiagnostics": 0,
+            "traversal": {"entities": 3, "boundaries": 0, "omittedSeeds": 0},
+            "total": 5,
+            "items": [
+              {
+                "id": "source:519ca08e6ad9062f294857ea58ae1a420209b46020a4f27005bde26d64b6a616",
+                "kind": "definition",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "b4e88c09d3de53ab1964555a294c89e1438832d25fd5f9d0cf5ace0af96f4f37", "startLine": 2, "startColumn": 0, "endLine": 2, "endColumn": 5, "scope": "<module>", "tokenDigest": "a75163de251157a73c7bc6399af56f277ac38c3d0c23e0fc9d641a5b745540fb"},
+                "bindingKind": "assignment",
+                "excerpt": "WIDTH = 4",
+                "literalSource": "4",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:41307e742da359704fbf8692d51afc20093b5f5d2c62fdcbd00799b15bef2b2c",
+                "kind": "reference",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "b4e88c09d3de53ab1964555a294c89e1438832d25fd5f9d0cf5ace0af96f4f37", "startLine": 5, "startColumn": 26, "endLine": 5, "endColumn": 31, "scope": "Model.forward", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+                "excerpt": "        return h.view(-1, WIDTH)",
+                "resolution": "lexical",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:f412f3da09195a98347a4337d25bcdb1799399e3c6c21d3ddc1fed5ad7ab7f00",
+                "kind": "call",
+                "name": "h.view",
+                "anchor": {"file": "model.py", "digest": "b4e88c09d3de53ab1964555a294c89e1438832d25fd5f9d0cf5ace0af96f4f37", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 32, "scope": "Model.forward", "tokenDigest": "295171c5ed441de16e78ab779c6c1974f8f9e47ff8df3a7c41d18f6c83cc0382"},
+                "excerpt": "        return h.view(-1, WIDTH)",
+                "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 1], "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "derived", "before": -1, "after": -1, "reason": "integer_expression"}, {"path": ["args", 1], "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+              },
+              {"kind": "relation", "source": "source:519ca08e6ad9062f294857ea58ae1a420209b46020a4f27005bde26d64b6a616", "target": "source:41307e742da359704fbf8692d51afc20093b5f5d2c62fdcbd00799b15bef2b2c", "relation": "reference", "certainty": "lexical"},
+              {"kind": "relation", "source": "source:41307e742da359704fbf8692d51afc20093b5f5d2c62fdcbd00799b15bef2b2c", "target": "source:f412f3da09195a98347a4337d25bcdb1799399e3c6c21d3ddc1fed5ad7ab7f00", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 1]}
+            ],
+            "nextOffset": null,
+            "changeAnalysis": {
+              "version": 1,
+              "evidence": "conditional_source_arithmetic",
+              "definitionId": "source:519ca08e6ad9062f294857ea58ae1a420209b46020a4f27005bde26d64b6a616",
+              "before": 4,
+              "after": 8,
+              "scope": "source_records_on_this_page",
+              "assumptions": ["Only the selected integer definition changes; supported direct lexical bindings retain their source meanings.", "Branches, call order, import overrides and runtime mutation are not evaluated."],
+              "limitations": ["Only integer literals, direct names/imports, unary signs and +, -, *, //, % are evaluated.", "No execution, tensor shape, checkpoint compatibility or candidate-validity claim is made."]
+            }
+          }
+        },
+        {
+          "query": {"file": "model.py", "symbol": "WIDTH", "direction": "downstream", "depth": 8, "limit": 100, "assumeValue": 3},
+          "page": {
+            "version": 1,
+            "indexId": "54b55eb41467f35943227ff560580e3130b34038e68d8a4e81be0d63a8b3a2ab",
+            "evidence": "source_only",
+            "scope": "supplied_python_files",
+            "files": [{"file": "model.py", "digest": "b4e88c09d3de53ab1964555a294c89e1438832d25fd5f9d0cf5ace0af96f4f37"}],
+            "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+            "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+            "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+            "omittedDiagnostics": 0,
+            "traversal": {"entities": 3, "boundaries": 0, "omittedSeeds": 0},
+            "total": 5,
+            "items": [
+              {
+                "id": "source:519ca08e6ad9062f294857ea58ae1a420209b46020a4f27005bde26d64b6a616",
+                "kind": "definition",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "b4e88c09d3de53ab1964555a294c89e1438832d25fd5f9d0cf5ace0af96f4f37", "startLine": 2, "startColumn": 0, "endLine": 2, "endColumn": 5, "scope": "<module>", "tokenDigest": "a75163de251157a73c7bc6399af56f277ac38c3d0c23e0fc9d641a5b745540fb"},
+                "bindingKind": "assignment",
+                "excerpt": "WIDTH = 4",
+                "literalSource": "4",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:41307e742da359704fbf8692d51afc20093b5f5d2c62fdcbd00799b15bef2b2c",
+                "kind": "reference",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "b4e88c09d3de53ab1964555a294c89e1438832d25fd5f9d0cf5ace0af96f4f37", "startLine": 5, "startColumn": 26, "endLine": 5, "endColumn": 31, "scope": "Model.forward", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+                "excerpt": "        return h.view(-1, WIDTH)",
+                "resolution": "lexical",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:f412f3da09195a98347a4337d25bcdb1799399e3c6c21d3ddc1fed5ad7ab7f00",
+                "kind": "call",
+                "name": "h.view",
+                "anchor": {"file": "model.py", "digest": "b4e88c09d3de53ab1964555a294c89e1438832d25fd5f9d0cf5ace0af96f4f37", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 32, "scope": "Model.forward", "tokenDigest": "295171c5ed441de16e78ab779c6c1974f8f9e47ff8df3a7c41d18f6c83cc0382"},
+                "excerpt": "        return h.view(-1, WIDTH)",
+                "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 1], "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "derived", "before": -1, "after": -1, "reason": "integer_expression"}, {"path": ["args", 1], "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+              },
+              {"kind": "relation", "source": "source:519ca08e6ad9062f294857ea58ae1a420209b46020a4f27005bde26d64b6a616", "target": "source:41307e742da359704fbf8692d51afc20093b5f5d2c62fdcbd00799b15bef2b2c", "relation": "reference", "certainty": "lexical"},
+              {"kind": "relation", "source": "source:41307e742da359704fbf8692d51afc20093b5f5d2c62fdcbd00799b15bef2b2c", "target": "source:f412f3da09195a98347a4337d25bcdb1799399e3c6c21d3ddc1fed5ad7ab7f00", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 1]}
+            ],
+            "nextOffset": null,
+            "changeAnalysis": {
+              "version": 1,
+              "evidence": "conditional_source_arithmetic",
+              "definitionId": "source:519ca08e6ad9062f294857ea58ae1a420209b46020a4f27005bde26d64b6a616",
+              "before": 4,
+              "after": 3,
+              "scope": "source_records_on_this_page",
+              "assumptions": ["Only the selected integer definition changes; supported direct lexical bindings retain their source meanings.", "Branches, call order, import overrides and runtime mutation are not evaluated."],
+              "limitations": ["Only integer literals, direct names/imports, unary signs and +, -, *, //, % are evaluated.", "No execution, tensor shape, checkpoint compatibility or candidate-validity claim is made."]
+            }
+          }
+        }
+      ],
+      "capture": {
+        "version": 1,
+        "id": "capture:64dba6e8-4953-4fdd-8342-c2816caea4f2",
+        "attemptId": "attempt:variadic",
+        "source": {
+          "version": 1,
+          "id": "source:variadic",
+          "workspaceSessionId": "session:oracle",
+          "workspaceId": "workspace:oracle",
+          "modelId": "model:variadic",
+          "modelFile": "model.py",
+          "className": "Model",
+          "generation": 0,
+          "files": [{"path": "model.py", "digest": "b4e88c09d3de53ab1964555a294c89e1438832d25fd5f9d0cf5ace0af96f4f37", "documentVersion": 1, "role": "source"}],
+          "dependencyScope": "complete",
+          "configDigest": null,
+          "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "sourceMode": "saved"
+        },
+        "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "preparationDigest": null,
+        "automatic": null,
+        "inputDigest": null,
+        "stateDigest": null,
+        "backend": "runtime",
+        "backendVersion": "1",
+        "torchVersion": "2.7.1",
+        "jaxVersion": null,
+        "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch", "Source bindings identify authored expressions, not independently editable dispatcher operations"],
+        "status": "complete",
+        "rootInvocationId": "invocation:0",
+        "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor1"},
+        "definitions": [{"id": "definition:0", "qualifiedName": "source_shape_oracle.Model", "sourceBindingIds": ["binding:d7560f5aaaff471619d1844377f081c9a7bca59b714a9d30120a46662ccfb150"]}],
+        "modules": [{"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": [], "constructorClassVerified": false, "initializerArguments": null}],
+        "invocations": [{"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 2, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor1"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 0, "parameterCountUnavailable": null, "sourceBindingIds": []}],
+        "operations": [
+          {
+            "id": "operation:0",
+            "sequence": 1,
+            "invocationId": "invocation:0",
+            "target": "aten.view.default",
+            "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+            "arguments": {"args": [{"kind": "value", "id": "tensor0"}, {"kind": "list", "items": [{"kind": "int", "value": "-1"}, {"kind": "int", "value": "4"}]}], "kwargs": {}},
+            "output": {"kind": "value", "id": "tensor1"},
+            "effects": [],
+            "status": "completed",
+            "diagnosticId": null,
+            "sourceBindingIds": ["binding:c042047e474f3c80c3b3697b2d5cc491089c5b1dc45a23fbd3d089c38ac1ca71"],
+            "sourceShapeCall": {"callable": "torch.Tensor.view", "bindingId": "binding:c042047e474f3c80c3b3697b2d5cc491089c5b1dc45a23fbd3d089c38ac1ca71", "dimensions": [{"sourcePath": ["args", 0], "dimension": 0, "value": {"kind": "int", "value": "-1"}}, {"sourcePath": ["args", 1], "dimension": 1, "value": {"kind": "int", "value": "4"}}]}
+          }
+        ],
+        "values": [
+          {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [2, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 32, "producer": null, "origin": "input", "state": []},
+          {"id": "tensor1", "objectId": "object1", "storageId": "storage0", "version": 0, "shape": [2, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor0", "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 32, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []}
+        ],
+        "sourceBindings": [
+          {"id": "binding:d7560f5aaaff471619d1844377f081c9a7bca59b714a9d30120a46662ccfb150", "snapshotId": "source:variadic", "kind": "definition", "quality": "exact", "anchors": [{"file": "model.py", "digest": "b4e88c09d3de53ab1964555a294c89e1438832d25fd5f9d0cf5ace0af96f4f37", "startLine": 4, "startColumn": 4, "endLine": 5, "endColumn": 32, "scope": "Model.forward", "tokenDigest": "827ce7d4863bddbf8cfb837344e2f4d8602cbb9414f9e006889c62534576036d"}]},
+          {"id": "binding:c042047e474f3c80c3b3697b2d5cc491089c5b1dc45a23fbd3d089c38ac1ca71", "snapshotId": "source:variadic", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "b4e88c09d3de53ab1964555a294c89e1438832d25fd5f9d0cf5ace0af96f4f37", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 32, "scope": "Model.forward", "tokenDigest": "295171c5ed441de16e78ab779c6c1974f8f9e47ff8df3a7c41d18f6c83cc0382"}]}
+        ],
+        "diagnostics": [],
+        "coverage": {"scope": "executed_path", "operationsSeen": 1, "invocationsSeen": 1, "omissions": [], "modules": [{"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null}]},
+        "limits": {"operations": 100, "invocations": 100, "values": 100, "bytes": 1048576}
+      },
+      "independentRuns": [{"width": 4, "forward": "passed", "outputShape": [2, 4]}, {"width": 8, "forward": "passed", "outputShape": [1, 8]}, {"width": 3, "forward": "failed", "outputShape": null}]
+    },
+    {
+      "name": "keyword_tuple",
+      "derivable": true,
+      "sources": [{"file": "model.py", "source": "import torch\nWIDTH = 4\nclass Model(torch.nn.Module):\n    def forward(self, h):\n        return torch.reshape(input=h, shape=(-1, WIDTH))\n", "digest": "8187938abe4237691e09bfa4c4c7c5abd8497bb668396631747bfd95ffd4d053"}],
+      "queries": [
+        {
+          "query": {"file": "model.py", "symbol": "WIDTH", "direction": "downstream", "depth": 8, "limit": 100, "assumeValue": 8},
+          "page": {
+            "version": 1,
+            "indexId": "0c224d96899165db988e1fa46abb8e2c9fc19b88bc3c743d4bb2f8ce2d919650",
+            "evidence": "source_only",
+            "scope": "supplied_python_files",
+            "files": [{"file": "model.py", "digest": "8187938abe4237691e09bfa4c4c7c5abd8497bb668396631747bfd95ffd4d053"}],
+            "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+            "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+            "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+            "omittedDiagnostics": 0,
+            "traversal": {"entities": 3, "boundaries": 0, "omittedSeeds": 0},
+            "total": 5,
+            "items": [
+              {
+                "id": "source:f1abca8f0fa1d7b6a1b08538bee1a9f0fec4f2caa2a00b9edbb5ba6e7976e703",
+                "kind": "definition",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "8187938abe4237691e09bfa4c4c7c5abd8497bb668396631747bfd95ffd4d053", "startLine": 2, "startColumn": 0, "endLine": 2, "endColumn": 5, "scope": "<module>", "tokenDigest": "a75163de251157a73c7bc6399af56f277ac38c3d0c23e0fc9d641a5b745540fb"},
+                "bindingKind": "assignment",
+                "excerpt": "WIDTH = 4",
+                "literalSource": "4",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:0954b261da1d1ac7a8bf9781ea85d4e0adadac38ab70ac5db5f8c5488929b1de",
+                "kind": "reference",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "8187938abe4237691e09bfa4c4c7c5abd8497bb668396631747bfd95ffd4d053", "startLine": 5, "startColumn": 49, "endLine": 5, "endColumn": 54, "scope": "Model.forward", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+                "excerpt": "        return torch.reshape(input=h, shape=(-1, WIDTH))",
+                "resolution": "lexical",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:e4bd886c5752cd071dae553b44902c87bba249e7080496c0c815dd5d8136aa3e",
+                "kind": "call",
+                "name": "torch.reshape",
+                "anchor": {"file": "model.py", "digest": "8187938abe4237691e09bfa4c4c7c5abd8497bb668396631747bfd95ffd4d053", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 56, "scope": "Model.forward", "tokenDigest": "44d1651bca400e6a770c717e5b4c2542f6a8fd87808de0f861572e23da93a1c6"},
+                "excerpt": "        return torch.reshape(input=h, shape=(-1, WIDTH))",
+                "configurationChange": {
+                  "kind": "call",
+                  "arguments": [{"path": ["kwargs", "shape"], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}],
+                  "omittedArguments": 0,
+                  "argumentValues": [{"path": ["kwargs", "input"], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}, {"path": ["kwargs", "shape", "items", 0], "status": "derived", "before": -1, "after": -1, "reason": "integer_expression"}, {"path": ["kwargs", "shape", "items", 1], "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}],
+                  "omittedArgumentValues": 0,
+                  "hasExpansion": false
+                }
+              },
+              {"kind": "relation", "source": "source:f1abca8f0fa1d7b6a1b08538bee1a9f0fec4f2caa2a00b9edbb5ba6e7976e703", "target": "source:0954b261da1d1ac7a8bf9781ea85d4e0adadac38ab70ac5db5f8c5488929b1de", "relation": "reference", "certainty": "lexical"},
+              {"kind": "relation", "source": "source:0954b261da1d1ac7a8bf9781ea85d4e0adadac38ab70ac5db5f8c5488929b1de", "target": "source:e4bd886c5752cd071dae553b44902c87bba249e7080496c0c815dd5d8136aa3e", "relation": "argument", "certainty": "lexical", "argumentPath": ["kwargs", "shape"]}
+            ],
+            "nextOffset": null,
+            "changeAnalysis": {
+              "version": 1,
+              "evidence": "conditional_source_arithmetic",
+              "definitionId": "source:f1abca8f0fa1d7b6a1b08538bee1a9f0fec4f2caa2a00b9edbb5ba6e7976e703",
+              "before": 4,
+              "after": 8,
+              "scope": "source_records_on_this_page",
+              "assumptions": ["Only the selected integer definition changes; supported direct lexical bindings retain their source meanings.", "Branches, call order, import overrides and runtime mutation are not evaluated."],
+              "limitations": ["Only integer literals, direct names/imports, unary signs and +, -, *, //, % are evaluated.", "No execution, tensor shape, checkpoint compatibility or candidate-validity claim is made."]
+            }
+          }
+        },
+        {
+          "query": {"file": "model.py", "symbol": "WIDTH", "direction": "downstream", "depth": 8, "limit": 100, "assumeValue": 3},
+          "page": {
+            "version": 1,
+            "indexId": "0c224d96899165db988e1fa46abb8e2c9fc19b88bc3c743d4bb2f8ce2d919650",
+            "evidence": "source_only",
+            "scope": "supplied_python_files",
+            "files": [{"file": "model.py", "digest": "8187938abe4237691e09bfa4c4c7c5abd8497bb668396631747bfd95ffd4d053"}],
+            "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+            "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+            "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+            "omittedDiagnostics": 0,
+            "traversal": {"entities": 3, "boundaries": 0, "omittedSeeds": 0},
+            "total": 5,
+            "items": [
+              {
+                "id": "source:f1abca8f0fa1d7b6a1b08538bee1a9f0fec4f2caa2a00b9edbb5ba6e7976e703",
+                "kind": "definition",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "8187938abe4237691e09bfa4c4c7c5abd8497bb668396631747bfd95ffd4d053", "startLine": 2, "startColumn": 0, "endLine": 2, "endColumn": 5, "scope": "<module>", "tokenDigest": "a75163de251157a73c7bc6399af56f277ac38c3d0c23e0fc9d641a5b745540fb"},
+                "bindingKind": "assignment",
+                "excerpt": "WIDTH = 4",
+                "literalSource": "4",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:0954b261da1d1ac7a8bf9781ea85d4e0adadac38ab70ac5db5f8c5488929b1de",
+                "kind": "reference",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "8187938abe4237691e09bfa4c4c7c5abd8497bb668396631747bfd95ffd4d053", "startLine": 5, "startColumn": 49, "endLine": 5, "endColumn": 54, "scope": "Model.forward", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+                "excerpt": "        return torch.reshape(input=h, shape=(-1, WIDTH))",
+                "resolution": "lexical",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:e4bd886c5752cd071dae553b44902c87bba249e7080496c0c815dd5d8136aa3e",
+                "kind": "call",
+                "name": "torch.reshape",
+                "anchor": {"file": "model.py", "digest": "8187938abe4237691e09bfa4c4c7c5abd8497bb668396631747bfd95ffd4d053", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 56, "scope": "Model.forward", "tokenDigest": "44d1651bca400e6a770c717e5b4c2542f6a8fd87808de0f861572e23da93a1c6"},
+                "excerpt": "        return torch.reshape(input=h, shape=(-1, WIDTH))",
+                "configurationChange": {
+                  "kind": "call",
+                  "arguments": [{"path": ["kwargs", "shape"], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}],
+                  "omittedArguments": 0,
+                  "argumentValues": [{"path": ["kwargs", "input"], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}, {"path": ["kwargs", "shape", "items", 0], "status": "derived", "before": -1, "after": -1, "reason": "integer_expression"}, {"path": ["kwargs", "shape", "items", 1], "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}],
+                  "omittedArgumentValues": 0,
+                  "hasExpansion": false
+                }
+              },
+              {"kind": "relation", "source": "source:f1abca8f0fa1d7b6a1b08538bee1a9f0fec4f2caa2a00b9edbb5ba6e7976e703", "target": "source:0954b261da1d1ac7a8bf9781ea85d4e0adadac38ab70ac5db5f8c5488929b1de", "relation": "reference", "certainty": "lexical"},
+              {"kind": "relation", "source": "source:0954b261da1d1ac7a8bf9781ea85d4e0adadac38ab70ac5db5f8c5488929b1de", "target": "source:e4bd886c5752cd071dae553b44902c87bba249e7080496c0c815dd5d8136aa3e", "relation": "argument", "certainty": "lexical", "argumentPath": ["kwargs", "shape"]}
+            ],
+            "nextOffset": null,
+            "changeAnalysis": {
+              "version": 1,
+              "evidence": "conditional_source_arithmetic",
+              "definitionId": "source:f1abca8f0fa1d7b6a1b08538bee1a9f0fec4f2caa2a00b9edbb5ba6e7976e703",
+              "before": 4,
+              "after": 3,
+              "scope": "source_records_on_this_page",
+              "assumptions": ["Only the selected integer definition changes; supported direct lexical bindings retain their source meanings.", "Branches, call order, import overrides and runtime mutation are not evaluated."],
+              "limitations": ["Only integer literals, direct names/imports, unary signs and +, -, *, //, % are evaluated.", "No execution, tensor shape, checkpoint compatibility or candidate-validity claim is made."]
+            }
+          }
+        }
+      ],
+      "capture": {
+        "version": 1,
+        "id": "capture:9527965c-b37b-4739-9d61-e1880ade2e23",
+        "attemptId": "attempt:keyword_tuple",
+        "source": {
+          "version": 1,
+          "id": "source:keyword_tuple",
+          "workspaceSessionId": "session:oracle",
+          "workspaceId": "workspace:oracle",
+          "modelId": "model:keyword_tuple",
+          "modelFile": "model.py",
+          "className": "Model",
+          "generation": 0,
+          "files": [{"path": "model.py", "digest": "8187938abe4237691e09bfa4c4c7c5abd8497bb668396631747bfd95ffd4d053", "documentVersion": 1, "role": "source"}],
+          "dependencyScope": "complete",
+          "configDigest": null,
+          "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "sourceMode": "saved"
+        },
+        "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "preparationDigest": null,
+        "automatic": null,
+        "inputDigest": null,
+        "stateDigest": null,
+        "backend": "runtime",
+        "backendVersion": "1",
+        "torchVersion": "2.7.1",
+        "jaxVersion": null,
+        "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch", "Source bindings identify authored expressions, not independently editable dispatcher operations"],
+        "status": "complete",
+        "rootInvocationId": "invocation:0",
+        "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor1"},
+        "definitions": [{"id": "definition:0", "qualifiedName": "source_shape_oracle.Model", "sourceBindingIds": ["binding:baf968f0777c50ac9a7fd92c85786c9eb6994a0d808c072d7362e6e9e86ace2c"]}],
+        "modules": [{"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": [], "constructorClassVerified": false, "initializerArguments": null}],
+        "invocations": [{"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 2, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor1"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 0, "parameterCountUnavailable": null, "sourceBindingIds": []}],
+        "operations": [
+          {
+            "id": "operation:0",
+            "sequence": 1,
+            "invocationId": "invocation:0",
+            "target": "aten.view.default",
+            "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+            "arguments": {"args": [{"kind": "value", "id": "tensor0"}, {"kind": "list", "items": [{"kind": "int", "value": "-1"}, {"kind": "int", "value": "4"}]}], "kwargs": {}},
+            "output": {"kind": "value", "id": "tensor1"},
+            "effects": [],
+            "status": "completed",
+            "diagnosticId": null,
+            "sourceBindingIds": ["binding:82e6b4487ac3766c67da3585e50a3c60a6d72accecf9c1dd5351892243e86207"],
+            "sourceShapeCall": {"callable": "torch.reshape", "bindingId": "binding:82e6b4487ac3766c67da3585e50a3c60a6d72accecf9c1dd5351892243e86207", "dimensions": [{"sourcePath": ["kwargs", "shape", "items", 0], "dimension": 0, "value": {"kind": "int", "value": "-1"}}, {"sourcePath": ["kwargs", "shape", "items", 1], "dimension": 1, "value": {"kind": "int", "value": "4"}}]}
+          }
+        ],
+        "values": [
+          {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [2, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 32, "producer": null, "origin": "input", "state": []},
+          {"id": "tensor1", "objectId": "object1", "storageId": "storage0", "version": 0, "shape": [2, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor0", "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 32, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []}
+        ],
+        "sourceBindings": [
+          {"id": "binding:baf968f0777c50ac9a7fd92c85786c9eb6994a0d808c072d7362e6e9e86ace2c", "snapshotId": "source:keyword_tuple", "kind": "definition", "quality": "exact", "anchors": [{"file": "model.py", "digest": "8187938abe4237691e09bfa4c4c7c5abd8497bb668396631747bfd95ffd4d053", "startLine": 4, "startColumn": 4, "endLine": 5, "endColumn": 56, "scope": "Model.forward", "tokenDigest": "aba286bc653ccb1a8e3b351db24621bff239f418d4ef1d4de4949683efa6985c"}]},
+          {"id": "binding:82e6b4487ac3766c67da3585e50a3c60a6d72accecf9c1dd5351892243e86207", "snapshotId": "source:keyword_tuple", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "8187938abe4237691e09bfa4c4c7c5abd8497bb668396631747bfd95ffd4d053", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 56, "scope": "Model.forward", "tokenDigest": "44d1651bca400e6a770c717e5b4c2542f6a8fd87808de0f861572e23da93a1c6"}]}
+        ],
+        "diagnostics": [],
+        "coverage": {"scope": "executed_path", "operationsSeen": 1, "invocationsSeen": 1, "omissions": [], "modules": [{"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null}]},
+        "limits": {"operations": 100, "invocations": 100, "values": 100, "bytes": 1048576}
+      },
+      "independentRuns": [{"width": 4, "forward": "passed", "outputShape": [2, 4]}, {"width": 8, "forward": "passed", "outputShape": [1, 8]}, {"width": 3, "forward": "failed", "outputShape": null}]
+    },
+    {
+      "name": "tensor_dimension",
+      "derivable": true,
+      "sources": [{"file": "model.py", "source": "import torch\nWIDTH = 4\nclass Model(torch.nn.Module):\n    def forward(self, h):\n        return h.view(h.shape[0], WIDTH)\n", "digest": "b207edc300c7c15b2d4835cb232bbabae5ef04b34f0cf49420741a2730b38c95"}],
+      "queries": [
+        {
+          "query": {"file": "model.py", "symbol": "WIDTH", "direction": "downstream", "depth": 8, "limit": 100, "assumeValue": 8},
+          "page": {
+            "version": 1,
+            "indexId": "b9e1f20fdbff9a7894a4e3e119f3743e6b8a9a027db51fe8287f448141cd5981",
+            "evidence": "source_only",
+            "scope": "supplied_python_files",
+            "files": [{"file": "model.py", "digest": "b207edc300c7c15b2d4835cb232bbabae5ef04b34f0cf49420741a2730b38c95"}],
+            "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+            "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+            "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+            "omittedDiagnostics": 0,
+            "traversal": {"entities": 3, "boundaries": 0, "omittedSeeds": 0},
+            "total": 5,
+            "items": [
+              {
+                "id": "source:4e6635b3635ff6ce048e7eae732f076aaa96657978e122c19700b876be83d07e",
+                "kind": "definition",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "b207edc300c7c15b2d4835cb232bbabae5ef04b34f0cf49420741a2730b38c95", "startLine": 2, "startColumn": 0, "endLine": 2, "endColumn": 5, "scope": "<module>", "tokenDigest": "a75163de251157a73c7bc6399af56f277ac38c3d0c23e0fc9d641a5b745540fb"},
+                "bindingKind": "assignment",
+                "excerpt": "WIDTH = 4",
+                "literalSource": "4",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:da9609eb8fffe13e0233701cf4764f49b045615522a9080afb7ceab3311d7a01",
+                "kind": "reference",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "b207edc300c7c15b2d4835cb232bbabae5ef04b34f0cf49420741a2730b38c95", "startLine": 5, "startColumn": 34, "endLine": 5, "endColumn": 39, "scope": "Model.forward", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+                "excerpt": "        return h.view(h.shape[0], WIDTH)",
+                "resolution": "lexical",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:066ca185507019eed58e90fa6baf077f86b0a6a465079f827ed239aefe24cb8e",
+                "kind": "call",
+                "name": "h.view",
+                "anchor": {"file": "model.py", "digest": "b207edc300c7c15b2d4835cb232bbabae5ef04b34f0cf49420741a2730b38c95", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 40, "scope": "Model.forward", "tokenDigest": "d28e8e4cac13ec2174137aa7553cd2b3c958b842a32c3ab5a72be1fde809364d"},
+                "excerpt": "        return h.view(h.shape[0], WIDTH)",
+                "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 1], "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}, {"path": ["args", 1], "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+              },
+              {"kind": "relation", "source": "source:4e6635b3635ff6ce048e7eae732f076aaa96657978e122c19700b876be83d07e", "target": "source:da9609eb8fffe13e0233701cf4764f49b045615522a9080afb7ceab3311d7a01", "relation": "reference", "certainty": "lexical"},
+              {"kind": "relation", "source": "source:da9609eb8fffe13e0233701cf4764f49b045615522a9080afb7ceab3311d7a01", "target": "source:066ca185507019eed58e90fa6baf077f86b0a6a465079f827ed239aefe24cb8e", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 1]}
+            ],
+            "nextOffset": null,
+            "changeAnalysis": {
+              "version": 1,
+              "evidence": "conditional_source_arithmetic",
+              "definitionId": "source:4e6635b3635ff6ce048e7eae732f076aaa96657978e122c19700b876be83d07e",
+              "before": 4,
+              "after": 8,
+              "scope": "source_records_on_this_page",
+              "assumptions": ["Only the selected integer definition changes; supported direct lexical bindings retain their source meanings.", "Branches, call order, import overrides and runtime mutation are not evaluated."],
+              "limitations": ["Only integer literals, direct names/imports, unary signs and +, -, *, //, % are evaluated.", "No execution, tensor shape, checkpoint compatibility or candidate-validity claim is made."]
+            }
+          }
+        },
+        {
+          "query": {"file": "model.py", "symbol": "WIDTH", "direction": "downstream", "depth": 8, "limit": 100, "assumeValue": 3},
+          "page": {
+            "version": 1,
+            "indexId": "b9e1f20fdbff9a7894a4e3e119f3743e6b8a9a027db51fe8287f448141cd5981",
+            "evidence": "source_only",
+            "scope": "supplied_python_files",
+            "files": [{"file": "model.py", "digest": "b207edc300c7c15b2d4835cb232bbabae5ef04b34f0cf49420741a2730b38c95"}],
+            "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+            "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+            "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+            "omittedDiagnostics": 0,
+            "traversal": {"entities": 3, "boundaries": 0, "omittedSeeds": 0},
+            "total": 5,
+            "items": [
+              {
+                "id": "source:4e6635b3635ff6ce048e7eae732f076aaa96657978e122c19700b876be83d07e",
+                "kind": "definition",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "b207edc300c7c15b2d4835cb232bbabae5ef04b34f0cf49420741a2730b38c95", "startLine": 2, "startColumn": 0, "endLine": 2, "endColumn": 5, "scope": "<module>", "tokenDigest": "a75163de251157a73c7bc6399af56f277ac38c3d0c23e0fc9d641a5b745540fb"},
+                "bindingKind": "assignment",
+                "excerpt": "WIDTH = 4",
+                "literalSource": "4",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:da9609eb8fffe13e0233701cf4764f49b045615522a9080afb7ceab3311d7a01",
+                "kind": "reference",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "b207edc300c7c15b2d4835cb232bbabae5ef04b34f0cf49420741a2730b38c95", "startLine": 5, "startColumn": 34, "endLine": 5, "endColumn": 39, "scope": "Model.forward", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+                "excerpt": "        return h.view(h.shape[0], WIDTH)",
+                "resolution": "lexical",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:066ca185507019eed58e90fa6baf077f86b0a6a465079f827ed239aefe24cb8e",
+                "kind": "call",
+                "name": "h.view",
+                "anchor": {"file": "model.py", "digest": "b207edc300c7c15b2d4835cb232bbabae5ef04b34f0cf49420741a2730b38c95", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 40, "scope": "Model.forward", "tokenDigest": "d28e8e4cac13ec2174137aa7553cd2b3c958b842a32c3ab5a72be1fde809364d"},
+                "excerpt": "        return h.view(h.shape[0], WIDTH)",
+                "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 1], "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}, {"path": ["args", 1], "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+              },
+              {"kind": "relation", "source": "source:4e6635b3635ff6ce048e7eae732f076aaa96657978e122c19700b876be83d07e", "target": "source:da9609eb8fffe13e0233701cf4764f49b045615522a9080afb7ceab3311d7a01", "relation": "reference", "certainty": "lexical"},
+              {"kind": "relation", "source": "source:da9609eb8fffe13e0233701cf4764f49b045615522a9080afb7ceab3311d7a01", "target": "source:066ca185507019eed58e90fa6baf077f86b0a6a465079f827ed239aefe24cb8e", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 1]}
+            ],
+            "nextOffset": null,
+            "changeAnalysis": {
+              "version": 1,
+              "evidence": "conditional_source_arithmetic",
+              "definitionId": "source:4e6635b3635ff6ce048e7eae732f076aaa96657978e122c19700b876be83d07e",
+              "before": 4,
+              "after": 3,
+              "scope": "source_records_on_this_page",
+              "assumptions": ["Only the selected integer definition changes; supported direct lexical bindings retain their source meanings.", "Branches, call order, import overrides and runtime mutation are not evaluated."],
+              "limitations": ["Only integer literals, direct names/imports, unary signs and +, -, *, //, % are evaluated.", "No execution, tensor shape, checkpoint compatibility or candidate-validity claim is made."]
+            }
+          }
+        }
+      ],
+      "capture": {
+        "version": 1,
+        "id": "capture:726047ac-3ff3-4e69-a419-9203b88893cc",
+        "attemptId": "attempt:tensor_dimension",
+        "source": {
+          "version": 1,
+          "id": "source:tensor_dimension",
+          "workspaceSessionId": "session:oracle",
+          "workspaceId": "workspace:oracle",
+          "modelId": "model:tensor_dimension",
+          "modelFile": "model.py",
+          "className": "Model",
+          "generation": 0,
+          "files": [{"path": "model.py", "digest": "b207edc300c7c15b2d4835cb232bbabae5ef04b34f0cf49420741a2730b38c95", "documentVersion": 1, "role": "source"}],
+          "dependencyScope": "complete",
+          "configDigest": null,
+          "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "sourceMode": "saved"
+        },
+        "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "preparationDigest": null,
+        "automatic": null,
+        "inputDigest": null,
+        "stateDigest": null,
+        "backend": "runtime",
+        "backendVersion": "1",
+        "torchVersion": "2.7.1",
+        "jaxVersion": null,
+        "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch", "Source bindings identify authored expressions, not independently editable dispatcher operations"],
+        "status": "complete",
+        "rootInvocationId": "invocation:0",
+        "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor1"},
+        "definitions": [{"id": "definition:0", "qualifiedName": "source_shape_oracle.Model", "sourceBindingIds": ["binding:01dfc07488a7247d2a53e5c611bcd21b85557eb04f742624a692786f31ba1dc8"]}],
+        "modules": [{"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": [], "constructorClassVerified": false, "initializerArguments": null}],
+        "invocations": [{"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 2, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor1"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 0, "parameterCountUnavailable": null, "sourceBindingIds": []}],
+        "operations": [
+          {
+            "id": "operation:0",
+            "sequence": 1,
+            "invocationId": "invocation:0",
+            "target": "aten.view.default",
+            "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+            "arguments": {"args": [{"kind": "value", "id": "tensor0"}, {"kind": "list", "items": [{"kind": "int", "value": "2"}, {"kind": "int", "value": "4"}]}], "kwargs": {}},
+            "output": {"kind": "value", "id": "tensor1"},
+            "effects": [],
+            "status": "completed",
+            "diagnosticId": null,
+            "sourceBindingIds": ["binding:e7b41b3d119355c36bf8b4c6144882d0393ce85c9c3312d62639db740c57f4bd"],
+            "sourceShapeCall": {"callable": "torch.Tensor.view", "bindingId": "binding:e7b41b3d119355c36bf8b4c6144882d0393ce85c9c3312d62639db740c57f4bd", "dimensions": [{"sourcePath": ["args", 0], "dimension": 0, "value": {"kind": "int", "value": "2"}, "tensorDimension": {"valueId": "tensor0", "axis": 0}}, {"sourcePath": ["args", 1], "dimension": 1, "value": {"kind": "int", "value": "4"}}]}
+          }
+        ],
+        "values": [
+          {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [2, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 32, "producer": null, "origin": "input", "state": []},
+          {"id": "tensor1", "objectId": "object1", "storageId": "storage0", "version": 0, "shape": [2, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor0", "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 32, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []}
+        ],
+        "sourceBindings": [
+          {"id": "binding:01dfc07488a7247d2a53e5c611bcd21b85557eb04f742624a692786f31ba1dc8", "snapshotId": "source:tensor_dimension", "kind": "definition", "quality": "exact", "anchors": [{"file": "model.py", "digest": "b207edc300c7c15b2d4835cb232bbabae5ef04b34f0cf49420741a2730b38c95", "startLine": 4, "startColumn": 4, "endLine": 5, "endColumn": 40, "scope": "Model.forward", "tokenDigest": "07bb1515756f567f064cd2e648cb428081dd0ec91e655a6d7d890e377817e808"}]},
+          {"id": "binding:e7b41b3d119355c36bf8b4c6144882d0393ce85c9c3312d62639db740c57f4bd", "snapshotId": "source:tensor_dimension", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "b207edc300c7c15b2d4835cb232bbabae5ef04b34f0cf49420741a2730b38c95", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 40, "scope": "Model.forward", "tokenDigest": "d28e8e4cac13ec2174137aa7553cd2b3c958b842a32c3ab5a72be1fde809364d"}]}
+        ],
+        "diagnostics": [],
+        "coverage": {"scope": "executed_path", "operationsSeen": 1, "invocationsSeen": 1, "omissions": [], "modules": [{"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null}]},
+        "limits": {"operations": 100, "invocations": 100, "values": 100, "bytes": 1048576}
+      },
+      "independentRuns": [{"width": 4, "forward": "passed", "outputShape": [2, 4]}, {"width": 8, "forward": "failed", "outputShape": null}, {"width": 3, "forward": "failed", "outputShape": null}]
+    },
+    {
+      "name": "unsupported_size_call",
+      "derivable": false,
+      "sources": [{"file": "model.py", "source": "import torch\nWIDTH = 4\nclass Model(torch.nn.Module):\n    def forward(self, h):\n        return h.view(h.size(0), WIDTH)\n", "digest": "0bf8d36f26141ee2f4d354b21666695d7f951a35fb2b5b4a04129c9e24a2053b"}],
+      "queries": [
+        {
+          "query": {"file": "model.py", "symbol": "WIDTH", "direction": "downstream", "depth": 8, "limit": 100, "assumeValue": 8},
+          "page": {
+            "version": 1,
+            "indexId": "5412abe9f3dfeaa55655919a1d3b7a757479421519ef2f2f97389e126cbd6ceb",
+            "evidence": "source_only",
+            "scope": "supplied_python_files",
+            "files": [{"file": "model.py", "digest": "0bf8d36f26141ee2f4d354b21666695d7f951a35fb2b5b4a04129c9e24a2053b"}],
+            "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+            "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+            "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+            "omittedDiagnostics": 0,
+            "traversal": {"entities": 3, "boundaries": 0, "omittedSeeds": 0},
+            "total": 5,
+            "items": [
+              {
+                "id": "source:b561d54345960b5ef851c96259b45185117b0cfdcbeb99a4388cbbb46a755123",
+                "kind": "definition",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "0bf8d36f26141ee2f4d354b21666695d7f951a35fb2b5b4a04129c9e24a2053b", "startLine": 2, "startColumn": 0, "endLine": 2, "endColumn": 5, "scope": "<module>", "tokenDigest": "a75163de251157a73c7bc6399af56f277ac38c3d0c23e0fc9d641a5b745540fb"},
+                "bindingKind": "assignment",
+                "excerpt": "WIDTH = 4",
+                "literalSource": "4",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:fd665914375bd021cc0552cfacd552035db1bb2111ba026ed068ea271f682d54",
+                "kind": "reference",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "0bf8d36f26141ee2f4d354b21666695d7f951a35fb2b5b4a04129c9e24a2053b", "startLine": 5, "startColumn": 33, "endLine": 5, "endColumn": 38, "scope": "Model.forward", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+                "excerpt": "        return h.view(h.size(0), WIDTH)",
+                "resolution": "lexical",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:b6ed0ca4fc1419567c05ec42d317779173effbed7e94cda1a27f4988dc2a1a5c",
+                "kind": "call",
+                "name": "h.view",
+                "anchor": {"file": "model.py", "digest": "0bf8d36f26141ee2f4d354b21666695d7f951a35fb2b5b4a04129c9e24a2053b", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 39, "scope": "Model.forward", "tokenDigest": "b2e773f31625eea36c603087bf25676c938b91da8705005f8f231df9c9945315"},
+                "excerpt": "        return h.view(h.size(0), WIDTH)",
+                "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 1], "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}, {"path": ["args", 1], "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+              },
+              {"kind": "relation", "source": "source:b561d54345960b5ef851c96259b45185117b0cfdcbeb99a4388cbbb46a755123", "target": "source:fd665914375bd021cc0552cfacd552035db1bb2111ba026ed068ea271f682d54", "relation": "reference", "certainty": "lexical"},
+              {"kind": "relation", "source": "source:fd665914375bd021cc0552cfacd552035db1bb2111ba026ed068ea271f682d54", "target": "source:b6ed0ca4fc1419567c05ec42d317779173effbed7e94cda1a27f4988dc2a1a5c", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 1]}
+            ],
+            "nextOffset": null,
+            "changeAnalysis": {
+              "version": 1,
+              "evidence": "conditional_source_arithmetic",
+              "definitionId": "source:b561d54345960b5ef851c96259b45185117b0cfdcbeb99a4388cbbb46a755123",
+              "before": 4,
+              "after": 8,
+              "scope": "source_records_on_this_page",
+              "assumptions": ["Only the selected integer definition changes; supported direct lexical bindings retain their source meanings.", "Branches, call order, import overrides and runtime mutation are not evaluated."],
+              "limitations": ["Only integer literals, direct names/imports, unary signs and +, -, *, //, % are evaluated.", "No execution, tensor shape, checkpoint compatibility or candidate-validity claim is made."]
+            }
+          }
+        },
+        {
+          "query": {"file": "model.py", "symbol": "WIDTH", "direction": "downstream", "depth": 8, "limit": 100, "assumeValue": 3},
+          "page": {
+            "version": 1,
+            "indexId": "5412abe9f3dfeaa55655919a1d3b7a757479421519ef2f2f97389e126cbd6ceb",
+            "evidence": "source_only",
+            "scope": "supplied_python_files",
+            "files": [{"file": "model.py", "digest": "0bf8d36f26141ee2f4d354b21666695d7f951a35fb2b5b4a04129c9e24a2053b"}],
+            "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+            "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+            "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+            "omittedDiagnostics": 0,
+            "traversal": {"entities": 3, "boundaries": 0, "omittedSeeds": 0},
+            "total": 5,
+            "items": [
+              {
+                "id": "source:b561d54345960b5ef851c96259b45185117b0cfdcbeb99a4388cbbb46a755123",
+                "kind": "definition",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "0bf8d36f26141ee2f4d354b21666695d7f951a35fb2b5b4a04129c9e24a2053b", "startLine": 2, "startColumn": 0, "endLine": 2, "endColumn": 5, "scope": "<module>", "tokenDigest": "a75163de251157a73c7bc6399af56f277ac38c3d0c23e0fc9d641a5b745540fb"},
+                "bindingKind": "assignment",
+                "excerpt": "WIDTH = 4",
+                "literalSource": "4",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:fd665914375bd021cc0552cfacd552035db1bb2111ba026ed068ea271f682d54",
+                "kind": "reference",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "0bf8d36f26141ee2f4d354b21666695d7f951a35fb2b5b4a04129c9e24a2053b", "startLine": 5, "startColumn": 33, "endLine": 5, "endColumn": 38, "scope": "Model.forward", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+                "excerpt": "        return h.view(h.size(0), WIDTH)",
+                "resolution": "lexical",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:b6ed0ca4fc1419567c05ec42d317779173effbed7e94cda1a27f4988dc2a1a5c",
+                "kind": "call",
+                "name": "h.view",
+                "anchor": {"file": "model.py", "digest": "0bf8d36f26141ee2f4d354b21666695d7f951a35fb2b5b4a04129c9e24a2053b", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 39, "scope": "Model.forward", "tokenDigest": "b2e773f31625eea36c603087bf25676c938b91da8705005f8f231df9c9945315"},
+                "excerpt": "        return h.view(h.size(0), WIDTH)",
+                "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 1], "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}, {"path": ["args", 1], "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+              },
+              {"kind": "relation", "source": "source:b561d54345960b5ef851c96259b45185117b0cfdcbeb99a4388cbbb46a755123", "target": "source:fd665914375bd021cc0552cfacd552035db1bb2111ba026ed068ea271f682d54", "relation": "reference", "certainty": "lexical"},
+              {"kind": "relation", "source": "source:fd665914375bd021cc0552cfacd552035db1bb2111ba026ed068ea271f682d54", "target": "source:b6ed0ca4fc1419567c05ec42d317779173effbed7e94cda1a27f4988dc2a1a5c", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 1]}
+            ],
+            "nextOffset": null,
+            "changeAnalysis": {
+              "version": 1,
+              "evidence": "conditional_source_arithmetic",
+              "definitionId": "source:b561d54345960b5ef851c96259b45185117b0cfdcbeb99a4388cbbb46a755123",
+              "before": 4,
+              "after": 3,
+              "scope": "source_records_on_this_page",
+              "assumptions": ["Only the selected integer definition changes; supported direct lexical bindings retain their source meanings.", "Branches, call order, import overrides and runtime mutation are not evaluated."],
+              "limitations": ["Only integer literals, direct names/imports, unary signs and +, -, *, //, % are evaluated.", "No execution, tensor shape, checkpoint compatibility or candidate-validity claim is made."]
+            }
+          }
+        }
+      ],
+      "capture": {
+        "version": 1,
+        "id": "capture:323f3033-60f6-4b39-afe9-cda2b4e2175d",
+        "attemptId": "attempt:unsupported_size_call",
+        "source": {
+          "version": 1,
+          "id": "source:unsupported_size_call",
+          "workspaceSessionId": "session:oracle",
+          "workspaceId": "workspace:oracle",
+          "modelId": "model:unsupported_size_call",
+          "modelFile": "model.py",
+          "className": "Model",
+          "generation": 0,
+          "files": [{"path": "model.py", "digest": "0bf8d36f26141ee2f4d354b21666695d7f951a35fb2b5b4a04129c9e24a2053b", "documentVersion": 1, "role": "source"}],
+          "dependencyScope": "complete",
+          "configDigest": null,
+          "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "sourceMode": "saved"
+        },
+        "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "preparationDigest": null,
+        "automatic": null,
+        "inputDigest": null,
+        "stateDigest": null,
+        "backend": "runtime",
+        "backendVersion": "1",
+        "torchVersion": "2.7.1",
+        "jaxVersion": null,
+        "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch", "Source bindings identify authored expressions, not independently editable dispatcher operations"],
+        "status": "complete",
+        "rootInvocationId": "invocation:0",
+        "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor1"},
+        "definitions": [{"id": "definition:0", "qualifiedName": "source_shape_oracle.Model", "sourceBindingIds": ["binding:d10c52006c53ad95da872feca6e7d7869cd6b3d3166f3ef98895e1f4db8449e7"]}],
+        "modules": [{"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": [], "constructorClassVerified": false, "initializerArguments": null}],
+        "invocations": [{"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 2, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor1"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 0, "parameterCountUnavailable": null, "sourceBindingIds": []}],
+        "operations": [
+          {
+            "id": "operation:0",
+            "sequence": 1,
+            "invocationId": "invocation:0",
+            "target": "aten.view.default",
+            "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+            "arguments": {"args": [{"kind": "value", "id": "tensor0"}, {"kind": "list", "items": [{"kind": "int", "value": "2"}, {"kind": "int", "value": "4"}]}], "kwargs": {}},
+            "output": {"kind": "value", "id": "tensor1"},
+            "effects": [],
+            "status": "completed",
+            "diagnosticId": null,
+            "sourceBindingIds": ["binding:32402b0bae85b91d530f646c97e281d1a166486707e37c8375b373184bce4f44"],
+            "sourceShapeCall": {"callable": "torch.Tensor.view", "bindingId": "binding:32402b0bae85b91d530f646c97e281d1a166486707e37c8375b373184bce4f44", "dimensions": [{"sourcePath": ["args", 0], "dimension": 0, "value": {"kind": "int", "value": "2"}}, {"sourcePath": ["args", 1], "dimension": 1, "value": {"kind": "int", "value": "4"}}]}
+          }
+        ],
+        "values": [
+          {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [2, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 32, "producer": null, "origin": "input", "state": []},
+          {"id": "tensor1", "objectId": "object1", "storageId": "storage0", "version": 0, "shape": [2, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor0", "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 32, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []}
+        ],
+        "sourceBindings": [
+          {"id": "binding:d10c52006c53ad95da872feca6e7d7869cd6b3d3166f3ef98895e1f4db8449e7", "snapshotId": "source:unsupported_size_call", "kind": "definition", "quality": "exact", "anchors": [{"file": "model.py", "digest": "0bf8d36f26141ee2f4d354b21666695d7f951a35fb2b5b4a04129c9e24a2053b", "startLine": 4, "startColumn": 4, "endLine": 5, "endColumn": 39, "scope": "Model.forward", "tokenDigest": "50deb437e590e723229da733d49b78f2f639a62eaa04808c9411b060f18922f8"}]},
+          {"id": "binding:32402b0bae85b91d530f646c97e281d1a166486707e37c8375b373184bce4f44", "snapshotId": "source:unsupported_size_call", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "0bf8d36f26141ee2f4d354b21666695d7f951a35fb2b5b4a04129c9e24a2053b", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 39, "scope": "Model.forward", "tokenDigest": "b2e773f31625eea36c603087bf25676c938b91da8705005f8f231df9c9945315"}]}
+        ],
+        "diagnostics": [],
+        "coverage": {"scope": "executed_path", "operationsSeen": 1, "invocationsSeen": 1, "omissions": [], "modules": [{"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null}]},
+        "limits": {"operations": 100, "invocations": 100, "values": 100, "bytes": 1048576}
+      },
+      "independentRuns": [{"width": 4, "forward": "passed", "outputShape": [2, 4]}, {"width": 8, "forward": "failed", "outputShape": null}, {"width": 3, "forward": "failed", "outputShape": null}]
+    },
+    {
+      "name": "expanded_tuple",
+      "derivable": false,
+      "sources": [{"file": "model.py", "source": "import torch\nWIDTH = 4\nclass Model(torch.nn.Module):\n    def forward(self, h):\n        return h.view(*(-1, WIDTH))\n", "digest": "72112404a5a5cab922a39f4bcea6b2b0f0b6ef56f54bf6f18ffea7d33069883f"}],
+      "queries": [
+        {
+          "query": {"file": "model.py", "symbol": "WIDTH", "direction": "downstream", "depth": 8, "limit": 100, "assumeValue": 8},
+          "page": {
+            "version": 1,
+            "indexId": "c53c45309a503c9684ddf0d1fff246a9a43706b685b69399b379b4b691800d85",
+            "evidence": "source_only",
+            "scope": "supplied_python_files",
+            "files": [{"file": "model.py", "digest": "72112404a5a5cab922a39f4bcea6b2b0f0b6ef56f54bf6f18ffea7d33069883f"}],
+            "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+            "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+            "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+            "omittedDiagnostics": 0,
+            "traversal": {"entities": 3, "boundaries": 0, "omittedSeeds": 0},
+            "total": 5,
+            "items": [
+              {
+                "id": "source:e029e6ccd2e765b5c70693465f3373b295329cdb8128f41546d0aaed12d3f167",
+                "kind": "definition",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "72112404a5a5cab922a39f4bcea6b2b0f0b6ef56f54bf6f18ffea7d33069883f", "startLine": 2, "startColumn": 0, "endLine": 2, "endColumn": 5, "scope": "<module>", "tokenDigest": "a75163de251157a73c7bc6399af56f277ac38c3d0c23e0fc9d641a5b745540fb"},
+                "bindingKind": "assignment",
+                "excerpt": "WIDTH = 4",
+                "literalSource": "4",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:dda4922d17e46ef8681529b98a7125e771e445733b8c4bcf6adda4b47d40f907",
+                "kind": "reference",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "72112404a5a5cab922a39f4bcea6b2b0f0b6ef56f54bf6f18ffea7d33069883f", "startLine": 5, "startColumn": 28, "endLine": 5, "endColumn": 33, "scope": "Model.forward", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+                "excerpt": "        return h.view(*(-1, WIDTH))",
+                "resolution": "lexical",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:1edf83fa37ae7e8074cfad698c422d083ed3a3f28d3d88641d88ee2cc7eb6cb0",
+                "kind": "call",
+                "name": "h.view",
+                "anchor": {"file": "model.py", "digest": "72112404a5a5cab922a39f4bcea6b2b0f0b6ef56f54bf6f18ffea7d33069883f", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 35, "scope": "Model.forward", "tokenDigest": "e7e556e21d7a0e170115cadb5571e7e2eaa15f2ac5982d20c767f1b06b769d83"},
+                "excerpt": "        return h.view(*(-1, WIDTH))",
+                "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArgumentValues": 0, "hasExpansion": true}
+              },
+              {"kind": "relation", "source": "source:e029e6ccd2e765b5c70693465f3373b295329cdb8128f41546d0aaed12d3f167", "target": "source:dda4922d17e46ef8681529b98a7125e771e445733b8c4bcf6adda4b47d40f907", "relation": "reference", "certainty": "lexical"},
+              {"kind": "relation", "source": "source:dda4922d17e46ef8681529b98a7125e771e445733b8c4bcf6adda4b47d40f907", "target": "source:1edf83fa37ae7e8074cfad698c422d083ed3a3f28d3d88641d88ee2cc7eb6cb0", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 0]}
+            ],
+            "nextOffset": null,
+            "changeAnalysis": {
+              "version": 1,
+              "evidence": "conditional_source_arithmetic",
+              "definitionId": "source:e029e6ccd2e765b5c70693465f3373b295329cdb8128f41546d0aaed12d3f167",
+              "before": 4,
+              "after": 8,
+              "scope": "source_records_on_this_page",
+              "assumptions": ["Only the selected integer definition changes; supported direct lexical bindings retain their source meanings.", "Branches, call order, import overrides and runtime mutation are not evaluated."],
+              "limitations": ["Only integer literals, direct names/imports, unary signs and +, -, *, //, % are evaluated.", "No execution, tensor shape, checkpoint compatibility or candidate-validity claim is made."]
+            }
+          }
+        },
+        {
+          "query": {"file": "model.py", "symbol": "WIDTH", "direction": "downstream", "depth": 8, "limit": 100, "assumeValue": 3},
+          "page": {
+            "version": 1,
+            "indexId": "c53c45309a503c9684ddf0d1fff246a9a43706b685b69399b379b4b691800d85",
+            "evidence": "source_only",
+            "scope": "supplied_python_files",
+            "files": [{"file": "model.py", "digest": "72112404a5a5cab922a39f4bcea6b2b0f0b6ef56f54bf6f18ffea7d33069883f"}],
+            "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+            "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+            "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+            "omittedDiagnostics": 0,
+            "traversal": {"entities": 3, "boundaries": 0, "omittedSeeds": 0},
+            "total": 5,
+            "items": [
+              {
+                "id": "source:e029e6ccd2e765b5c70693465f3373b295329cdb8128f41546d0aaed12d3f167",
+                "kind": "definition",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "72112404a5a5cab922a39f4bcea6b2b0f0b6ef56f54bf6f18ffea7d33069883f", "startLine": 2, "startColumn": 0, "endLine": 2, "endColumn": 5, "scope": "<module>", "tokenDigest": "a75163de251157a73c7bc6399af56f277ac38c3d0c23e0fc9d641a5b745540fb"},
+                "bindingKind": "assignment",
+                "excerpt": "WIDTH = 4",
+                "literalSource": "4",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:dda4922d17e46ef8681529b98a7125e771e445733b8c4bcf6adda4b47d40f907",
+                "kind": "reference",
+                "name": "WIDTH",
+                "anchor": {"file": "model.py", "digest": "72112404a5a5cab922a39f4bcea6b2b0f0b6ef56f54bf6f18ffea7d33069883f", "startLine": 5, "startColumn": 28, "endLine": 5, "endColumn": 33, "scope": "Model.forward", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+                "excerpt": "        return h.view(*(-1, WIDTH))",
+                "resolution": "lexical",
+                "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 3, "reason": "integer_expression"}
+              },
+              {
+                "id": "source:1edf83fa37ae7e8074cfad698c422d083ed3a3f28d3d88641d88ee2cc7eb6cb0",
+                "kind": "call",
+                "name": "h.view",
+                "anchor": {"file": "model.py", "digest": "72112404a5a5cab922a39f4bcea6b2b0f0b6ef56f54bf6f18ffea7d33069883f", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 35, "scope": "Model.forward", "tokenDigest": "e7e556e21d7a0e170115cadb5571e7e2eaa15f2ac5982d20c767f1b06b769d83"},
+                "excerpt": "        return h.view(*(-1, WIDTH))",
+                "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArgumentValues": 0, "hasExpansion": true}
+              },
+              {"kind": "relation", "source": "source:e029e6ccd2e765b5c70693465f3373b295329cdb8128f41546d0aaed12d3f167", "target": "source:dda4922d17e46ef8681529b98a7125e771e445733b8c4bcf6adda4b47d40f907", "relation": "reference", "certainty": "lexical"},
+              {"kind": "relation", "source": "source:dda4922d17e46ef8681529b98a7125e771e445733b8c4bcf6adda4b47d40f907", "target": "source:1edf83fa37ae7e8074cfad698c422d083ed3a3f28d3d88641d88ee2cc7eb6cb0", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 0]}
+            ],
+            "nextOffset": null,
+            "changeAnalysis": {
+              "version": 1,
+              "evidence": "conditional_source_arithmetic",
+              "definitionId": "source:e029e6ccd2e765b5c70693465f3373b295329cdb8128f41546d0aaed12d3f167",
+              "before": 4,
+              "after": 3,
+              "scope": "source_records_on_this_page",
+              "assumptions": ["Only the selected integer definition changes; supported direct lexical bindings retain their source meanings.", "Branches, call order, import overrides and runtime mutation are not evaluated."],
+              "limitations": ["Only integer literals, direct names/imports, unary signs and +, -, *, //, % are evaluated.", "No execution, tensor shape, checkpoint compatibility or candidate-validity claim is made."]
+            }
+          }
+        }
+      ],
+      "capture": {
+        "version": 1,
+        "id": "capture:fa3fc026-7f2b-41b6-9e72-e0b5cfac6663",
+        "attemptId": "attempt:expanded_tuple",
+        "source": {
+          "version": 1,
+          "id": "source:expanded_tuple",
+          "workspaceSessionId": "session:oracle",
+          "workspaceId": "workspace:oracle",
+          "modelId": "model:expanded_tuple",
+          "modelFile": "model.py",
+          "className": "Model",
+          "generation": 0,
+          "files": [{"path": "model.py", "digest": "72112404a5a5cab922a39f4bcea6b2b0f0b6ef56f54bf6f18ffea7d33069883f", "documentVersion": 1, "role": "source"}],
+          "dependencyScope": "complete",
+          "configDigest": null,
+          "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "sourceMode": "saved"
+        },
+        "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "preparationDigest": null,
+        "automatic": null,
+        "inputDigest": null,
+        "stateDigest": null,
+        "backend": "runtime",
+        "backendVersion": "1",
+        "torchVersion": "2.7.1",
+        "jaxVersion": null,
+        "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch", "Source bindings identify authored expressions, not independently editable dispatcher operations"],
+        "status": "complete",
+        "rootInvocationId": "invocation:0",
+        "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor1"},
+        "definitions": [{"id": "definition:0", "qualifiedName": "source_shape_oracle.Model", "sourceBindingIds": ["binding:f27a200a199e0bb07eb8f4fecb4216951648965611279fcadc50d9f1a02c96d5"]}],
+        "modules": [{"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": [], "constructorClassVerified": false, "initializerArguments": null}],
+        "invocations": [{"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 2, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor1"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 0, "parameterCountUnavailable": null, "sourceBindingIds": []}],
+        "operations": [
+          {
+            "id": "operation:0",
+            "sequence": 1,
+            "invocationId": "invocation:0",
+            "target": "aten.view.default",
+            "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+            "arguments": {"args": [{"kind": "value", "id": "tensor0"}, {"kind": "list", "items": [{"kind": "int", "value": "-1"}, {"kind": "int", "value": "4"}]}], "kwargs": {}},
+            "output": {"kind": "value", "id": "tensor1"},
+            "effects": [],
+            "status": "completed",
+            "diagnosticId": null,
+            "sourceBindingIds": ["binding:5024d53d3500b87c5be8f985d8a173fbe169c9b4344e3b230fca69e3e31f9b3e"]
+          }
+        ],
+        "values": [
+          {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [2, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 32, "producer": null, "origin": "input", "state": []},
+          {"id": "tensor1", "objectId": "object1", "storageId": "storage0", "version": 0, "shape": [2, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor0", "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 32, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []}
+        ],
+        "sourceBindings": [
+          {"id": "binding:f27a200a199e0bb07eb8f4fecb4216951648965611279fcadc50d9f1a02c96d5", "snapshotId": "source:expanded_tuple", "kind": "definition", "quality": "exact", "anchors": [{"file": "model.py", "digest": "72112404a5a5cab922a39f4bcea6b2b0f0b6ef56f54bf6f18ffea7d33069883f", "startLine": 4, "startColumn": 4, "endLine": 5, "endColumn": 35, "scope": "Model.forward", "tokenDigest": "0e2856adc3e65a261c30b7d401547d2ab41cb108f7bfb0d36d630b376364ca66"}]},
+          {"id": "binding:5024d53d3500b87c5be8f985d8a173fbe169c9b4344e3b230fca69e3e31f9b3e", "snapshotId": "source:expanded_tuple", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "72112404a5a5cab922a39f4bcea6b2b0f0b6ef56f54bf6f18ffea7d33069883f", "startLine": 5, "startColumn": 15, "endLine": 5, "endColumn": 35, "scope": "Model.forward", "tokenDigest": "e7e556e21d7a0e170115cadb5571e7e2eaa15f2ac5982d20c767f1b06b769d83"}]}
+        ],
+        "diagnostics": [],
+        "coverage": {"scope": "executed_path", "operationsSeen": 1, "invocationsSeen": 1, "omissions": [], "modules": [{"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null}]},
+        "limits": {"operations": 100, "invocations": 100, "values": 100, "bytes": 1048576}
+      },
+      "independentRuns": [{"width": 4, "forward": "passed", "outputShape": [2, 4]}, {"width": 8, "forward": "passed", "outputShape": [1, 8]}, {"width": 3, "forward": "failed", "outputShape": null}]
+    }
+  ]
+}

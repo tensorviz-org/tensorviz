@@ -500,7 +500,7 @@
     ],
     "//configurationDefaults": "Only tensorviz settings belong here; preserve the user's editor, language and theme preferences.",
     "configurationDefaults": {
-      "tensorviz.traceOnSave": false
+      "tensorviz.traceOnSave": true
     },
     "configuration": {
       "title": "tensorViz",
@@ -570,10 +570,9 @@
         },
         "tensorviz.traceOnSave": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "scope": "resource",
-          "markdownDescription": "Legacy capture-on-save setting. Sidebar Canvas always refreshes source on save without executing. Opening a model captures it; use Run model to review the device for another capture.",
-          "deprecationMessage": "Saving refreshes source only. Opening a model captures it; Run model reviews another capture."
+          "markdownDescription": "Validate the selected model after saving changed model code or a known Python dependency. Rapid saves are combined; validation uses the saved inputs, device and environment. Source-only inspection and an editor auto-open that has not run stay source-only. Disable to refresh source without running."
         },
         "tensorviz.showGraphPrompt": {
           "type": "boolean",
@@ -662,6 +661,31 @@
             "opacity"
           ],
           "markdownDescription": "Dim code outside selected Canvas nodes. Configure **Model / class**, **Function**, or **Node / expression**, parameter declarations/uses, and opacity from **Code focus** in the Canvas toolbar. Preferences persist across sessions; hidden, stale, or unmapped views leave source undimmed."
+        },
+        "tensorviz.agent.pipeline": {
+          "type": "string",
+          "enum": [
+            "native",
+            "acp"
+          ],
+          "default": "native",
+          "scope": "machine",
+          "restricted": true,
+          "markdownDescription": "Canvas chat runtime. Native keeps the existing CLI bridge; ACP uses persistent Agent Client Protocol sessions. Set adapter paths and start a new chat after switching. ACP adapters are installed separately on the workspace host."
+        },
+        "tensorviz.agent.codexAcpPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "restricted": true,
+          "markdownDescription": "Absolute executable path for the optional ACP pipeline. Tested adapter: `@agentclientprotocol/codex-acp@2.3.0`. Uses the existing signed-in agent; no provider key goes to Canvas. Install explicitly; TensorViz never downloads or installs an adapter on Send."
+        },
+        "tensorviz.agent.claudeAcpPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "restricted": true,
+          "markdownDescription": "Absolute executable path for the optional ACP pipeline. Tested adapter: `@agentclientprotocol/claude-agent-acp@0.99.0`. Uses the existing signed-in agent; no provider key goes to Canvas. Install explicitly; TensorViz never downloads or installs an adapter on Send."
         }
       }
     }
@@ -714,7 +738,8 @@
     "jsonc-parser": "^3.3.1",
     "proper-lockfile": "4.1.2",
     "smol-toml": "1.9.1",
-    "zod": "4.6.7"
+    "zod": "4.6.7",
+    "@agentclientprotocol/sdk": "2.1.0"
   },
   "overrides": {
     "@modelcontextprotocol/sdk": "1.32.2",

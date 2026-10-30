@@ -2,7 +2,7 @@ import * as assert from 'node:assert/strict';
 import { registerMcpGraphSetup } from '@tensorviz/graph-host/mcpGraphSetup';
 import { GraphOpeningController, type GraphOpeningDependencies } from '@tensorviz/graph-host/graphOpening';
 import type { GraphSetupHost } from '../../graphSetupHost';
-import type { GraphSetupDiscovery, LocalBrowserTargetIdentity } from '@tensorviz/contracts/protocol';
+import type { GraphSetupDiscovery, GraphSetupDraft, LocalBrowserTargetIdentity } from '@tensorviz/contracts/protocol';
 
 suite('MCP graph setup', () => {
   const target: LocalBrowserTargetIdentity = { workspaceFolder: '/workspace', file: 'model.py', cls: 'Net',
@@ -11,16 +11,20 @@ suite('MCP graph setup', () => {
     init: [], inputs: [], examples: [], factories: [], configs: [], parents: [], constraints: [], truncated: false,
     resolution: { status: 'partial', draft: { profile: { kind: 'model', inputs: { args: [], kwargs: {} } } },
       evidence: [], unresolved: ['inputs.x'] } };
-  async function rig() {
+  async function rig(restoredDraft?: GraphSetupDraft) {
     let saves = 0, reads = 0;
+    let discoveredDraft: GraphSetupDraft | undefined;
     const deps: GraphOpeningDependencies = { current: () => true, lookup: async () => ({ ok: false, kind: 'none' }),
       discover: async () => ({ discovery }), save: async () => { saves++; return { requirements: ['inputs.x: Required.'] }; },
       capture: async () => { throw new Error('Discovery must never execute.'); }, recover: async () => undefined, parent: async () => {}, publish: () => {} };
     const opening = new GraphOpeningController(deps); await opening.open(target);
     const handlers: Record<string, (args: any) => Promise<any>> = {};
+    const setup = { discover: async (_target: unknown, _signal: unknown, saved?: GraphSetupDraft) => {
+      reads++; discoveredDraft = saved; return { discovery, draft: discovery.resolution!.draft, restoredDraft };
+    } };
     registerMcpGraphSetup({ registerTool: (name: string, _schema: unknown, handler: any) => { handlers[name] = handler; } } as never,
-      opening, { discover: async () => { reads++; return { discovery }; } } as unknown as GraphSetupHost);
-    return { opening, handlers, get saves() { return saves; }, get reads() { return reads; } };
+      opening, setup as unknown as GraphSetupHost);
+    return { opening, handlers, setup, get saves() { return saves; }, get reads() { return reads; }, get discoveredDraft() { return discoveredDraft; } };
   }
   test('reads source choices through the shared adapter without saving or running', async () => {
     const r = await rig(); const result = await r.handlers.get_graph_setup({});
@@ -43,6 +47,47 @@ suite('MCP graph setup', () => {
     assert.deepEqual(contract.tensor.generator.randint.fields, ['low', 'high', 'seed']);
     assert.equal(contract.tensor.fields.includes('generator'), true);
   });
+  const savedDraft: GraphSetupDraft = { profileName: 'my_model', profile: { kind: 'model', model: 'model:Net',
+    init: { args: [], kwargs: { width: 12 } }, inputs: { args: [{ kind: 'tensor', shape: [3, 12], dtype: 'float64',
+      requires_grad: false, generator: { kind: 'full', value: 2 } }], kwargs: {} } } };
+  for (const tool of ['get_graph_setup', 'suggest_graph_inputs']) {
+    test(`${tool} rejects a late read after agent help updates the same opening draft`, async () => {
+      const r = await rig();
+      let release!: () => void;
+      const wait = new Promise<void>(resolve => { release = resolve; });
+      const discover = r.setup.discover;
+      r.setup.discover = async (...args) => { await wait; return discover(...args); };
+      const read = r.handlers[tool]({});
+      await r.opening.action(r.opening.state!.id, 'help', target, { kind: 'agent_help', draft: savedDraft });
+      release();
+      assert.equal((await read).isError, true);
+      assert.deepEqual(r.opening.state?.draft, savedDraft);
+      assert.equal(r.saves, 0);
+    });
+    test(`${tool} exposes the pending form draft shared through agent help without saving`, async () => {
+      const r = await rig();
+      await r.opening.action(r.opening.state!.id, 'help', target, { kind: 'agent_help', draft: savedDraft });
+      assert.deepEqual((await r.handlers[tool]({})).structuredContent.draft, savedDraft);
+      assert.equal(r.saves, 0);
+    });
+    test(`${tool} retains the selected draft when source discovery proposes different inputs`, async () => {
+      const r = await rig();
+      await r.opening.action(r.opening.state!.id, 'configure', target, { kind: 'submit', draft: savedDraft });
+      const saves = r.saves, data = (await r.handlers[tool]({})).structuredContent;
+      assert.deepEqual(data.draft, savedDraft);
+      assert.deepEqual(r.discoveredDraft, savedDraft, 'discovery must receive the selected profile for helper restoration');
+      assert.equal(r.saves, saves, 'reading a suggestion must not save or execute it');
+    });
+    test(`${tool} restores saved configuration fields but preserves pending configuration edits`, async () => {
+      const restored = { ...savedDraft, configObject: { index: 0, parameter: 'config', values: { width: 12 } } };
+      const r = await rig(restored);
+      await r.opening.action(r.opening.state!.id, 'configure', target, { kind: 'submit', draft: savedDraft });
+      assert.deepEqual((await r.handlers[tool]({})).structuredContent.draft, restored);
+      const pending = { ...restored, configObject: { ...restored.configObject, values: { width: 16 } } };
+      await r.opening.action(r.opening.state!.id, 'edit-config', target, { kind: 'submit', draft: pending });
+      assert.deepEqual((await r.handlers[tool]({})).structuredContent.draft, pending);
+    });
+  }
   test('stale setup cannot write files', async () => {
     const r = await rig(); const result = await r.handlers.configure_graph_setup({ openingId: 'old', sourceDigest: target.sourceDigest, draft: { profile: {} } });
     assert.equal(result.isError, true); assert.equal(r.saves, 0);

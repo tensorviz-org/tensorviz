@@ -29,7 +29,11 @@
     "reactflow": "^11.11.4",
     "tldraw": "^5.0.1",
     "typescript": "^4.9.5",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "@ai-sdk/react": "4.0.160",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "ai": "7.0.156",
+    "zod": "4.6.7"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -132,6 +136,9 @@
   "jest": {
     "moduleNameMapper": {
       "^react-router-dom$": "<rootDir>/src/__mocks__/react-router-dom.js"
-    }
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(@ai-sdk|ai|@standard-schema|@workflow|eventsource-parser|secure-json-parse)/)"
+    ]
   }
 }

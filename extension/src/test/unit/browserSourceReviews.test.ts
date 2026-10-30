@@ -8,6 +8,7 @@ import type { CandidateRunResult } from '@tensorviz/graph-host/candidateExecutio
 import type { SourceProposalOutcome } from '../../localBrowserSourceEdits';
 import { isLocalBrowserMessage, type CandidateAction, type LocalBrowserSourceEditRequestMessage } from '@tensorviz/contracts/protocol';
 import { canonicalFixture, appliedFixture } from '../../../../tests/fixtures/semantic.cjs';
+import { candidateCheckpointFixture } from '../candidateCheckpointFixture';
 
 const target = { workspaceFolder: '/ws', file: 'model.py', cls: 'Model', documentVersion: 1, sourceDigest: 'a'.repeat(64), backendRevision: 1 };
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
@@ -43,6 +44,7 @@ function harness() {
       void candidate.run(); return history.get(scope, candidate.snapshot().runId!);
     }, getCandidate: (scope, id) => history.get(scope, id), listCandidates: scope => history.list(scope),
     inspectCandidate: (scope, id, query) => history.inspect(scope, id, query),
+    inspectCandidateCheckpointText: (scope, id, query) => history.inspectCheckpointText(scope, id, query),
     cancelCandidate(scope, id) { const record = history.get(scope, id); if (scope === seen.at(-1) && candidate?.snapshot().runId === id) candidate.cancel(); return record; },
     forgetCandidates: scope => history.forget(scope),
     inspectAppliedSource: scope => inspectApplied(scope),
@@ -61,6 +63,26 @@ function harness() {
 }
 
 suite('browser candidate source review ownership', () => {
+  test('checkpoint pages remain private and inspectable after a failed load and closed review', async () => {
+    const h = harness();
+    h.setRunner(async () => {
+      const value = result(); value.evidence = candidateCheckpointFixture();
+      value.outcome = { ...value.outcome, ok: false, reason: 'load failed', detail: '', exitCode: 3 }; return value;
+    });
+    h.service.handle(request());
+    const runId = h.control({kind:'run',retryId:'one'}).result.candidates[0].runId;
+    await tick(); h.finish(); await tick();
+    const action = {kind:'checkpoint' as const,runId,offset:0,limit:1};
+    const page = h.control(action).result;
+    assert.equal(page.candidates[0].summary.checkpoint.loadStatus, 'failed');
+    assert.equal(page.candidates[0].capture, null); assert.equal(page.checkpoint.nextOffset, 1);
+    assert.match(page.checkpoint.text, /"left.weight"/); assert.doesNotMatch(page.checkpoint.text, /"right.weight"/);
+    assert.match(h.control({...action,offset:1}).result.checkpoint.text, /"right.weight"/);
+    assert.equal(h.control(action, {viewId:'other'}).result, null);
+    h.service.cancelOwner('1'); assert.equal(h.control(action).result, null); assert.equal(h.calls, 1);
+    h.service.clear();
+  });
+
   test('applied-source reads require confirmed Apply and stay separate from candidate history', async () => {
     const h = harness(); h.service.handle(request()); let inspected = 0;
     h.setAppliedReader(async scope => { inspected++; assert.equal(scope, h.seen[0]); return appliedFixture(); });

@@ -23,6 +23,21 @@ suite('Graph diff from the active editor', () => {
   });
   teardown(async () => { vscode.workspace.openTextDocument = openDocument; resetEditors(); state.workspaceFolders = undefined; await fs.rm(root, { recursive: true, force: true }); });
   const noGitHub = async (): Promise<any> => { throw new Error('A local diff must not use GitHub.'); };
+  test('an aliased repository keeps unsaved source and editor locations in the Git comparison', async () => {
+    const alias = `${root}-alias`;
+    await fs.symlink(root, alias, 'dir');
+    try {
+      const file = path.join(alias, 'model.py');
+      editorState.documents.set(file, 'unsaved through alias\n');
+      editorState.dirtyDocuments.add(file);
+      const session = await reviewFileChanges(uri('file', file) as any, 'head');
+      assert.equal(await session.after.read('model.py'), 'unsaved through alias\n');
+      assert.equal(session.preferredFile, 'model.py');
+      assert.deepEqual(session.locate!(uri('file', file) as any), { file: 'model.py', side: 'after' });
+      assert.equal(await (await session.refresh()).after.read('model.py'), 'unsaved through alias\n');
+      assert.equal(await fs.readFile(path.join(root, 'model.py'), 'utf8'), 'base\n');
+    } finally { await fs.unlink(alias); }
+  });
   test('SCM actions compare their selected Git sides, include unsaved text, and write no view or config files', async () => {
     const file = path.join(root, 'model.py');
     await fs.writeFile(file, 'staged\n'); await reviewGit(root, ['add', 'model.py']); await fs.writeFile(file, 'working\n');

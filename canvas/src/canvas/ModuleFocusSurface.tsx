@@ -121,13 +121,13 @@ export function ModuleFocusSurface({ focus, nodes, title, selectedId, children }
           </React.Fragment>;
         })}
       </nav>
-      {scope && <div className="module-focus-controls">
+      <div className="module-focus-controls">
         <label className="module-focus-orientation">Flow<select aria-label="Module flow direction" value={focus.orientation}
           onChange={event => focus.setOrientation(event.target.value as 'auto' | 'LR' | 'TB')}>
           <option value="auto">Auto · {focus.direction === 'TB' ? 'vertical' : 'horizontal'}</option>
           <option value="LR">Horizontal →</option><option value="TB">Vertical ↓</option>
         </select></label>
-      </div>}
+      </div>
     </div>}
     <section className="module-focus-frame" aria-label={scope ? `${focusNodeName(scope)} module` : 'Model graph'}>
       {children}

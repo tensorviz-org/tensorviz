@@ -7,7 +7,7 @@ from tests.api.test_local_browser_broker import (
 )
 
 
-@pytest.mark.parametrize('action', ['list', 'reconcile'])
+@pytest.mark.parametrize('action', ['list', 'reconcile', 'checkpoint'])
 def test_candidate_and_source_ownership_cannot_be_forged_by_another_tab(client, action):
     session = mint(client)
     host = connect_control_host(client, session)
@@ -25,6 +25,8 @@ def test_candidate_and_source_ownership_cannot_be_forged_by_another_tab(client, 
         assert host.receive_json() == source
         command = envelope('candidateRequest', session['workspaceSessionId'], 1101,
             viewId=aid, target=target(), requestId='read', proposalId='review', action={'kind': action})
+        if action == 'checkpoint':
+            command['action'].update(runId='run:one', offset=0, limit=1)
         b.send_json(command)
         assert b.receive_json()['code'] == 'INVALID_MESSAGE'
         a.send_json(command)
@@ -32,6 +34,8 @@ def test_candidate_and_source_ownership_cannot_be_forged_by_another_tab(client, 
         payload = {'candidates': [], 'page': None}
         if action == 'reconcile':
             payload = next(item['result'] for item in local_browser_fixture_corpus()[1] if item['messageId'] == 'applied-source-checked')
+        if action == 'checkpoint':
+            payload = next(item['result'] for item in local_browser_fixture_corpus()[1] if item['messageId'] == 'checkpoint-load-page')
         result = envelope('candidateResult', session['workspaceSessionId'], 1102,
             viewId=aid, target=target(), requestId='read', proposalId='review', result=payload, detail='Private.')
         b.send_json(result)

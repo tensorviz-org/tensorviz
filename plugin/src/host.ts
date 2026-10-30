@@ -147,7 +147,7 @@ export class StandaloneHost {
       signal: this.lifetime.signal,
     });
     this.runs = new McpValidationRuns(() => this.model, async (target, signal, _inputs, progress, measured, captured, execution, job, attempt) => {
-      if (job) return { status: 'refused', detail: 'Training and profiling are unavailable in this host.' };
+      if (job) return { status: 'refused', detail: 'Training diagnostics are unavailable in this host.' };
       if (this.review.busy) return { status: 'refused', detail: 'Wait for source review preparation before validation.' };
       if (['resolving', 'saving', 'capturing'].includes(this.opening.state?.phase ?? '')) {
         return { status: 'refused', detail: 'Graph opening is still running. Wait for it to finish or cancel it first.' };

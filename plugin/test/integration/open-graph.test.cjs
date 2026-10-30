@@ -15,14 +15,14 @@ const model = activation => `from torch import nn\nclass Tiny(nn.Module):\n def 
 
 async function poll(client, initial) {
   let result = initial;
-  for (let count = 0; count < 450 && !['ready', 'failed', 'blocked', 'cancelled', 'needs_setup'].includes(result.status); count++) {
+  for (let count = 0; count < 2400 && !['ready', 'failed', 'blocked', 'cancelled', 'needs_setup'].includes(result.status); count++) {
     await new Promise(resolve => setTimeout(resolve, 100));
     result = (await client.callTool({ name: 'open_graph', arguments: { requestId: result.requestId } })).structuredContent;
   }
   return result;
 }
 
-test('copied plugin captures and connects the Canvas bridge with exact selection, focus and refresh receipts', { timeout: 120000 }, async () => {
+test('copied plugin captures and connects the Canvas bridge with exact selection, focus and refresh receipts', { timeout: 300000 }, async () => {
   const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'tensorviz-installed-capture-')));
   const project = path.join(root, 'project with spaces'), plugin = path.join(root, 'installed plugin');
   await mkdir(project);

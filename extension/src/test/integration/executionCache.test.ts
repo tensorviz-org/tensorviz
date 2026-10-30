@@ -63,7 +63,11 @@ suite('execution cache (shadow) with real Python', function () {
   test('first run stores, a second identical run reports identical', async () => {
     const first = await run();
     const second = await run();
-    assert.deepEqual((first.envelope.result as any).diagnostics.reuse, { storable: true, reasons: [], untrackedReads: 0 });
+    assert.deepEqual((first.envelope.result as any).diagnostics.reuse, { storable: true, reasons: [], untrackedReads: 0 },
+      'the outcome keeps the verdict only');
+    const [stored] = [...(worker as any).resultStore.entries.values()] as Array<{ text: string }>;
+    assert.ok(JSON.parse(stored.text).result.diagnostics.reuse.environment.length > 0,
+      'the stored entry lists the installed files the run read, for the recheck before serving');
     assert.match(cacheLines()[0], /^\[cache\] shadow miss: stored [a-f0-9]{12}$/);
     assert.equal(cacheLines()[1], '[cache] shadow hit: identical');
     // Shadow never serves: the second envelope is the fresh run's own capture.
@@ -178,7 +182,7 @@ suite('execution cache (on) with real Python', function () {
     const source = await fs.readFile(file, 'utf8');
     assert.deepEqual(await projectDocument(second.envelope, source), await projectDocument(first.envelope, source),
       'the Canvas document of the served run equals the fresh run\'s');
-    assert.ok(logs.some(line => /^\[cache\] served [0-9a-f]{12}: .*\(no Python ran\)$/.test(line)));
+    assert.ok(logs.some(line => /^\[cache\] served [0-9a-f]{12}: .*\(model not run again\)$/.test(line)));
     assert.equal(worker.executionCacheStats().served, 1);
   });
 

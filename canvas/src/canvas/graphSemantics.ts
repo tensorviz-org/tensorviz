@@ -68,19 +68,6 @@ export function outputTensorMetadata(value: unknown): ModelNodeData['outputTenso
   return { shape: [...shape], dtype: tensor.dtype, logicalBytes: tensor.logicalBytes };
 }
 
-/** Bytes and the card's current measured shape must describe the same output. */
-export function measuredOutputTensor(data: ModelNodeData): ModelNodeData['outputTensor'] {
-  if (tensorEvidence(data) !== 'measured') return undefined;
-  const tensor = outputTensorMetadata(data.outputTensor);
-  const shape = measuredShape(tensorShapes(data).outputShape);
-  return tensor && shape && shape.length === tensor.shape.length
-    && shape.every((dim, axis) => dim === tensor.shape[axis]) ? tensor : undefined;
-}
-
-export function measuredParameterCount(data: ModelNodeData): number | undefined {
-  return data.shapeEvidence === 'stale' ? undefined : exactCount(data.parameterCount);
-}
-
 /** Different ranks have no safe positional axis correspondence. */
 export function changedDimensions(input?: number[], output?: number[]): number[] {
   if (!input || !output || input.length !== output.length) return [];

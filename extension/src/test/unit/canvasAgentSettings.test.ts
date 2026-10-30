@@ -1,13 +1,15 @@
 import * as assert from 'node:assert/strict';
+import { mock } from 'node:test';
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { CanvasAgent, type AgentRunInput } from '../../canvasAgent';
 import { CanvasAgentRuntime, agentExecutable, agentModels, validateAgentSettings } from '../../canvasAgentRuntime';
-import type { CanvasAgentAction, CanvasAgentState, LocalBrowserAgentRequest } from '@tensorviz/contracts/protocol';
+import { isCanvasAgentState, type CanvasAgentAction, type CanvasAgentSettings, type CanvasAgentState, type LocalBrowserAgentRequest } from '@tensorviz/contracts/protocol';
 const target = { workspaceFolder: '/project', file: 'model.py', cls: 'Net', documentVersion: 1, sourceDigest: 'a'.repeat(64), backendRevision: 1 };
 const request = (action: CanvasAgentAction): LocalBrowserAgentRequest => ({ type: 'agentRequest', protocolVersion: 1, workspaceSessionId: 'workspace', messageId: 'message', viewId: 'view', ...action });
-const send = (id = 'one', settings = {}): CanvasAgentAction => ({ action: 'send', requestId: id, target, nodeIds: [], provider: 'codex', prompt: 'Explain', settings });
+const send = (id = 'one', settings = {}): Extract<CanvasAgentAction, { action: 'send' }> => ({ action: 'send', requestId: id, target, nodeIds: [], provider: 'codex', prompt: 'Explain', settings });
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
 const ready = { status: 'ready' as const, detail: 'Ready', defaultModel: 'one', checkedAt: 100,
   models: [{ id: 'one', label: 'One', description: '', efforts: ['low', 'high'], defaultEffort: 'low' },
@@ -26,6 +28,122 @@ suite('Canvas agent settings and readiness', () => {
     create(); agent.handle(request({ action: 'sync' })); assert.deepEqual(inspections, []); assert.equal(state.agents?.codex.status, 'unchecked');
     agent.handle(request({ action: 'discover' })); await tick();
     assert.deepEqual(inspections.sort(), ['claude', 'codex']); assert.equal(state.agents?.claude.status, 'ready'); assert.equal(runs.length, 0);
+  });
+  test('opening warms the selected agent before Ready, without waiting for the other probe', async () => {
+    let finishWarm!: () => void, finishOther!: (value: typeof ready) => void;
+    const warmed: string[] = [];
+    create({ inspect: provider => provider === 'codex' ? Promise.resolve(ready) : new Promise(resolve => { finishOther = resolve; }),
+      warm: provider => { warmed.push(provider); return new Promise(resolve => { finishWarm = resolve; }); } });
+    agent.handle(request({ action: 'sync' })); assert.deepEqual(warmed, []);
+    agent.handle(request({ action: 'discover' })); await tick();
+    assert.deepEqual(warmed, ['codex']); assert.equal(state.agents?.codex.status, 'checking');
+    agent.handle(request(send())); await tick(); assert.equal(runs.length, 0, 'Send waits for the connection');
+    agent.disconnect('view'); finishWarm(); await tick();
+    agent.handle(request({ action: 'sync' })); assert.equal(state.agents?.codex.status, 'ready');
+    assert.equal(runs.length, 0, 'warm-up cannot generate a hidden conversation turn');
+    finishOther(ready); await tick();
+  });
+  test('opening supplies current view context to preparation without adding visible messages', async () => {
+    const prepared = { cwd: '/project', context: 'snapshot while typing' };
+    const warmInputs: unknown[] = [], views: string[] = [];
+    create({ prepareWarm: async view => { views.push(view); return prepared; },
+      warm: async (_provider, _settings, _signal, _intent, context) => { warmInputs.push(context); } });
+    agent.handle(request({ action: 'discover' })); await tick();
+    assert.deepEqual(views, ['view']); assert.deepEqual(warmInputs, [prepared]);
+    assert.equal(state.agents?.codex.status, 'ready'); assert.equal(state.messages.length, 0);
+    agent.handle(request(send())); await tick();
+    assert.equal(runs.length, 1); assert.notEqual(runs[0].context, prepared.context, 'Send must prepare its own current context');
+    agent.handle(request({ action: 'discover' })); await tick();
+    assert.equal(views.length, 1, 'existing visible history does not need another speculative preparation');
+  });
+  test('unavailable speculative context does not prevent readiness or Send', async () => {
+    const warmed: unknown[] = [];
+    create({ prepareWarm: async () => { throw new Error('Source changed'); },
+      warm: async (_provider, _settings, _signal, _intent, context) => { warmed.push(context); } });
+    agent.handle(request({ action: 'discover' })); await tick();
+    assert.deepEqual(warmed, [undefined]); assert.equal(state.agents?.codex.status, 'ready');
+    agent.handle(request(send())); await tick(); assert.equal(runs.length, 1);
+  });
+  test('a cancelled context read cannot start late model preparation', async () => {
+    let finish!: (context: { cwd: string; context: string }) => void, warmed = 0;
+    create({ prepareWarm: () => new Promise(resolve => { finish = resolve; }), warm: async () => { warmed++; } });
+    agent.handle(request({ action: 'discover' })); await tick(); agent.dispose();
+    finish({ cwd: '/project', context: 'late snapshot' }); await tick();
+    assert.equal(warmed, 0);
+  });
+  test('a conversation sends at most one context preparation across settings, Refresh and reopening', async () => {
+    // Each preparation is a full-context request charged to the user's provider account.
+    const sent: unknown[] = [];
+    let slow = true, connect!: () => void;
+    create({ prepareWarm: async () => ({ cwd: '/project', context: 'snapshot' }),
+      warm: async (_provider, _settings, signal, _intent, context) => {
+        if (slow) await new Promise<void>((resolve, reject) => { connect = resolve; signal.addEventListener('abort', () => reject(new Error('Stopped.')), { once: true }); });
+        // Like the runtime, a handed-over preparation is sent once the connection is ready.
+        if (context) sent.push(context);
+      } });
+    agent.handle(request({ action: 'discover' })); await tick();
+    agent.handle(request({ action: 'configure', provider: 'codex', settings: { model: 'two' } })); await tick();
+    slow = false; connect(); await tick();
+    assert.equal(sent.length, 1, 'a warm-up replaced before it connected sent nothing, so the chosen settings prepare instead');
+    for (const action of [{ action: 'configure', provider: 'codex', settings: { model: 'one' } },
+      { action: 'configure', provider: 'codex', settings: { model: 'one', effort: 'high' } },
+      { action: 'discover', refresh: true }, { action: 'discover' }] satisfies CanvasAgentAction[]) { agent.handle(request(action)); await tick(); }
+    assert.equal(sent.length, 1, 'model, effort, Refresh and reopening take their context from Send, not another preparation');
+    agent.handle(request({ action: 'clear' })); await tick();
+    assert.equal(sent.length, 2, 'New chat starts a fresh conversation, which may prepare once');
+    agent.handle(request({ action: 'configure', provider: 'codex', settings: { model: 'two' } })); await tick();
+    assert.equal(sent.length, 2);
+  });
+  test('a warm-up timeout says the connection timed out, never a raw cancellation, and does not stay checking', async () => {
+    const abortable = (signal: AbortSignal, reason?: Error) => new Promise<never>((_, reject) =>
+      signal.addEventListener('abort', () => reject(reason ?? signal.reason), { once: true }));
+    for (const stalled of ['connection', 'context'] as const) {
+      let armed = false;
+      create({ prepareWarm: (_view, signal) => armed && stalled === 'context' ? abortable(signal) : Promise.resolve(undefined),
+        warm: async (_provider, _settings, signal) => { if (armed && stalled === 'connection') await abortable(signal, new Error('Stopped.')); } });
+      agent.handle(request({ action: 'discover' })); await tick();
+      assert.equal(state.agents?.codex.status, 'ready');
+      armed = true;
+      const original = global.setTimeout;
+      const timer = mock.method(global, 'setTimeout', ((fn: (...args: any[]) => void, ms: number, ...args: any[]) => original(fn, ms === 45_000 ? 5 : ms, ...args)) as typeof setTimeout);
+      try { agent.handle(request({ action: 'configure', provider: 'codex', settings: { effort: 'high' } })); } finally { timer.mock.restore(); }
+      assert.equal(state.agents?.codex.status, 'checking');
+      await delay(40);
+      assert.deepEqual([state.agents?.codex.status, state.agents?.codex.detail], ['error', 'The connection timed out. Refresh to try again.'], `${stalled} stall`);
+      agent.dispose();
+    }
+    create({ warm: async () => { throw new Error('x'.repeat(5000)); } });
+    agent.handle(request({ action: 'discover' })); await tick();
+    assert.equal(state.agents?.codex.status, 'error');
+    assert.ok(isCanvasAgentState(state), 'other startup failures stay within the protocol detail limit so the state still reaches Canvas');
+  });
+  test('configuration replaces stale warm-up and uses the same effective settings as Send', async () => {
+    const warmups: Array<{ provider: string; settings: unknown; signal: AbortSignal; finish(): void }> = [];
+    create({ warm: (provider, settings, signal) => new Promise(resolve => warmups.push({ provider, settings, signal, finish: resolve })) });
+    agent.handle(request({ action: 'discover' })); await tick();
+    agent.handle(request({ action: 'configure', provider: 'claude', settings: { model: 'one' } })); await tick();
+    assert.equal(warmups[0].signal.aborted, true); assert.equal(warmups[1].provider, 'claude');
+    assert.deepEqual(warmups[1].settings, { model: 'one', effort: 'low' });
+    warmups[0].finish(); await tick();
+    assert.equal(state.provider, 'claude'); assert.equal(state.agents?.claude.status, 'checking', 'late warm-up must not mark the new connection ready');
+    warmups[1].finish(); await tick(); assert.equal(state.agents?.claude.status, 'ready');
+  });
+  test('warm-up failure is actionable and Refresh can restore readiness', async () => {
+    let fail = true;
+    create({ warm: async () => { if (fail) throw new Error('Canvas tools unavailable. Refresh to reconnect.'); } });
+    agent.handle(request({ action: 'discover' })); await tick();
+    assert.equal(state.agents?.codex.status, 'error'); assert.match(state.agents!.codex.detail, /Canvas tools/);
+    fail = false; agent.handle(request({ action: 'discover', refresh: true })); await tick();
+    assert.equal(state.agents?.codex.status, 'ready'); assert.equal(runs.length, 0);
+  });
+  test('Clear and disposal cancel startup; stale discovery cannot revive the old connection', async () => {
+    const warmups: Array<{ signal: AbortSignal; finish(): void }> = [];
+    create({ warm: (_provider, _settings, signal) => new Promise(resolve => warmups.push({ signal, finish: resolve })) });
+    agent.handle(request({ action: 'discover' })); await tick();
+    agent.handle(request({ action: 'clear' })); await tick();
+    assert.equal(warmups[0].signal.aborted, true); assert.equal(warmups.length, 2);
+    warmups[0].finish(); await tick(); assert.equal(state.agents?.codex.status, 'checking');
+    agent.dispose(); assert.equal(warmups[1].signal.aborted, true); warmups[1].finish(); await tick();
   });
   test('a sole ready agent is selected automatically but a remembered choice wins', async () => {
     const inspect = async (provider: string) => provider === 'claude' ? ready : { status: 'notInstalled' as const, detail: 'Missing', models: [] };
@@ -56,6 +174,21 @@ suite('Canvas agent settings and readiness', () => {
   test('an explicit model uses its own default effort, not another model’s configured effort', async () => {
     create(); agent.handle(request(send('one', { model: 'one' }))); await tick();
     assert.deepEqual(runs[0].settings, { model: 'one', effort: 'low' }); assert.deepEqual(state.selections?.codex, { model: 'one' });
+  });
+  for (const provider of ['codex', 'claude'] as const) test(`${provider} uses medium for preparation and Send while preserving explicit choices`, async () => {
+    const availability = { ...ready, models: [{ ...ready.models[0], efforts: ['medium', 'high'], defaultEffort: 'medium' }, ready.models[1]] };
+    for (const settings of [{}, { model: 'one' }, { effort: 'high' }, { model: 'one', effort: 'high' }, { model: 'two' }]) {
+      const warms: Array<{ settings: CanvasAgentSettings }> = [];
+      create({ inspect: async () => availability, preferences: { provider, selections: { [provider]: settings } },
+        prepareWarm: async () => ({ cwd: '/project', context: '' }), warm: async (_provider, settings) => { warms.push({ settings }); } });
+      agent.handle(request({ action: 'discover' })); await tick();
+      agent.handle(request({ ...send('one', settings), provider } as CanvasAgentAction)); await tick();
+      const expected = settings.model === 'two' ? settings : { ...settings, effort: settings.effort ?? 'medium' };
+      assert.equal(warms.length, 1); assert.deepEqual(warms[0].settings, expected);
+      assert.deepEqual(runs.at(-1)!.settings, expected);
+      assert.deepEqual(state.selections?.[provider], settings, 'the resolved default must not replace the saved preference');
+      agent.dispose();
+    }
   });
   test('a failed request revokes Ready and an explicit refresh can restore it', async () => {
     let invalidations = 0;
@@ -100,13 +233,14 @@ suite('Installed agent discovery and launch settings', () => {
   setup(async () => {
     directory = await mkdtemp(path.join(tmpdir(), 'canvas-agent-runtime-')); executable = path.join(directory, 'agent');
     await writeFile(executable, `#!${process.execPath}
-const fs=require('node:fs'),path=require('node:path');const log=x=>fs.appendFileSync(path.join(__dirname,'requests.jsonl'),JSON.stringify(x)+'\\n');log({args:process.argv.slice(2)});
+const fs=require('node:fs'),path=require('node:path');const log=x=>fs.appendFileSync(path.join(__dirname,'requests.jsonl'),JSON.stringify(x)+'\\n');log({args:process.argv.slice(2),pid:process.pid});
 if(process.argv[2]==='auth'){console.log(JSON.stringify({loggedIn:!fs.existsSync(path.join(__dirname,'signed-out')),email:'PRIVATE'}));process.exit(0)}
 const reply=x=>console.log(JSON.stringify(x));const rl=require('node:readline').createInterface({input:process.stdin});
 rl.on('line',line=>{if(process.argv.includes('--print')&&!process.argv.includes('--input-format'))return;const m=JSON.parse(line);log(m);
-if(m.type==='control_request'){reply({type:'control_response',response:{request_id:m.request_id,subtype:'success',response:{models:[{value:'default',displayName:'Agent default',supportedEffortLevels:['low','high'],email:'PRIVATE'}],account:{email:'PRIVATE'}}}});return}
+if(m.type==='user'){reply({type:'result',is_error:false,result:'Answer'});return}
+if(m.type==='control_request'){if(m.request.subtype==='mcp_status'){reply({type:'control_response',response:{request_id:m.request_id,subtype:'success',response:{mcpServers:[{name:'tensorviz_canvas',status:'connected'}]}}});return}reply({type:'control_response',response:{request_id:m.request_id,subtype:'success',response:{models:[{value:'default',displayName:'Agent default',supportedEffortLevels:['low','medium','high'],email:'PRIVATE'}],account:{email:'PRIVATE'}}}});return}
 let r={};if(m.method==='account/read')r={account:fs.existsSync(path.join(__dirname,'signed-out'))?null:{type:'chatgpt',email:'PRIVATE'},requiresOpenaiAuth:true};
-if(m.method==='model/list')r={data:[{model:'one',displayName:'One',description:'Current model',isDefault:true,supportedReasoningEfforts:[{reasoningEffort:'low'},{reasoningEffort:'high'}],defaultReasoningEffort:'low'}],nextCursor:null};
+if(m.method==='model/list')r={data:[{model:'one',displayName:'One',description:'Current model',isDefault:true,supportedReasoningEfforts:(fs.existsSync(path.join(__dirname,'no-medium'))?['low','high']:['low','medium','high']).map(reasoningEffort=>({reasoningEffort})),defaultReasoningEffort:'low'}],nextCursor:null};
 if(m.method==='config/read')r={config:{model:'one',model_reasoning_effort:'high'}};
 if(m.method==='thread/start')r={thread:{id:'thread'}};if(m.method==='mcpServerStatus/list')r={data:[{name:'tensorviz_canvas',tools:{get_graph:{}}},
 ...(process.argv.includes('features.apps=false')&&!fs.existsSync(path.join(__dirname,'apps-stay-on'))?[]:[{name:'codex_apps',runtimeStatus:'connected',tools:{gmail_search:{}}}])]};
@@ -119,10 +253,24 @@ rl.on('close',()=>{if(process.argv.includes('--print')&&!process.argv.includes('
   const inspect = (provider: 'codex' | 'claude', refresh = false) => runtime.inspect(provider, directory, refresh, new AbortController().signal);
   test('discovery fetches capabilities without a prompt and strips account details', async () => {
     const codex = await inspect('codex'), claude = await inspect('claude');
-    assert.equal(codex.status, 'ready'); assert.equal(codex.defaultModel, 'one'); assert.equal(codex.models[0].defaultEffort, 'high');
-    assert.equal(claude.status, 'ready'); assert.deepEqual(claude.models[0].efforts, ['low', 'high']);
+    assert.equal(codex.status, 'ready'); assert.equal(codex.defaultModel, 'one'); assert.equal(codex.models[0].defaultEffort, 'medium');
+    assert.equal(claude.status, 'ready'); assert.deepEqual(claude.models[0].efforts, ['low', 'medium', 'high']);
+    assert.equal(claude.models[0].defaultEffort, 'medium');
     assert.doesNotMatch(JSON.stringify([codex, claude]), /PRIVATE|email/);
     assert.doesNotMatch(await readFile(path.join(directory, 'requests.jsonl'), 'utf8'), /turn\/start|thread\/start|"type":"user"/);
+  });
+  test('Codex retains its supported configured default when medium is unavailable', async () => {
+    await writeFile(path.join(directory, 'no-medium'), '');
+    const result = await inspect('codex');
+    assert.equal(result.models[0].defaultEffort, 'high');
+  });
+  test('Codex catalogue defaults use medium or a supported reported fallback, never an unknown effort', () => {
+    const models = agentModels('codex', [
+      { model: 'balanced', displayName: 'Balanced', supportedReasoningEfforts: [{ reasoningEffort: 'medium' }, { reasoningEffort: 'high' }], defaultReasoningEffort: 'high' },
+      { model: 'fallback', displayName: 'Fallback', supportedReasoningEfforts: [{ reasoningEffort: 'high' }], defaultReasoningEffort: 'high' },
+      { model: 'unknown', displayName: 'Unknown', supportedReasoningEfforts: [], defaultReasoningEffort: 'high' },
+    ]);
+    assert.deepEqual(models.map(model => model.defaultEffort), ['medium', 'high', undefined]);
   });
   test('Refresh bypasses cached Ready and reveals sign-out', async () => {
     for (const provider of ['codex', 'claude'] as const) {
@@ -151,6 +299,7 @@ rl.on('close',()=>{if(process.argv.includes('--print')&&!process.argv.includes('
     assert.equal(launches.length, 2);
     for (const { args } of launches) assert.equal(args[args.indexOf('features.apps=false') - 1], '-c');
     assert.ok((await requests()).some(x => x.method === 'turn/start'));
+    runtime.clear(); // A new connection must check isolation again.
     await writeFile(path.join(directory, 'apps-stay-on'), ''); await rm(path.join(directory, 'requests.jsonl'));
     await assert.rejects(runtime.run({ provider: 'codex', cwd: directory, context: '', messages: [] }, () => {}, new AbortController().signal), /did not isolate/);
     assert.ok(!(await requests()).some(x => x.method === 'turn/start'));
@@ -209,6 +358,16 @@ rl.on('close',()=>{if(process.argv.includes('--print')&&!process.argv.includes('
   });
   test('missing effort metadata never becomes an invented capability', () => {
     const models = agentModels('claude', [{ value: 'legacy', displayName: 'Legacy', supportsEffort: true }]); assert.deepEqual(models[0].efforts, []);
+    assert.equal(models[0].defaultEffort, undefined);
     assert.throws(() => validateAgentSettings({ status: 'ready', detail: '', models, defaultModel: 'legacy' }, { effort: 'high' }), /not supported/);
+  });
+  test('catalogues advertise medium only where supported, including Claude resolved defaults', () => {
+    const codex = agentModels('codex', [{ model: 'one', displayName: 'One', supportedReasoningEfforts: [{ reasoningEffort: 'medium' }], defaultReasoningEffort: 'high' }]);
+    assert.equal(codex[0].defaultEffort, 'medium');
+    const claude = agentModels('claude', [{ value: 'default', displayName: 'Default', resolvedModel: 'opus-id', supportedEffortLevels: ['medium', 'high'] },
+      { value: 'opus', displayName: 'Opus', resolvedModel: 'opus-id', supportedEffortLevels: ['medium', 'high'] },
+      { value: 'legacy', displayName: 'Legacy', supportedEffortLevels: ['high'] }], 'opus-id');
+    for (const id of ['default', 'opus', 'opus-id']) assert.equal(claude.find(model => model.id === id)?.defaultEffort, 'medium');
+    assert.equal(claude.find(model => model.id === 'legacy')?.defaultEffort, undefined);
   });
 });

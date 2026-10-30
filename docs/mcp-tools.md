@@ -18,7 +18,7 @@
 
 Arguments and results for the extension endpoint and the shared host tools. Connect a client in [Connect MCP](mcp.md). Transport limits and the browser link are in [MCP security](mcp-security.md).
 
-`read_model_source` and `propose_code_edit` are registered only for the canvas agent (`registerCanvasCodeTools` in `extension/src/mcpProposals.ts`). They are not in the table below. The plugin panel transport tools are listed in the [reference](reference.md#mcp-tools).
+`read_model_source` and `propose_source_set` are registered only for the canvas agent (`registerCanvasCodeTools` in `extension/src/mcpProposals.ts`). They are not in the table below. The plugin panel transport tools are listed in the [reference](reference.md#mcp-tools).
 
 ## Fill missing inputs with your agent
 
@@ -123,7 +123,7 @@ that the source is unchanged. Retained shapes describe the earlier capture.
 This action reads source without saving, applying proposals or running the model.
 For an edit that has not been made, use `propose_edit` first: the user reviews the
 native code diff and chooses Apply or Discard. After Apply, `open_graph_diff` can
-show the unsaved source change; Save and Refresh are separate execution steps.
+show the accepted source change. Accept/Apply saves only reviewed files and opens the model with its current saved setup.
 `compare_runs` compares existing execution records and cannot open this Git review.
 
 Inspection never executes Python. The endpoint rejects stale revisions, missing
@@ -324,7 +324,7 @@ Poll `get_proposal` for preparing, review, applied, cancelled or refused. During
 the result identifies the native diff’s file, title and before/after digests. Shared
 source definitions and grouping’s parameter/checkpoint key changes are disclosed in
 that title. The user chooses **Apply source change** or **Discard proposal** in VS Code.
-Apply is a single unsaved WorkspaceEdit; native Undo restores it. The same freshness,
+Apply is a single undoable WorkspaceEdit; native Undo restores it. The same freshness,
 Workspace Trust and dependency checks used by browser forms apply to MCP proposals.
 
 For captured edits with a retained resolved setup, explicitly **Run reviewed
@@ -563,3 +563,13 @@ Parameters/defaults, imports, attributes and computed definitions need other
 recipes; never substitute a measured value at an unsupported constructor use.
 Preparation checks syntax only. Save and explicitly validate to obtain new runtime
 evidence, which can legitimately reveal changed shapes or checkpoint incompatibility.
+
+## Source context and computation queries
+
+`query_source_context` follows bounded lexical dependencies in the live model and graph-recorded workspace Python files. Start with a file/symbol anchor, then follow pages and explicit boundaries. It distinguishes defaults, possible links and unresolved expressions from runtime observations. `assumeValue` performs supported conditional integer arithmetic and reports constructor, reshape/view, flatten and LayerNorm shape effects under the captured conditions. These results do not establish full forward or checkpoint compatibility.
+
+Retained capture queries can find computation entities and traverse canonical value/operation relationships with bounded depth and pages. Capture/source identities pin the evidence; projected layout edges are not substituted for runtime tensor flow. Unsupported shape rules remain unknown.
+
+The Canvas-owned agent additionally has `read_model_source` and `propose_source_set`. Complete replacements are limited to existing graph-recorded workspace Python files, with exact before digests, at most 16 files, 256 KiB per file and 1 MiB total. External MCP clients do not gain arbitrary file writes or automatic Apply.
+
+Candidate inspection adds read-only `outputs` and `checkpoint` evidence. Checkpoint loading, forward success, output equivalence and source freshness are separate outcomes. Failed loads remain inspectable after review closes. Inspection does not start another worker, and candidate results never certify a later edited live buffer. Training, optimizer and experiment diagnostics are unavailable.

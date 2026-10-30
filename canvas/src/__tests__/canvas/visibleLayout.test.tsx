@@ -9,13 +9,16 @@ import { endpointOnSide } from '../../canvas/capturePorts';
 import { layerCardHeight } from '../../canvas/cardMetrics';
 import { layoutTopLevel, reconcileModuleView } from '../../services/canvasLayout';
 import { modelGraphToDocumentV2 } from '../../services/graphDocumentAdapter';
-import { receiveProjection } from '../../ide/projection';
+import { receiveProjection, setBrowserRevealNodeSink } from '../../ide/projection';
+import { LocalBrowserContext } from '../../ide/localBrowserContext';
+import { EMPTY_LOCAL_BROWSER_PAGE_STATE } from '../../ide/localBrowserState';
+import { DEFAULT_CODE_FOCUS } from '../../ide/protocol.generated';
+import { setCodeFocusOn } from '../../ide/codeFocusOn';
 import { postToHost } from '../../ide/bridge';
 import { ModelGraph, ModelNode } from '../../types';
 import type { ProjectionPayload } from '../../ide/protocol.generated';
 import metricFixtures from '../../test/fixtures/metricProjections.json';
-import { GraphQueryPanel } from '../../canvas/GraphQueryPanel';
-import { graphNodes, graphOverlayMetric, graphOverlayScale } from '../../canvas/graphQueryState';
+import { graphNodes } from '../../canvas/graphQueryState';
 import captureDocument from '../../test/fixtures/canvas/capture-document.json';
 import { graphDocumentV2ToModelGraph } from '../../services/graphDocumentAdapter';
 
@@ -50,17 +53,18 @@ jest.mock('../../components/SaveGraphDialog', () => () => null);
 jest.mock('../../components/CodeExportDialog', () => () => null);
 jest.mock('../../components/CodeImportDialog', () => () => null);
 jest.mock('../../components/ModernTemplateGallery', () => () => null);
-jest.mock('../../canvas/InlineSourceEditor', () => ({ InlineSourceEditor: () => null }));
 
 jest.mock('../../canvas/ValidationSweepOverlay', () => ({ ValidationSweepOverlay: () => null }));
 jest.mock('../../canvas/exportImage', () => ({ exportCanvasImage: jest.fn(), saveCanvasImage: jest.fn() }));
 // Only the DOM canvas host is replaced: ModelBuilder's command handler, React
 // state, projection conversion, layout helper and useTldrawBridge all run.
 let mockEditor: RecordingEditor;
+let mockCanvasProps: any;
 jest.mock('../../canvas/TldrawCanvas', () => ({
-  TldrawCanvas: ({ onEditorReady }: any) => {
+  TldrawCanvas: (props: any) => {
     const React = require('react');
-    React.useEffect(() => onEditorReady(mockEditor), [onEditorReady]);
+    mockCanvasProps = props;
+    React.useEffect(() => props.onEditorReady(mockEditor), [props.onEditorReady]);
     return null;
   },
 }));
@@ -119,6 +123,33 @@ it('keeps a draft change readable instead of replacing explicit focus with the p
   command('fit-view');
   expect(mockEditor.zoomToFit).toHaveBeenCalledTimes(1);
 });
+it('opens a double-clicked layer\'s source only with Code focus on, wherever Code focus is offered', () => {
+  const reveal = jest.fn();
+  setBrowserRevealNodeSink(reveal);
+  try {
+    act(() => receiveProjection(projection(goodNet())));
+    const context = { page: EMPTY_LOCAL_BROWSER_PAGE_STATE, status: null,
+      codeFocus: { options: DEFAULT_CODE_FOCUS, parameter: false, detail: '', change: jest.fn() } };
+    const view = render(<LocalBrowserContext.Provider value={context}><ModelBuilder enableExternalCommands /></LocalBrowserContext.Provider>);
+    settle();
+    const doubleClick = () => act(() => mockCanvasProps.onShapeDoubleClick(nodeIdToShapeId('fc1')));
+    doubleClick();
+    expect(reveal).not.toHaveBeenCalled();
+    act(() => setCodeFocusOn(true));
+    doubleClick();
+    expect(reveal).toHaveBeenCalledWith('fc1');
+    // Graph review and the copy-only page offer no Code focus; activation keeps its route there.
+    act(() => setCodeFocusOn(false));
+    reveal.mockClear();
+    view.rerender(<LocalBrowserContext.Provider value={{ ...context, codeFocus: undefined }}><ModelBuilder enableExternalCommands /></LocalBrowserContext.Provider>);
+    doubleClick();
+    expect(reveal).toHaveBeenCalledWith('fc1');
+  } finally {
+    setBrowserRevealNodeSink(null);
+    act(() => setCodeFocusOn(false));
+  }
+});
+
 function expectAnchors(editor: RecordingEditor, graph: ModelGraph, direction?: 'horizontal' | 'vertical') {
   graph.edges.filter(edge => !edge.hidden).forEach(edge => {
     const from = shape(editor, edge.source);
@@ -177,44 +208,26 @@ beforeEach(() => {
   window.__TENSORVIZ_LOCAL_BROWSER__ = true;
   mockEditor = new RecordingEditor();
   (postToHost as jest.Mock).mockClear();
-  graphOverlayMetric.set('none');
   graphNodes.set([]);
 });
 
-it('updates mounted overlay legend with cards when only profile measurements change, then clears stale evidence', () => {
-  const measuredProjection = (name: keyof typeof metricFixtures, greyed = false) => ({
-    ...projection(goodNet()), document: metricFixtures[name], greyed,
+it('updates mounted cards when only profile measurements change, without moving them', () => {
+  const measuredProjection = (name: keyof typeof metricFixtures) => ({
+    ...projection(goodNet()), document: metricFixtures[name],
   } as unknown as ProjectionPayload);
   act(() => receiveProjection(measuredProjection('batch2')));
-  render(<><ModelBuilder enableExternalCommands /><GraphQueryPanel /></>);
+  render(<ModelBuilder enableExternalCommands />);
   settle();
-  fireEvent.click(screen.getByRole('button', { name: 'Output tensor bytes' }));
-  expect(screen.getByText('16 B')).toBeInTheDocument();
-  expect(screen.getByText('32 B')).toBeInTheDocument();
   const geometry = mockEditor.getCurrentPageShapes().map(s => [s.id, s.x, s.y, s.props.w, s.props.h]);
   act(() => receiveProjection(measuredProjection('batch3')));
   settle();
   expect(mockEditor.getCurrentPageShapes().map(s => [s.id, s.x, s.y, s.props.w, s.props.h])).toEqual(geometry);
   expect(shape(mockEditor, 'fc1').props.nodeData.outputShape).toEqual([3, 4]);
   expect(shape(mockEditor, 'fc2').props.nodeData.outputShape).toEqual([3, 2]);
-  expect(screen.getByText('24 B')).toBeInTheDocument();
-  expect(screen.getByText('48 B')).toBeInTheDocument();
-  expect(screen.queryByText('32 B')).toBeNull();
-  expect(screen.getByText(/not peak memory/)).toBeInTheDocument();
   act(() => receiveProjection(measuredProjection('double')));
   settle();
   expect(shape(mockEditor, 'fc1').props.nodeData.outputTensor.dtype).toBe('float64');
-  expect(screen.getByText('96 B')).toBeInTheDocument();
-  expect(screen.queryByText('24 B')).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Parameters' }));
-  expect(graphOverlayScale.get().values.get('fc1')!.value).toBe(20);
-  expect(graphOverlayScale.get().values.get('fc2')!.value).toBe(10);
-  expect(graphOverlayScale.get().values.get('relu')!.value).toBe(0);
-  act(() => receiveProjection(measuredProjection('batch3', true)));
-  settle();
-  expect(screen.getByText('No current exact parameter counts available.')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Output tensor bytes' }));
-  expect(screen.getByText('No current complete output tensor measurements available.')).toBeInTheDocument();
+  expect(graphNodes.get().find(node => node.id === 'fc1')!.data.parameterCount).toBe(20);
 });
 afterEach(() => {
   cleanup();
@@ -782,6 +795,41 @@ it('switches captured detail without recapturing, restores each layout and works
   expect((postToHost as jest.Mock).mock.calls.every(([message]) =>
     ['projectionApplied', 'viewSaved'].includes(message.type))).toBe(true);
   } finally { window.removeEventListener('canvas-graph-updated', listener); }
+});
+
+// The installed sidebar driver (extension/scripts/qa-sidebar-canvas.cjs) relies on this.
+it('Expanded view shows a nested call folded; an exact focus enters its parent scope', () => {
+  const captured = graphDocumentV2ToModelGraph(captureDocument as any);
+  const root = captured.nodes.find(n => n.data.captureRef?.kind === 'invocation')!;
+  const first = captured.nodes.find(n => n.data.captureRef?.kind === 'operation')!;
+  const call = (id: string, parentId: string, label: string) => ({ ...root, id, data: { ...root.data, parentId,
+    expanded: false, captureLabel: label, moduleInstanceId: id, captureRef: { ...root.data.captureRef!, semanticId: id } } });
+  captured.nodes.push(call('block', root.id, 'block'), call('conv', 'block', 'block.conv'));
+  first.data.parentId = 'conv';
+  Object.assign(mockEditor, {
+    getShapePageBounds: (id: string) => {
+      const record = mockEditor.getShape(id);
+      return record && { x: record.x, y: record.y, w: record.props.w, h: record.props.h };
+    },
+    getContainer: () => document.body, select: jest.fn(), selectNone: jest.fn(), stopCameraAnimation: jest.fn(),
+  });
+  act(() => receiveProjection(projection(captured)));
+  render(<ModelBuilder enableExternalCommands />);
+  settle();
+  const frames = () => { for (let i = 0; i < 5; i++) settle(); };
+  command('view-expanded'); frames();
+  // Expanded view opens calls that contain calls and leaves leaf calls folded.
+  expect(shape(mockEditor, 'block').props.nodeData.expanded).toBe(true);
+  expect(shape(mockEditor, 'conv').props.nodeData).toMatchObject({ captureLabel: 'block.conv', expanded: false });
+  command('focus-node', { nodeId: 'conv' }); frames();
+  // block's scope: its children have cards, block itself does not.
+  expect(shape(mockEditor, 'conv')).toBeDefined();
+  expect(shape(mockEditor, 'block')).toBeUndefined();
+  command('view-expanded'); frames();
+  command('focus-node', { nodeId: 'block' }); frames();
+  // The root's scope draws block folded, so no block.conv card exists.
+  expect(shape(mockEditor, 'block').props.nodeData.expanded).toBe(false);
+  expect(shape(mockEditor, 'conv')).toBeUndefined();
 });
 
 it('replaces every mounted card with one SVG image in expanded overview', () => {

@@ -56,31 +56,58 @@ export function capturedGraphReview(state: GraphReviewState, source: GraphReview
   const rootInvocation = (metadata.capture as { rootInvocationId?: string } | undefined)?.rootInvocationId;
   const root = graph.nodes.find(node => node.data.captureRef?.kind === 'invocation' && node.data.captureRef.semanticId === rootInvocation);
   if (!root) return null;
+  // The extension traces a nested project from that project's root; review names
+  // files from the repository root. Move the capture's names into review's frame.
+  const reviewed = state.models?.find(model => model.id === state.selectedModel)?.file ?? state.after.file;
+  const prefix = reviewed.endsWith(`/${capture.file}`) ? reviewed.slice(0, -capture.file.length) : '';
+  const reframe = (key: string) => prefix ? key.replace(/^@declaration:\[("(?:[^"\\]|\\.)*")/,
+    (_, file: string) => `@declaration:[${JSON.stringify(prefix + JSON.parse(file))}`) : key;
   const side = (['after', 'before'] as const).find(side => {
     const revision = state[side];
     const dependencies = new Map(revision.dependencies?.map(entry => [entry.file, entry.digest]));
     return capture.sourceDigest === revision.sourceDigest && !!capture.dependencies?.length
-      && capture.dependencies.every(entry => dependencies.get(entry.file) === entry.digest);
+      && capture.dependencies.every(entry => dependencies.get(prefix + entry.file) === entry.digest);
   });
   const correspondence = (metadata.sourceCorrespondence ?? []) as {
     nodeId: string; captureId: string; basis: string; invocationIds: string[];
   }[];
+  const constructorCalls = Object.fromEntries(Object.entries((metadata.sourceDeclarationCalls ?? {}) as Record<string, string[]>)
+    .map(([key, calls]) => [reframe(key), calls]));
   const nodes = new Map(source.nodes), focusNodes = new Map<string, string>();
   const overlays = new Map<string, ReviewNode>();
   const calls = new Map(graph.nodes.filter(node => node.data.captureRef?.kind === 'invocation')
     .map(node => [node.data.captureRef!.semanticId, node]));
   const unmapped = new Set<string>();
+  const changes: GraphReviewPresentation['changes'] = [];
+  const locatedDeclarations = new Set<string>();
   for (const change of source.changes) {
     const record = source.nodes.get(change.id)!;
     if (change.id === 'review:root') {
-      overlays.set(root.id, record); focusNodes.set(change.id, root.id); continue;
+      overlays.set(root.id, record); focusNodes.set(change.id, root.id); changes.push(change); continue;
     }
     const fact = side && !record.ambiguousDeclaration && correspondence.find(fact => fact.nodeId === record[side]
       && fact.captureId === root.data.captureRef!.captureId && fact.basis === 'registered_path');
-    const mapped = fact ? fact.invocationIds.map(id => calls.get(id)).filter(node => node !== undefined) : [];
-    if (!mapped.length) { unmapped.add(change.id); focusNodes.set(change.id, root.id); continue; }
-    for (const node of mapped) overlays.set(node!.id, { ...record, params: {}, summary: change.detail });
-    focusNodes.set(change.id, mapped.length === 1 ? mapped[0]!.id : root.id);
+    const declaration = side && !record.ambiguousDeclaration && record.sourceDeclaration?.[side];
+    const registeredCalls = fact ? fact.invocationIds : undefined;
+    const invocationIds = registeredCalls?.length ? registeredCalls : declaration ? constructorCalls[declaration] : undefined;
+    const mapped = Array.from(new Set(invocationIds ?? [])).map(id => calls.get(id)).filter(node => node !== undefined);
+    if (!mapped.length) {
+      unmapped.add(change.id); focusNodes.set(change.id, root.id);
+      changes.push({ ...change, detail: `${change.detail} · Not located in this capture` }); continue;
+    }
+    // Several lowered copies can describe the same constructor expression.
+    // Show each captured call once when that expression supplies the mapping.
+    const declarationKey = declaration && !registeredCalls?.length
+      ? JSON.stringify([declaration, record.status, change.detail, record.params]) : undefined;
+    if (declarationKey && locatedDeclarations.has(declarationKey)) continue;
+    if (declarationKey) locatedDeclarations.add(declarationKey);
+    mapped.forEach((node, index) => {
+      const id = mapped.length === 1 ? change.id : `${change.id}:call:${index}`;
+      overlays.set(node!.id, { ...record, params: {}, summary: change.detail });
+      nodes.set(id, record);
+      focusNodes.set(id, node!.id);
+      changes.push({ ...change, id, label: mapped.length === 1 ? change.label : `${change.label} · call ${index + 1}/${mapped.length}` });
+    });
   }
   const note = `${unmapped.size} source change${unmapped.size === 1 ? '' : 's'} cannot be located in this capture`;
   if (unmapped.size && !overlays.has(root.id)) overlays.set(root.id, { status: 'unresolved', params: {},
@@ -100,6 +127,6 @@ export function capturedGraphReview(state: GraphReviewState, source: GraphReview
   const projection: ReviewProjection = { ...capture, reviewId: state.id,
     capturedContext: true, viewRestored: true, reviewGraph: contextGraph };
   return { ...source, nodes, focusNodes, projections: { before: projection, diff: projection, after: projection },
-    changes: source.changes.map(change => unmapped.has(change.id)
-      ? { ...change, detail: `${change.detail} · Not located in this capture` } : change) };
+    initialChangeId: changes.find(change => !unmapped.has(change.id)
+      && nodes.get(change.id)?.status !== 'unresolved')?.id, changes };
 }

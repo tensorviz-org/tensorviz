@@ -8,7 +8,6 @@ hand-built pair would only test what the author already believed.
 
 import os
 
-import pytest
 
 
 from research.compare import compare  # noqa: E402
@@ -129,8 +128,7 @@ def test_the_example_project_compares_its_own_experiments():
     root = os.path.join(
         os.path.dirname(os.path.dirname(__file__)), "..", "..", "examples", "tensorviz-research"
     )
-    if not os.path.isdir(root):
-        pytest.skip("the example project is not present")
+    assert os.path.isdir(root), f"shipped example is missing: {root}"
 
     sources = {}
     for base, dirs, files in os.walk(root):

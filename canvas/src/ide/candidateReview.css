@@ -15,5 +15,6 @@
 .candidate-review dt { color: var(--tv-text-2); }
 .candidate-review dd { margin: 0; }
 .candidate-review small { display: block; line-height: 1.5; color: var(--tv-text-2); }
+.candidate-checkpoint-details pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 300px; overflow: auto; padding: 10px; background: var(--tv-field); border-radius: 6px; font: 11px/1.6 var(--font-mono, monospace); }
 .candidate-review .applied-source-check { border-top: 1px solid var(--tv-edge); margin-top: 12px; padding: 0; max-height: none; overflow: visible; }
 .candidate-review .applied-source-check h3 { font-size: inherit; margin: 12px 0 8px; }

@@ -195,4 +195,20 @@ suite('applied-source editor and dependency guards', () => {
     await assert.rejects(appliedCaptureGuard({ ...target, workspaceFolder: root }, live, new AbortController().signal));
     editorState.dirtyDocuments.clear(); await fs.writeFile(join(root, 'weights.bin'), 'changed'); assert.equal(guard(), false);
   });
+
+  test('a source set requires every reviewed file saved; mixed restoration never certifies the original set', async () => {
+    const files = ['model.py', 'config.py'].map(file => ({ file, beforeDigest: sha256('# before\n'), afterDigest: sha256('# after\n') }));
+    for (const file of files) { await fs.writeFile(join(root, file.file), '# after\n'); editorState.documents.set(join(root, file.file), '# after\n'); }
+    const receipt = { ...files[0], files, appliedAt: 1, unavailable: null };
+    const inspect = () => readAppliedSource({ ...target, workspaceFolder: root }, receipt, new AbortController().signal);
+    let observed = await inspect(); assert.equal(observed.source, 'reviewed_saved'); assert.equal(observed.current(), true);
+    editorState.dirtyDocuments.add(join(root, 'config.py')); assert.equal(observed.current(), false);
+    assert.equal((await inspect()).source, 'reviewed_unsaved'); editorState.dirtyDocuments.clear();
+    editorState.documents.set(join(root, 'config.py'), '# before\n'); assert.equal((await inspect()).source, 'changed');
+    editorState.documents.set(join(root, 'model.py'), '# before\n'); assert.equal((await inspect()).source, 'reverted');
+    for (const file of files) editorState.documents.set(join(root, file.file), '# after\n');
+    observed = await inspect(); assert.equal(observed.source, 'reviewed_saved');
+    await fs.writeFile(join(root, 'config.py'), '# other\n'); assert.equal(observed.current(), false);
+    await assert.rejects(inspect(), /tracked resource/);
+  });
 });

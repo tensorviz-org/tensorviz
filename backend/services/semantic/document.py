@@ -306,6 +306,11 @@ def capture_document(payload, *, name, graph_id, model_file, source_digests, sou
                 sourceCorrespondence=source_coverage)),
         view=dict(graph_id=graph_id, node_positions={node["node_id"]: dict(x=0, y=0) for node in nodes},
                   collapsed_modules=collapsed, selection=[], layout=dict(strategy="captured"))))
+    if source_texts is not None:
+        from services.ide.review_declarations import review_declarations, captured_declaration_calls
+        evidence = review_declarations(source_texts)
+        document.semantic.metadata["reviewDeclarations"] = evidence
+        document.semantic.metadata["sourceDeclarationCalls"] = captured_declaration_calls(capture, evidence, navigation_resolver)
     if len(document.model_dump_json().encode("utf-8")) > MAX_DOCUMENT_BYTES:
         raise DocumentBudgetExceeded("captured document exceeds the display transport budget; the host still retains the capture")
     return document, spans

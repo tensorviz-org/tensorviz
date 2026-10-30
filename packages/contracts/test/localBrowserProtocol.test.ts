@@ -20,12 +20,26 @@ const corpus = JSON.parse(readFileSync(fixturePath, 'utf8')) as {
 };
 
 suite('local browser protocol', () => {
+  test('draft revision capability is optional for legacy code drafts and strictly boolean when present', () => {
+    const message = { type: 'graphReviewState', protocolVersion: 1, workspaceSessionId: 'session', messageId: 'draft',
+      state: { id: 'draft', proposal: { id: 'proposal' }, before: {}, after: {}, beforeLabel: 'Current', afterLabel: 'Proposed', stale: false, changedFiles: [] } };
+    assert.equal(isLocalBrowserMessage(message), true);
+    for (const canRevise of [true, false]) assert.equal(isLocalBrowserMessage({ ...message,
+      state: { ...message.state, proposal: { id: 'proposal', canRevise } } }), true);
+    assert.equal(isLocalBrowserMessage({ ...message, state: { ...message.state, proposal: { id: 'proposal', canRevise: 'true' } } }), false);
+  });
   test('setup help carries only a validated draft and source links require a positive line', () => {
     assert.ok(isGraphSetupAction({ kind: 'agent_help', draft: { profile: {} } }));
     assert.equal(isGraphSetupAction({ kind: 'agent_help', draft: [] }), false);
     assert.equal(isGraphSetupAction({ kind: 'agent_help', instructions: 'arbitrary' }), false);
     assert.ok(isGraphSetupAction({ kind: 'reveal_setup_source', file: 'model.py', line: 7 }));
     for (const line of [0, -1, 1.5, '7']) assert.equal(isGraphSetupAction({ kind: 'reveal_setup_source', file: 'model.py', line }), false);
+  });
+  test('agent help accepts a bounded pending draft without accepting execution fields', () => {
+    assert.ok(isGraphSetupAction({ kind: 'agent_help', draft: { profile: { kind: 'model', inputs: { args: [], kwargs: {} } } } }));
+    assert.ok(isGraphSetupAction({ kind: 'agent_help' }));
+    assert.equal(isGraphSetupAction({ kind: 'agent_help', draft: { profile: 'invalid' } }), false);
+    assert.equal(isGraphSetupAction({ kind: 'agent_help', draft: { profile: {} }, execute: true }), false);
   });
   test('environment recovery carries bounded candidate identities and refuses incoherent or unbounded state', () => {
     const candidate = { id: 'project', interpreter: '/workspace/.venv/bin/python', source: 'Saved', selected: true,
@@ -180,6 +194,34 @@ suite('local browser protocol', () => {
       false,
     );
     assert.equal(isLocalBrowserMessage(projection, 'session-2'), false);
+  });
+
+  test('accepts Code focus as an optional boolean on view selections only', () => {
+    const validTarget = {
+      workspaceFolder: 'workspace-a',
+      file: 'model.py',
+      cls: 'Net',
+      documentVersion: 3,
+      sourceDigest: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      backendRevision: 7,
+    };
+    const selection = {
+      type: 'viewSelection',
+      protocolVersion: LOCAL_BROWSER_PROTOCOL_VERSION,
+      workspaceSessionId: 'session-1',
+      messageId: 'message-1',
+      viewId: 'view-1',
+      target: validTarget,
+      nodeIds: ['fc'],
+      edgeIds: [],
+    };
+    assert.equal(isLocalBrowserMessage(selection, 'session-1'), true, 'older views omit the mode');
+    assert.equal(isLocalBrowserMessage({ ...selection, follow: true }, 'session-1'), true);
+    assert.equal(isLocalBrowserMessage({ ...selection, follow: false }, 'session-1'), true);
+    assert.equal(isLocalBrowserMessage({ ...selection, follow: 'edit' }, 'session-1'), false);
+    assert.equal(isLocalBrowserMessage({ ...selection, follow: undefined }, 'session-1'), false, 'a present key must carry a value');
+    assert.equal(isLocalBrowserMessage({ ...selection, nodeIds: [], tooLarge: true, follow: false }, 'session-1'), true);
+    assert.equal(isLocalBrowserMessage({ ...selection, type: 'focusView', requestId: 'focus-1', follow: true }, 'session-1'), false);
   });
 
   test('enforces forbidden-field key presence and optional value semantics', () => {

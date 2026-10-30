@@ -1929,7 +1929,12 @@
           "invocationCount": 1,
           "failureNodeId": null
         },
-        "sourceCorrespondence": []
+        "sourceCorrespondence": [],
+        "reviewDeclarations": {
+          "entries": {},
+          "complete": true
+        },
+        "sourceDeclarationCalls": {}
       }
     },
     "view": {

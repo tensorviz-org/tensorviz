@@ -4,6 +4,7 @@ import {
   localBrowserSyncLabel,
   orderedDiagnostics,
   projectionForCanvas,
+  sourceFocusNode,
 } from '../../ide/localBrowserPresentation';
 import { EMPTY_LOCAL_BROWSER_PAGE_STATE, type LocalBrowserPageState } from '../../ide/localBrowserState';
 import { IdeProjectionDiagnostic, ProjectionPayload } from '../../ide/protocol.generated';
@@ -17,6 +18,45 @@ test('a failed capture names the layer instead of hiding the detail', () => {
     opening: { id: 'run', phase: 'failed', hasCapture: true, detail: 'expected [?, 10], received [2, 8].', failure: { kind: 'execution' },
       target: { workspaceFolder: '/project', file: 'models/net.py', cls: 'Net', sourceDigest: 'root-digest', documentVersion: 1, backendRevision: 1 } } };
   expect(localBrowserSyncLabel(page)).toEqual({ tone: 'warn', text: 'Capture stopped at net.head · expected [?, 10], received [2, 8].' });
+});
+
+describe('automatic source focus', () => {
+  const node = (node_id: string, kind: string, parentId: string | null) => ({ node_id, kind, metadata: { parentId } });
+  const document = { semantic: { nodes: [
+    node('operation:a', 'op', 'invocation:child'),
+    node('invocation:child', 'module', 'invocation:outer'),
+    node('invocation:outer', 'module', 'root'),
+    node('root', 'module', null),
+  ] } };
+
+  test('a container beats its nested calls and operations, regardless of opaque ID or input order', () => {
+    expect(sourceFocusNode(document, ['operation:a', 'invocation:child', 'invocation:outer'])).toBe('invocation:outer');
+    expect(sourceFocusNode(document, ['invocation:outer', 'operation:a', 'invocation:child'])).toBe('invocation:outer');
+  });
+
+  test('a specific child line stays on that child, without climbing to an unmatched ancestor', () => {
+    expect(sourceFocusNode(document, ['operation:a', 'invocation:child'])).toBe('invocation:child');
+    expect(sourceFocusNode(document, ['invocation:child'])).toBe('invocation:child');
+  });
+
+  test('equal-depth shared calls choose the first graph occurrence, not the first sorted hash', () => {
+    const shared = { semantic: { nodes: [node('z-first-call', 'module', null), node('a-second-call', 'module', null)] } };
+    expect(sourceFocusNode(shared, ['a-second-call', 'z-first-call'])).toBe('z-first-call');
+  });
+
+  test('source-only layers use the same hierarchy', () => {
+    const source = { semantic: { nodes: [node('features.0', 'layer', 'features'), node('features', 'module', null)] } };
+    expect(sourceFocusNode(source, ['features.0', 'features'])).toBe('features');
+  });
+
+  test('standalone operations still focus, and an empty match does nothing', () => {
+    expect(sourceFocusNode(document, ['operation:a'])).toBe('operation:a');
+    expect(sourceFocusNode(document, [])).toBeUndefined();
+  });
+
+  test('a focus arriving before its document retains the host target', () => {
+    expect(sourceFocusNode(undefined, ['host-node'])).toBe('host-node');
+  });
 });
 
 test('a JAX capture labels inferred shapes even without a setup draft', () => {

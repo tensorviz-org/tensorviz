@@ -1,0 +1,320 @@
+{
+  "version": 1,
+  "python": "3.12.14",
+  "torch": "2.7.1",
+  "scope": "Fixed CPU source correspondence oracle; no live agent or installed acceptance",
+  "sources": [
+    {"file": "_tensorviz_context_config.py", "source": "WIDTH = 12\nHEADS = 3\n", "digest": "83e184acdc182920bc058c50a632001e2de6ec12777667241b012c6d4324e009"},
+    {
+      "file": "model.py",
+      "source": "import torch\nfrom _tensorviz_context_config import WIDTH, HEADS\nclass Model(torch.nn.Module):\n    def __init__(self):\n        super().__init__()\n        self.width = WIDTH\n        self.heads = HEADS\n        self.weight = torch.nn.Parameter(torch.eye(WIDTH))\n    def forward(self, x):\n        projected = x @ self.weight\n        split = projected.reshape(x.shape[0], self.heads, self.width // self.heads)\n        return split + split\n",
+      "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30"
+    }
+  ],
+  "queries": [
+    {
+      "query": {"file": "_tensorviz_context_config.py", "symbol": "WIDTH", "direction": "downstream", "depth": 8, "limit": 100},
+      "page": {
+        "version": 1,
+        "indexId": "e0e2e929e572ef70469ad670b2b04142b6596f7a5093ce26ae6850b42e669015",
+        "evidence": "source_only",
+        "scope": "supplied_python_files",
+        "files": [{"file": "_tensorviz_context_config.py", "digest": "83e184acdc182920bc058c50a632001e2de6ec12777667241b012c6d4324e009"}, {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30"}],
+        "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+        "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+        "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+        "omittedDiagnostics": 0,
+        "traversal": {"entities": 17, "boundaries": 3, "omittedSeeds": 0},
+        "total": 36,
+        "items": [
+          {
+            "id": "source:fa08e029673ebeca2804563f4b5150a83dcd4a9ed730d5a076a43b9502606721",
+            "kind": "definition",
+            "name": "WIDTH",
+            "anchor": {"file": "_tensorviz_context_config.py", "digest": "83e184acdc182920bc058c50a632001e2de6ec12777667241b012c6d4324e009", "startLine": 1, "startColumn": 0, "endLine": 1, "endColumn": 5, "scope": "<module>", "tokenDigest": "a75163de251157a73c7bc6399af56f277ac38c3d0c23e0fc9d641a5b745540fb"},
+            "bindingKind": "assignment",
+            "excerpt": "WIDTH = 12",
+            "literalSource": "12"
+          },
+          {"id": "source:4e26b77201c3cdb4b909e39606f3dc5b0633240dd9ffdc035b8238bd42fe9fa5", "kind": "definition", "name": "WIDTH", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 2, "startColumn": 38, "endLine": 2, "endColumn": 43, "scope": "<module>", "tokenDigest": "2158bd3394300f8af99f31afe7c1ff82521a52979d61390583ddf6ca27cfa686"}, "bindingKind": "import", "excerpt": "from _tensorviz_context_config import WIDTH, HEADS"},
+          {"id": "source:c856fffd84a50b6d0607abec0961cc4f5b3166eb3b2085cba01904e261a3897d", "kind": "reference", "name": "WIDTH", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 6, "startColumn": 21, "endLine": 6, "endColumn": 26, "scope": "Model.__init__", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"}, "excerpt": "        self.width = WIDTH", "resolution": "lexical"},
+          {
+            "id": "source:feabb34a120cdeb629b4e68207871de37e64adce1aea57fc094fc85e7439b2c8",
+            "kind": "reference",
+            "name": "WIDTH",
+            "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 8, "startColumn": 51, "endLine": 8, "endColumn": 56, "scope": "Model.__init__", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+            "excerpt": "        self.weight = torch.nn.Parameter(torch.eye(WIDTH))",
+            "resolution": "lexical"
+          },
+          {"id": "source:0572cbd955d86f7e78c2fc79407c5f5ad3bcd31f682f3e253111b1f7238ce4e6", "kind": "reference", "name": "self.width", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 6, "startColumn": 8, "endLine": 6, "endColumn": 18, "scope": "Model.__init__", "tokenDigest": "8c6f90e93bb68f2b339782f597c0370cc7dceba6a2e93a6793e0aab3225dce53"}, "excerpt": "        self.width = WIDTH", "resolution": "attribute_write"},
+          {"id": "source:3c177f633a1e417c79d637a93f5156da10ff7cc2c0a0c87b95d70ba730408299", "kind": "call", "name": "torch.eye", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 8, "startColumn": 41, "endLine": 8, "endColumn": 57, "scope": "Model.__init__", "tokenDigest": "273886b8ae2bb8e58f3d22c7ef0f66f172a970c83da26f3d14e0253288f75fc1"}, "excerpt": "        self.weight = torch.nn.Parameter(torch.eye(WIDTH))"},
+          {
+            "id": "source:27634f3f955d1749bfcafa5e923ffc1a3895f749af94cec4f84e03937ba2c3b5",
+            "kind": "reference",
+            "name": "self.width",
+            "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 11, "startColumn": 58, "endLine": 11, "endColumn": 68, "scope": "Model.forward", "tokenDigest": "452ad892dfb3b32149bf6102273551eaa3d396959268ea708fde41422efeaada"},
+            "excerpt": "        split = projected.reshape(x.shape[0], self.heads, self.width // self.heads)",
+            "resolution": "possible_attribute"
+          },
+          {"id": "source:d700ffdfcba036e19bfd9a635ded70cabdc0c75af4ea474b2f8b4940d26aed0f", "kind": "call", "name": "torch.nn.Parameter", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 8, "startColumn": 22, "endLine": 8, "endColumn": 58, "scope": "Model.__init__", "tokenDigest": "11750a0156eb28ef15d96477d5de0fcbe6b854609ef5fb722d72bf39332471d0"}, "excerpt": "        self.weight = torch.nn.Parameter(torch.eye(WIDTH))"},
+          {
+            "id": "source:b1b125eeaafc373fcf09edc35bc403681f801e5cc352d4ae737eb563193043fa",
+            "kind": "expression",
+            "name": "BinOp",
+            "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 11, "startColumn": 58, "endLine": 11, "endColumn": 82, "scope": "Model.forward", "tokenDigest": "5a5e89597b654461ac956aa1b8eefa65fe61408678bfb4ad46c9887fe09973b8"},
+            "excerpt": "        split = projected.reshape(x.shape[0], self.heads, self.width // self.heads)"
+          },
+          {
+            "id": "source:0d602ab1ef0a8f6f3b45ccc0569157d1550adb322e632cfbc6ce69d5bdca2438",
+            "kind": "reference",
+            "name": "self.weight",
+            "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 8, "startColumn": 8, "endLine": 8, "endColumn": 19, "scope": "Model.__init__", "tokenDigest": "64716b7c8baed4dc455955cc54ba09b39db2dc305e73582d2614b12a67b99ccb"},
+            "excerpt": "        self.weight = torch.nn.Parameter(torch.eye(WIDTH))",
+            "resolution": "attribute_write"
+          },
+          {
+            "id": "source:89267596e03808f73c0a77446d80d4711ee8a9bd399219ab9a2fb343cf28975f",
+            "kind": "call",
+            "name": "projected.reshape",
+            "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 11, "startColumn": 16, "endLine": 11, "endColumn": 83, "scope": "Model.forward", "tokenDigest": "ac0d410c804afb1d0655bd4b7f37901477d946d5ce4fc1d5acfc8da546c59473"},
+            "excerpt": "        split = projected.reshape(x.shape[0], self.heads, self.width // self.heads)"
+          },
+          {
+            "id": "source:858c7db1a5985ca9279a4c1ad160d5b209d9af2e35ac112dab3a4bfd62ea8244",
+            "kind": "reference",
+            "name": "self.weight",
+            "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 10, "startColumn": 24, "endLine": 10, "endColumn": 35, "scope": "Model.forward", "tokenDigest": "96272b3bc03a16c643357a727e14d380f542ca8aa4e255db43ac55bec4f3117e"},
+            "excerpt": "        projected = x @ self.weight",
+            "resolution": "possible_attribute"
+          },
+          {
+            "id": "source:c59955d6a99816259714758b3e88e07e35e3be476bee83cfdc40e8cbcb8119d0",
+            "kind": "definition",
+            "name": "split",
+            "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 11, "startColumn": 8, "endLine": 11, "endColumn": 13, "scope": "Model.forward", "tokenDigest": "c5b8565c4eeb762788459a64bb1ccdab52f2d6951434bbce10978b45711b6800"},
+            "bindingKind": "assignment",
+            "excerpt": "        split = projected.reshape(x.shape[0], self.heads, self.width // self.heads)"
+          },
+          {"id": "source:1cd6fd03791768c885cb4c5a97276f0fa4dc3d7f6465c75be5615b63f34377de", "kind": "expression", "name": "BinOp", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 10, "startColumn": 20, "endLine": 10, "endColumn": 35, "scope": "Model.forward", "tokenDigest": "38e0854df5082939e5433b056e1abd5e268904c60e5f8af4908494167665d341"}, "excerpt": "        projected = x @ self.weight"},
+          {"id": "source:fcea12879b60fca2f85542e226b75358d026a59077e13480ffe8e0b8d2fbe086", "kind": "reference", "name": "split", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 12, "startColumn": 15, "endLine": 12, "endColumn": 20, "scope": "Model.forward", "tokenDigest": "923dfac6ee503d4e391eba77436293046c1abc2415ae7d784924a804627a8174"}, "excerpt": "        return split + split", "resolution": "lexical"},
+          {"id": "source:8c47ca553e1cb77bbbb5be444c4a884e9c123da388583fb010a73329b5b566b9", "kind": "reference", "name": "split", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 12, "startColumn": 23, "endLine": 12, "endColumn": 28, "scope": "Model.forward", "tokenDigest": "923dfac6ee503d4e391eba77436293046c1abc2415ae7d784924a804627a8174"}, "excerpt": "        return split + split", "resolution": "lexical"},
+          {"id": "source:ee189f133d6be6cc4a5ca63ee35abf10d77819d99fb567471c82f764e77997d2", "kind": "definition", "name": "projected", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 10, "startColumn": 8, "endLine": 10, "endColumn": 17, "scope": "Model.forward", "tokenDigest": "ae120300b279ee6dbe5ec40a327ffedac74a91103e8ea31fbbedaa697998dbb8"}, "bindingKind": "assignment", "excerpt": "        projected = x @ self.weight"},
+          {"kind": "relation", "source": "source:fa08e029673ebeca2804563f4b5150a83dcd4a9ed730d5a076a43b9502606721", "target": "source:4e26b77201c3cdb4b909e39606f3dc5b0633240dd9ffdc035b8238bd42fe9fa5", "relation": "import", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:4e26b77201c3cdb4b909e39606f3dc5b0633240dd9ffdc035b8238bd42fe9fa5", "target": "source:c856fffd84a50b6d0607abec0961cc4f5b3166eb3b2085cba01904e261a3897d", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:4e26b77201c3cdb4b909e39606f3dc5b0633240dd9ffdc035b8238bd42fe9fa5", "target": "source:feabb34a120cdeb629b4e68207871de37e64adce1aea57fc094fc85e7439b2c8", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:0d602ab1ef0a8f6f3b45ccc0569157d1550adb322e632cfbc6ce69d5bdca2438", "target": "source:858c7db1a5985ca9279a4c1ad160d5b209d9af2e35ac112dab3a4bfd62ea8244", "relation": "reference", "certainty": "possible"},
+          {"kind": "boundary", "anchorId": "source:5f6c5fe60ce171e1f270341a8a8369aae1b08b5fb75146cfff854e5cc3c849ba", "via": {"kind": "relation", "source": "source:ee189f133d6be6cc4a5ca63ee35abf10d77819d99fb567471c82f764e77997d2", "target": "source:5f6c5fe60ce171e1f270341a8a8369aae1b08b5fb75146cfff854e5cc3c849ba", "relation": "reference", "certainty": "lexical"}, "reason": "depth_limit"},
+          {"kind": "relation", "source": "source:0572cbd955d86f7e78c2fc79407c5f5ad3bcd31f682f3e253111b1f7238ce4e6", "target": "source:27634f3f955d1749bfcafa5e923ffc1a3895f749af94cec4f84e03937ba2c3b5", "relation": "reference", "certainty": "possible"},
+          {"kind": "relation", "source": "source:c59955d6a99816259714758b3e88e07e35e3be476bee83cfdc40e8cbcb8119d0", "target": "source:fcea12879b60fca2f85542e226b75358d026a59077e13480ffe8e0b8d2fbe086", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:c59955d6a99816259714758b3e88e07e35e3be476bee83cfdc40e8cbcb8119d0", "target": "source:8c47ca553e1cb77bbbb5be444c4a884e9c123da388583fb010a73329b5b566b9", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:c856fffd84a50b6d0607abec0961cc4f5b3166eb3b2085cba01904e261a3897d", "target": "source:0572cbd955d86f7e78c2fc79407c5f5ad3bcd31f682f3e253111b1f7238ce4e6", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:d700ffdfcba036e19bfd9a635ded70cabdc0c75af4ea474b2f8b4940d26aed0f", "target": "source:0d602ab1ef0a8f6f3b45ccc0569157d1550adb322e632cfbc6ce69d5bdca2438", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:3c177f633a1e417c79d637a93f5156da10ff7cc2c0a0c87b95d70ba730408299", "target": "source:d700ffdfcba036e19bfd9a635ded70cabdc0c75af4ea474b2f8b4940d26aed0f", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 0]},
+          {"kind": "relation", "source": "source:feabb34a120cdeb629b4e68207871de37e64adce1aea57fc094fc85e7439b2c8", "target": "source:3c177f633a1e417c79d637a93f5156da10ff7cc2c0a0c87b95d70ba730408299", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 0]},
+          {"kind": "relation", "source": "source:1cd6fd03791768c885cb4c5a97276f0fa4dc3d7f6465c75be5615b63f34377de", "target": "source:ee189f133d6be6cc4a5ca63ee35abf10d77819d99fb567471c82f764e77997d2", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:858c7db1a5985ca9279a4c1ad160d5b209d9af2e35ac112dab3a4bfd62ea8244", "target": "source:1cd6fd03791768c885cb4c5a97276f0fa4dc3d7f6465c75be5615b63f34377de", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:89267596e03808f73c0a77446d80d4711ee8a9bd399219ab9a2fb343cf28975f", "target": "source:c59955d6a99816259714758b3e88e07e35e3be476bee83cfdc40e8cbcb8119d0", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:b1b125eeaafc373fcf09edc35bc403681f801e5cc352d4ae737eb563193043fa", "target": "source:89267596e03808f73c0a77446d80d4711ee8a9bd399219ab9a2fb343cf28975f", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 2]},
+          {"kind": "relation", "source": "source:27634f3f955d1749bfcafa5e923ffc1a3895f749af94cec4f84e03937ba2c3b5", "target": "source:b1b125eeaafc373fcf09edc35bc403681f801e5cc352d4ae737eb563193043fa", "relation": "expression", "certainty": "lexical"},
+          {"kind": "boundary", "anchorId": "source:a6ed8dc55dc7d5d51b9d60d98146f2fe3e5fe6e5a84511f0e3097606be0c8082", "via": {"kind": "relation", "source": "source:fcea12879b60fca2f85542e226b75358d026a59077e13480ffe8e0b8d2fbe086", "target": "source:a6ed8dc55dc7d5d51b9d60d98146f2fe3e5fe6e5a84511f0e3097606be0c8082", "relation": "expression", "certainty": "lexical"}, "reason": "depth_limit"},
+          {"kind": "boundary", "anchorId": "source:a6ed8dc55dc7d5d51b9d60d98146f2fe3e5fe6e5a84511f0e3097606be0c8082", "via": {"kind": "relation", "source": "source:8c47ca553e1cb77bbbb5be444c4a884e9c123da388583fb010a73329b5b566b9", "target": "source:a6ed8dc55dc7d5d51b9d60d98146f2fe3e5fe6e5a84511f0e3097606be0c8082", "relation": "expression", "certainty": "lexical"}, "reason": "depth_limit"}
+        ],
+        "nextOffset": null
+      }
+    },
+    {
+      "query": {"file": "_tensorviz_context_config.py", "symbol": "HEADS", "direction": "downstream", "depth": 8, "limit": 100},
+      "page": {
+        "version": 1,
+        "indexId": "e0e2e929e572ef70469ad670b2b04142b6596f7a5093ce26ae6850b42e669015",
+        "evidence": "source_only",
+        "scope": "supplied_python_files",
+        "files": [{"file": "_tensorviz_context_config.py", "digest": "83e184acdc182920bc058c50a632001e2de6ec12777667241b012c6d4324e009"}, {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30"}],
+        "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+        "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+        "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+        "omittedDiagnostics": 0,
+        "traversal": {"entities": 12, "boundaries": 0, "omittedSeeds": 0},
+        "total": 25,
+        "items": [
+          {
+            "id": "source:2f78a5f06b335e0e93c879a9164ca1dbaeb8792be45550ac3a5de84500e3fab9",
+            "kind": "definition",
+            "name": "HEADS",
+            "anchor": {"file": "_tensorviz_context_config.py", "digest": "83e184acdc182920bc058c50a632001e2de6ec12777667241b012c6d4324e009", "startLine": 2, "startColumn": 0, "endLine": 2, "endColumn": 5, "scope": "<module>", "tokenDigest": "056e5eb3a2a5111704e031ab1f618e7f118120f0af54322074aa86524c25e4f1"},
+            "bindingKind": "assignment",
+            "excerpt": "HEADS = 3",
+            "literalSource": "3"
+          },
+          {"id": "source:c1ba8905051917480d585ce29b6595630242f20cf86c445620b375bb3181c536", "kind": "definition", "name": "HEADS", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 2, "startColumn": 45, "endLine": 2, "endColumn": 50, "scope": "<module>", "tokenDigest": "ace912b3ae5f01f3d3e506c4283c16cbf4ce0ee96d57409453053cb2a58f7164"}, "bindingKind": "import", "excerpt": "from _tensorviz_context_config import WIDTH, HEADS"},
+          {"id": "source:8932af9284f44243cb16227e401e3d452d88856fd9c07c96e5898ff3471aecc0", "kind": "reference", "name": "HEADS", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 7, "startColumn": 21, "endLine": 7, "endColumn": 26, "scope": "Model.__init__", "tokenDigest": "e7418e77014798c257d2b07dbee60874315aba55e868269430d2da7f268d44a4"}, "excerpt": "        self.heads = HEADS", "resolution": "lexical"},
+          {"id": "source:e416310a15f58d70ef5c12e0253b551275b6cf9bae71d9e028065a2a3140e1a1", "kind": "reference", "name": "self.heads", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 7, "startColumn": 8, "endLine": 7, "endColumn": 18, "scope": "Model.__init__", "tokenDigest": "996dd145715311e59e95c074f907fde398a6dccfcfcdfd1b2e55b621a2bb5580"}, "excerpt": "        self.heads = HEADS", "resolution": "attribute_write"},
+          {
+            "id": "source:a188db7dd0162ec48e5835f76911680a32b90d76df14bc3cfa7b65f286cf34a5",
+            "kind": "reference",
+            "name": "self.heads",
+            "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 11, "startColumn": 46, "endLine": 11, "endColumn": 56, "scope": "Model.forward", "tokenDigest": "6dbcb65765e94e3fe9ddeb5495836a3d09f866df540a00c0c5b93c5a7699827b"},
+            "excerpt": "        split = projected.reshape(x.shape[0], self.heads, self.width // self.heads)",
+            "resolution": "possible_attribute"
+          },
+          {
+            "id": "source:1d0e3cb3dce58e80576283354f8144b42f55c524634b9beed28452ced97c4171",
+            "kind": "reference",
+            "name": "self.heads",
+            "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 11, "startColumn": 72, "endLine": 11, "endColumn": 82, "scope": "Model.forward", "tokenDigest": "6dbcb65765e94e3fe9ddeb5495836a3d09f866df540a00c0c5b93c5a7699827b"},
+            "excerpt": "        split = projected.reshape(x.shape[0], self.heads, self.width // self.heads)",
+            "resolution": "possible_attribute"
+          },
+          {
+            "id": "source:89267596e03808f73c0a77446d80d4711ee8a9bd399219ab9a2fb343cf28975f",
+            "kind": "call",
+            "name": "projected.reshape",
+            "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 11, "startColumn": 16, "endLine": 11, "endColumn": 83, "scope": "Model.forward", "tokenDigest": "ac0d410c804afb1d0655bd4b7f37901477d946d5ce4fc1d5acfc8da546c59473"},
+            "excerpt": "        split = projected.reshape(x.shape[0], self.heads, self.width // self.heads)"
+          },
+          {
+            "id": "source:b1b125eeaafc373fcf09edc35bc403681f801e5cc352d4ae737eb563193043fa",
+            "kind": "expression",
+            "name": "BinOp",
+            "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 11, "startColumn": 58, "endLine": 11, "endColumn": 82, "scope": "Model.forward", "tokenDigest": "5a5e89597b654461ac956aa1b8eefa65fe61408678bfb4ad46c9887fe09973b8"},
+            "excerpt": "        split = projected.reshape(x.shape[0], self.heads, self.width // self.heads)"
+          },
+          {
+            "id": "source:c59955d6a99816259714758b3e88e07e35e3be476bee83cfdc40e8cbcb8119d0",
+            "kind": "definition",
+            "name": "split",
+            "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 11, "startColumn": 8, "endLine": 11, "endColumn": 13, "scope": "Model.forward", "tokenDigest": "c5b8565c4eeb762788459a64bb1ccdab52f2d6951434bbce10978b45711b6800"},
+            "bindingKind": "assignment",
+            "excerpt": "        split = projected.reshape(x.shape[0], self.heads, self.width // self.heads)"
+          },
+          {"id": "source:fcea12879b60fca2f85542e226b75358d026a59077e13480ffe8e0b8d2fbe086", "kind": "reference", "name": "split", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 12, "startColumn": 15, "endLine": 12, "endColumn": 20, "scope": "Model.forward", "tokenDigest": "923dfac6ee503d4e391eba77436293046c1abc2415ae7d784924a804627a8174"}, "excerpt": "        return split + split", "resolution": "lexical"},
+          {"id": "source:8c47ca553e1cb77bbbb5be444c4a884e9c123da388583fb010a73329b5b566b9", "kind": "reference", "name": "split", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 12, "startColumn": 23, "endLine": 12, "endColumn": 28, "scope": "Model.forward", "tokenDigest": "923dfac6ee503d4e391eba77436293046c1abc2415ae7d784924a804627a8174"}, "excerpt": "        return split + split", "resolution": "lexical"},
+          {"id": "source:a6ed8dc55dc7d5d51b9d60d98146f2fe3e5fe6e5a84511f0e3097606be0c8082", "kind": "expression", "name": "BinOp", "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 12, "startColumn": 15, "endLine": 12, "endColumn": 28, "scope": "Model.forward", "tokenDigest": "9cf929c037964c0529f218c62a948b34a23ae18acb24788ca8302b0e516bdf32"}, "excerpt": "        return split + split"},
+          {"kind": "relation", "source": "source:2f78a5f06b335e0e93c879a9164ca1dbaeb8792be45550ac3a5de84500e3fab9", "target": "source:c1ba8905051917480d585ce29b6595630242f20cf86c445620b375bb3181c536", "relation": "import", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:c1ba8905051917480d585ce29b6595630242f20cf86c445620b375bb3181c536", "target": "source:8932af9284f44243cb16227e401e3d452d88856fd9c07c96e5898ff3471aecc0", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:e416310a15f58d70ef5c12e0253b551275b6cf9bae71d9e028065a2a3140e1a1", "target": "source:a188db7dd0162ec48e5835f76911680a32b90d76df14bc3cfa7b65f286cf34a5", "relation": "reference", "certainty": "possible"},
+          {"kind": "relation", "source": "source:e416310a15f58d70ef5c12e0253b551275b6cf9bae71d9e028065a2a3140e1a1", "target": "source:1d0e3cb3dce58e80576283354f8144b42f55c524634b9beed28452ced97c4171", "relation": "reference", "certainty": "possible"},
+          {"kind": "relation", "source": "source:c59955d6a99816259714758b3e88e07e35e3be476bee83cfdc40e8cbcb8119d0", "target": "source:fcea12879b60fca2f85542e226b75358d026a59077e13480ffe8e0b8d2fbe086", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:c59955d6a99816259714758b3e88e07e35e3be476bee83cfdc40e8cbcb8119d0", "target": "source:8c47ca553e1cb77bbbb5be444c4a884e9c123da388583fb010a73329b5b566b9", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:8932af9284f44243cb16227e401e3d452d88856fd9c07c96e5898ff3471aecc0", "target": "source:e416310a15f58d70ef5c12e0253b551275b6cf9bae71d9e028065a2a3140e1a1", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:89267596e03808f73c0a77446d80d4711ee8a9bd399219ab9a2fb343cf28975f", "target": "source:c59955d6a99816259714758b3e88e07e35e3be476bee83cfdc40e8cbcb8119d0", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:a188db7dd0162ec48e5835f76911680a32b90d76df14bc3cfa7b65f286cf34a5", "target": "source:89267596e03808f73c0a77446d80d4711ee8a9bd399219ab9a2fb343cf28975f", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 1]},
+          {"kind": "relation", "source": "source:b1b125eeaafc373fcf09edc35bc403681f801e5cc352d4ae737eb563193043fa", "target": "source:89267596e03808f73c0a77446d80d4711ee8a9bd399219ab9a2fb343cf28975f", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 2]},
+          {"kind": "relation", "source": "source:1d0e3cb3dce58e80576283354f8144b42f55c524634b9beed28452ced97c4171", "target": "source:b1b125eeaafc373fcf09edc35bc403681f801e5cc352d4ae737eb563193043fa", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:fcea12879b60fca2f85542e226b75358d026a59077e13480ffe8e0b8d2fbe086", "target": "source:a6ed8dc55dc7d5d51b9d60d98146f2fe3e5fe6e5a84511f0e3097606be0c8082", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:8c47ca553e1cb77bbbb5be444c4a884e9c123da388583fb010a73329b5b566b9", "target": "source:a6ed8dc55dc7d5d51b9d60d98146f2fe3e5fe6e5a84511f0e3097606be0c8082", "relation": "expression", "certainty": "lexical"}
+        ],
+        "nextOffset": null
+      }
+    },
+    {
+      "query": {"file": "model.py", "symbol": "forward", "depth": 0, "limit": 100},
+      "page": {
+        "version": 1,
+        "indexId": "e0e2e929e572ef70469ad670b2b04142b6596f7a5093ce26ae6850b42e669015",
+        "evidence": "source_only",
+        "scope": "supplied_python_files",
+        "files": [{"file": "_tensorviz_context_config.py", "digest": "83e184acdc182920bc058c50a632001e2de6ec12777667241b012c6d4324e009"}, {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30"}],
+        "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+        "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+        "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+        "omittedDiagnostics": 0,
+        "traversal": {"entities": 1, "boundaries": 0, "omittedSeeds": 0},
+        "total": 1,
+        "items": [
+          {
+            "id": "source:167885867623a1fe53c3c64f015aa9f0ab39cb5a5118ffa4e53aa2f6b28a059e",
+            "kind": "definition",
+            "name": "forward",
+            "anchor": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 9, "startColumn": 4, "endLine": 12, "endColumn": 28, "scope": "Model.forward", "tokenDigest": "7794471e530333abc4f3a1475dc66183f6763f436b61e2c198157795a5c4cc0e"},
+            "bindingKind": "function",
+            "excerpt": "    def forward(self, x):\n        projected = x @ self.weight\n        split = projected.reshape(x.shape[0], self.heads, self.width // self.heads)\n        return split + split"
+          }
+        ],
+        "nextOffset": null
+      }
+    }
+  ],
+  "capture": {
+    "version": 1,
+    "id": "capture:42444322-5ec9-4270-a7f9-876b5c3628a0",
+    "attemptId": "attempt:context-oracle",
+    "source": {
+      "version": 1,
+      "id": "source:context-oracle",
+      "workspaceSessionId": "session:oracle",
+      "workspaceId": "workspace:oracle",
+      "modelId": "model:context",
+      "modelFile": "model.py",
+      "className": "Model",
+      "generation": 0,
+      "files": [{"path": "_tensorviz_context_config.py", "digest": "83e184acdc182920bc058c50a632001e2de6ec12777667241b012c6d4324e009", "documentVersion": 1, "role": "source"}, {"path": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "documentVersion": 1, "role": "source"}],
+      "dependencyScope": "complete",
+      "configDigest": null,
+      "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "sourceMode": "saved"
+    },
+    "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "preparationDigest": null,
+    "automatic": null,
+    "inputDigest": null,
+    "stateDigest": null,
+    "backend": "runtime",
+    "backendVersion": "1",
+    "torchVersion": "2.7.1",
+    "jaxVersion": null,
+    "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch", "Source bindings identify authored expressions, not independently editable dispatcher operations"],
+    "status": "complete",
+    "rootInvocationId": "invocation:0",
+    "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+    "output": {"kind": "value", "id": "tensor4"},
+    "definitions": [{"id": "definition:0", "qualifiedName": "context_oracle.Model", "sourceBindingIds": ["binding:d9ecf75b7ca7b480089debefec52cf7c63aaeaa490a0195f8b9101158df91928"]}],
+    "modules": [{"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": [], "constructorClassVerified": false, "initializerArguments": null}],
+    "invocations": [{"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 4, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor4"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 144, "parameterCountUnavailable": null, "sourceBindingIds": []}],
+    "operations": [
+      {"id": "operation:0", "sequence": 1, "invocationId": "invocation:0", "target": "aten.mm.default", "schemaSignature": "aten::mm(Tensor self, Tensor mat2) -> Tensor", "arguments": {"args": [{"kind": "value", "id": "tensor0"}, {"kind": "value", "id": "tensor1"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor2"}, "effects": [], "status": "completed", "diagnosticId": null, "sourceBindingIds": ["binding:12a634e92d686a081cfbb5b8a1057e04a5ea0149681dad85948d3ad5847abac5"]},
+      {
+        "id": "operation:1",
+        "sequence": 2,
+        "invocationId": "invocation:0",
+        "target": "aten.view.default",
+        "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+        "arguments": {"args": [{"kind": "value", "id": "tensor2"}, {"kind": "list", "items": [{"kind": "int", "value": "2"}, {"kind": "int", "value": "3"}, {"kind": "int", "value": "4"}]}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor3"},
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": ["binding:2a40d5d422a949441a2e18484ba413e6da5bba0bb6d4d1a73d2615f7eae6161e"]
+      },
+      {
+        "id": "operation:2",
+        "sequence": 3,
+        "invocationId": "invocation:0",
+        "target": "aten.add.Tensor",
+        "schemaSignature": "aten::add.Tensor(Tensor self, Tensor other, *, Scalar alpha=1) -> Tensor",
+        "arguments": {"args": [{"kind": "value", "id": "tensor3"}, {"kind": "value", "id": "tensor3"}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor4"},
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": ["binding:3f8b79781c73fd187a52adde33820702f44686136968c2ef57192b0a1b06ed78"]
+      }
+    ],
+    "values": [
+      {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [2, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 96, "producer": null, "origin": "input", "state": []},
+      {"id": "tensor1", "objectId": "object1", "storageId": "storage1", "version": 0, "shape": [12, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": true, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 576, "producer": null, "origin": "state", "state": [{"kind": "parameter", "name": "weight"}]},
+      {"id": "tensor2", "objectId": "object2", "storageId": "storage2", "version": 0, "shape": [2, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []},
+      {"id": "tensor3", "objectId": "object3", "storageId": "storage2", "version": 0, "shape": [2, 3, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor2", "previousVersion": null, "logicalVersion": 0, "stride": [12, 4, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:1", "kind": "output", "path": []}, "origin": "operation", "state": []},
+      {"id": "tensor4", "objectId": "object4", "storageId": "storage3", "version": 0, "shape": [2, 3, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 4, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:2", "kind": "output", "path": []}, "origin": "operation", "state": []}
+    ],
+    "sourceBindings": [
+      {"id": "binding:d9ecf75b7ca7b480089debefec52cf7c63aaeaa490a0195f8b9101158df91928", "snapshotId": "source:context-oracle", "kind": "definition", "quality": "exact", "anchors": [{"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 9, "startColumn": 4, "endLine": 12, "endColumn": 28, "scope": "Model.forward", "tokenDigest": "7794471e530333abc4f3a1475dc66183f6763f436b61e2c198157795a5c4cc0e"}]},
+      {"id": "binding:12a634e92d686a081cfbb5b8a1057e04a5ea0149681dad85948d3ad5847abac5", "snapshotId": "source:context-oracle", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 10, "startColumn": 20, "endLine": 10, "endColumn": 35, "scope": "Model.forward", "tokenDigest": "38e0854df5082939e5433b056e1abd5e268904c60e5f8af4908494167665d341"}]},
+      {"id": "binding:2a40d5d422a949441a2e18484ba413e6da5bba0bb6d4d1a73d2615f7eae6161e", "snapshotId": "source:context-oracle", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 11, "startColumn": 16, "endLine": 11, "endColumn": 83, "scope": "Model.forward", "tokenDigest": "ac0d410c804afb1d0655bd4b7f37901477d946d5ce4fc1d5acfc8da546c59473"}]},
+      {"id": "binding:3f8b79781c73fd187a52adde33820702f44686136968c2ef57192b0a1b06ed78", "snapshotId": "source:context-oracle", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 12, "startColumn": 15, "endLine": 12, "endColumn": 28, "scope": "Model.forward", "tokenDigest": "9cf929c037964c0529f218c62a948b34a23ae18acb24788ca8302b0e516bdf32"}]}
+    ],
+    "diagnostics": [],
+    "coverage": {"scope": "executed_path", "operationsSeen": 3, "invocationsSeen": 1, "omissions": [], "modules": [{"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null}]},
+    "limits": {"operations": 100, "invocations": 100, "values": 100, "bytes": 1048576}
+  }
+}

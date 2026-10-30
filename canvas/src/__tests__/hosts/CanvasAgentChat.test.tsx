@@ -76,7 +76,7 @@ test('starts as an icon; minimizing preserves the draft and never sends', () => 
   expect(send.mock.calls.filter((call: any[]) => call[0]?.action === 'send')).toHaveLength(0);
 });
 
-test('submits the current selection, keeps a refused draft, and does not auto-open on reply', () => {
+test('submits the current selection, keeps a refused draft, and does not auto-open on reply', async () => {
   const { send, state } = fixture();
   fireEvent.click(screen.getByRole('button', { name: 'Open agent chat' }));
   state();
@@ -86,7 +86,7 @@ test('submits the current selection, keeps a refused draft, and does not auto-op
   fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
   const request = (send.mock.calls as unknown as any[][]).find(call => call[0].action === 'send')![0];
   expect(request.nodeIds).toEqual(['activation']); expect(request.target).toEqual(target);
-  state({ status: 'error', activity: 'Trust this workspace first.', ack: request.requestId });
+  await act(async () => { state({ status: 'error', activity: 'Trust this workspace first.', ack: request.requestId }); });
   expect(screen.getByRole('textbox')).toHaveValue('Explain this layer');
   state({ revision: 2, status: 'running', ack: request.requestId, requestId: request.requestId, context: { target, nodeIds: ['activation'] },
     messages: [{ id: request.requestId, role: 'user', text: 'Explain this layer' }] });
@@ -198,6 +198,20 @@ test('discovers on open and on reconnect while open, never on collapsed mount or
   expect(sent('discover')).toHaveLength(2);
 });
 
+test('a check that ends without a verdict is not announced as a problem; a failed check is', () => {
+  const { state } = fixture();
+  openChat();
+  state({ agents: agents({ status: 'checking' }) });
+  state({ revision: 2, agents: agents({ status: 'signInRequired', detail: 'Not signed in', models: [] }) });
+  expect(screen.getByRole('status')).toHaveTextContent('Codex needs attention');
+  state({ revision: 3, agents: agents({ status: 'checking' }) });
+  // Use Agent interrupts the check and its setup task checks the agent again; the visible status is Not checked.
+  state({ revision: 4, status: 'running', requestId: 'setup', activity: 'Preparing your request…',
+    agents: agents({ status: 'unchecked', detail: 'The check was interrupted. Refresh to check the agent.', models: [] }) });
+  expect(screen.queryByText('Codex needs attention')).toBeNull();
+  expect(screen.getByText('Not checked')).toBeVisible();
+});
+
 test.each([
   ['notInstalled', "Codex isn't installed where VS Code runs."],
   ['signInRequired', 'Sign in to Codex in a terminal, then refresh.'],
@@ -273,6 +287,19 @@ test('changing model resets effort to that model’s default; agent default uses
   expect(settingsPanel()).toBeVisible();
 });
 
+test.each(['codex', 'claude'] as const)('%s shows the host medium default without replacing an explicit effort', provider => {
+  const { state } = fixture();
+  const available = agents();
+  available[provider] = { ...available[provider], defaultModel: 'medium-model',
+    models: [{ id: 'medium-model', label: 'Medium model', description: '', efforts: ['medium', 'high'], defaultEffort: 'medium' }] };
+  openChat(); state({ provider, agents: available }); openSettings();
+  const effort = screen.getByRole('combobox', { name: 'Effort' });
+  expect(effort).toHaveValue('');
+  expect(within(effort).getByRole('option', { name: 'Default (medium)' })).toBeVisible();
+  state({ revision: 2, provider, agents: available, selections: { [provider]: { effort: 'high' } } });
+  expect(effort).toHaveValue('high');
+});
+
 test('a saved model or effort the agent no longer offers stays visible and blocks Send until replaced', () => {
   const { sent, state } = fixture();
   openChat();
@@ -333,7 +360,7 @@ test('Escape closes the settings panel before minimizing', () => {
   expect(screen.getByRole('button', { name: /^Agent settings/ })).toHaveAttribute('aria-expanded', 'false');
 });
 
-test('a stale settings acknowledgement or background update never ends a pending send', () => {
+test('a stale settings acknowledgement or background update never ends a pending send', async () => {
   const { sent, state } = fixture();
   openChat();
   state({ ack: 'mount' });
@@ -354,7 +381,7 @@ test('a stale settings acknowledgement or background update never ends a pending
   expect(screen.getByRole('combobox', { name: 'Model' })).toHaveValue('gpt-b');
   fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
   expect(sent('send')).toHaveLength(1);
-  state({ revision: 4, ack: sendId, status: 'error', activity: 'Wait for the agent check to finish before sending.', selections: { codex: { model: 'gpt-b' } } });
+  await act(async () => { state({ revision: 4, ack: sendId, status: 'error', activity: 'Wait for the agent check to finish before sending.', selections: { codex: { model: 'gpt-b' } } }); });
   expect(sendButton()).toBeEnabled();
   expect(screen.getByRole('textbox')).toHaveValue('Go');
 });
@@ -392,7 +419,7 @@ test('a refused settings change yields to the host, and Send uses the host’s c
   expect(sent('send')[0]).toEqual(expect.objectContaining({ provider: 'codex', settings: { model: 'gpt-a' } }));
 });
 
-test('a send lost to a disconnect is released only by the first sync reply after reconnecting', () => {
+test('a send lost to a disconnect is released only by the first sync reply after reconnecting', async () => {
   const { sent, state, link, lastSyncId } = fixture();
   openChat();
   state({ ack: 'mount' });
@@ -401,7 +428,7 @@ test('a send lost to a disconnect is released only by the first sync reply after
   link(false); link(true);
   state({ revision: 2, ack: 'mount' });
   expect(screen.getByRole('button', { name: 'Stop agent' })).toBeVisible();
-  state({ revision: 2, ack: lastSyncId() });
+  await act(async () => { state({ revision: 2, ack: lastSyncId() }); });
   expect(sendButton()).toBeEnabled();
   expect(screen.getByRole('textbox')).toHaveValue('Go');
   expect(sent('send')).toHaveLength(1);
@@ -490,7 +517,7 @@ test('minimizing and reopening collapses settings but keeps the draft and the ch
   expect(screen.getByRole('combobox', { name: 'Model' })).toHaveValue('gpt-b');
 });
 
-test('a dispatched Send collapses settings; a Send that cannot be dispatched leaves them open', () => {
+test('a dispatched Send collapses settings; a Send that cannot be dispatched leaves them open', async () => {
   const { send, sent, state } = fixture();
   openChat();
   state({ ack: 'mount' });
@@ -498,7 +525,7 @@ test('a dispatched Send collapses settings; a Send that cannot be dispatched lea
   openSettings();
   chooseModel('gpt-b');
   send.mockReturnValueOnce(null as any);
-  fireEvent.click(sendButton());
+  await act(async () => { fireEvent.click(sendButton()); });
   expect(settingsPanel()).toBeVisible();
   expect(screen.getByText('Canvas is reconnecting. Your draft is saved; try again when connected.')).toBeVisible();
   fireEvent.click(sendButton());

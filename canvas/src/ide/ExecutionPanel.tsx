@@ -63,7 +63,7 @@ export default function ExecutionPanel({ state, connected, expanded, onExpandedC
   const resources = state.resources;
   const devices = Array.from(new Set(['cpu', state.configuredDevice, state.device, ...(state.kind === 'prepare' ? [] : resources?.devices.map(d => d.id) ?? [])]));
   const calls = state.stages.reduce((n, stage) => n + stage.calls, 0);
-  const action = (value: Exclude<ExecutionReviewAction['action'], 'configure'>, device = state.device) => onAction({ kind: 'execution', reviewId: state.id, action: value, device });
+  const action = (value: ExecutionReviewAction['action'], device = state.device) => onAction({ kind: 'execution', reviewId: state.id, action: value, device });
   const edit = (field: (string | number)[], name: string) => state.profileName && <button type="button" className="execution-edit" disabled={!connected || running}
     title={`Edit profiles.${state.profileName}.${field.join('.')} in tensorviz.toml`} aria-label={`Edit ${name} in tensorviz.toml`}
     onClick={() => onAction({ kind: 'edit_execution', reviewId: state.id, field })}><Pencil size={12} aria-hidden="true" /><span>Edit</span></button>;
@@ -71,16 +71,17 @@ export default function ExecutionPanel({ state, connected, expanded, onExpandedC
   const title = state.kind === 'prepare' ? 'Prepare inputs' : state.kind === 'trace' ? 'Trace inputs' : 'Run model';
   const label = (id: string) => id === 'cpu' ? 'CPU' : id === 'mps' ? 'Apple GPU · mps' : `GPU · ${id}`;
   const inputs = inputRows(state.inputs);
-  // A finished invocation whose result was reused: no Python ran for it.
+  // A finished invocation whose result was reused: the model was not run again for it (Python
+  // still ran to resolve and recheck the plan).
   const reused = state.phase === 'succeeded' ? state.reused : undefined;
-  const reusedLabel = reused ? `Reused identical result from ${reusedTime(reused.capturedAt, now)} (no Python ran)` : undefined;
+  const reusedLabel = reused ? `Reused identical result from ${reusedTime(reused.capturedAt, now)} (model not run again)` : undefined;
   return <section ref={surface} className="execution-surface" aria-label="Execution target" onKeyDown={event => { if (event.key === 'Escape' && expanded) { close(); event.stopPropagation(); } }}>
     <button ref={trigger} type="button" className="execution-target" aria-label={reusedLabel ? `Execution details. ${reusedLabel}` : 'Execution details'} aria-expanded={expanded} aria-controls="execution-sheet"
       title={`${label(state.device)} · ${resources ? `${resources.remote ? 'SSH · ' : ''}${resources.host}` : 'Checking execution host…'}`}
       onClick={() => onExpandedChange(!expanded)}>
       <Cpu size={14} aria-hidden="true" /><strong>{label(state.device)}</strong>
       <span className="execution-host">{resources ? `${resources.remote ? 'SSH · ' : ''}${resources.host}` : 'Checking execution host…'}</span>
-      {reused && <span className="execution-reused-badge" aria-hidden="true"><History size={12} />Reused · no Python ran</span>}
+      {reused && <span className="execution-reused-badge" aria-hidden="true"><History size={12} />Reused · model not run again</span>}
       <ChevronDown size={13} aria-hidden="true" />
     </button>
     {expanded && <div id="execution-sheet" className="execution-sheet" style={{ maxHeight: availableHeight }}
@@ -128,8 +129,8 @@ export default function ExecutionPanel({ state, connected, expanded, onExpandedC
           {state.kind !== 'prepare' && <details className="execution-recipe"><summary>Input recipe</summary><pre>{state.inputs}</pre></details>}
         </details>
         {reused && <div className="execution-reused"><History size={14} aria-hidden="true" />
-          <p><strong>Reused identical result from <time dateTime={new Date(reused.capturedAt).toISOString()}>{reusedTime(reused.capturedAt, now)}</time> (no Python ran)</strong>
-            <span>Same saved sources, setup, inputs, environment and tensorViz backend as that run. Timings shown are from that run.</span></p></div>}
+          <p><strong>Reused identical result from <time dateTime={new Date(reused.capturedAt).toISOString()}>{reusedTime(reused.capturedAt, now)}</time> (model not run again)</strong>
+            <span>Same saved sources, setup, inputs, environment and tensorViz backend as that run.</span></p></div>}
         {!reviewing && <p className="execution-feedback" role="status">{state.detail}</p>}
         {running && <div className="execution-progress" role="progressbar" aria-label={state.phase === 'cancelling' ? 'Stopping execution' : 'Execution in progress'} />}
         {!connected && <p role="status">Disconnected. Reconnect to control this invocation.</p>}

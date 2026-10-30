@@ -1044,7 +1044,8 @@ class _Expander:
                 files.add(str(diagnostic["file"]))
         return WorkspaceExpansion(
             graph={"nodes": self.nodes, "edges": self.edges},
-            spanmap=self.spans,
+            # Columns convert once, here, so each file's lines are split a single time.
+            spanmap=projection.utf16_spans(self.spans, self.sources),
             dependencies=tuple(sorted(files)),
             diagnostics=tuple(self.diagnostics),
         )

@@ -1557,7 +1557,71 @@
             "stateValueIds": [],
             "reason": null
           }
-        ]
+        ],
+        "reviewDeclarations": {
+          "entries": {
+            "@declaration:[\"model.py\",\"Model\",\"a\"]": {
+              "label": "Model.a",
+              "digest": "8d925a65fd59f77e6b64ffe03ed75bd3cc0b2cfacfc72db4ee30735b272d5507",
+              "ambiguous": false,
+              "span": {
+                "file": "model.py",
+                "start": [
+                  7,
+                  8
+                ],
+                "end": [
+                  7,
+                  29
+                ],
+                "kind": "decl"
+              },
+              "constructor": {
+                "file": "model.py",
+                "start": [
+                  7,
+                  17
+                ],
+                "end": [
+                  7,
+                  29
+                ],
+                "kind": "decl"
+              }
+            },
+            "@declaration:[\"model.py\",\"Model\",\"b\"]": {
+              "label": "Model.b",
+              "digest": "8d925a65fd59f77e6b64ffe03ed75bd3cc0b2cfacfc72db4ee30735b272d5507",
+              "ambiguous": false,
+              "span": {
+                "file": "model.py",
+                "start": [
+                  8,
+                  8
+                ],
+                "end": [
+                  8,
+                  29
+                ],
+                "kind": "decl"
+              },
+              "constructor": {
+                "file": "model.py",
+                "start": [
+                  8,
+                  17
+                ],
+                "end": [
+                  8,
+                  29
+                ],
+                "kind": "decl"
+              }
+            }
+          },
+          "complete": true
+        },
+        "sourceDeclarationCalls": {}
       }
     },
     "view": {

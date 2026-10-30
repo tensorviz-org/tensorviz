@@ -3,6 +3,7 @@ import { CandidateReview, candidateReviewText } from '../../candidateReview';
 import type { CandidateRunResult } from '@tensorviz/graph-host/candidateExecution';
 import type { CandidateExecution } from '../../executionPlan';
 import { canonicalFixture } from '../../../../tests/fixtures/semantic.cjs';
+import { candidateCheckpointFixture } from '../candidateCheckpointFixture';
 
 function outcome(): CandidateRunResult {
   return { outcome: { ok: true, exitCode: 0, executionCurrent: true,
@@ -12,6 +13,20 @@ function outcome(): CandidateRunResult {
 }
 
 suite('reviewed candidate result state', () => {
+  test('native results explain a failed checkpoint load without implying a forward or current weights', async () => {
+    const result = outcome(); result.evidence = candidateCheckpointFixture();
+    result.outcome = { ...result.outcome, ok: false, reason: 'checkpoint load failed', detail: '', exitCode: 3 };
+    const review = new CandidateReview(canonicalFixture().capture, new AbortController().signal, () => true, async () => result);
+    await review.run(); const text = review.resultText();
+    result.evidence.checkpoint!.entries[0].name = 'late_mutation';
+    assert.equal(review.resultText(), text, 'native result text is an immutable observation');
+    assert.match(text, /Runtime: failed/); assert.match(text, /Capture: unavailable/);
+    assert.match(text, /Actual load: failed/); assert.match(text, /shape differences: 2/);
+    assert.match(text, /"left.weight"/); assert.match(text, /shape \[2,3\]/); assert.match(text, /shape \[2,4\]/);
+    assert.match(text, /does not verify.*current state or a forward pass/);
+    await review.finish();
+  });
+
   test('does not execute during review construction or inspection', async () => {
     const review = new CandidateReview(canonicalFixture().capture, new AbortController().signal,
       () => true, async () => { assert.fail('execution needs the explicit run action'); });

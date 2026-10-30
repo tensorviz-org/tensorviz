@@ -17,6 +17,29 @@ suite('automatic review inventories', () => {
     await reviewGit(root, ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'base']);
   });
   teardown(async () => { resetEditors(); await fs.rm(root, { recursive: true, force: true }); });
+  test('aliased buffers preserve new and deleted files while excluding outside paths and file symlinks', async () => {
+    const alias = `${root}-alias`, outside = `${root}-outside`;
+    await fs.symlink(root, alias, 'dir');
+    await fs.mkdir(outside);
+    try {
+      await fs.mkdir(path.join(root, 'deleted'));
+      await fs.writeFile(path.join(root, 'deleted/model.py'), 'disk\n');
+      await fs.rm(path.join(root, 'deleted'), { recursive: true });
+      await fs.symlink(path.join(root, 'model.py'), path.join(root, 'link.py'));
+      await fs.symlink(outside, path.join(root, 'outside'), 'dir');
+      for (const [file, text] of [['new.py', 'new unsaved\n'], ['deleted/model.py', 'deleted unsaved\n'],
+        ['link.py', 'symlink buffer\n'], ['outside/escape.py', 'outside buffer\n']]) {
+        editorState.documents.set(path.join(alias, file), text);
+        editorState.dirtyDocuments.add(path.join(alias, file));
+      }
+      const after = await workingSnapshot(await fs.realpath(root));
+      assert.equal(await after.read('new.py'), 'new unsaved\n');
+      assert.equal(await after.read('deleted/model.py'), 'deleted unsaved\n');
+      assert.equal(after.files.has('link.py'), false);
+      assert.equal(after.files.has('outside/escape.py'), false);
+      assert.equal(await after.read('model.py'), 'before\n');
+    } finally { await fs.unlink(alias); await fs.rm(outside, { recursive: true, force: true }); }
+  });
   test('working and index snapshots use compatible identities and never change the branch or dirty buffers', async () => {
     const before = await gitSnapshot(root, 'HEAD');
     assert.deepEqual((await workingSnapshot(root)).files, before.files);
@@ -41,6 +64,15 @@ suite('automatic review inventories', () => {
     const files = new Map([['models/pyproject.toml', 'a'], ['models/nested/net.py', 'b']]);
     assert.equal(snapshotProject('models/nested/net.py', files), 'models');
     assert.equal(snapshotProject('other/net.py', files), '');
+  });
+  test('conflicting open aliases cannot silently choose one source buffer', async () => {
+    const alias = `${root}-alias`;
+    await fs.symlink(root, alias, 'dir');
+    try {
+      editorState.documents.set(path.join(root, 'model.py'), 'first buffer\n');
+      editorState.documents.set(path.join(alias, 'model.py'), 'second buffer\n');
+      await assert.rejects(async () => workingSnapshot(root), /same source file disagree/);
+    } finally { await fs.unlink(alias); }
   });
   test('discovers unchanged model files affected by shared code and pairs only unique renames', async () => {
     const before = await gitSnapshot(root, 'HEAD');

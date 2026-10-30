@@ -43,6 +43,7 @@ export function mcpSetupPrompt(target?: LocalBrowserTargetIdentity): string {
 
 function html(url: string, target: LocalBrowserTargetIdentity | undefined, location: typeof currentLocation, agent?: AgentKind,
   help?: GraphMcpHelpContext): string {
+  const setupHelp = help?.opening.phase === 'needs_setup' && (!help.opening.environment || help.opening.environment.reason === 'ready');
   const nonce = randomBytes(16).toString('hex');
   const data = JSON.stringify({ url, prompt: mcpSetupPrompt(), targetPrompt: target ? mcpSetupPrompt(target) : '',
     configured: !!agent,
@@ -97,10 +98,10 @@ the connection works as you switch models and projects in this VS Code host.</p>
 <code>tensorviz.toml</code> yourself; an agent is optional.</p>`}
 ${help && !agent && location === 'local' ? `<h2 id="connection-title">Checking agent connection</h2>
 <p id="connection-detail" role="status" aria-live="polite">A configured URL alone does not mean an agent is connected.</p>` : ''}
-${help ? `<h2>${help.opening.phase === 'needs_setup' && help.opening.environment ? 'Investigate this environment' : 'Investigate this failure'}</h2>
+${help ? `<h2>${setupHelp ? 'Complete this input setup' : help.opening.phase === 'needs_setup' && help.opening.environment ? 'Investigate this environment' : 'Investigate this failure'}</h2>
 <p>Copy this request into your coding agent to use MCP directly. It identifies the model, selected environment and originating opening. No request is sent automatically.</p>
-<button id="copy-help-prompt">Copy MCP investigation request</button>
-<details><summary>Investigation request details</summary><pre id="help-prompt"></pre></details>` : ''}
+<button id="copy-help-prompt">${setupHelp ? 'Copy input setup request' : 'Copy MCP investigation request'}</button>
+<details><summary>${setupHelp ? 'Input setup request details' : 'Investigation request details'}</summary><pre id="help-prompt"></pre></details>` : ''}
 ${location === 'local' && !agent ? `<h2>Use the VS Code graph from your agent</h2>
 <p>This connection uses the running VS Code extension. The tensorViz plugin installs separately in your coding agent and works with VS Code closed.
 If you use the plugin, do not add this connection.</p>

@@ -1,3 +1,4 @@
+import { agentGraphContext } from '../../canvasAgentContext';
 /** Step-4 "Open as Graph -> external browser" unit tests.
  *
  * What they pin, in product language:
@@ -22,6 +23,7 @@
 
 import * as assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { mkdtemp, mkdir, writeFile, rm, realpath } from 'node:fs/promises';
@@ -44,6 +46,7 @@ import type { CodeArtifact } from '../../sourceChanges';
 import * as sourceReview from '../../sourceReview';
 import { ValidationSetup } from '../../validationSetup';
 import { ExecutionReview } from '@tensorviz/graph-host/executionReview';
+import { rememberEnvironment, savedEnvironment, selectedExecutionEnvironment } from '../../projectEnvironment';
 
 import {
   BufferClass,
@@ -419,25 +422,131 @@ function approveExecution(graph: LocalBrowserGraph): void {
 }
 
 suite('LocalBrowserGraph', () => {
-  for (const actor of ['human', 'agent'] as const) test(`opening as ${actor} captures once on the saved device without a Run click`, async () => {
+  for (const scenario of ['saved', 'first-save-fails', 'second-save-fails', 'next-file-changed', 'earlier-file-changed'] as const)
+    test(`accepted source set saves only reviewed bytes before one opening: ${scenario}`, async () => {
+      const rig = makeGraph([], { profiles: {} as never,
+        trace: { worker: { run: async () => { throw new Error('Opening seam owns this test'); }, cancel() {} },
+          trusted: async () => true, settings: () => ({ onSave: true, tier: 'real' }) } });
+      rig.graph.opening!.open = async target => { rig.graph.opening!.sourceOnly(target); };
+      openStubEditor(RESID, SAVED);
+      await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
+      const target = { ...rig.graph.target! }, internals = rig.graph as any;
+      const dep = path.join(ROOT, 'models', 'dep.py'), other = path.join(ROOT, 'unrelated.py');
+      const reviewed = new Map([[RESID, SAVED + '# accepted model\n'], [dep, 'WIDTH = 16\n']]);
+      for (const [file, text] of reviewed) { openStubEditor(file, text); editorState.dirtyDocuments.add(file); }
+      openStubEditor(other, '# unrelated unsaved work\n'); editorState.dirtyDocuments.add(other);
+      const opened: any[] = [], saved: string[] = [];
+      rig.graph.opening!.open = async next => { opened.push(next); rig.graph.opening!.sourceOnly(next); };
+      const vscode = require('../vscodeStub'), original = vscode.workspace.openTextDocument;
+      const read = mock.method(vscode.workspace, 'openTextDocument', async (uri: any) => {
+        const document = await original(uri);
+        return Object.assign(document, { save: async () => {
+          saved.push(uri.fsPath);
+          if (scenario === 'first-save-fails' && saved.length === 1 || scenario === 'second-save-fails' && saved.length === 2) return false;
+          if (scenario === 'next-file-changed' && saved.length === 1) editorState.documents.set(dep, 'WIDTH = 99\n');
+          if (scenario === 'earlier-file-changed' && saved.length === 2) editorState.documents.set(RESID, SAVED + '# unreviewed save edit\n');
+          editorState.dirtyDocuments.delete(uri.fsPath); saveChanges.fire(document); return true;
+        } });
+      });
+      try {
+        const detail = await internals.sourceEdits.options.accepted({ target, file: target.file,
+          files: [...reviewed.keys()].map(file => path.relative(ROOT, file).split(path.sep).join('/')),
+          current: () => [...reviewed].every(([file, text]) => editorState.documents.get(file) === text) });
+        await settle();
+        assert.deepEqual(saved, ['first-save-fails', 'next-file-changed'].includes(scenario) ? [RESID] : [RESID, dep]);
+        assert.equal(opened.length, scenario === 'saved' ? 1 : 0, 'partial saves or changes to any reviewed file cannot start execution');
+        assert.match(detail, scenario === 'saved' ? /Saved the accepted change/ : /Automatic capture did not start/);
+        assert.equal(editorState.documents.get(other), '# unrelated unsaved work\n');
+        assert.ok(editorState.dirtyDocuments.has(other), 'an accepted source set never saves unrelated work');
+        if (opened.length) assert.equal(opened[0].file, target.file);
+      } finally { read.mock.restore(); }
+    });
+
+  for (const scenario of ['saved', 'dependency-edit', 'save-false', 'save-throw', 'format-on-save', 'retarget', 'lost-trust', 'dependency-change', 'other-dirty', 'dispose'] as const)
+    test(`automatic capture after acceptance: ${scenario}`, async () => {
+      const rig = makeGraph([], { profiles: {} as never,
+        trace: { worker: { run: async () => { throw new Error('Opening seam owns this test'); }, cancel() {} },
+          trusted: async () => true, settings: () => ({ onSave: true, tier: 'real' }) } });
+      rig.graph.opening!.open = async target => { rig.graph.opening!.sourceOnly(target); };
+      openStubEditor(RESID, SAVED);
+      const dep = path.join(ROOT, 'models', 'dep.py');
+      openStubEditor(dep, 'x = 1\n');
+      await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas', 'automatic'); await settle();
+      const target = { ...rig.graph.target! }, internals = rig.graph as any;
+      internals.saveRunEnabled = true;
+      internals.changedSinceRun = true;
+      const edited = scenario === 'dependency-edit' ? dep : RESID;
+      const text = editorState.documents.get(edited)! + '# accepted\n';
+      openStubEditor(edited, text); editorState.dirtyDocuments.add(edited);
+      if (scenario === 'other-dirty') editorState.dirtyDocuments.add(dep);
+      let sourceCurrent = true;
+      const opened: any[] = [], saved: string[] = [];
+      rig.graph.opening!.open = async next => { opened.push(next); rig.graph.opening!.sourceOnly(next); };
+      const vscode = require('../vscodeStub'), original = vscode.workspace.openTextDocument;
+      const read = mock.method(vscode.workspace, 'openTextDocument', async (uri: any) => {
+        const document = await original(uri);
+        return Object.assign(document, { save: async () => {
+          saved.push(uri.fsPath);
+          if (scenario === 'save-throw') throw new Error('write failed');
+          if (scenario === 'save-false') return false;
+          if (scenario === 'format-on-save') editorState.documents.set(edited, text + '# save participant\n');
+          if (scenario === 'dependency-change') sourceCurrent = false;
+          if (scenario === 'retarget') internals.sync.clearTarget();
+          if (scenario === 'lost-trust') state.isTrusted = false;
+          if (scenario === 'dispose') rig.graph.dispose();
+          editorState.dirtyDocuments.delete(uri.fsPath);
+          saveChanges.fire(document);
+          return true;
+        } });
+      });
+      try {
+        const accepted = internals.sourceEdits.options.accepted;
+        const invocation = () => accepted({ target, file: path.relative(ROOT, edited).split(path.sep).join('/'),
+          current: () => sourceCurrent && state.isTrusted && editorState.documents.get(edited) === text });
+        if (scenario === 'save-throw') await assert.rejects(invocation(), /write failed/);
+        else {
+          const detail = await invocation();
+          await settle();
+          const runs = ['saved', 'dependency-edit', 'other-dirty'].includes(scenario);
+          assert.equal(opened.length, runs ? 1 : 0);
+          if (runs) {
+            assert.match(detail, /Saved the accepted change/);
+            assert.equal(opened[0].file, target.file, 'dependency edits still run the originating model');
+            assert.equal(opened[0].sourceDigest, createHash('sha256').update(editorState.documents.get(RESID)!).digest('hex'));
+            assert.equal(internals.openingApproved(), true, 'human acceptance approves a previously automatic opening');
+          } else assert.match(detail, /Automatic capture did not start/);
+          if (scenario === 'other-dirty') {
+            assert.ok(editorState.dirtyDocuments.has(dep));
+            const lookup = await (rig.graph.opening as any).dependencies.lookup(opened[0], new AbortController().signal);
+            assert.equal(lookup.kind, 'blocked', 'another dirty dependency must still block normal opening');
+          }
+        }
+        assert.deepEqual(saved, [edited], 'acceptance saves only the reviewed file');
+      } finally { read.mock.restore(); }
+    });
+
+  for (const actor of ['human', 'agent', 'accepted', 'saved'] as const) test(`opening as ${actor} captures once on the saved device without a Run click`, async () => {
     const rig = makeGraph([], { profiles: {} as never,
       trace: { worker: { run: async () => { throw new Error('The sync seam owns this test'); }, cancel() {} },
         trusted: async () => true, settings: () => ({ onSave: false, tier: 'real' }) } });
     rig.graph.opening!.open = async target => { rig.graph.opening!.sourceOnly(target); };
     openStubEditor(RESID, SAVED);
-    await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas', actor); await settle();
+    await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas', actor === 'accepted' || actor === 'saved' ? 'human' : actor); await settle();
     const target = rig.graph.opening!.state!.target, internals = rig.graph as any;
-    const calls: Array<{ job: unknown; device: unknown }> = [];
+    if (actor === 'accepted') await internals.sourceEdits.options.accepted({ target, file: target.file, current: () => true });
+    if (actor === 'saved') { internals.openingActor = 'automatic'; internals.freshOpeningId = rig.graph.opening!.state!.id; }
+    const calls: Array<{ job: unknown; device: unknown; cache: unknown }> = [];
     const ready = mock.method(internals.sync, 'readyTarget', async () => target);
     const validate = mock.method(internals.sync, 'validate', async (_t: unknown, _s: unknown, _ti: unknown, _p: unknown, measured: Function, _c: unknown,
-      _e: unknown, job: unknown, _timeout: unknown, _guard: unknown, _attempt: unknown, device: unknown) => {
-      calls.push({ job, device }); measured({ ...target, backendRevision: 2 }, { revision: 2 });
+      _e: unknown, job: unknown, _timeout: unknown, _guard: unknown, _attempt: unknown, device: unknown, cache: unknown) => {
+      calls.push({ job, device, cache }); measured({ ...target, backendRevision: 2 }, { revision: 2 });
       return { status: 'passed', detail: 'Captured.' };
     });
     try {
       const result = await (rig.graph.opening as any).dependencies.capture(target, { profile: 'saved', run: { execution: { device: 'cpu' } },
         guard: { spec: { interpreter: { executable: '/env/python' } } } }, new AbortController().signal, () => {});
-      assert.deepEqual(calls, [{ job: undefined, device: 'cpu' }], 'one capture on the saved device');
+      assert.deepEqual(calls, [{ job: undefined, device: 'cpu', cache: actor === 'human' ? 'allow' : undefined }],
+        'one capture on the saved device; accepting changes and agent requests must bypass cache reuse');
       assert.equal(result.hasCapture, true);
       const review = internals.executionReview as ExecutionReview;
       assert.equal(review.state!.kind, 'capture'); assert.equal(review.state!.phase, 'succeeded');
@@ -447,7 +556,7 @@ suite('LocalBrowserGraph', () => {
       assert.equal(rig.graph.opening!.state!.execution?.phase, 'succeeded');
     } finally { ready.mock.restore(); validate.mock.restore(); }
   });
-  test('an editor auto-opened graph waits for Run before one shape capture', async () => {
+  test('an editor auto-opened graph waits for Run and captures once, refusing a timing request', async () => {
     const rig = makeGraph([], { profiles: {} as never,
       trace: { worker: { run: async () => { throw new Error('The sync seam owns this test'); }, cancel() {} },
         trusted: async () => true, settings: () => ({ onSave: false, tier: 'real' }) } });
@@ -455,20 +564,25 @@ suite('LocalBrowserGraph', () => {
     openStubEditor(RESID, SAVED);
     await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas', 'automatic'); await settle();
     const target = rig.graph.opening!.state!.target, internals = rig.graph as any;
-    const jobs: unknown[] = [];
+    const jobs: unknown[] = [], targets: unknown[] = [];
     const ready = mock.method(internals.sync, 'readyTarget', async () => target);
     const validate = mock.method(internals.sync, 'validate', async (_t: unknown, _s: unknown, _ti: unknown, _p: unknown, measured: Function, _c: unknown, _e: unknown, job: unknown) => {
-      jobs.push(job); measured({ ...target, backendRevision: jobs.length + 1 }, { revision: jobs.length + 1 });
+      jobs.push(job); targets.push(_t); measured({ ...target, backendRevision: jobs.length + 1 }, { revision: jobs.length + 1 });
       return { status: 'passed', detail: 'Captured.' };
     });
     const capture = (rig.graph.opening as any).dependencies.capture(target, { profile: 'saved', run: { execution: { device: 'cpu' } },
       guard: { spec: { interpreter: { executable: '/env/python' } } } }, new AbortController().signal, () => {});
     try {
       await settle(); assert.equal(jobs.length, 0);
-      approveExecution(rig.graph);
+      assert.equal(internals.validationSummaries.snapshot(target), undefined, 'a capture waiting for Run is not reported as running');
+      const review = internals.executionReview as ExecutionReview;
+      assert.equal(review.action(target, 'timing', { kind: 'execution', reviewId: review.state!.id, device: 'cpu', action: 'configure',
+        timing: { warmup: 0, profileIterations: 2, iterations: 4 } } as never), false);
+      assert.equal(jobs.length, 0); approveExecution(rig.graph);
       const result = await capture;
       assert.deepEqual(jobs, [undefined]);
-      assert.equal(result.hasCapture, true); assert.equal(result.outcome.status, 'passed');
+      assert.deepEqual(targets, [target]);
+      assert.equal(result.hasCapture, true); assert.equal('validationPassed' in result.outcome, false);
     } finally { ready.mock.restore(); validate.mock.restore(); }
   });
   test('execution Edit resolves only the reviewed profile on the current host target without approving work', async () => {
@@ -511,6 +625,112 @@ suite('LocalBrowserGraph', () => {
       stub.mock.restore(); const stopped = assert.rejects(run); review.cancel(); await stopped;
     }
   });
+  test('agent context includes verified selected facts without weakening stale-revision checks', async () => {
+    let service!: McpGraphService;
+    const rig = makeGraph([], { agent: { run: async () => {}, clear() {}, reference: model => service.reference(model),
+      selection: (reference, ids) => service.inspectNodes(reference, ids) } });
+    service = new McpGraphService('agent-context', () => rig.graph.mcpModel);
+    openStubEditor(RESID, SAVED);
+    await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
+    (rig.graph.mcpModel!.projection.document as any).semantic = { nodes: [{ node_id: 'fc', op: 'Linear', params: { out_features: 8 } }], edges: [] };
+    const prepare = (rig.graph as any).agent.options.prepare;
+    const prepared = await prepare(rig.graph.target!, ['fc'], undefined, new AbortController().signal);
+    const attached = JSON.parse(prepared.context.split('\n')[1]);
+    const ref = service.reference(rig.graph.mcpModel!);
+    assert.equal(attached.modelId, ref.modelId); assert.equal(attached.revision, ref.revision);
+    assert.deepEqual(attached.selectionInspection, JSON.parse(JSON.stringify(service.inspectNodes(ref, ['fc']))));
+    assert.equal(attached.selectionInspection.nodes[0].parameters.out_features, 8);
+    assert.match(prepared.context, /Use the attached modelId and revision directly/);
+    assert.doesNotMatch(prepared.context, /Call list_models to obtain/);
+    assert.doesNotThrow(() => service.require(ref));
+    rig.graph.mcpModel!.projection.projectionDigest = 'new-projection';
+    assert.throws(() => service.require(ref), /revision changed/);
+    (rig.graph.mcpModel!.projection.document as any).semantic.nodes[0].params.out_features = 16;
+    const refreshed = JSON.parse((await prepare(rig.graph.target!, ['fc'], undefined, new AbortController().signal)).context.split('\n')[1]);
+    assert.notEqual(refreshed.revision, ref.revision);
+    assert.equal(refreshed.selectionInspection.nodes[0].parameters.out_features, 16, 'a new Send reads fresh facts, not the previous prompt');
+    assert.doesNotThrow(() => service.require(refreshed));
+    await assert.rejects(prepare({ ...rig.graph.target!, sourceDigest: 'f'.repeat(64) }, [], undefined, new AbortController().signal), /changed/);
+    openStubEditor(RESID, SAVED + '\n# changed');
+    await assert.rejects(prepare(rig.graph.target!, ['fc'], undefined, new AbortController().signal), /changed/);
+  });
+  test('empty and oversized selections use the existing inspection tool path', async () => {
+    let service!: McpGraphService, inspections = 0;
+    const rig = makeGraph([], { agent: { run: async () => {}, clear() {}, reference: model => service.reference(model),
+      selection: (reference, ids) => { inspections++; return service.inspectNodes(reference, ids); } } });
+    service = new McpGraphService('agent-context', () => rig.graph.mcpModel);
+    openStubEditor(RESID, SAVED);
+    await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
+    const semantic = { nodes: [{ node_id: 'fc', op: 'Linear', params: { description: '界'.repeat(12_000) } }], edges: [] };
+    (rig.graph.mcpModel!.projection.document as any).semantic = semantic;
+    const prepare = (rig.graph as any).agent.options.prepare;
+    const context = async (ids: string[]) => JSON.parse((await prepare(rig.graph.target!, ids, undefined, new AbortController().signal)).context.split('\n')[1]);
+    assert.equal((await context([])).selectionInspection, undefined);
+    assert.equal(inspections, 0);
+    assert.equal((await context(['fc'])).selectionInspection, undefined, 'the budget is bytes, including multibyte text');
+    assert.equal(inspections, 1);
+    semantic.nodes[0].params.description = 'small';
+    assert.ok((await context(['fc'])).selectionInspection, 'only the oversized attachment is omitted');
+  });
+  test('empty selections still attach graph facts and the exact requesting Canvas for direct highlighting', async () => {
+    let service!: McpGraphService;
+    const rig = makeGraph([], { agent: { run: async () => {}, clear() {}, reference: model => service.reference(model),
+      graph: reference => agentGraphContext(service, reference) } });
+    service = new McpGraphService('context', () => rig.graph.mcpModel);
+    openStubEditor(RESID, SAVED);
+    await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
+    const semantic = { nodes: [{ node_id: 'fc', op: 'Linear', params: {}, metadata: { outputShape: [2, 8] } }], edges: [] };
+    (rig.graph.mcpModel!.projection.document as any).semantic = semantic;
+    const target = rig.graph.target!, signal = new AbortController().signal;
+    for (const viewId of ['requesting', 'other']) {
+      rig.graph.mcpViews.connection(viewId, true);
+      rig.graph.mcpViews.handle({ type: 'viewSelection', protocolVersion: 1, workspaceSessionId: 'workspace',
+        messageId: 'selection', viewId, target, nodeIds: [], edgeIds: [] });
+    }
+    const prepare = (rig.graph as any).agent.options.prepare;
+    const attached = JSON.parse((await prepare(target, [], undefined, signal, undefined, 'requesting')).context.split('\n')[1]);
+    assert.equal(attached.source, SAVED); assert.equal(attached.sourceTruncated, false);
+    assert.equal(attached.target.sourceDigest, target.sourceDigest);
+    assert.equal(attached.graphInspection.nodes[0].nodeId, 'fc');
+    assert.deepEqual(attached.graphInspection.nodes[0].shapes.output, [2, 8]);
+    assert.equal(attached.graphInspection.contextLimited, false);
+    assert.equal(attached.activeView.viewId, 'requesting');
+    semantic.nodes[0].metadata.outputShape = [2, 16];
+    rig.graph.mcpModel!.projection.projectionDigest = 'changed';
+    const refreshed = JSON.parse((await prepare(target, [], undefined, signal, undefined, 'other')).context.split('\n')[1]);
+    assert.notEqual(refreshed.graphInspection.revision, attached.graphInspection.revision);
+    assert.deepEqual(refreshed.graphInspection.nodes[0].shapes.output, [2, 16]);
+    assert.equal(refreshed.activeView.viewId, 'other');
+    rig.graph.mcpViews.connection('requesting', false);
+    const hidden = JSON.parse((await prepare(target, [], undefined, signal, undefined, 'requesting')).context.split('\n')[1]);
+    assert.equal(hidden.activeView, undefined, 'do not substitute a different Canvas after the sender disconnects');
+  });
+  test('chat opening prepares the connected view with the same checks as Send and never grants a draft revision', async () => {
+    let service!: McpGraphService;
+    const rig = makeGraph([], { agent: { run: async () => {}, clear() {}, reference: model => service.reference(model),
+      selection: (reference, ids) => service.inspectNodes(reference, ids) } });
+    service = new McpGraphService('preparation', () => rig.graph.mcpModel);
+    openStubEditor(RESID, SAVED);
+    await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
+    (rig.graph.mcpModel!.projection.document as any).semantic = { nodes: [{ node_id: 'fc', op: 'Linear', params: { out_features: 8 } }], edges: [] };
+    const options = (rig.graph as any).agent.options, target = rig.graph.target!, signal = new AbortController().signal;
+    assert.equal(await options.prepareWarm('absent', signal), undefined);
+    rig.graph.mcpViews.connection('warm-view', true);
+    const selection = { type: 'viewSelection' as const, protocolVersion: 1 as const, workspaceSessionId: 'workspace', messageId: 'selection',
+      viewId: 'warm-view', target, nodeIds: ['fc'], edgeIds: [] };
+    rig.graph.mcpViews.handle(selection);
+    assert.deepEqual(await options.prepareWarm('warm-view', signal), await options.prepare(target, ['fc'], undefined, signal, undefined, 'warm-view'));
+    rig.graph.mcpViews.handle({ ...selection, target: { ...target, sourceDigest: 'f'.repeat(64) } });
+    assert.equal(await options.prepareWarm('warm-view', signal), undefined);
+    rig.graph.mcpViews.handle({ ...selection, tooLarge: true });
+    assert.equal(await options.prepareWarm('warm-view', signal), undefined);
+    rig.graph.mcpViews.handle(selection);
+    Object.defineProperty((rig.graph as any).sourceDrafts, 'current', { get: () => ({ id: 'draft' }), configurable: true });
+    assert.equal(await options.prepareWarm('warm-view', signal), undefined);
+    Object.defineProperty((rig.graph as any).sourceDrafts, 'current', { get: () => undefined });
+    openStubEditor(RESID, SAVED + '\n# changed');
+    assert.equal(await options.prepareWarm('warm-view', signal), undefined);
+  });
   test('Use Agent starts the attached opening without an MCP guide or an existing graph projection', async () => {
     const runs: any[] = [];
     const rig = makeGraph([], { profiles: {} as never,
@@ -551,6 +771,30 @@ suite('LocalBrowserGraph', () => {
     assert.equal(complete(opening.target), false, 'measurements for previous source cannot complete this request');
   });
 
+  test('Use Agent accepts an unchanged buffer whose editor version restarted', async () => {
+    const runs: any[] = [];
+    const rig = makeGraph([], { profiles: {} as never,
+      trace: { worker: { run: async () => { throw new Error('No capture requested by the button itself.'); }, cancel() {} },
+        trusted: async () => true, settings: () => ({ onSave: false, tier: 'real' }) },
+      agent: { run: async input => { runs.push(input); }, clear() {} } });
+    rig.graph.opening!.open = async target => {
+      rig.graph.opening!.sourceOnly(target);
+      Object.assign(rig.graph.opening!.state!, { phase: 'needs_setup', requirements: ['init.num_heads: required'] });
+    };
+    openStubEditor(RESID, SAVED); openStubEditor(RESID, SAVED);
+    await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
+    Object.defineProperty(rig.graph, 'mcpModel', { get: () => undefined });
+    const opening = rig.graph.opening!.state!;
+    assert.equal(opening.target.documentVersion, 2);
+    // VS Code reloaded the unchanged buffer: version 1, no change event, same digest.
+    editorState.versions.set(RESID, 1);
+    rig.graph.handleCanvasMessage({ type: 'graphSetupRequest', openingId: opening.id, requestId: 'use-agent',
+      target: opening.target, action: { kind: 'agent_help' } } as never);
+    await settle();
+    assert.equal(runs.length, 1, (rig.graph as any).agent.state.activity);
+    assert.equal(runs[0].intent, 'open_graph');
+  });
+
   test('setup source links accept only evidence of the current opening inside its workspace', async () => {
     const rig = makeGraph([], { profiles: {} as never,
       trace: { worker: { run: async () => { throw new Error('No execution.'); }, cancel() {} },
@@ -582,8 +826,86 @@ suite('LocalBrowserGraph', () => {
     } finally { show.mock.restore(); }
   });
 
+  test('agent context includes verified selected facts without weakening stale-revision checks', async () => {
+    let service!: McpGraphService;
+    const rig = makeGraph([], { agent: { run: async () => {}, clear() {}, reference: model => service.reference(model),
+      selection: (reference, ids) => service.inspectNodes(reference, ids) } });
+    service = new McpGraphService('agent-context', () => rig.graph.mcpModel);
+    openStubEditor(RESID, SAVED);
+    await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
+    (rig.graph.mcpModel!.projection.document as any).semantic = { nodes: [{ node_id: 'fc', op: 'Linear', params: { out_features: 8 } }], edges: [] };
+    const prepare = (rig.graph as any).agent.options.prepare;
+    const prepared = await prepare(rig.graph.target!, ['fc'], undefined, new AbortController().signal);
+    const attached = JSON.parse(prepared.context.split('\n')[1]);
+    const ref = service.reference(rig.graph.mcpModel!);
+    assert.equal(attached.modelId, ref.modelId); assert.equal(attached.revision, ref.revision);
+    assert.deepEqual(attached.selectionInspection, JSON.parse(JSON.stringify(service.inspectNodes(ref, ['fc']))));
+    assert.deepEqual(JSON.parse(JSON.stringify(prepared.selectionEvidence)), attached.selectionInspection,
+      'retained evidence must be exactly the verified selection sent to the agent');
+    assert.equal(attached.selectionInspection.nodes[0].parameters.out_features, 8);
+    assert.match(prepared.context, /Use the attached modelId and revision directly/);
+    assert.doesNotMatch(prepared.context, /Call list_models to obtain/);
+    assert.doesNotThrow(() => service.require(ref));
+    rig.graph.mcpModel!.projection.projectionDigest = 'new-projection';
+    assert.throws(() => service.require(ref), /revision changed/);
+    (rig.graph.mcpModel!.projection.document as any).semantic.nodes[0].params.out_features = 16;
+    const refreshed = JSON.parse((await prepare(rig.graph.target!, ['fc'], undefined, new AbortController().signal)).context.split('\n')[1]);
+    assert.notEqual(refreshed.revision, ref.revision);
+    assert.equal(refreshed.selectionInspection.nodes[0].parameters.out_features, 16, 'a new Send reads fresh facts, not the previous prompt');
+    assert.doesNotThrow(() => service.require(refreshed));
+    await assert.rejects(prepare({ ...rig.graph.target!, sourceDigest: 'f'.repeat(64) }, [], undefined, new AbortController().signal), /changed/);
+    openStubEditor(RESID, SAVED + '\n# changed');
+    await assert.rejects(prepare(rig.graph.target!, ['fc'], undefined, new AbortController().signal), /changed/);
+  });
+  test('empty and oversized selections use the existing inspection tool path', async () => {
+    let service!: McpGraphService, inspections = 0;
+    const rig = makeGraph([], { agent: { run: async () => {}, clear() {}, reference: model => service.reference(model),
+      selection: (reference, ids) => { inspections++; return service.inspectNodes(reference, ids); } } });
+    service = new McpGraphService('agent-context', () => rig.graph.mcpModel);
+    openStubEditor(RESID, SAVED);
+    await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
+    const semantic = { nodes: [{ node_id: 'fc', op: 'Linear', params: { description: '界'.repeat(12_000) } }], edges: [] };
+    (rig.graph.mcpModel!.projection.document as any).semantic = semantic;
+    const prepare = (rig.graph as any).agent.options.prepare;
+    const context = async (ids: string[]) => JSON.parse((await prepare(rig.graph.target!, ids, undefined, new AbortController().signal)).context.split('\n')[1]);
+    assert.equal((await context([])).selectionInspection, undefined);
+    assert.equal(inspections, 0);
+    assert.equal((await context(['fc'])).selectionInspection, undefined, 'the budget is bytes, including multibyte text');
+    assert.equal(inspections, 1);
+    semantic.nodes[0].params.description = 'small';
+    assert.ok((await context(['fc'])).selectionInspection, 'only the oversized attachment is omitted');
+  });
+  test('chat opening prepares the connected view with the same checks as Send and never grants a draft revision', async () => {
+    let service!: McpGraphService;
+    const rig = makeGraph([], { agent: { run: async () => {}, clear() {}, reference: model => service.reference(model),
+      selection: (reference, ids) => service.inspectNodes(reference, ids) } });
+    service = new McpGraphService('preparation', () => rig.graph.mcpModel);
+    openStubEditor(RESID, SAVED);
+    await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
+    (rig.graph.mcpModel!.projection.document as any).semantic = { nodes: [{ node_id: 'fc', op: 'Linear', params: { out_features: 8 } }], edges: [] };
+    const options = (rig.graph as any).agent.options, target = rig.graph.target!, signal = new AbortController().signal;
+    assert.equal(await options.prepareWarm('absent', signal), undefined);
+    rig.graph.mcpViews.connection('warm-view', true);
+    const selection = { type: 'viewSelection' as const, protocolVersion: 1 as const, workspaceSessionId: 'workspace', messageId: 'selection',
+      viewId: 'warm-view', target, nodeIds: ['fc'], edgeIds: [] };
+    rig.graph.mcpViews.handle(selection);
+    assert.deepEqual(await options.prepareWarm('warm-view', signal), await options.prepare(target, ['fc'], undefined, signal, undefined, 'warm-view'));
+    rig.graph.mcpViews.handle({ ...selection, nodeIds: ['previous:call'] });
+    assert.equal(await options.prepareWarm('warm-view', signal), undefined, 'historical call selections cannot start preparation');
+    rig.graph.mcpViews.handle({ ...selection, target: { ...target, sourceDigest: 'f'.repeat(64) } });
+    assert.equal(await options.prepareWarm('warm-view', signal), undefined);
+    rig.graph.mcpViews.handle({ ...selection, tooLarge: true });
+    assert.equal(await options.prepareWarm('warm-view', signal), undefined);
+    rig.graph.mcpViews.handle(selection);
+    Object.defineProperty((rig.graph as any).sourceDrafts, 'current', { get: () => ({ id: 'draft' }), configurable: true });
+    assert.equal(await options.prepareWarm('warm-view', signal), undefined);
+    Object.defineProperty((rig.graph as any).sourceDrafts, 'current', { get: () => undefined });
+    openStubEditor(RESID, SAVED + '\n# changed');
+    assert.equal(await options.prepareWarm('warm-view', signal), undefined);
+  });
   test('only a current draft follow-up gets pending source and draft-node context', async () => {
-    const rig = makeGraph([], { agent: { run: async () => {}, clear() {} } });
+    const rig = makeGraph([], { agent: { run: async () => {}, clear() {}, reference: () => ({ modelId: 'context', revision: 'a'.repeat(64) }),
+      selection: () => { throw new Error('Draft or historical selections must not be attached as live facts'); } } });
     openStubEditor(RESID, SAVED);
     await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
     const target = rig.graph.target!, signal = new AbortController().signal;
@@ -593,16 +915,34 @@ suite('LocalBrowserGraph', () => {
     Object.defineProperty((rig.graph as any).sourceDrafts, 'current', { get: () => draft });
     const grants: unknown[][] = [];
     mock.method(rig.graph.mcpProposals, 'beginRevision', (...args: unknown[]) => {
-      grants.push(args); return { draftId: 'draft-1', source: 'complete pending source', baseDigest: target.sourceDigest };
+      grants.push(args); return { draftId: 'draft-1', files: [{ file: target.file, baseDigest: target.sourceDigest }] };
     });
     const prepare = (rig.graph as any).agent.options.prepare;
     await assert.rejects(prepare(target, [], undefined, signal), /Refresh the graph/);
     await assert.rejects(prepare(target, [], 'old-id', signal), /Refresh the graph/);
     await assert.rejects(prepare(target, ['review:after:invented'], 'draft-1', signal), /no longer in this graph/);
     const prepared = await prepare(target, ['review:after:fc2'], 'draft-1', signal);
-    assert.match(prepared.context, /complete pending source/);
-    assert.match(prepared.context, /COMPLETE revised pending source/);
+    assert.equal(JSON.parse(prepared.context.split('\n')[1]).selectionInspection, undefined);
+    assert.deepEqual(JSON.parse(prepared.context.split('\n')[1]).pendingDraft, { draftId: 'draft-1',
+      files: [{ file: target.file, baseDigest: target.sourceDigest }] });
+    assert.match(prepared.context, /propose_source_set with EVERY revised pending file/);
+    assert.doesNotMatch(prepared.context, /propose_code_edit/);
     assert.deepEqual(grants, [['draft-1', signal]]);
+    draft = { ...draft, proposal: { ...draft.proposal, canRevise: false } };
+    const inspection = await prepare(target, ['review:after:fc2'], 'draft-1', signal);
+    const inspected = JSON.parse(inspection.context.split('\n')[1]);
+    assert.equal(inspected.pendingDraft, undefined);
+    assert.deepEqual(inspected.reviewedDraft, { id: 'draft-1', canRevise: false });
+    assert.match(inspection.context, /inspection only/);
+    assert.doesNotMatch(inspection.context, /propose_source_set/);
+    assert.equal(grants.length, 1, 'a typed draft cannot grant workspace-code revision authority');
+    const sourceDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(RESID));
+    const read = mock.method(vscode.workspace, 'openTextDocument', async () => {
+      draft = { ...draft, id: 'replacement' }; return sourceDocument;
+    });
+    await assert.rejects(prepare(target, [], 'draft-1', signal), /draft changed or closed/i);
+    read.mock.restore();
+    draft = { ...draft, id: 'draft-1' };
     draft = { ...draft, stale: true };
     await assert.rejects(prepare(target, [], 'draft-1', signal), /Refresh the graph/);
     assert.equal(grants.length, 1, 'stale or invented context cannot authorize replacing a native review');
@@ -621,7 +961,7 @@ suite('LocalBrowserGraph', () => {
     const draft = { id: 'mapped', stale: false, before: { document: { semantic: { nodes: [] } } },
       after: { document: { semantic: { nodes: [] } } } };
     Object.defineProperty((rig.graph as any).sourceDrafts, 'current', { get: () => draft });
-    mock.method(rig.graph.mcpProposals, 'beginRevision', () => ({ draftId: 'mapped', source: 'pending', baseDigest: target.sourceDigest }));
+    mock.method(rig.graph.mcpProposals, 'beginRevision', () => ({ draftId: 'mapped', files: [{ file: target.file, baseDigest: target.sourceDigest }] }));
     const prepare = (rig.graph as any).agent.options.prepare;
     await prepare(target, ['captured:relu:1', 'retained:relu:2'], 'mapped', signal);
     await assert.rejects(prepare(target, ['captured:invented'], 'mapped', signal), /no longer in this graph/);
@@ -630,7 +970,8 @@ suite('LocalBrowserGraph', () => {
   });
 
   test('after Accept an attested previous call remains usable for the next agent message', async () => {
-    const rig = makeGraph([], { agent: { run: async () => {}, clear() {} } });
+    const rig = makeGraph([], { agent: { run: async () => {}, clear() {}, reference: () => ({ modelId: 'context', revision: 'a'.repeat(64) }),
+      selection: () => { throw new Error('Draft or historical selections must not be attached as live facts'); } } });
     openStubEditor(RESID, SAVED);
     await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
     const target = rig.graph.target!, signal = new AbortController().signal;
@@ -642,6 +983,7 @@ suite('LocalBrowserGraph', () => {
     } } };
     const prepare = (rig.graph as any).agent.options.prepare;
     const prepared = await prepare(target, ['current:source', 'previous:relu:2'], undefined, signal);
+    assert.equal(JSON.parse(prepared.context.split('\n')[1]).selectionInspection, undefined);
     assert.match(prepared.context, /"historicalNodeIds":\["previous:relu:2"\]/);
     assert.match(prepared.context, /do not prove the current source has run/);
     assert.match(prepared.context, /blocks.0.relu · call 2\/3/);
@@ -683,7 +1025,7 @@ suite('LocalBrowserGraph', () => {
     const target = rig.graph.target!;
     const after = SAVED + '# proposed change\n';
     const handle = (rig.graph as any).sourceDrafts.start({ id: 'draft-1', target,
-      artifact: { path: target.file, before: SAVED, after, before_digest: digest(SAVED), after_digest: digest(after), edits: [] },
+      artifacts: [{ path: target.file, before: SAVED, after, before_digest: digest(SAVED), after_digest: digest(after), edits: [] }],
       sources: { entries: [{ file: target.file, source: SAVED, digest: digest(SAVED) }], truncated: false },
     }, new AbortController().signal, () => true);
     handle.show(async () => {}, () => {}); await settle();
@@ -692,7 +1034,7 @@ suite('LocalBrowserGraph', () => {
     assert.equal(posts.filter(message => message.type === 'graphReviewState').at(-1).state, previous);
     assert.equal(rig.graph.reviewState, previous);
     const hidden = (rig.graph as any).sourceDrafts.start({ id: 'draft-2', target,
-      artifact: { path: target.file, before: SAVED, after, before_digest: digest(SAVED), after_digest: digest(after), edits: [] },
+      artifacts: [{ path: target.file, before: SAVED, after, before_digest: digest(SAVED), after_digest: digest(after), edits: [] }],
       sources: { entries: [{ file: target.file, source: SAVED, digest: digest(SAVED) }], truncated: false },
     }, new AbortController().signal, () => true);
     const updated = { id: 'git-review-finished-opening' };
@@ -712,7 +1054,7 @@ suite('LocalBrowserGraph', () => {
     const target = rig.graph.target!;
     const after = SAVED + '# proposed change\n';
     const handle = (rig.graph as any).sourceDrafts.start({ id: 'draft-1', target,
-      artifact: { path: target.file, before: SAVED, after, before_digest: digest(SAVED), after_digest: digest(after), edits: [] },
+      artifacts: [{ path: target.file, before: SAVED, after, before_digest: digest(SAVED), after_digest: digest(after), edits: [] }],
       sources: { entries: [{ file: target.file, source: SAVED, digest: digest(SAVED) }], truncated: false },
     }, new AbortController().signal, () => true);
     await settle();
@@ -987,6 +1329,78 @@ suite('LocalBrowserGraph', () => {
     } finally { finish(false); attached.dispose(); canvas.dispose(); registration.dispose(); resetWebviews(); }
   });
 
+  for (const suggestion of ['python-extension', 'managed']) test(`capture on save waits for resolution of a ${suggestion} suggestion`, async () => {
+    const root = await realpath(await mkdtemp(path.join(tmpdir(), 'tensorviz-save-environment-')));
+    const file = path.join(root, 'models', 'resid.py'), python = path.join(root, 'python');
+    await mkdir(path.dirname(file)); await writeFile(file, SAVED);
+    state.workspaceFolders = [{ uri: Uri.file(root) }];
+    const choices = new Map<string, unknown>();
+    const context = { workspaceState: { get: (key: string) => choices.get(key),
+      update: async (key: string, value: unknown) => { choices.set(key, value); } } } as unknown as vscode.ExtensionContext;
+    if (suggestion === 'python-extension') state.extensions.set('ms-python.python', { activate: async () => ({ environments: {
+      getActiveEnvironmentPath: () => ({ path: python }), resolveEnvironment: async () => ({ executable: { uri: Uri.file(python) } }),
+    } }) });
+    const resolve = () => selectedExecutionEnvironment(context, vscode.Uri.file(root), async () => python);
+    const profile = { kind: 'model', model: 'models.resid:Net', mode: 'eval', device: 'cpu', grad_enabled: false,
+      init: { args: [], kwargs: {} }, inputs: { args: [{ kind: 'tensor', shape: [1, 8], dtype: 'float32',
+        requires_grad: false, generator: { kind: 'full', value: 1 } }], kwargs: {} }, limits: { timeout_ms: 1000 } };
+    let prepared = 0, runs = 0;
+    let source = SAVED;
+    const rig = makeGraph([], {
+      environment: async () => ({ reason: savedEnvironment(context, vscode.Uri.file(file)) ? 'ready' : 'selection_required', candidates: [], detail: 'Choose Python.' }),
+      profiles: { hasConfig: async () => true, choose: async () => undefined,
+        snapshot: async (_root, name) => {
+          const selected = await resolve();
+          if (!selected.interpreter) throw new Error('No execution interpreter is selected.');
+          prepared++;
+          return (name ? { guards: {}, resolution: { status: 'resolved', spec: { profile, identity: { profile: name },
+            files: [], interpreter: { executable: selected.interpreter }, dependencyScope: 'partial' } } }
+            : { profiles: ['one'], profileDefinitions: { one: profile }, guards: {}, resolution: { status: 'needs_setup', requirements: [
+              { profile: null, field: ['profiles'], code: 'ambiguous', phase: 'static', reason: 'Choose.', remedy: 'Choose.' },
+            ] } }) as never;
+        },
+      },
+      trace: { trusted: async () => true, settings: () => ({ onSave: true, tier: 'real' }), worker: {
+        run: async request => {
+          runs++; assert.equal(request.expectedInterpreter, python);
+          return { ok: true, exitCode: 0, envelope: { protocol_version: 1, result: { graph: { nodes: [], edges: [] },
+            diagnostics: { execution: { importedSources: [{ file: 'models/resid.py', realPath: file,
+              bytes: Buffer.byteLength(source), digest: createHash('sha256').update(source).digest('hex') }] } } },
+            spans: {}, error: null, worker: { python: 'test', torch: 'test', elapsed_ms: 1 } } };
+        }, cancel() {},
+      } },
+    });
+    rig.graph.attachCanvas(() => {});
+    const save = async () => {
+      const previous = rig.graph.opening!.state!.id;
+      source += '\n# saved edit\n';
+      const editor = openStubEditor(file, source);
+      documentChanges.fire({ document: editor.document });
+      await writeFile(file, source);
+      saveChanges.fire(editor.document);
+      for (let i = 0; i < 200 && (rig.graph.opening!.state!.id === previous
+        || ['resolving', 'capturing'].includes(rig.graph.opening!.state!.phase)); i++) await settle();
+      return rig.graph.opening!.state!;
+    };
+    openStubEditor(file, SAVED);
+    try {
+      await rig.graph.open({ uri: file, cls: 'Net' }, 'canvas'); await settle();
+      const opening = rig.graph.opening!.state!;
+      assert.equal(opening.environment!.reason, 'selection_required');
+      assert.equal((await save()).phase, 'needs_setup');
+      assert.equal(prepared, 0, 'an unresolved suggestion must not prepare a Python profile');
+      assert.equal(runs, 0, 'saving cannot bypass unresolved opening setup');
+      assert.notEqual(rig.graph.opening!.state!.id, opening.id, 'a changed save re-enters the opening environment gate');
+      assert.equal(rig.graph.opening!.state!.environment!.reason, 'selection_required');
+      assert.equal(choices.size, 0, 'saving must not remember a suggestion');
+      if (suggestion === 'managed') await rememberEnvironment(context, { kind: 'managed' }, vscode.Uri.file(file));
+      else await rememberEnvironment(context, { kind: 'project', interpreter: python }, vscode.Uri.file(file));
+      assert.equal((await save()).phase, 'ready');
+      assert.equal(runs, 1, 'the same saved profile remains usable after a saved selection');
+      assert.ok(prepared > 0);
+    } finally { rig.graph.dispose(); await rm(root, { recursive: true, force: true }); }
+  });
+
   for (const selection of ['cancelled', 'ready', 'missing'] as const) test(`native environment browsing (${selection}) uses the original opening and Canvas library flow`, async () => {
     const accepted = selection !== 'cancelled';
     const root = await realpath(await mkdtemp(path.join(tmpdir(), 'tensorviz-browse-opening-')));
@@ -1168,7 +1582,10 @@ suite('LocalBrowserGraph', () => {
     } finally { await rm(root, { recursive: true, force: true }); }
   });
 
-  for (const helper of [false, true]) for (const succeeded of [true, false]) test(`saving after ${helper ? 'helper' : 'root'} edit never executes even with legacy capture-on-save ${succeeded ? 'enabled' : 'disabled'}`, async () => {
+  for (const scenario of ['root', 'helper', 'root-failure', 'helper-failure', 'disabled', 'burst', 'dirty', 'unrelated', 'review', 'source-only', 'auto-open', 'retarget', 'dispose', 'typing-after-save', 'stopping-worker'] as const)
+    test(`saved-source validation: ${scenario}`, async () => {
+    const helper = scenario.startsWith('helper') || scenario === 'dirty';
+    const succeeded = !scenario.endsWith('failure');
     const root = await realpath(await mkdtemp(path.join(tmpdir(), 'tensorviz-save-opening-')));
     const file = path.join(root, 'models', 'resid.py');
     const layer = path.join(root, 'models', 'layer.py');
@@ -1191,7 +1608,7 @@ suite('LocalBrowserGraph', () => {
             ] } }) as never,
           choose: async () => undefined,
         },
-        trace: { trusted: async () => true, settings: () => ({ onSave: true, tier: 'real' }), worker: {
+        trace: { trusted: async () => true, settings: resource => { if (resource) assert.equal(resource.fsPath, helper ? layer : file); return { onSave: scenario !== 'disabled', tier: 'real' }; }, worker: {
           run: async () => {
             assert.ok(dependenciesReady, 'Canvas must finish guided dependency setup before constructing or capturing the model');
             runs++;
@@ -1209,18 +1626,294 @@ suite('LocalBrowserGraph', () => {
       if (helper) openStubEditor(changedFile, SAVED);
       const messages: any[] = [];
       rig.graph.attachCanvas(message => { messages.push(message); });
-      await rig.graph.open({ uri: file, cls: 'Net' }, 'canvas');
+      await rig.graph.open({ uri: file, cls: 'Net', sourceOnly: scenario === 'source-only' }, 'canvas', scenario === 'auto-open' ? 'automatic' : 'human');
       for (let i = 0; i < 200 && ['resolving', 'capturing'].includes(rig.graph.opening!.state!.phase); i++) await settle();
-      assert.equal(rig.graph.opening!.state!.phase, 'ready', JSON.stringify(rig.graph.opening!.state));
+      assert.equal(rig.graph.opening!.state!.phase, scenario === 'source-only' ? 'source_only' : scenario === 'auto-open' ? 'awaiting_execution' : 'ready', JSON.stringify(rig.graph.opening!.state));
+      const beforeRuns = runs;
       const edited = openStubEditor(changedFile, SAVED.replace('return x', 'return x + 1'));
       documentChanges.fire({ document: edited.document }); await settle();
       assert.equal(rig.graph.opening!.state!.phase, 'cancelled', 'editing alone cannot certify old measurements');
       await writeFile(changedFile, edited.document.getText());
+      const internals = rig.graph as any;
+      if (scenario === 'dirty') editorState.dirtyDocuments.add(file);
+      const review = scenario === 'review' ? mock.getter(internals.sourceEdits, 'reviewing', () => true) : undefined;
+      if (scenario === 'stopping-worker') internals.executionReview.pending = { target: internals.sync.currentTarget() };
+      const save = scenario === 'unrelated' ? openStubEditor(path.join(root, 'other.py'), '# unrelated').document : edited.document;
+      saveChanges.fire(save);
+      if (scenario === 'burst') { saveChanges.fire(save); saveChanges.fire(save); }
+      if (scenario === 'retarget') internals.projectOperationGeneration++;
+      if (scenario === 'dispose') rig.graph.dispose();
+      if (scenario === 'typing-after-save') { editorState.dirtyDocuments.add(changedFile); documentChanges.fire({ document: edited.document }); }
+      if (scenario === 'dirty' || scenario === 'stopping-worker') {
+        await settle(); assert.equal(runs, beforeRuns, 'dirty code and a stopping worker cannot overlap a new run');
+        editorState.dirtyDocuments.delete(file);
+        if (scenario === 'stopping-worker') { internals.executionReview.pending = undefined; await new Promise(resolve => setTimeout(resolve, 110)); }
+        else saveChanges.fire(edited.document);
+      }
+      const executes = ['root', 'helper', 'root-failure', 'helper-failure', 'burst', 'dirty', 'stopping-worker'].includes(scenario);
+      if (!executes) {
+        await settle(); await settle(); assert.equal(runs, beforeRuns, 'this save must not execute');
+        review?.mock.restore();
+        rig.graph.dispose(); return;
+      }
+      for (let i = 0; i < 200 && (runs < 2 || ['resolving', 'capturing'].includes(rig.graph.opening!.state!.phase)); i++) await settle();
+      assert.equal(runs, 2, 'saving the selected model or a runtime import executes one fresh validation');
+      assert.equal(rig.graph.opening!.state!.phase, succeeded ? 'ready' : 'failed', JSON.stringify(rig.graph.opening!.state));
+      assert.equal(rig.graph.opening!.state!.hasCapture, succeeded);
+      assert.equal(rig.graph.opening!.state!.execution?.phase, succeeded ? 'succeeded' : 'failed');
+      saveChanges.fire(edited.document); await settle();
+      assert.equal(runs, 2, 'saving unchanged code does not rerun');
+      if (helper && !succeeded) {
+        const retry = openStubEditor(layer, SAVED.replace('return x', 'return x + 2'));
+        documentChanges.fire({ document: retry.document });
+        await writeFile(layer, retry.document.getText()); saveChanges.fire(retry.document);
+        for (let i = 0; i < 200 && runs < 3; i++) await settle();
+        assert.equal(runs, 3, 'a failed run must not forget its known runtime imports');
+      }
+      rig.graph.dispose();
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
+  /** A real opening of a saved model with trace on save, a counting worker and the native Canvas. */
+  async function savedRunRig(root: string, overrides: Partial<LocalBrowserGraphOptions> = {}) {
+    const file = path.join(root, 'models', 'resid.py');
+    await mkdir(path.dirname(file)); await writeFile(file, SAVED);
+    state.workspaceFolders = [{ uri: { fsPath: root } }];
+    const profile = { kind: 'model', model: 'models.resid:Net', mode: 'eval', device: 'cpu', grad_enabled: false,
+      init: { args: [], kwargs: {} }, inputs: { args: [{ kind: 'tensor', shape: [1, 8], dtype: 'float32',
+        requires_grad: false, generator: { kind: 'full', value: 1 } }], kwargs: {} }, limits: { timeout_ms: 1000 } };
+    const counts = { runs: 0 };
+    const rig = makeGraph([], {
+      prepareDependencies: async () => true,
+      profiles: {
+        snapshot: async (_root, selected) => (selected
+          ? { guards: {}, resolution: { status: 'resolved', spec: { profile, identity: { profile: selected },
+            files: [], interpreter: { executable: '/python' }, dependencyScope: 'partial' } } }
+          : { profiles: ['one'], profileDefinitions: { one: profile }, guards: {}, resolution: { status: 'needs_setup', requirements: [
+            { profile: null, field: ['profiles'], code: 'ambiguous', phase: 'static', reason: 'Choose.', remedy: 'Choose.' },
+          ] } }) as never,
+        choose: async () => undefined,
+      },
+      trace: { trusted: async () => true, settings: () => ({ onSave: true, tier: 'real' }), worker: {
+        run: async () => {
+          counts.runs++;
+          const source = readFileSync(file);
+          return { ok: true, exitCode: 0, envelope: { protocol_version: 1,
+            result: { graph: { nodes: [], edges: [] }, diagnostics: { execution: { importedSources: [{ file: 'models/resid.py',
+              realPath: file, bytes: source.length, digest: createHash('sha256').update(source).digest('hex') }] } } },
+            spans: {}, error: null, worker: { python: 'test', torch: 'test', elapsed_ms: 1 } } };
+        }, cancel() {},
+      } },
+      ...overrides,
+    });
+    const messages: any[] = [];
+    rig.graph.attachCanvas(message => { messages.push(message); });
+    const idle = async () => {
+      for (let i = 0; i < 200 && ['resolving', 'saving', 'capturing'].includes(rig.graph.opening!.state!.phase); i++) await settle();
+    };
+    /** Edit and save the model, then wait for trace on save to run it. */
+    const saveEdit = async () => {
+      const edited = openStubEditor(file, SAVED.replace('return x', 'return x + 1'));
+      documentChanges.fire({ document: edited.document }); await settle();
+      await writeFile(file, edited.document.getText());
       saveChanges.fire(edited.document);
+      for (let i = 0; i < 200 && counts.runs < 2; i++) await settle();
+      await idle();
+      assert.equal(counts.runs, 2, 'the save runs the model');
+      assert.equal(rig.graph.opening!.state!.phase, 'ready', JSON.stringify(rig.graph.opening!.state));
+      return edited;
+    };
+    openStubEditor(file, SAVED);
+    await rig.graph.open({ uri: file, cls: 'Net' }, 'canvas'); await idle();
+    assert.equal(rig.graph.opening!.state!.phase, 'ready', JSON.stringify(rig.graph.opening!.state));
+    return { rig, file, counts, messages, idle, saveEdit };
+  }
+
+  test('after a save-triggered run, Run model waits at its review without claiming to run, and dismissing the review restores the result', async () => {
+    const root = await realpath(await mkdtemp(path.join(tmpdir(), 'tensorviz-run-after-save-')));
+    try {
+      const { rig, counts, messages, saveEdit } = await savedRunRig(root);
+      await saveEdit();
+      const saved = messages.filter(message => message.type === 'validationState').at(-1);
+      assert.equal(saved.status, 'passed');
+      assert.equal(saved.evidence.origin, 'automatic', 'the save-triggered run is reported as trace on save');
+      // Canvas sends a manual validation, not a reopening, once the graph has a current capture.
+      assert.equal(rig.graph.opening!.state!.hasCapture, true);
+      const target = rig.graph.target!, review = (rig.graph as any).executionReview as ExecutionReview;
+      const runModel = (requestId: string) => {
+        const from = messages.length;
+        rig.graph.handleCanvasMessage({ type: 'validateRequest', target, requestId } as never);
+        return () => messages.slice(from);
+      };
+      const states = (sent: any[]) => sent.filter(message => message.type === 'validationState').map(message => [message.runId, message.status, message.detail]);
+
+      const dismissed = runModel('run-model-dismissed'); await settle();
+      assert.equal(review.state!.phase, 'review');
+      assert.deepEqual(states(dismissed()), [], 'a review waiting for Run has not started the model');
+      rig.graph.handleCanvasMessage({ type: 'graphSetupRequest', openingId: rig.graph.opening!.state!.id, target, requestId: 'dismiss-review',
+        action: { kind: 'execution', reviewId: review.state!.id, action: 'cancel', device: 'cpu' } } as never);
       await settle();
-      assert.equal(runs, 1, 'save refreshes source without starting computation');
-      assert.equal(rig.graph.opening!.state!.phase, 'cancelled');
-      assert.equal(rig.graph.opening!.state!.hasCapture, false);
+      assert.equal(dismissed().find(message => message.type === 'validateResult')?.status, 'cancelled');
+      assert.deepEqual(states(dismissed()), [[saved.runId, 'passed', saved.detail]], 'dismissing the review shows the save-triggered result again');
+      assert.equal((rig.graph as any).validationSummaries.snapshot(target).runId, saved.runId, 'a reconnecting view replays that result too');
+      assert.equal(counts.runs, 2, 'nothing ran');
+
+      const approved = runModel('run-model-approved'); await settle();
+      assert.deepEqual(states(approved()), []);
+      approveExecution(rig.graph);
+      for (let i = 0; i < 200 && !approved().some(message => message.type === 'validateResult'); i++) await settle();
+      assert.equal(counts.runs, 3);
+      const progress = states(approved());
+      assert.deepEqual(progress[0].slice(0, 2), ['run-model-approved', 'running'], 'the validation runs once Run is chosen');
+      assert.deepEqual(progress.at(-1)!.slice(0, 2), ['run-model-approved', 'passed']);
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
+  test('after a save-triggered run, Change inputs captures its saved setup without another Run click', async () => {
+    const root = await realpath(await mkdtemp(path.join(tmpdir(), 'tensorviz-inputs-after-save-')));
+    try {
+      const { rig, counts, messages, idle, saveEdit } = await savedRunRig(root);
+      await saveEdit();
+      const discover = mock.method(rig.graph.setupHost!, 'discover', async () => ({ discovery: { parents: [] } }));
+      const save = mock.method(rig.graph.setupHost!, 'save', async () => ({}));
+      try {
+        const opening = rig.graph.opening!.state!;
+        rig.graph.handleCanvasMessage({ type: 'graphSetupRequest', openingId: opening.id, target: opening.target,
+          requestId: 'change-inputs', action: { kind: 'change_inputs' } } as never);
+        for (let i = 0; i < 200 && rig.graph.opening!.state!.phase !== 'needs_setup'; i++) await settle();
+        const form = rig.graph.opening!.state!;
+        assert.notEqual(form.id, opening.id);
+        rig.graph.handleCanvasMessage({ type: 'graphSetupRequest', openingId: form.id, target: form.target,
+          requestId: 'save-inputs', action: { kind: 'submit', draft: form.draft } } as never);
+        await settle(); await idle();
+        assert.equal(rig.graph.opening!.state!.phase, 'ready', 'saving changed inputs is the person asking to run the model');
+        assert.equal(counts.runs, 3);
+        assert.equal(save.mock.callCount(), 1);
+        assert.equal(messages.filter(message => message.type === 'validationState').at(-1).evidence.origin, 'manual');
+      } finally { discover.mock.restore(); save.mock.restore(); }
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
+  test('an agent opening that starts while a save-triggered run finishes keeps the agent actor', async () => {
+    const root = await realpath(await mkdtemp(path.join(tmpdir(), 'tensorviz-agent-after-save-')));
+    let releaseRun = () => {}, releaseRead = () => {};
+    try {
+      const { rig, file, counts, messages, idle } = await savedRunRig(root);
+      const worker = (rig.graph as any).options.trace.worker, run = worker.run;
+      const held = new Promise<void>(resolve => { releaseRun = resolve; });
+      const gated = mock.method(worker, 'run', async (...args: unknown[]) => { await held; return run(...args); });
+      const edited = openStubEditor(file, SAVED.replace('return x', 'return x + 1'));
+      documentChanges.fire({ document: edited.document }); await settle();
+      await writeFile(file, edited.document.getText());
+      saveChanges.fire(edited.document);
+      for (let i = 0; i < 200 && gated.mock.callCount() < 1; i++) await settle();
+      const savedRun = rig.graph.opening!.state!;
+      assert.equal(savedRun.phase, 'capturing', 'the save-triggered run is executing');
+      // The agent's open_graph sets its actor, then reads the document before it starts its opening.
+      const vscode = require('../vscodeStub'), original = vscode.workspace.openTextDocument;
+      const readHeld = new Promise<void>(resolve => { releaseRead = resolve; });
+      let first = true;
+      const read = mock.method(vscode.workspace, 'openTextDocument', async (uri: any) => {
+        if (first) { first = false; await readHeld; }
+        return original(uri);
+      });
+      try {
+        const agent = rig.graph.open({ uri: file, cls: 'Net', restart: true }, 'canvas', 'agent'); await settle();
+        releaseRun(); await idle();
+        assert.equal(rig.graph.opening!.state!.id, savedRun.id);
+        assert.equal(rig.graph.opening!.state!.phase, 'ready', 'the save-triggered run finished inside the agent opening');
+        releaseRead(); await agent; await idle();
+        assert.notEqual(rig.graph.opening!.state!.id, savedRun.id);
+        assert.equal(counts.runs, 3, 'the agent opening runs the model');
+        assert.equal(messages.filter(message => message.type === 'validationState').at(-1).evidence.origin, 'mcp',
+          'the finished save run must not relabel the agent opening as a person');
+      } finally { read.mock.restore(); gated.mock.restore(); }
+    } finally { releaseRun(); releaseRead(); await rm(root, { recursive: true, force: true }); }
+  });
+
+  test('an unchanged save while an accepted change is opening does not restart it', async () => {
+    const root = await realpath(await mkdtemp(path.join(tmpdir(), 'tensorviz-accept-save-')));
+    let gate: Promise<void> = Promise.resolve(), checks = 0, release = () => {};
+    try {
+      const { rig, file, counts, idle } = await savedRunRig(root, {
+        environment: async () => { checks++; await gate; return { reason: 'ready', candidates: [], detail: 'Ready.' } as never; } });
+      const edited = openStubEditor(file, SAVED.replace('return x', 'return x + 1'));
+      editorState.dirtyDocuments.add(file);
+      documentChanges.fire({ document: edited.document }); await settle();
+      gate = new Promise(resolve => { release = resolve; });
+      const vscode = require('../vscodeStub'), original = vscode.workspace.openTextDocument;
+      const read = mock.method(vscode.workspace, 'openTextDocument', async (uri: any) => Object.assign(await original(uri), { save: async () => {
+        await writeFile(file, edited.document.getText());
+        editorState.dirtyDocuments.delete(file);
+        saveChanges.fire(edited.document);
+        return true;
+      } }));
+      try {
+        const detail = await (rig.graph as any).sourceEdits.options.accepted({ target: rig.graph.target!, file: 'models/resid.py', current: () => true });
+        assert.match(detail, /Saved the accepted change/);
+        await settle();
+        const accepted = rig.graph.opening!.state!;
+        assert.equal(accepted.phase, 'resolving');
+        assert.equal(checks, 2, 'the accepted change is checking its environment');
+        saveChanges.fire(edited.document); // Cmd+S on the model the accept already saved.
+        await settle(); await new Promise(resolve => setTimeout(resolve, 150));
+        assert.equal(rig.graph.opening!.state!.id, accepted.id, 'an unchanged save must not restart the accepted opening');
+        assert.equal(checks, 2);
+        release(); await idle();
+        assert.equal(rig.graph.opening!.state!.phase, 'ready', JSON.stringify(rig.graph.opening!.state));
+        assert.equal(counts.runs, 2, 'the accepted change runs once');
+      } finally { read.mock.restore(); }
+    } finally { release(); await rm(root, { recursive: true, force: true }); }
+  });
+
+  test('a buffer reload that only resets the document version keeps the completed capture current', async () => {
+    const root = await realpath(await mkdtemp(path.join(tmpdir(), 'tensorviz-version-opening-')));
+    const file = path.join(root, 'models', 'resid.py');
+    await mkdir(path.dirname(file));
+    await writeFile(file, SAVED);
+    state.workspaceFolders = [{ uri: { fsPath: root } }];
+    try {
+      const profile = { kind: 'model', model: 'models.resid:Net', mode: 'eval', device: 'cpu', grad_enabled: false,
+        init: { args: [], kwargs: {} }, inputs: { args: [{ kind: 'tensor', shape: [1, 8], dtype: 'float32',
+          requires_grad: false, generator: { kind: 'full', value: 1 } }], kwargs: {} }, limits: { timeout_ms: 1000 } };
+      let runs = 0;
+      const rig = makeGraph([], {
+        prepareDependencies: async () => true,
+        profiles: {
+          snapshot: async (_root, selected) => (selected
+            ? { guards: {}, resolution: { status: 'resolved', spec: { profile, identity: { profile: selected },
+              files: [], interpreter: { executable: '/python' }, dependencyScope: 'partial' } } }
+            : { profiles: ['one'], profileDefinitions: { one: profile }, guards: {}, resolution: { status: 'needs_setup', requirements: [
+              { profile: null, field: ['profiles'], code: 'ambiguous', phase: 'static', reason: 'Choose.', remedy: 'Choose.' },
+            ] } }) as never,
+          choose: async () => undefined,
+        },
+        trace: { trusted: async () => true, settings: () => ({ onSave: false, tier: 'real' }), worker: {
+          run: async () => {
+            runs++;
+            // VS Code released the unshown buffer and read the same saved bytes again:
+            // its version restarts at 1 with no change event and an unchanged digest.
+            editorState.versions.set(file, 1);
+            const source = readFileSync(file);
+            return { ok: true, exitCode: 0, envelope: { protocol_version: 1,
+              result: { graph: { nodes: [], edges: [] }, diagnostics: { execution: { importedSources: [{ file: 'models/resid.py',
+                realPath: file, bytes: source.length, digest: createHash('sha256').update(source).digest('hex') }] } } },
+              spans: {}, error: null, worker: { python: 'test', torch: 'test', elapsed_ms: 1 } } };
+          }, cancel() {},
+        } },
+      });
+      // Edited and saved back to the same text earlier in the session: version 3.
+      for (let i = 0; i < 3; i++) openStubEditor(file, SAVED);
+      rig.graph.attachCanvas(() => {});
+      await rig.graph.open({ uri: file, cls: 'Net' }, 'canvas');
+      for (let i = 0; i < 200 && ['resolving', 'capturing'].includes(rig.graph.opening!.state!.phase); i++) await settle();
+      const opening = rig.graph.opening!.state!;
+      assert.equal(runs, 1);
+      assert.equal(opening.phase, 'ready', JSON.stringify(opening));
+      assert.equal(opening.hasCapture, true);
+      assert.equal(opening.cancellationReason, undefined);
+      assert.equal(opening.target.documentVersion, 1, 'the opening follows the reloaded buffer');
+      assert.equal(opening.target.sourceDigest, createHash('sha256').update(SAVED).digest('hex'));
       rig.graph.dispose();
     } finally { await rm(root, { recursive: true, force: true }); }
   });

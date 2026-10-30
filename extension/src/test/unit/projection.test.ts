@@ -40,6 +40,17 @@ suite('shapeHintsByFile captured tensor shapes', () => {
     ]);
   });
 
+  test('older timing evidence adds nothing to source hints', () => {
+    const timing = { cpuTotalUs: [10, 20, 30], cpuSelfUs: [4, 5, 6], deviceTotalUs: null, deviceMethod: null };
+    const hints = shapeHintsByFile({ traced: true,
+      document: { semantic: { nodes: [node('call:up', [2, 16], { moduleLatency: timing }), node('call:pair', undefined, { moduleLatency: timing })],
+        metadata: { latencyProfile: { status: 'measured', device: 'cpu' } } } },
+      spanmap: { 'call:up': call, 'call:pair': { ...call, start: [12, 8], end: [12, 20] } },
+    });
+    assert.deepEqual(hints.get(REL), [{ nodeId: 'call:up', line: 11, column: 30, shape: '2x16', provenance: 'observed' }],
+      'a timed call shows its shape only, and a call without a tensor shape shows nothing');
+  });
+
   test('shows the outer module output, not internal operations mapped to the same call', () => {
     const hints = shapeHintsByFile({ traced: true,
       document: { semantic: { nodes: [

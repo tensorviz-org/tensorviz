@@ -896,11 +896,6 @@ export interface components {
         /** Invocation */
         Invocation: {
             arguments: components["schemas"]["Arguments"];
-            /**
-             * Callsitedigest
-             * @default null
-             */
-            callSiteDigest?: string | null;
             /** Diagnosticid */
             diagnosticId: string | null;
             /** Endsequence */
@@ -1069,6 +1064,8 @@ export interface components {
             sequence: number;
             /** Sourcebindingids */
             sourceBindingIds: string[];
+            sourceFlattenCall?: components["schemas"]["SourceFlattenCall"] | null;
+            sourceShapeCall?: components["schemas"]["SourceShapeCall"] | null;
             /**
              * Status
              * @enum {string}
@@ -1287,6 +1284,15 @@ export interface components {
              */
             version: 1;
         };
+        /** ReviewedPythonSource */
+        ReviewedPythonSource: {
+            /** Beforedigest */
+            beforeDigest: string;
+            /** File */
+            file: string;
+            /** Source */
+            source: string;
+        };
         /** RunAttempt */
         RunAttempt: {
             /** Captureids */
@@ -1360,6 +1366,8 @@ export interface components {
             setConfigurationLiteralEdit: components["schemas"]["SetConfigurationLiteralEdit"];
             setConstructorLiteralEdit: components["schemas"]["SetConstructorLiteralEdit"];
             setLiteralEdit: components["schemas"]["SetLiteralEdit"];
+            sourceCandidateExecution: components["schemas"]["SourceCandidateExecution"];
+            sourceCandidateRequest: components["schemas"]["SourceCandidateRequest"];
             state: components["schemas"]["CaptureState"];
         };
         /** SequenceArgument */
@@ -1477,6 +1485,58 @@ export interface components {
             snapshotId: string;
         };
         /**
+         * SourceCandidateExecution
+         * @description Exact reviewed source set; successful replay is not a recipe verdict.
+         */
+        SourceCandidateExecution: {
+            /** Baseattemptid */
+            baseAttemptId: string;
+            /** Basecaptureid */
+            baseCaptureId: string;
+            /** Baseplandigest */
+            basePlanDigest: string;
+            /** Basesourceid */
+            baseSourceId: string;
+            /** Baseworkspaceid */
+            baseWorkspaceId: string;
+            /** Changes */
+            changes: components["schemas"]["SourceChangeIdentity"][];
+            /** Id */
+            id: string;
+            plan: components["schemas"]["ResolvedExecutionPlan"];
+            /**
+             * Version
+             * @constant
+             */
+            version: 2;
+        };
+        /**
+         * SourceCandidateRequest
+         * @description Private exact-file proposal; execution still requires the host Run action.
+         */
+        SourceCandidateRequest: {
+            capture: components["schemas"]["CaptureSnapshot"];
+            /** Id */
+            id: string;
+            plan: components["schemas"]["ResolvedExecutionPlan"];
+            /** Reviewedsources */
+            reviewedSources: components["schemas"]["ReviewedPythonSource"][];
+            /**
+             * Version
+             * @constant
+             */
+            version: 2;
+        };
+        /** SourceChangeIdentity */
+        SourceChangeIdentity: {
+            /** Afterdigest */
+            afterDigest: string;
+            /** Beforedigest */
+            beforeDigest: string;
+            /** File */
+            file: string;
+        };
+        /**
          * SourceCorrespondence
          * @description Revision-specific evidence for a source card, not proof that an expression ran.
          */
@@ -1530,6 +1590,34 @@ export interface components {
             /** Observedoperations */
             observedOperations: number;
         };
+        /** SourceFlattenArgument */
+        SourceFlattenArgument: {
+            /**
+             * Parameter
+             * @enum {string}
+             */
+            parameter: "start_dim" | "end_dim";
+            /** Sourcepath */
+            sourcePath: (number | string)[];
+            /** Value */
+            value: number;
+        };
+        /** SourceFlattenCall */
+        SourceFlattenCall: {
+            /** Arguments */
+            arguments: components["schemas"]["SourceFlattenArgument"][];
+            /** Bindingid */
+            bindingId: string;
+            /**
+             * Callable
+             * @enum {string}
+             */
+            callable: "torch.flatten" | "torch.Tensor.flatten";
+            /** Enddim */
+            endDim: number;
+            /** Startdim */
+            startDim: number;
+        };
         /** SourceFloatLiteral */
         SourceFloatLiteral: {
             /**
@@ -1539,6 +1627,27 @@ export interface components {
             kind: "float";
             /** Value */
             value: number | "-0";
+        };
+        /** SourceShapeCall */
+        SourceShapeCall: {
+            /** Bindingid */
+            bindingId: string;
+            /**
+             * Callable
+             * @enum {string}
+             */
+            callable: "torch.reshape" | "torch.Tensor.reshape" | "torch.Tensor.view";
+            /** Dimensions */
+            dimensions: components["schemas"]["SourceShapeDimension"][];
+        };
+        /** SourceShapeDimension */
+        SourceShapeDimension: {
+            /** Dimension */
+            dimension: number;
+            /** Sourcepath */
+            sourcePath: (number | string)[];
+            tensorDimension?: components["schemas"]["SourceTensorDimension"] | null;
+            value: components["schemas"]["IntLiteral"];
         };
         /** SourceSnapshot */
         SourceSnapshot: {
@@ -1577,6 +1686,13 @@ export interface components {
             workspaceId: string;
             /** Workspacesessionid */
             workspaceSessionId: string;
+        };
+        /** SourceTensorDimension */
+        SourceTensorDimension: {
+            /** Axis */
+            axis: number;
+            /** Valueid */
+            valueId: string;
         };
         /** SourceValueChoice */
         SourceValueChoice: {

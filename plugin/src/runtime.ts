@@ -76,11 +76,15 @@ export class ManagedRuntime {
       facts: { url: asset.url, sha256: asset.sha256, python: manifest.python, maxDownloadBytes: manifest.maxDownloadBytes,
         destination: prefix, requirements: packages } }, signal);
     try {
+      report('Waiting for any other TensorViz host preparing this environment.');
       return await withResourceLock(directory, signal, async check => {
         await fs.mkdir(directory, { recursive: true, mode: 0o700 });
         if (await exists(record)) {
           if (await fs.readFile(record, 'utf8') !== owner) throw new HostError('MANAGED_RUNTIME_CHANGED', 'The managed environment ownership record changed. Preserve it and select an existing environment.');
         } else await fs.writeFile(record, owner, { flag: 'wx', mode: 0o600 });
+        // A host that held the lock may have finished while we waited. Reuse its
+        // verified environment rather than reinstalling packages into a live service.
+        if (await exists(ready) && await fs.readFile(ready, 'utf8') === owner && await exists(interpreter)) return interpreter;
         const shared = path.join(this.storage, 'python', asset.sha256);
         const base = path.join(shared, asset.pin.interpreter);
         await withResourceLock(shared, signal, async checkDownload => {
@@ -108,7 +112,7 @@ export class ManagedRuntime {
             await fs.mkdir(path.dirname(shared), { recursive: true, mode: 0o700 });
             await fs.rename(staging, shared);
           } finally { await temporary.dispose(); }
-        });
+        }, 300_000);
         check();
         if (!await exists(interpreter)) {
           report(role === 'service' ? 'Creating the TensorViz tool service environment.' : 'Creating the checkout’s private capture environment.');
@@ -126,7 +130,7 @@ export class ManagedRuntime {
         if (!inspected.ok || inspected.missing?.length || inspected.incompatible?.length) throw new HostError('RUNTIME_INCOMPLETE', 'The managed environment still has missing or incompatible requirements. Inspect it and resume dependency repair.');
         await fs.writeFile(ready, owner, { mode: 0o600 });
         return interpreter;
-      });
+      }, 300_000);
     } finally { if (this.activity === activity) this.activity = undefined; }
   }
 }

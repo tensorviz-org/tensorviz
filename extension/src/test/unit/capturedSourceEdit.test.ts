@@ -19,7 +19,8 @@ const fixture = (recipe = 'literal') => JSON.parse(readFileSync(join(__dirname, 
 
 for (const recipe of Object.keys(fixtures)) suite(`captured ${recipe} native review`, () => {
   setup(() => { reset(); resetEditors(); });
-  function harness(review?: ConstructorParameters<typeof LocalBrowserSourceEdits>[0]['review']) {
+  function harness(review?: ConstructorParameters<typeof LocalBrowserSourceEdits>[0]['review'],
+    draft?: ConstructorParameters<typeof LocalBrowserSourceEdits>[0]['draft']) {
     const data = fixture(recipe);
     const target = { workspaceFolder: '/work', file: 'model.py', cls: 'Model', documentVersion: 1,
       sourceDigest: sha256(data.source), backendRevision: 1 };
@@ -30,7 +31,7 @@ for (const recipe of Object.keys(fixtures)) suite(`captured ${recipe} native rev
     editorState.documents.set('/work/model.py', data.source);
     let retained = true;
     const requests: any[] = [];
-    const host = new LocalBrowserSourceEdits({ origin: () => 'http://localhost:9000', token: () => 'HOST_ONLY',
+    const host = new LocalBrowserSourceEdits({ draft, origin: () => 'http://localhost:9000', token: () => 'HOST_ONLY',
       context: () => context, capture: (_target, captureId, sourceId) => {
         if (!retained || captureId !== data.capture.id || sourceId !== data.capture.source.id) throw new Error('evicted');
         return data.capture;
@@ -66,6 +67,24 @@ for (const recipe of Object.keys(fixtures)) suite(`captured ${recipe} native rev
     assert.equal(changes.length, h.data.plan.edits.length);
     assert.deepEqual(changes.map((change: any) => change.newText), h.data.plan.edits.map((edit: any) => edit.newText));
     assert.ok(changes.every((change: any) => change.uri.fsPath === '/work/model.py'));
+  });
+
+  test('captured typed review previews the exact recipe artifact without importing config as source', async () => {
+    let disposed = false, shown = false;
+    const h = harness(async (_title, _artifact, _signal, _candidate, onShown) => {
+      onShown?.(async () => {}, () => {}); assert.ok(shown); return false;
+    }, (input, _signal, current) => {
+      assert.equal(input.canRevise, false); assert.equal(input.artifacts[0].before, h.data.source); assert.equal(input.artifacts[0].after, h.data.after);
+      assert.deepEqual(input.sources.entries.map(source => source.file), ['model.py']); assert.equal(current(), true);
+      assert.equal(editorState.appliedEdits.length, 0);
+      return { show() { shown = true; }, dispose() { disposed = true; } };
+    });
+    editorState.documents.set('/work/tensorviz.toml', '# retained recipe');
+    h.data.capture.source.files.push({ path: 'tensorviz.toml', role: 'config', digest: sha256('# retained recipe'), documentVersion: 1 });
+    try {
+      assert.equal((await h.propose()).status, 'cancelled'); assert.ok(disposed);
+      assert.equal(editorState.appliedEdits.length, 0);
+    } finally { h.host.dispose(); }
   });
 
   test('no-op produces no review or write, and discard writes nothing', async () => {

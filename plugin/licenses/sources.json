@@ -16,5 +16,13 @@
     "source": "https://github.com/cfworker/cfworker/blob/53401039978aaacc5961d6fc0f2c64f7927ea260/LICENSE.md",
     "license": "MIT",
     "packages": ["@cfworker/json-schema@4.1.1"]
+  },
+  {
+    "file": "ai-sdk.txt",
+    "source": "https://github.com/vercel/ai/blob/1f3cdbb3c6df3078c13e31e10afe9d8671e80797/LICENSE",
+    "license": "Apache-2.0",
+    "packages": [
+      "@ai-sdk/provider-utils@5.0.70"
+    ]
   }
 ]

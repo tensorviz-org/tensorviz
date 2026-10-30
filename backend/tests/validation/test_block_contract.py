@@ -4,10 +4,8 @@ For every op in the registry, the ANALYTIC output shape (op_registry + shape_eng
 must equal a REAL torch forward pass on a canonical input. This is the moat, made
 executable: analytic and torch agree, per block.
 
-Ops whose registry rule cannot match torch are documented in KNOWN_GAPS and marked
-xfail(strict=False) — the suite is GREEN today (136 of 138 ops locked in, 2 gaps),
-and each gap auto-flips to XPASS the moment its rule is implemented. Losses carry
-no shape contract (always scalar) and are skipped with a reason.
+Losses compare real reduced and unreduced outputs. Tuple-valued operations
+must decline the single-output shape contract rather than invent a first output.
 
 Sibling suite: test_op_shape_parity.py checks the same analytic==torch property
 with hand-written cases, including the DECLINE cases (a rule returning None) that
@@ -181,9 +179,17 @@ def build_case(spec):
         return [[2, 4, 8]], {}, dtype
     if name == "where":
         return [[2, 4, 8]], {}, dtype
-    # --- losses (skipped in _cases; case unused) ---
+    # --- losses, with every argument the actual forward requires ---
+    if name in {"CrossEntropyLoss", "NLLLoss"}:
+        return [[4, 8], [4]], {}, dtype
+    if name == "CTCLoss":
+        return [[5, 2, 8], [2, 3], [2], [2]], {}, dtype
+    if name == "CosineEmbeddingLoss":
+        return [[4, 8], [4, 8], [4]], {}, dtype
+    if name == "TripletMarginLoss":
+        return [[4, 8]] * 3, {}, dtype
     if getattr(spec, "arity", None) == "loss":
-        return [[4, 8]], {}, dtype
+        return [[4, 8], [4, 8]], {}, dtype
     # --- generic functional (unary, shape-preserving) ---
     if getattr(spec, "build_fn", None) is None:
         return [[2, 4, 8]], {}, dtype
@@ -236,9 +242,9 @@ def _functional_truth(name, xs, params):
     if name == "stack":
         return torch.stack([x, x], dim=params.get("dim", 0))
     if name == "chunk":
-        return torch.chunk(x, 2, dim=params.get("dim", 1))[0]
+        return torch.chunk(x, 2, dim=params.get("dim", 1))
     if name == "split":
-        return torch.split(x, 2, dim=params.get("dim", 1))[0]
+        return torch.split(x, 2, dim=params.get("dim", 1))
     if name == "narrow":
         return torch.narrow(x, params["dim"], params["start"], params["length"])
     if name == "interpolate":
@@ -259,6 +265,19 @@ def torch_truth(spec, input_shapes, params, dtype):
     name = torch_class(spec.canonical)
     xs = [_make(s, dtype) for s in input_shapes]
     with torch.no_grad():
+        if spec.arity == "loss":
+            if name in {"CrossEntropyLoss", "NLLLoss"}:
+                xs = [xs[0].log_softmax(1), torch.zeros(4, dtype=torch.long)]
+            elif name == "CTCLoss":
+                xs = [xs[0].log_softmax(2), torch.ones(2, 3, dtype=torch.long),
+                      torch.full((2,), 5, dtype=torch.long), torch.full((2,), 3, dtype=torch.long)]
+            elif name == "CosineEmbeddingLoss":
+                xs[-1] = torch.ones(4)
+            elif name == "BCELoss":
+                xs = [x.sigmoid() for x in xs]
+            elif name == "KLDivLoss":
+                xs = [xs[0].log_softmax(1), xs[1].softmax(1)]
+            return list(build_layer(name, params).eval()(*xs).shape)
         if name == "Bilinear":
             return list(build_layer("Bilinear", params).eval()(xs[0], xs[1]).shape)
         if getattr(spec, "build_fn", None) is not None:
@@ -266,68 +285,49 @@ def torch_truth(spec, input_shapes, params, dtype):
         return list(_functional_truth(name, xs, params).shape)
 
 
-# ── Known registry placeholder shape rules (the remaining gaps). xfail(strict=False)
-# so each auto-flips to XPASS when its rule is implemented (Steps B2/B3 etc.). ────
-KNOWN_GAPS = {
-    # chunk/split DECLINE (return None) rather than guess: they produce tuples, and a
-    # node carries one output_shape with no output index on its edges, so the result is
-    # genuinely unrepresentable. Not a placeholder — a deliberate refusal. They stay
-    # listed because a declining rule cannot match torch's truth by definition.
-    "torch.chunk", "torch.split",
-    # NOTE: torch.reshape, torch.stack and torch.sum used to be here and are now FIXED.
-    # reshape derives from its `shape` param (the ssd_head_block template that depended
-    # on the placeholder now uses nn.Flatten), stack inserts its axis properly, and sum
-    # carries the real reduction now that message_passing_block aggregates over the
-    # node axis instead of the feature axis.
-}
+TUPLE_OUTPUTS = {"torch.chunk", "torch.split"}
 
 
 def _cases():
-    out = []
-    for spec in sorted(all_specs(), key=lambda s: s.canonical):
-        marks = []
-        if getattr(spec, "arity", None) == "loss":
-            marks.append(pytest.mark.skip(reason="loss = scalar reduction; no shape contract"))
-        elif spec.canonical in KNOWN_GAPS:
-            marks.append(pytest.mark.xfail(strict=False,
-                         reason=f"registry placeholder shape rule for {spec.canonical}"))
-        out.append(pytest.param(spec, id=spec.canonical, marks=marks))
-    return out
+    for spec in sorted(all_specs(), key=lambda spec: spec.canonical):
+        reductions = ("mean", "sum", "none") if spec.arity == "loss" else (None,)
+        for reduction in reductions:
+            yield pytest.param(spec, reduction, id=spec.canonical + (f"-{reduction}" if reduction else ""))
 
 
-@pytest.mark.parametrize("spec", _cases())
-def test_block_contract(spec):
+@pytest.mark.parametrize("spec,reduction", _cases())
+def test_block_contract(spec, reduction):
     input_shapes, params, dtype = build_case(spec)
+    if reduction:
+        params["reduction"] = reduction
     analytic = analytic_shape(spec, input_shapes, params)
-    truth = torch_truth(spec, input_shapes, params, dtype)
-    assert analytic == truth, f"{spec.canonical}: analytic={analytic} torch={truth}"
+    if spec.canonical in TUPLE_OUTPUTS:
+        output = _functional_truth(torch_class(spec.canonical), [_make(s, dtype) for s in input_shapes], params)
+        assert isinstance(output, tuple) and len(output) == 2
+        assert [list(value.shape) for value in output] == [[2, 2, 8], [2, 2, 8]]
+        assert analytic is None, "one output_shape cannot represent an unselected tuple output"
+    else:
+        truth = torch_truth(spec, input_shapes, params, dtype)
+        assert analytic == truth, f"{spec.canonical}: analytic={analytic} torch={truth}"
 
 
-def test_coverage_and_no_regression(capsys):
-    """Independent registry walk: prints the tally and is the real regression gate."""
-    ran = passed = 0
-    unexpected_fail, unexpected_pass = [], []
+def test_coverage_and_no_regression():
     for spec in all_specs():
-        if getattr(spec, "arity", None) == "loss":
+        for reduction in (("mean", "sum", "none") if spec.arity == "loss" else (None,)):
+            test_block_contract(spec, reduction)
+
+
+@pytest.mark.parametrize("name", ["MSELoss", "L1Loss", "HuberLoss", "SmoothL1Loss", "KLDivLoss"])
+def test_unreduced_loss_keeps_the_broadcast_target_dimensions(name):
+    spec = next(spec for spec in all_specs() if spec.canonical == f"nn.{name}")
+    params = {"reduction": "none"}
+    output = getattr(torch.nn, name)(**params)(torch.ones(4, 1), torch.ones(1, 8))
+    assert analytic_shape(spec, [[4, 1], [1, 8]], params) == list(output.shape) == [4, 8]
+
+
+def test_batchmean_is_specific_to_kl_divergence():
+    for spec in all_specs():
+        if spec.arity != "loss":
             continue
-        input_shapes, params, dtype = build_case(spec)  # raises if a new op lacks a case
-        try:
-            ok = analytic_shape(spec, input_shapes, params) == torch_truth(spec, input_shapes, params, dtype)
-        except Exception:
-            ok = False
-        ran += 1
-        passed += int(ok)
-        if not ok and spec.canonical not in KNOWN_GAPS:
-            unexpected_fail.append(spec.canonical)
-        if ok and spec.canonical in KNOWN_GAPS:
-            unexpected_pass.append(spec.canonical)
-
-    with capsys.disabled():
-        print(f"\n[Tier-0 block contract] {passed}/{ran} ops analytic==torch "
-              f"({len(KNOWN_GAPS)} known gaps, losses skipped)")
-        if unexpected_pass:
-            print("FIXED (prune from KNOWN_GAPS): " + ", ".join(sorted(unexpected_pass)))
-
-    assert not unexpected_fail, f"Non-gap ops regressed (analytic != torch): {unexpected_fail}"
-    stale = KNOWN_GAPS - {s.canonical for s in all_specs()}
-    assert not stale, f"KNOWN_GAPS references removed/misspelled ops: {stale}"
+        actual = analytic_shape(spec, [[4, 8], [4, 8]], {"reduction": "batchmean"})
+        assert actual == ([] if spec.canonical == "nn.KLDivLoss" else None)

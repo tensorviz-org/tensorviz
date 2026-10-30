@@ -18,6 +18,29 @@ import { sourceAssignmentsOf } from './sourceAssignmentCards';
 import { assignmentContext } from './assignmentContext';
 import { failingLayerLabel } from './GraphRunNotice';
 
+/** Prefer the outermost matching layer; equal-depth calls follow graph order. */
+export function sourceFocusNode(document: unknown, nodeIds: readonly string[]): string | undefined {
+  const nodes = (document as GraphDocumentV2 | undefined)?.semantic?.nodes ?? [];
+  const wanted = new Set(nodeIds);
+  const matches = nodes.filter(node => wanted.has(node.node_id));
+  const layers = matches.filter(node => node.kind === 'module' || node.kind === 'layer');
+  const byId = new Map(nodes.map(node => [node.node_id, node]));
+  let chosen: string | undefined, shallowest = Infinity;
+  for (const node of layers.length ? layers : matches) {
+    const ancestors = new Set<string>([node.node_id]);
+    let parent = node.metadata?.parentId;
+    while (typeof parent === 'string' && byId.has(parent) && !ancestors.has(parent)) {
+      ancestors.add(parent);
+      parent = byId.get(parent)!.metadata?.parentId;
+    }
+    if (ancestors.size < shallowest) {
+      chosen = node.node_id;
+      shallowest = ancestors.size;
+    }
+  }
+  return chosen ?? nodeIds[0];
+}
+
 export function graphOpeningPresentation(page: LocalBrowserPageState) {
   const opening = page.opening, graph = page.projection;
   const visible = !!opening && opening.phase !== 'source_only';

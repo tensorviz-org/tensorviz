@@ -52,7 +52,7 @@ export class AttemptLedger {
   private planBody?: string;
   private preparationBody?: string;
   private planLabels: LocalBrowserValidationEvidence['setup'] = null;
-  private readonly captures = new Map<string, { record: CaptureRecord; body?: string }>();
+  private readonly captures = new Map<string, { token: symbol; record: CaptureRecord; body?: string }>();
   private readonly envelopes = new WeakMap<WorkerEnvelope, string>();
 
   constructor(private readonly maxCaptureBytes = 16 * 1024 * 1024) {}
@@ -127,7 +127,7 @@ export class AttemptLedger {
             } else {
               const body = JSON.stringify({ envelope: result.envelope, plan: reused.plan });
               const size = Buffer.byteLength(body);
-              this.captures.set(validated.id, { record: { id: validated.id, attemptId: reused.attemptId, format: 'semantic',
+              this.captures.set(validated.id, { token: Symbol(), record: { id: validated.id, attemptId: reused.attemptId, format: 'semantic',
                 status: validated.status, forwardStatus: 'passed', sourceId: reused.plan.source.id, planDigest: reused.planDigest,
                 preparationDigest: null, retainedBytes: size <= this.maxCaptureBytes ? size : 0,
                 unavailable: size > this.maxCaptureBytes ? 'retention_limit' : null, reusedBy: [id] },
@@ -154,7 +154,7 @@ export class AttemptLedger {
         const body = JSON.stringify({ envelope: result.envelope, plan, preparation });
         const size = Buffer.byteLength(body);
         const rootStatus = canonical?.invocations.find(call => call.id === canonical.rootInvocationId)?.status;
-        this.captures.set(captureId, { record: { id: captureId, attemptId: id, format: canonical ? 'semantic' : 'legacy',
+        this.captures.set(captureId, { token: Symbol(), record: { id: captureId, attemptId: id, format: canonical ? 'semantic' : 'legacy',
           status: canonical?.status ?? 'partial',
           forwardStatus: rootStatus === 'completed' ? 'passed' : rootStatus === 'failed' ? 'failed' : result.ok ? 'passed' : 'failed',
           sourceId: attempt.sourceId, planDigest: attempt.planDigest, preparationDigest,
@@ -197,6 +197,13 @@ export class AttemptLedger {
   capture(id: string): { record: CaptureRecord; envelope?: WorkerEnvelope; plan?: ResolvedExecutionPlan; preparation?: CapturePreparation } | undefined {
     const capture = this.captures.get(id);
     return capture ? { record: clone(capture.record), ...(capture.body ? JSON.parse(capture.body) : {}) } : undefined;
+  }
+
+  /** Cheap identity for immutable retained bytes. Eviction/reinsertion of the
+   * same external capture id creates a different token; no payload is exposed. */
+  captureIdentity(id: string): { token: symbol; record: CaptureRecord } | undefined {
+    const capture = this.captures.get(id);
+    return capture ? { token: capture.token, record: clone(capture.record) } : undefined;
   }
 
   executionPlan(target: LocalBrowserTargetIdentity): ResolvedExecutionPlan | undefined {

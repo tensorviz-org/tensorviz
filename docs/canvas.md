@@ -560,14 +560,9 @@ are preserved.
 
 ## Source controls
 
-At inspection zoom, nodes show a top-right Edit control and a clickable source
-file:line where the host has a mapped source span. Edit expands that node into a
-scrollable form; closing restores its original size. The floating selection button
-and source-edit modal are removed. Source scope and effects remain in the form's
-disclosure. Proposals still require native VS Code diff review and Apply/Discard.
-Captured forms retain their original selection until the review receipt arrives,
-even when Apply replaces the graph. Closing preserves a replacement graph's dimensions;
-resizing the canvas keeps the active form visible. Unsupported captured edits stay disabled.
+Nodes show a clickable source file:line where the host has a verified mapping. Use Canvas chat for requested edits; inline source-edit forms are removed. The agent attaches the current model, selection, verified inspection and bounded source context. Source proposals still require native VS Code review and human Apply/Discard. Multi-file drafts retain their complete pending file set while being revised.
+
+Canvas chat uses a streaming message transport and offers the existing native CLI bridge plus optional ACP sessions. Select the agent, model and supported effort in chat settings; start a new chat to switch agents. Readiness describes the local connection, while model access and account limits are checked when sending. Adapter configuration is in the [settings reference](reference.md#extension-settings).
 
 At narrow widths header controls wrap and secondary button labels collapse; accessible names
 remain. Footer controls wrap without horizontal scrolling. Fullscreen keeps its controls

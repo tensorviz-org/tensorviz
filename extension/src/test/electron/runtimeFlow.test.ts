@@ -36,7 +36,6 @@ const CONSENT_SUBSTRING = 'Install tensorViz’s runtime';
 interface TestApi {
   backendOrigin(): string | undefined;
   globalStorageDir(): string | undefined;
-  seedManagedRuntimeForTests(): void;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -47,7 +46,6 @@ suite('runtimeFlow', () => {
   let temp: string;
   let runtimeRoot: string;
   let api: TestApi;
-  let ownsRuntime = false;
   /** The capture spy answers the first-install consent from this variable; every other
    *  notification is recorded and dismissed. */
   let answerConsent: 'Install' | 'Cancel' | 'dismiss';
@@ -130,7 +128,6 @@ suite('runtimeFlow', () => {
     runtimeRoot = path.join(globalStorage, 'runtime');
     assert.equal(api.backendOrigin(), undefined, 'runtimeFlow must run before a backend owns the runtime');
     assert.ok(!fs.existsSync(runtimeRoot), 'runtimeFlow requires a fresh test profile, not an existing runtime');
-    ownsRuntime = true;
 
     // The backend against which provisioning's verify probe imports. resolveBackendDir needs
     // the checkout; localBrowserGraph's suite does the same.
@@ -148,7 +145,11 @@ suite('runtimeFlow', () => {
       archive([
         { name: 'python/', type: '5', mode: 0o755 },
         { name: 'python/bin', type: '5', mode: 0o755 },
-        { name: 'python/bin/python3', mode: 0o755, data: Buffer.from(SCRIPTED_PYTHON) },
+        // Keep archive/venv operations offline, but run the real tool service and
+        // environment helpers now required by Check Environment.
+        { name: 'python/bin/python3', mode: 0o755, data: Buffer.from(
+          SCRIPTED_PYTHON.slice(0, SCRIPTED_PYTHON.lastIndexOf('exit 0')) + 'exec "$TENSORVIZ_TEST_PYTHON" "$@"\n',
+        ) },
       ]),
     );
     const assetPath = path.join(temp, 'asset.tar.gz');
@@ -172,17 +173,11 @@ suite('runtimeFlow', () => {
     // Restore every override even after a partial setup or failed assertion, and
     // report cleanup failures rather than masking them behind the first error.
     const errors: unknown[] = [];
-    try {
-      if (ownsRuntime) fs.rmSync(runtimeRoot, { recursive: true, force: true });
-    } catch (error) { errors.push(error); }
+    // The runner removes this host's profile after VS Code stops its backend.
+    // Do not replace an interpreter that still owns the service process.
     for (const undo of restore.reverse()) {
       try { await undo(); } catch (error) { errors.push(error); }
     }
-    try {
-      // Recreate only our disposable fixture, with the original manifest/preseed
-      // policy restored. A later suite must never inherit the scripted Python.
-      if (ownsRuntime) api.seedManagedRuntimeForTests();
-    } catch (error) { errors.push(error); }
     try {
       if (temp) fs.rmSync(temp, { recursive: true, force: true });
     } catch (error) { errors.push(error); }
@@ -221,7 +216,7 @@ suite('runtimeFlow', () => {
       'a complete install leaves the venv and the provision stamp',
     );
     const banner = shown.filter((text) => text.startsWith('python OK:')).pop();
-    assert.ok(banner, 'the command resumed after provisioning and re-probed');
+    assert.ok(banner, `the command resumed after provisioning and re-probed; saw ${shown.join(' | ')}`);
     assert.ok(
       banner.includes('tensorViz managed runtime'),
       'the resumed command ran on the runtime that was just installed',

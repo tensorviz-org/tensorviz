@@ -20,9 +20,8 @@ SECONDARY (only where both planes agree the graph is invalid): they blame the sa
 node. This is the softer check — collected and reported, and any divergence would be
 documented in NODE_BLAME_GAPS (empty today: all 12 crafted graphs blame-match).
 
-Verdict disagreements are documented in KNOWN_PARITY_GAPS with a one-line reason and
-marked xfail(strict=False); the suite is GREEN today and each gap auto-flips to XPASS
-the moment the underlying plane divergence is closed. Nothing is silently skipped.
+The executable corpus uses offered templates. Archived, unsupported templates
+are checked separately for catalogue exclusion and explicit execution refusal.
 
 The two planes are fed the SAME logical graph through each plane's real product entry
 point: the analytic plane validates the canonical ``ArchitectureGraph`` (the
@@ -65,8 +64,8 @@ GALLERY = ["vit_base", "bert_base", "gpt2_small", "t5_base", "resnet50", "biggan
 def _registry_sample(n_target: int = 20) -> list:
     """Deterministic stride sample of the canonical registry: sort every contract id,
     take every ``step``-th. No randomness — the same ids come out every run so
-    KNOWN_PARITY_GAPS stays stable."""
-    ids = sorted(c.template_id for c in _REGISTRY.all_contracts())
+    coverage stays stable."""
+    ids = sorted(c.template_id for c in _REGISTRY.list_contracts())
     step = max(1, len(ids) // n_target)
     return ids[::step]
 
@@ -74,33 +73,8 @@ def _registry_sample(n_target: int = 20) -> list:
 SAMPLE = _registry_sample()
 
 
-# ── Known verdict-parity gaps (all analytic-valid / torch-invalid): the analytic
-# plane treats these as valid but the real torch forward can't (custom op with no
-# torch.nn class, a multi-input block fed into a single-input op, or a genuine
-# analytic/torch shape drift). xfail(strict=False) so each auto-flips to XPASS when
-# the plane divergence is closed; test_parity_coverage fails on a stale key.
-#
-# NOTE ON COVERAGE: this gate can only document ids that fall in _corpus() (gallery +
-# the stride sample above) — test_parity_coverage fails on any KNOWN_PARITY_GAPS key
-# not in the corpus. Two divergences here are just the stride-sampled REPRESENTATIVES
-# of a larger family that diverges in full:
-#   * bidirectional-RNN feature-doubling — 13 blocks diverge, only the 2 below
-#     (lstm_8layer_bi_block, rnn_8layer_bi_block) land in the sample.
-# The COMPLETE family (and the count of what escaped this sample) is enumerated and
-# gated in tests/test_qa_plane_parity_sweep.py, which parametrizes every block.
-#
-# The FPN-head family used to be the second such representative pair
-# (fcos_fpn_l6_head_block, yolo_fpn_l4_head_block). All 16 blocks now agree on both
-# planes: the divergence was never "a multi-input block fed into a single-input op" —
-# the fan-in was internal to the template, which had no merge node at all, and
-# template_expansion_pack now concatenates the pyramid levels before the heads. Both
-# ids are pruned from this dict; test_qa_plane_parity_sweep.py asserts the whole family
-# forwards on both planes rather than deleting the coverage. ─────────────────────────
-KNOWN_PARITY_GAPS = {
-    "deepfm_512_block": "torch verify can't build custom op 'factorization_machine' (no torch.nn class); analytic treats it as a shape-preserving passthrough",
-    "gnn_lstm_1hop_block": "torch verify can't build custom op 'neighbor_sampler' (no torch.nn class); analytic treats it as a shape-preserving passthrough",
-    "gnn_sum_1hop_block": "torch verify can't build custom op 'neighbor_sampler' (no torch.nn class); analytic treats it as a shape-preserving passthrough",
-}
+# Kept for the exhaustive family checks in test_qa_plane_parity_sweep.
+KNOWN_PARITY_GAPS = {}
 
 # ── Crafted-invalid graphs where the two planes DO agree invalid but might blame
 # different nodes. Empty today — all 12 blame-match. A future divergence goes here
@@ -375,10 +349,7 @@ def _corpus():
 def _params():
     out = []
     for kind, ident in _corpus():
-        marks = []
-        if ident in KNOWN_PARITY_GAPS:
-            marks.append(pytest.mark.xfail(strict=False, reason=KNOWN_PARITY_GAPS[ident]))
-        out.append(pytest.param(kind, ident, id=ident, marks=marks))
+        out.append(pytest.param(kind, ident, id=ident))
     return out
 
 
@@ -458,3 +429,11 @@ def test_parity_coverage(capsys):
     assert not stale, f"KNOWN_PARITY_GAPS references entries not in the corpus: {stale}"
     stale_blame = set(NODE_BLAME_GAPS) - set(CRAFTED_INVALID)
     assert not stale_blame, f"NODE_BLAME_GAPS references unknown crafted graphs: {stale_blame}"
+
+
+@pytest.mark.parametrize("ident", ["deepfm_512_block", "gnn_lstm_1hop_block", "gnn_sum_1hop_block"])
+def test_archived_custom_templates_are_not_offered_as_executable_models(ident):
+    assert ident in {contract.template_id for contract in _REGISTRY.all_contracts()}
+    assert ident not in {contract.template_id for contract in _REGISTRY.list_contracts()}
+    _analytic, _analytic_blame, executable, _torch_blame = _verdicts("registry", ident)
+    assert executable is False, "unsupported custom operations must not produce execution evidence"

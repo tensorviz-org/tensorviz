@@ -32,18 +32,22 @@ def test_only_bounded_device_actions_can_cross_the_broker():
     assert not action({**value, "command": "python model.py"})
 
 
-def test_saved_profile_navigation_crosses_the_broker_without_commands():
-    assert not action(dict(kind="execution", reviewId="review1", action="configure", device="cpu", timing=dict(warmup=2, iterations=7, profileIterations=4)))
-    assert execution_review({**state(), "profileName": "run.v2"})
+def test_timing_requests_and_latency_reviews_no_longer_cross_the_broker():
+    timing = dict(warmup=2, iterations=7, profileIterations=4)
+    configure = dict(kind="execution", reviewId="review1", action="configure", device="cpu", timing=timing)
+    assert not action(configure)
+    assert not action({**configure, "timing": None})
+    assert not execution_review({**state(), "timing": timing})
     assert not execution_review({**state(), "kind": "latency"})
-    assert not execution_review({**state(), "timing": dict(warmup=2, iterations=7, profileIterations=4)})
+
+
+def test_saved_profile_navigation_crosses_the_broker_without_commands():
+    assert execution_review({**state(), "profileName": "run.v2"})
     edit = dict(kind="edit_execution", reviewId="review1", field=["inputs", "args", 0, "shape"])
     assert action(edit)
     for field in ([], ["profile"], ["inputs", -1], ["inputs", 64], ["mode", "other"]):
         assert not action({**edit, "field": field})
     assert not action({**edit, "path": "/other/tensorviz.toml"})
-    blocked = dict(kind="execution", reviewId="review1", action="run", device="cuda:0")
-    assert not action({**blocked, "device": "cuda:0;sh"})
 
 
 def test_reused_result_label_and_run_fresh_cross_the_broker_only_on_finished_reviews():

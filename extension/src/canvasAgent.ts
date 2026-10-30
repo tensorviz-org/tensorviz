@@ -1,26 +1,32 @@
 import { randomUUID } from 'node:crypto';
 import { isCanvasAgentSettings, type CanvasAgentAction, type GraphOpeningState, type CanvasAgentAvailability, type CanvasAgentProvider, type CanvasAgentSelections,
   type CanvasAgentSettings, type CanvasAgentState, type CanvasAgentTurn, type LocalBrowserAgentRequest, type LocalBrowserTargetIdentity } from '@tensorviz/contracts/protocol';
-import { validateAgentSettings } from './canvasAgentRuntime';
+import { validateAgentSettings, waitingForAgent } from './canvasAgentRuntime';
 
 export interface AgentRunInput {
   provider: 'codex' | 'claude';
   cwd: string;
   context: string;
+  conversationId?: string;
+  selectionEvidence?: Record<string, unknown>;
   messages: CanvasAgentTurn[];
   settings?: CanvasAgentSettings;
   intent?: 'open_graph';
 }
-export type AgentRunEvent = { kind: 'text'; text: string } | { kind: 'activity'; text: string };
+export type AgentWarmInput = Omit<AgentRunInput, 'messages' | 'context'> & { context?: string; preparation?: { context: string } };
+export type AgentRunEvent = { kind: 'text'; text: string } | { kind: 'activity'; text: string }
+  | { kind: 'opened_graph'; text: string; target: LocalBrowserTargetIdentity };
 export interface CanvasAgentOptions {
-  prepare(target: LocalBrowserTargetIdentity, nodeIds: string[], draftId: string | undefined, signal: AbortSignal, intent?: 'open_graph'): Promise<{ cwd: string; context: string }>;
+  prepare(target: LocalBrowserTargetIdentity, nodeIds: string[], draftId: string | undefined, signal: AbortSignal, intent?: 'open_graph', viewId?: string): Promise<{ cwd: string; context: string; selectionEvidence?: Record<string, unknown> }>;
+  prepareWarm?(viewId: string, signal: AbortSignal): Promise<{ cwd: string; context: string } | undefined>;
   openingPending?(target: LocalBrowserTargetIdentity): boolean;
   openingComplete?(target: LocalBrowserTargetIdentity): boolean;
   cancelOpening?(target: LocalBrowserTargetIdentity): void;
   run(input: AgentRunInput, emit: (event: AgentRunEvent) => void, signal: AbortSignal): Promise<void>;
   publish(viewId: string, state: CanvasAgentState): void;
-  clear(): void;
+  clear(preserveEvidence?: boolean): void;
   inspect?(provider: CanvasAgentProvider, refresh: boolean, signal: AbortSignal): Promise<CanvasAgentAvailability>;
+  warm?(provider: CanvasAgentProvider, settings: CanvasAgentSettings, signal: AbortSignal, intent?: 'open_graph', prepared?: { cwd: string; context: string }): Promise<void>;
   preferences?: { provider: CanvasAgentProvider; selections: CanvasAgentSelections };
   remember?(preferences: { provider: CanvasAgentProvider; selections: CanvasAgentSelections }): void;
   invalidate?(): void;
@@ -37,7 +43,11 @@ export class CanvasAgent {
   private publishTimer?: NodeJS.Timeout;
   private disposed = false;
   private discovery?: AbortController;
+  private warming?: { controller: AbortController; provider: CanvasAgentProvider; checked: CanvasAgentAvailability };
   private hasPreference = false;
+  private warmViewId?: string;
+  /** Preparation is a full-context request on the user's account: at most one per conversation. */
+  private preparedSession?: string;
 
   constructor(private readonly options: CanvasAgentOptions) {
     const saved = options.preferences;
@@ -66,6 +76,11 @@ export class CanvasAgent {
   /** The setup button starts a host-authored task, using this conversation's saved agent settings. */
   openGraph(opening: GraphOpeningState): void {
     if (this.disposed || this.active) return;
+    this.cancelWarm(); this.discovery?.abort(); this.discovery = undefined;
+    // Only the abandoned discovery would have settled these; 'checking' disables Send and hides Refresh.
+    for (const provider of ['codex', 'claude'] as const) if (this.state.agents![provider].status === 'checking') {
+      this.state.agents![provider] = { status: 'unchecked', detail: 'The check was interrupted. Refresh to check the agent.', models: [] };
+    }
     const prior = this.state.context?.target;
     if (prior && (prior.workspaceFolder !== opening.target.workspaceFolder || prior.file !== opening.target.file || prior.cls !== opening.target.cls)) {
       this.options.clear();
@@ -86,6 +101,7 @@ export class CanvasAgent {
   handle(message: LocalBrowserAgentRequest): void {
     if (this.disposed) return;
     this.views.add(message.viewId);
+    if (['discover', 'configure', 'clear'].includes(message.action)) this.warmViewId = message.viewId;
     // Every accepted or refused action acknowledges its own ID. Background state
     // publications must never be mistaken for acknowledgement of a later action.
     this.state.ack = 'requestId' in message && message.requestId ? message.requestId : message.messageId;
@@ -94,7 +110,7 @@ export class CanvasAgent {
     if (message.action === 'stop') {
       if (message.requestId === this.state.requestId && this.active) {
         this.active.abort(); this.active = undefined;
-        this.options.clear();
+        this.options.clear(true);
         this.state.status = 'stopped'; this.state.activity = 'Stopped. Pending agent work was cancelled.';
         this.publish();
       }
@@ -105,17 +121,19 @@ export class CanvasAgent {
       if (this.state.messages.length && message.provider !== this.state.provider) {
         this.state.activity = 'Start a new chat to switch coding agents.'; this.publish(); return;
       }
+      this.cancelWarm();
       this.hasPreference = true; this.state.provider = message.provider;
       this.state.selections = { ...this.state.selections, [message.provider]: { ...message.settings } };
-      this.remember(); this.publish(); return;
+      this.remember(); this.publish(); void this.warm(); return;
     }
     if (message.action === 'clear') {
+      this.cancelWarm(); this.discovery?.abort(); this.discovery = undefined;
       this.options.clear();
       const { provider, selections, agents, ack } = this.state;
       this.state = { ...this.empty(), provider, selections, agents, ack };
-      this.submitted.clear(); this.setupTarget = undefined; this.publish(); return;
+      this.submitted.clear(); this.setupTarget = undefined; this.publish(); void this.discover(false); return;
     }
-    if (this.discovery && this.state.agents?.[message.provider].status === 'checking') {
+    if ((this.discovery || this.warming) && this.state.agents?.[message.provider].status === 'checking') {
       this.state.activity = 'Wait for this agent’s check to finish before sending.'; this.publish(); return;
     }
     if (this.submitted.has(message.requestId)) return;
@@ -127,7 +145,7 @@ export class CanvasAgent {
     const followUp = setup && setup.workspaceFolder === message.target.workspaceFolder && setup.file === message.target.file
       && setup.cls === message.target.cls && setup.sourceDigest === message.target.sourceDigest
       && (this.options.openingPending?.(message.target) ?? !this.options.openingComplete?.(message.target));
-    void this.send(message, followUp ? 'open_graph' : undefined);
+    void this.send(message, followUp ? 'open_graph' : undefined, message.viewId);
   }
 
   private remember(): void {
@@ -136,6 +154,7 @@ export class CanvasAgent {
 
   private async discover(refresh: boolean): Promise<void> {
     if (!this.options.inspect || this.discovery) return;
+    this.cancelWarm();
     const controller = this.discovery = new AbortController();
     const current = () => !this.disposed && this.discovery === controller && !controller.signal.aborted;
     const timer = setTimeout(() => controller.abort(), 45_000);
@@ -146,17 +165,23 @@ export class CanvasAgent {
         let checked: CanvasAgentAvailability;
         try { checked = await this.options.inspect!(provider, refresh, controller.signal); }
         catch { checked = { status: 'error', detail: 'Could not check this agent. Refresh to try again.', models: [] }; }
-        if (current()) { this.state.agents![provider] = checked; this.publish(); }
+        if (current()) {
+          this.state.agents![provider] = checked;
+          if (provider === this.state.provider) await this.warm(controller.signal);
+          if (current()) this.publish();
+        }
       }));
       if (current() && !this.active && !this.hasPreference && !this.state.messages.length) {
         const ready = (['codex', 'claude'] as const).filter(provider => this.state.agents![provider].status === 'ready');
-        if (ready.length === 1) this.state.provider = ready[0];
+        if (ready.length === 1 && this.state.provider !== ready[0]) {
+          this.state.provider = ready[0]; await this.warm(controller.signal);
+        }
       }
     } finally {
       clearTimeout(timer);
       if (this.discovery === controller) {
         this.discovery = undefined;
-        for (const provider of ['codex', 'claude'] as const) if (this.state.agents![provider].status === 'checking') {
+        for (const provider of ['codex', 'claude'] as const) if (this.state.agents![provider].status === 'checking' && this.warming?.provider !== provider) {
           this.state.agents![provider] = { status: 'error', detail: 'The check timed out. Refresh to try again.', models: [] };
         }
         if (!this.disposed) this.publish();
@@ -164,7 +189,65 @@ export class CanvasAgent {
     }
   }
 
-  private async send(message: Extract<CanvasAgentAction, { action: 'send' }>, intent?: 'open_graph'): Promise<void> {
+  private runSettings(provider: CanvasAgentProvider, settings: CanvasAgentSettings): CanvasAgentSettings {
+    const availability = this.state.agents?.[provider];
+    const model = availability?.models.find(model => model.id === (settings.model ?? availability.defaultModel));
+    return !settings.effort && model?.defaultEffort ? { ...settings, effort: model.defaultEffort } : settings;
+  }
+
+  private cancelWarm(): void {
+    if (!this.warming) return;
+    const { controller, provider, checked } = this.warming;
+    this.warming = undefined;
+    if (this.state.agents?.[provider].status === 'checking') this.state.agents[provider] = checked;
+    controller.abort();
+  }
+
+  private async warm(signal?: AbortSignal): Promise<void> {
+    if (!this.options.warm || this.active || this.disposed) return;
+    const provider = this.state.provider, checked = this.state.agents![provider];
+    const settings = this.state.selections?.[provider] ?? {};
+    try { validateAgentSettings(checked, settings); } catch { return; }
+    this.cancelWarm();
+    const controller = new AbortController();
+    const warming = this.warming = { controller, provider, checked };
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) abort();
+    const timer = setTimeout(() => controller.abort(), 45_000);
+    this.state.agents![provider] = { ...checked, status: 'checking', detail: 'Preparing the agent connection…' };
+    this.publish();
+    try {
+      const setup = this.setupTarget;
+      const intent = setup && (this.options.openingPending?.(setup) ?? !this.options.openingComplete?.(setup)) ? 'open_graph' : undefined;
+      const sessionId = this.state.sessionId;
+      // Speculative context can be unavailable or become stale while opening.
+      // Keep connection readiness usable; Send performs the authoritative checks.
+      const prepared = !intent && !this.state.messages.length && this.warmViewId && this.preparedSession !== sessionId
+        ? await this.options.prepareWarm?.(this.warmViewId, controller.signal).catch(() => undefined) : undefined;
+      if (this.warming !== warming) return;
+      controller.signal.throwIfAborted();
+      await this.options.warm(provider, this.runSettings(provider, settings), controller.signal, intent, prepared);
+      // A connected warm-up has sent its preparation. Sessions replaced for settings, Refresh
+      // or a timeout take their context from Send instead; one cancelled earlier sent nothing.
+      if (prepared) this.preparedSession = sessionId;
+      if (this.warming === warming) {
+        this.state.agents![provider] = controller.signal.aborted
+          ? { ...checked, status: 'error', detail: 'The connection timed out. Refresh to try again.' } : checked;
+      }
+    } catch (error) {
+      // The timeout aborts the connection, which rejects with a cancellation rather than resolving.
+      if (this.warming === warming) this.state.agents![provider] = { ...checked, status: 'error',
+        detail: controller.signal.aborted ? 'The connection timed out. Refresh to try again.'
+          : error instanceof Error ? error.message.slice(0, 2048) : 'Could not prepare the agent connection. Refresh to try again.' };
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
+      if (this.warming === warming) { this.warming = undefined; this.publish(); }
+    }
+  }
+
+  private async send(message: Extract<CanvasAgentAction, { action: 'send' }>, intent?: 'open_graph', viewId?: string): Promise<void> {
     const controller = new AbortController();
     this.active = controller;
     if (intent) controller.signal.addEventListener('abort', () => this.options.cancelOpening?.(message.target), { once: true });
@@ -179,10 +262,10 @@ export class CanvasAgent {
       if (this.state.messages.length && message.provider !== this.state.provider) throw new Error('Start a new chat to switch coding agents.');
       this.state.provider = message.provider;
       this.state.requestId = message.requestId;
-      this.state.status = 'running'; this.state.activity = 'Connecting to your coding agent…';
+      this.state.status = 'running'; this.state.activity = 'Preparing your request…';
       this.state.context = { target: { ...message.target }, nodeIds: [...message.nodeIds] };
       this.publish();
-      let prepared = await this.options.prepare(message.target, message.nodeIds, message.draftId, controller.signal, intent);
+      let prepared = await this.options.prepare(message.target, message.nodeIds, message.draftId, controller.signal, intent, viewId);
       if (!current()) return;
       // First use should work with the installed agent even if the chat was never opened.
       if (intent && !this.hasPreference && this.options.inspect) {
@@ -202,23 +285,34 @@ export class CanvasAgent {
         if (!current()) return;
         this.state.agents![message.provider] = checked;
         validateAgentSettings(checked, settings);
-        const model = checked.models.find(model => model.id === settings.model);
-        if (settings.model && !settings.effort && model?.defaultEffort) runSettings = { ...settings, effort: model.defaultEffort };
+        runSettings = this.runSettings(message.provider, settings);
       }
-      if (intent) prepared = await this.options.prepare(message.target, message.nodeIds, message.draftId, controller.signal, intent);
+      if (intent) prepared = await this.options.prepare(message.target, message.nodeIds, message.draftId, controller.signal, intent, viewId);
       if (!current()) return;
       this.hasPreference = true;
       this.state.selections = { ...this.state.selections, [message.provider]: settings }; this.remember();
       this.state.messages.push({ id: message.requestId, role: 'user', text: message.prompt.trim(), settings });
       const history = structuredClone(this.state.messages);
       const answer: CanvasAgentTurn = { id: randomUUID(), role: 'assistant', text: '', settings };
-      this.state.messages.push(answer); this.publish();
+      this.state.messages.push(answer); this.state.activity = waitingForAgent(message.provider); this.publish();
       started = true;
-      await this.options.run({ provider: message.provider, ...prepared, settings: runSettings, messages: history, ...(intent ? { intent } : {}) }, event => {
+      await this.options.run({ provider: message.provider, ...prepared, conversationId: this.state.sessionId, settings: runSettings, messages: history, ...(intent ? { intent } : {}) }, event => {
         if (!current()) return;
-        if (event.kind === 'text') answer.text = (answer.text + event.text).slice(0, 32000);
+        if (event.kind === 'opened_graph') {
+          if (event.target.workspaceFolder === message.target.workspaceFolder) {
+            this.state.context = { target: { ...event.target }, nodeIds: [] };
+            this.setupTarget = undefined;
+            this.publish();
+          }
+          return;
+        }
+        const firstText = event.kind === 'text' && !answer.text && !!event.text;
+        if (event.kind === 'text') {
+          answer.text = (answer.text + event.text).slice(0, 32000);
+          if (this.state.activity === waitingForAgent(message.provider)) this.state.activity = 'Writing reply…';
+        }
         else this.state.activity = event.text.slice(0, 2048);
-        if (event.kind === 'activity') this.publish();
+        if (event.kind === 'activity' || firstText) this.publish();
         else if (!this.publishTimer) this.publishTimer = setTimeout(() => this.publish(), 80);
       }, controller.signal);
       if (!current()) return;
@@ -244,6 +338,7 @@ export class CanvasAgent {
 
   dispose(): void {
     this.disposed = true; this.active?.abort(); this.active = undefined;
+    this.cancelWarm();
     this.discovery?.abort();
     clearTimeout(this.publishTimer);
     this.views.clear(); this.options.clear();

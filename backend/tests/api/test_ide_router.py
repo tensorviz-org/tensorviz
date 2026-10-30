@@ -284,6 +284,29 @@ def test_buffer_classes_with_no_module_is_an_empty_answer_not_an_error(client: T
     assert _buffer_classes(client, "class Config:\n    pass\n") == []
 
 
+@pytest.mark.parametrize("source", ["return 1\n", "break\n", "await operation()\n", "nonlocal missing\n"])
+def test_buffer_classes_optional_compilation_rejects_non_executable_syntax(client: TestClient, source: str):
+    # These parse to an AST but cannot become an executable Python module.
+    assert _buffer_classes(client, source) == []
+    response = client.post("/api/ide/buffer-classes", json={
+        "file": "proposal.py", "source": source, "check_compilation": True,
+    })
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "syntax_error"
+    assert response.json()["detail"]["line"] == 1
+
+
+def test_buffer_classes_compilation_never_executes_proposed_source(client: TestClient, tmp_path: Path):
+    marker = tmp_path / "must-not-exist"
+    source = f"from pathlib import Path\nPath({str(marker)!r}).write_text('executed')\nclass Config:\n    width = 16\n"
+    response = client.post("/api/ide/buffer-classes", json={
+        "file": "proposal.py", "source": source, "check_compilation": True,
+    })
+    assert response.status_code == 200, response.text
+    assert response.json() == {"classes": []}
+    assert not marker.exists()
+
+
 def test_buffer_classes_reports_a_syntax_error_in_the_parse_endpoints_shape(client: TestClient):
     response = client.post(
         "/api/ide/buffer-classes",

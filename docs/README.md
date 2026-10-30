@@ -51,6 +51,7 @@ Engines and Python minima: [versions](local-setup.md#versions).
 - [Local setup](local-setup.md)
 - [Plugin build](plugin-build.md)
 - [Dependency maintenance](dependency-maintenance.md)
+- [Local agent QA recording](local-agent-recording.md)
 - [Licensing](licensing.md)
 - [Contributing](../CONTRIBUTING.md)
 - [Security](../SECURITY.md)
@@ -61,3 +62,5 @@ Engines and Python minima: [versions](local-setup.md#versions).
 `docs/standalone-install.md`, `docs/standalone-permissions.md`, `docs/standalone-cursor.md`, `docs/standalone-panel.md`, `docs/standalone-t3.md`, and `docs/package-names.md` are short stubs copied into the source-development archive. The guides they point at are above.
 
 - [Readable boundary names release (2026-10-27)](release-boundary-names-2026-10-27.md)
+
+- [Extension source sync (2026-10-30)](sync-2026-10-30.md)

@@ -12,6 +12,7 @@ import React, { useState, useCallback, useRef, useEffect, useLayoutEffect, useMe
 import { warnIfUnsaved } from '../utils/unloadGuard';
 import * as hostServices from '../ide/hostServices';
 import { applyProjection as applyIdeProjection, currentProjection, ideMode, localBrowserMode, reportNodeClick, showingProjectGraph } from '../ide/projection';
+import { isCodeFocusOn } from '../ide/codeFocusOn';
 import { IdeStatus, ideStatus } from '../ide/status';
 import { downloadGraphFile, prepareCurrentGraphFile } from '../ide/graphFileExport';
 import { graphFileName } from '../services/graphFile';
@@ -52,8 +53,6 @@ import { ApiService, SessionHistoryState } from '../services/apiService';
 import './StatusIndicators.css';
 import { reconcileModuleView, graphNeedsLayout, ReconcileOptions } from '../services/canvasLayout';
 import { autoModularize } from '../services/autoModularize';
-import { InlineSourceEditor } from '../canvas/InlineSourceEditor';
-import { NodeEditContext } from '../canvas/NodeSourceControls';
 import { TldrawCanvas } from '../canvas/TldrawCanvas';
 import GraphSvgLayer from '../canvas/GraphSvgLayer';
 import { useTldrawBridge } from '../canvas/useTldrawBridge';
@@ -390,9 +389,6 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
     // proves that invocation context may migrate between capture namespaces.
     setProjectionSourceKey(projection.truncated ? undefined : projection.projectionDigest);
   };
-  const [sourceEditNodes, setSourceEditNodes] = useState<ModelNode[] | null>(null);
-  useEffect(() => { setSourceEditNodes(null); }, [localContext?.page.activeTarget?.workspaceFolder,
-    localContext?.page.activeTarget?.file, localContext?.page.activeTarget?.cls]);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [graphIdentity, setGraphIdentity] = useState(() => ({
     name: initialGraph?.name || 'Untitled Model',
@@ -630,6 +626,9 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
     const node = nodesRef.current.find(node => node.id === id);
     if (!node) return; // Display-only boundary cards never reach source navigation.
     if (node?.type === 'moduleNode' && moduleFocusRef.current.navigate(id)) return;
+    // With Code focus off, exploring never opens code; source links and Source still
+    // do. Graph review and the copy-only page have no Code focus and keep their route.
+    if (localContextRef.current?.codeFocus && !isCodeFocusOn()) return;
     reportNodeClick(id);
   }, []);
   const {
@@ -3011,10 +3010,6 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
         <ModuleFocusSurface focus={moduleFocus} nodes={nodes} title={currentProjection()?.cls || graphIdentity.name} selectedId={selectedNodeId}>
         <div className="canvas-container" ref={reactFlowWrapper}>
 
-            <NodeEditContext.Provider value={readOnlyLocalBrowser && localContext?.canProposeSourceEdits ? nodeId => {
-              const node = nodesRef.current.find(item => item.id === nodeId);
-              if (node) setSourceEditNodes(selectedNodes.length > 1 && selectedNodes.some(item => item.id === nodeId) ? selectedNodes : [node]);
-            } : null}>
             <TldrawCanvas
               sidePanelOpen={false}
               readOnly={readOnlyLocalBrowser || moduleFocus.active}
@@ -3037,9 +3032,7 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
                 runId={sweepRunId}
                 measuredOnly={readOnlyLocalBrowser}
               />
-              {sourceEditNodes && <InlineSourceEditor key={sourceEditNodes[0].id} nodes={sourceEditNodes} onClose={() => setSourceEditNodes(null)} />}
             </TldrawCanvas>
-            </NodeEditContext.Provider>
           {svgOverview && <GraphSvgLayer nodes={moduleFocus.graph.nodes} edges={moduleFocus.graph.edges} direction={layoutDirection}
             onActivate={id => {
               const node = nodesRef.current.find(n => n.id === id);

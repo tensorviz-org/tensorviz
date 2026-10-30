@@ -326,6 +326,21 @@ suite('captured graph opening', () => {
     assert.equal(r.opening.state?.cancellationReason, undefined);
     assert.equal(r.captures, 1, 'neither invalidation nor cancellation executes a model');
   });
+  test('a projection that only restarts the editor version keeps the capture and follows the version', async () => {
+    const r = rig(resolved);
+    await r.opening.open({ ...target, documentVersion: 3 });
+    const ready = r.opening.state!.target;
+    r.opening.invalidate({ ...ready, documentVersion: 1, backendRevision: ready.backendRevision + 1 });
+    assert.equal(r.opening.state?.phase, 'ready');
+    assert.equal(r.opening.state?.hasCapture, true);
+    assert.equal(r.opening.state?.cancellationReason, undefined);
+    assert.deepEqual(r.opening.state?.target, { ...ready, documentVersion: 1 });
+    r.opening.invalidate({ ...ready, documentVersion: 1 }, true);
+    assert.equal(r.opening.state?.phase, 'cancelled', 'a dependency edit still invalidates unchanged root source');
+    assert.equal(r.opening.state?.cancellationReason, 'source_changed');
+    assert.equal(r.captures, 1, 'following the version never executes again');
+  });
+
   test('a profile can follow an automatic recapture without reopening setup or recapturing', async () => {
     const r = rig(resolved);
     await r.opening.open(target);
@@ -463,6 +478,21 @@ suite('captured graph opening', () => {
     await action(r.opening, 'manual-submit', { kind: 'submit', draft });
     assert.equal(r.captures, 1); assert.equal(r.saves, 1);
     assert.equal(r.opening.state?.phase, 'ready');
+  });
+  test('agent help retains pending form values before opening the guide without saving or capturing', async () => {
+    const r = rig();
+    await r.opening.open(target);
+    const id = r.opening.state!.id;
+    const pending = { ...draft, profile: { ...draft.profile, inputs: { args: [], kwargs: { x: {
+      kind: 'tensor', shape: [3, 8], dtype: 'float64', requires_grad: false, generator: { kind: 'full', value: 2 },
+    } } } } };
+    r.deps.recover = async () => { assert.deepEqual(r.opening.state?.draft, pending); return undefined; };
+    assert.equal(await action(r.opening, 'pending-help', { kind: 'agent_help', draft: pending }), true);
+    assert.equal(r.opening.state?.id, id); assert.equal(r.opening.state?.phase, 'needs_setup');
+    assert.deepEqual(r.opening.state?.draft, pending);
+    assert.equal(r.saves, 0); assert.equal(r.captures, 0);
+    assert.equal(await r.opening.action('stale', 'stale-help', target, { kind: 'agent_help', draft }), false);
+    assert.deepEqual(r.opening.state?.draft, pending);
   });
   test('retry can reread edited source while stale setup submissions remain refused', async () => {
     const r = rig(resolved);

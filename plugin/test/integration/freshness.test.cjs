@@ -1,3 +1,4 @@
+const { readyService } = require('../fixtures/service.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
@@ -17,6 +18,7 @@ for (const change of ['helper', 'recipe', 'input-editor']) test(`saved invocatio
   try {
     await fs.mkdir(project);
     await fs.cp(path.resolve(__dirname, '../../../plugins/tensorviz'), plugin, { recursive: true });
+    await readyService(plugin, path.join(root, 'state'));
     const model = 'from torch import nn\nfrom helper import WIDTH\nclass Tiny(nn.Module):\n def __init__(self):\n  super().__init__()\n  self.fc = nn.Linear(4, WIDTH)\n def forward(self, x): return self.fc(x)\n';
     const recipe = 'version = 1\n[profiles.tiny]\nkind = "model"\nmodel = "model:Tiny"\nmode = "eval"\ndevice = "cpu"\ngrad_enabled = false\ninit = { args = [], kwargs = {} }\ninputs = { args = [{ kind = "tensor", shape = [2, 4], dtype = "float32", requires_grad = false, generator = { kind = "full", value = 1 } }], kwargs = {} }\n';
     await fs.writeFile(path.join(project, 'model.py'), model);

@@ -89,8 +89,16 @@ test('Claude installs the standalone plugin and captures through its native MCP 
     const status = await request({ subtype: 'mcp_status' });
     assert.equal(status.mcpServers.length, 1);
     assert.equal(status.mcpServers[0].source, 'plugin');
-    assert.equal(status.mcpServers[0].tools.length, 24);
-    console.log('Loaded 24 plugin-owned tools (including 4 app-only Canvas tools) and model-workflow through Claude.');
+    assert.equal(status.mcpServers[0].tools.length, 26);
+    for (const [tool, query] of [
+      ['query_computation', { anchors: [{ kind: 'value', id: 'missing' }] }],
+      ['analyze_computation_change', { changes: [{ valueId: 'missing', shape: [2, 4] }] }],
+    ]) {
+      await assert.rejects(request({ subtype: 'mcp_call', tool: `mcp__plugin_tensorviz_tensorviz__${tool}`,
+        arguments: { modelId: 'unopened', captureId: 'missing', sourceId: 'missing', ...query } }),
+        error => JSON.parse(error.message).error.code === 'NO_MODEL', 'analysis must not open or run a model');
+    }
+    console.log('Loaded 26 plugin-owned tools (including 4 app-only Canvas tools), checked both computation tools and loaded model-workflow through Claude.');
     assert.equal(await fs.stat(env.TENSORVIZ_DATA_DIR).catch(() => null), null);
     let capture = await call('open_graph', { workspaceRoot: project, file: 'model.py', cls: 'Tiny', interpreter: python });
     for (let n = 0; n < 450 && !['ready', 'failed', 'blocked', 'needs_setup', 'cancelled'].includes(capture.status); n++) {

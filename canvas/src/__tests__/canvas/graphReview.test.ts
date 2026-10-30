@@ -211,4 +211,52 @@ describe('Git graph review from real source projections', () => {
     }
     expect(buildGraphReview(review).changes).toEqual([expect.objectContaining({ id: 'review:after:proj', detail })]);
   });
+  it('lists an unlowered member with several call writes once, not again as its declaration', () => {
+    // `if d in ACTS: self.act = ACTS[d]()` / `else: self.act = ACTS[0]()`, with the else branch
+    // edited; forward never calls self.act. Spans are the first write, as the backend gives them.
+    const review = state(); review.after = JSON.parse(JSON.stringify(review.before));
+    const span = { file: 'model.py', start: [13, 12], end: [13, 32], kind: 'decl' };
+    const other = { file: 'model.py', start: [4, 12], end: [4, 40], kind: 'decl' };
+    for (const side of ['before', 'after'] as const) {
+      const metadata = (review[side].document as typeof fixture.before.document).semantic.metadata as any;
+      metadata.reviewClass = { defaults: {}, digest: side, members: { act: { digest: side, span, ambiguous: true } } };
+      metadata.reviewDeclarations = { complete: true, entries: {
+        '@declaration:["model.py","MlpTiny","act"]': { label: 'MlpTiny.act', digest: side, ambiguous: true, span,
+          constructor: { ...span, start: [13, 23] } },
+        // Another class's attribute is a separate change, even with the same name.
+        '@declaration:["model.py","Block","act"]': { label: 'Block.act', digest: side, ambiguous: true, span: other,
+          constructor: { ...other, start: [4, 23] } },
+      } };
+      Object.assign(review[side].spanmap, { act: span, '@declaration:["model.py","MlpTiny","act"]': span,
+        '@declaration:["model.py","Block","act"]': other });
+    }
+    const result = buildGraphReview(review);
+    expect(result.changes).toEqual([
+      { id: 'review:member:act', label: 'act', detail: 'Declaration has multiple assignments' },
+      { id: 'review:declaration:@declaration:["model.py","Block","act"]', label: 'Block.act', detail: 'Declaration has multiple assignments' },
+    ]);
+    expect(result.counts.unresolved).toBe(2);
+    expect(result.nodes.get('review:member:act')).toMatchObject({ status: 'unresolved', ambiguousDeclaration: true });
+  });
+  it('lets an ambiguous member row stand only for its own declaration of a chained write', () => {
+    // `if d: self.a = self.b = ACTS[d]()` / `else: self.a = ACTS[0]()`, with ACTS[d] edited. Only a has
+    // several member writes, but the chained statement makes both declarations ambiguous.
+    const review = state(); review.after = JSON.parse(JSON.stringify(review.before));
+    for (const side of ['before', 'after'] as const) {
+      const span = { file: 'model.py', start: [9, 12], end: [9, side === 'before' ? 39 : 43], kind: 'decl' };
+      const metadata = (review[side].document as typeof fixture.before.document).semantic.metadata as any;
+      metadata.reviewClass = { defaults: {}, digest: side, members: {
+        a: { digest: side, span, ambiguous: true }, b: { digest: side, span, ambiguous: false } } };
+      const keys = ['a', 'b'].map(name => [name, `@declaration:["model.py","MlpTiny","${name}"]`]);
+      metadata.reviewDeclarations = { complete: true, entries: Object.fromEntries(keys.map(([name, key]) => [key,
+        { label: `MlpTiny.${name}`, digest: side, ambiguous: true, span, constructor: { ...span, start: [9, 30] } }])) };
+      Object.assign(review[side].spanmap, Object.fromEntries(keys.flat().map(id => [id, span])));
+    }
+    expect(buildGraphReview(review).changes).toEqual([
+      { id: 'review:member:a', label: 'a', detail: 'Declaration has multiple assignments' },
+      { id: 'review:member:b', label: 'b', detail: 'Declaration modified' },
+      // The chained write is a caution that b's own member row does not give.
+      { id: 'review:declaration:@declaration:["model.py","MlpTiny","b"]', label: 'MlpTiny.b', detail: 'Declaration has multiple assignments' },
+    ]);
+  });
 });

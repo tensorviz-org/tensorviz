@@ -5,9 +5,10 @@ import { LocalBrowserSourceEdits, type SourceProposalReview, type SourceEditsOpt
 import type { CandidateRunResult } from '@tensorviz/graph-host/candidateExecution';
 import type { CandidateExecution, ResolvedExecutionPlan } from '../../executionPlan';
 import { sha256 } from '../../sourceChanges';
-import { reviewSource } from '../../sourceReview';
+import { reviewSource, reviewSources } from '../../sourceReview';
 import type { ProjectionPayload } from '@tensorviz/contracts/protocol';
 import { editorState, reset, resetEditors } from '../vscodeStub';
+import { candidateCheckpointFixture } from '../candidateCheckpointFixture';
 const vscode = require('../vscodeStub');
 
 async function until(check: () => boolean) {
@@ -20,6 +21,8 @@ suite('native captured candidate controls', () => {
   let commands: Map<string, () => any>, providers: Map<string, any>, contexts: Map<string, boolean>;
   let reviews: SourceProposalReview[], calls: any[], logs: string[], runner: NonNullable<SourceEditsOptions['runCandidate']>;
   let plan: ResolvedExecutionPlan | undefined;
+  let batch: boolean, onDiff: (() => void) | undefined, closedTabs: ((event: { closed: any[] }) => void) | undefined;
+  let draftShown: boolean, draftDisposed: boolean;
   const activate = (document: any) => {
     const editor = { document }; (editorState.visibleTextEditors as any[]).push(editor); return editor;
   };
@@ -42,6 +45,10 @@ suite('native captured candidate controls', () => {
       context: () => ({ projection: { document: data.document, spanmap: data.spans } as ProjectionPayload,
         dependencies: new Map([['model.py', target.sourceDigest]]) }),
       capture: () => data.capture, capturePlan: () => plan,
+      draft: input => {
+        assert.equal(input.canRevise, false); assert.equal(input.artifacts[0].after, data.after);
+        return { show() { draftShown = true; }, dispose() { draftDisposed = true; } };
+      },
       runCandidate: async (request, signal) => { calls.push(request); return runner(request, signal); },
       publish() {}, channel: { appendLine: line => { logs.push(line); } }, fetchImpl: async () => new Response(JSON.stringify(data.plan)),
     });
@@ -53,7 +60,8 @@ suite('native captured candidate controls', () => {
 
   setup(() => {
     reset(); resetEditors(); restore = []; commands = new Map(); providers = new Map(); contexts = new Map();
-    reviews = []; calls = []; logs = []; tabs = []; opened = []; diffs = [];
+    reviews = []; calls = []; logs = []; tabs = []; opened = []; diffs = []; batch = false; onDiff = undefined; closedTabs = undefined;
+    draftShown = false; draftDisposed = false;
     data = JSON.parse(readFileSync(path.join(__dirname, '../../../../tests/fixtures/contracts/captured-source-edit.json'), 'utf8'));
     target.sourceDigest = sha256(data.source); editorState.documents.set('/work/model.py', data.source);
     plan = { id: data.capture.attemptId, source: structuredClone(data.capture.source), captureLimits: data.capture.limits } as ResolvedExecutionPlan;
@@ -90,15 +98,80 @@ suite('native captured candidate controls', () => {
         if (name === 'setContext') { contexts.set(args[0], args[1]); return; }
         assert.equal(name, 'vscode.diff');
         const [before, after, title] = args, provider = providers.get(after.scheme);
-        assert.equal(args[3].preview, !plan, 'candidate review must stay pinned while its result opens');
+        assert.equal(args[3].preview, !plan && !batch, 'candidate and multi-file reviews must stay pinned');
         diffs.push({ title, before: provider.provideTextDocumentContent(before), after: provider.provideTextDocumentContent(after) });
         activate({ uri: after }); tabs.push({ input: new vscode.TabInputTextDiff(before, after) });
+        onDiff?.();
       },
     });
     patch(vscode.window, 'tabGroups', { get all() { return [{ tabs }]; },
-      onDidChangeTabs: () => ({ dispose() {} }), close: async () => { tabs = []; } });
+      onDidChangeTabs: (listener: typeof closedTabs) => { closedTabs = listener; return { dispose() {} }; }, close: async () => { tabs = []; } });
   });
   teardown(() => { for (const undo of restore.reverse()) undo(); resetEditors(); reset(); });
+
+  const batchArtifacts = () => [
+    { path: 'model.py', before: data.source, after: data.after, before_digest: sha256(data.source), after_digest: sha256(data.after), edits: [] },
+    { path: 'config.py', before: 'WIDTH = 12\n', after: 'WIDTH = 16\n', before_digest: sha256('WIDTH = 12\n'), after_digest: sha256('WIDTH = 16\n'), edits: [] },
+  ];
+
+  test('Inspect opens the actual failed-load metadata beside the unchanged source diff', async () => {
+    runner = async () => {
+      const value = result(); value.evidence = candidateCheckpointFixture();
+      value.outcome = { ...value.outcome, ok: false, reason: 'load failed', detail: '', exitCode: 3 }; return value;
+    };
+    const { pending } = await open(); await command('runSourceCandidate');
+    assert.match(opened[0], /Actual load: failed/); assert.match(opened[0], /Checkpoint digest: b{64}/);
+    assert.match(opened[0], /"left.weight"/); assert.match(opened[0], /"right.weight"/);
+    assert.match(opened[0], /Capture: unavailable/); assert.equal(tabs.length, 2);
+    assert.equal(editorState.appliedEdits.length, 0);
+    command('discardSourceProposal'); assert.equal((await pending).status, 'cancelled');
+  });
+
+  test('multi-file review pins every complete diff before allowing one Apply decision', async () => {
+    batch = true; plan = undefined;
+    let decisions = 0, shown = false;
+    onDiff = () => {
+      assert.notEqual(contexts.get('tensorviz.sourceReviewActive'), true, 'controls appear after the complete set opens');
+      command('applySourceProposal'); assert.equal(decisions, 0, 'Apply must wait for all files');
+    };
+    const pending = reviewSources('Two-file architecture change', batchArtifacts(), new AbortController().signal,
+      undefined, () => { shown = true; }, () => { decisions++; });
+    await until(() => shown);
+    assert.deepEqual(diffs.map(diff => [diff.before, diff.after]), batchArtifacts().map(item => [item.before, item.after]));
+    assert.match(diffs[0].title, /model\.py \(1\/2\)/); assert.match(diffs[1].title, /config\.py \(2\/2\)/);
+    assert.equal(tabs.length, 2); assert.equal(editorState.appliedEdits.length, 0);
+    command('applySourceProposal'); assert.equal(await pending, true); assert.equal(decisions, 1);
+    assert.equal(providers.size, 0); assert.equal(commands.size, 0); assert.equal(tabs.length, 0);
+  });
+
+  test('closing either diff discards the entire set and a partial open cannot be accepted', async () => {
+    batch = true; plan = undefined;
+    const pending = reviewSources('Batch', batchArtifacts(), new AbortController().signal);
+    await until(() => diffs.length === 2);
+    closedTabs!({ closed: [tabs[0]] });
+    assert.equal(await pending, false);
+    assert.equal(providers.size, 0); assert.equal(commands.size, 0);
+    diffs = [];
+    onDiff = () => { if (diffs.length === 1) closedTabs!({ closed: [tabs[0]] }); };
+    assert.equal(await reviewSources('Batch', batchArtifacts(), new AbortController().signal), false);
+    assert.equal(diffs.length, 1, 'discard during opening must stop the remaining diffs');
+  });
+
+  test('failed multi-file opening cleans every private tab and command', async () => {
+    batch = true; plan = undefined;
+    onDiff = () => { if (diffs.length === 2) throw new Error('test opening failure'); };
+    await assert.rejects(reviewSources('Batch', batchArtifacts(), new AbortController().signal), /opening failure/);
+    assert.equal(tabs.length, 0); assert.equal(providers.size, 0); assert.equal(commands.size, 0);
+    assert.equal(contexts.get('tensorviz.sourceReviewActive'), false);
+  });
+
+  test('cancellation during the ready notification cannot strand a multi-file review', async () => {
+    batch = true; plan = undefined;
+    const controller = new AbortController();
+    const approved = await reviewSources('Batch', batchArtifacts(), controller.signal, undefined, () => controller.abort());
+    assert.equal(approved, false);
+    assert.equal(tabs.length, 0); assert.equal(providers.size, 0); assert.equal(commands.size, 0);
+  });
 
   for (const surface of ['native', 'canvas']) test(`${surface} acceptance claims the decision synchronously before asynchronous diff cleanup`, async () => {
     plan = undefined;
@@ -118,6 +191,7 @@ suite('native captured candidate controls', () => {
 
   test('review remains static until Run; candidate success never auto-applies', async () => {
     const { pending, host } = await open();
+    assert.ok(draftShown); assert.equal(draftDisposed, false);
     assert.equal(host.appliedSource('native'), null);
     assert.equal(calls.length, 0); assert.equal(reviews[0].candidate?.runtime, 'not_run');
     assert.deepEqual([diffs[0].before, diffs[0].after], [data.source, data.after]);
@@ -129,6 +203,7 @@ suite('native captured candidate controls', () => {
     assert.match(opened[0], /Runtime: succeeded/); assert.match(opened[0], /Semantic postconditions: not checked/);
     assert.equal(reviews.at(-1)?.candidate?.runtime, 'succeeded');
     command('applySourceProposal'); assert.equal((await pending).status, 'applied');
+    assert.ok(draftDisposed);
     assert.equal(reviews.at(-1)?.candidate?.freshness, 'stale', 'the copied candidate never certifies the applied buffer');
     assert.equal(editorState.appliedEdits.length, 1); assert.equal(commands.size, 0); assert.equal(providers.size, 0);
     assert.equal(contexts.get('tensorviz.sourceCandidateAvailable'), false);

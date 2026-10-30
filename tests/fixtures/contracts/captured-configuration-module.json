@@ -3858,7 +3858,75 @@
             "stateValueIds": [],
             "reason": null
           }
-        ]
+        ],
+        "reviewDeclarations": {
+          "entries": {
+            "@declaration:[\"model.py\",\"Model\",\"first\"]": {
+              "label": "Model.first",
+              "digest": "47884ace64c7da2c1fc096361490f3eb55904d14011a7d6a100f6764d0407ab3",
+              "ambiguous": false,
+              "span": {
+                "file": "model.py",
+                "start": [
+                  7,
+                  8
+                ],
+                "end": [
+                  7,
+                  77
+                ],
+                "kind": "decl"
+              },
+              "constructor": {
+                "file": "model.py",
+                "start": [
+                  7,
+                  21
+                ],
+                "end": [
+                  7,
+                  77
+                ],
+                "kind": "decl"
+              }
+            },
+            "@declaration:[\"model.py\",\"Model\",\"last\"]": {
+              "label": "Model.last",
+              "digest": "efb577e5688b851f4500a408b958b468ff8e97e5b9484c147ac87054763980c5",
+              "ambiguous": false,
+              "span": {
+                "file": "model.py",
+                "start": [
+                  9,
+                  8
+                ],
+                "end": [
+                  9,
+                  39
+                ],
+                "kind": "decl"
+              },
+              "constructor": {
+                "file": "model.py",
+                "start": [
+                  9,
+                  20
+                ],
+                "end": [
+                  9,
+                  39
+                ],
+                "kind": "decl"
+              }
+            }
+          },
+          "complete": true
+        },
+        "sourceDeclarationCalls": {
+          "@declaration:[\"model.py\",\"Model\",\"last\"]": [
+            "invocation:3"
+          ]
+        }
       }
     },
     "view": {

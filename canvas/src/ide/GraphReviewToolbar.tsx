@@ -90,7 +90,7 @@ export function DraftGraphToolbar({ state, presentation, index, onChange, onSour
     </div>
     <div className="graph-review-draft-actions" role="group" aria-label="Draft decision" aria-busy={!!deciding}>
       <button type="button" className="graph-review-accept" disabled={state.stale || !!deciding} aria-describedby={state.stale ? staleId : undefined}
-        title="Write the proposed source into the model file" onClick={() => decide('accept')}>{deciding === 'accept' ? 'Accepting…' : 'Accept'}</button>
+        title="Save the accepted source and run the model with its saved inputs and device" onClick={() => decide('accept')}>{deciding === 'accept' ? 'Accepting…' : 'Accept'}</button>
       <button type="button" disabled={!!deciding} title="Remove the draft; the source stays unchanged" onClick={() => decide('discard')}>
         {deciding === 'discard' ? 'Discarding…' : 'Discard'}</button>
       {onContinueEditing && <button type="button" title="Describe a revision in the agent chat" onClick={onContinueEditing}>Continue editing</button>}

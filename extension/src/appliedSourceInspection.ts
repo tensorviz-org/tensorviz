@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { AppliedSourceReceipts, type AppliedSourceReceipt } from './appliedSourceReceipts';
 import { reconcileAppliedCapture } from './sourceReconciliation';
+import { reconcileAppliedSourceSet } from './sourceSetReconciliation';
 import { reviewResourceGuard } from './sourceReviewResources';
 import { sha256 } from './sourceChanges';
 import type { LocalBrowserTargetIdentity, AppliedSourceObservation } from '@tensorviz/contracts/protocol';
@@ -38,6 +39,14 @@ interface Options {
 export async function readAppliedSource(target: LocalBrowserTargetIdentity, receipt: AppliedSourceReceipt,
   signal: AbortSignal): Promise<AppliedEditorState> {
   signal.throwIfAborted();
+  if (receipt.files) {
+    const states = await Promise.all(receipt.files.map(file => readAppliedSource(target,
+      { ...file, appliedAt: receipt.appliedAt, unavailable: receipt.unavailable }, signal)));
+    const all = (source: AppliedEditorState['source']) => states.every(state => state.source === source);
+    const source = all('reviewed_saved') ? 'reviewed_saved' : all('reverted') ? 'reverted'
+      : states.every(state => state.source === 'reviewed_saved' || state.source === 'reviewed_unsaved') ? 'reviewed_unsaved' : 'changed';
+    return { source, current: () => !signal.aborted && states.every(state => state.current()) };
+  }
   const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(target.workspaceFolder, receipt.file)));
   signal.throwIfAborted();
   const text = document.getText(), version = document.version, dirty = document.isDirty, digest = sha256(text);
@@ -92,6 +101,7 @@ export class AppliedSourceInspector {
     const stale = () => {
       if (editor && !editor.current()) result.source = 'unavailable';
       result.captureFreshness = 'stale'; result.reconciliation = null; result.unavailable = 'check_stale';
+      delete result.sourceSetComparison;
     };
     try {
       if (!owned()) throw new Error('unavailable');
@@ -121,13 +131,15 @@ export class AppliedSourceInspector {
       const before = await wait(this.options.checkSetup?.(entry.target, selected, signal) ?? Promise.resolve(undefined));
       if (!current() || before === false) { stale(); return result; }
       if (!origin || !token) { result.unavailable = 'check_failed'; return result; }
-      const reconciliation = await wait((this.options.reconcile ?? reconcileAppliedCapture)(entry.evidence, selected.capture,
-        { origin, token, signal, fetchImpl: this.options.fetchImpl }));
+      const sourceSetComparison = entry.evidence.version === 2 ? reconcileAppliedSourceSet(entry.evidence, selected.capture) : undefined;
+      const reconciliation = entry.evidence.version === 1 ? await wait((this.options.reconcile ?? reconcileAppliedCapture)(entry.evidence, selected.capture,
+        { origin, token, signal, fetchImpl: this.options.fetchImpl })) : null;
       if (!current()) { stale(); return result; }
       const after = await wait(this.options.checkSetup?.(entry.target, selected, signal) ?? Promise.resolve(undefined));
       if (!current() || after === false || after !== before) { stale(); return result; }
       result.captureFreshness = before === true && after === true ? 'current' : 'unavailable';
       result.reconciliation = reconciliation; result.unavailable = null;
+      if (sourceSetComparison) result.sourceSetComparison = sourceSetComparison;
       return result;
     } catch {
       // No arbitrary filesystem/model/backend errors enter transport summaries.

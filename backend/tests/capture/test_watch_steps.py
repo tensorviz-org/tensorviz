@@ -353,16 +353,14 @@ def test_per_node_statistics_stop_at_the_depth_the_canvas_draws(tmp_path: Path) 
         "        return self.inner(x)\n"
         "\n"
         "\n"
+        "# tensorviz: input=2,8\n"
         "class Deep(nn.Module):\n"
         "    def __init__(self, width=8):\n"
         "        super().__init__()\n"
         "        self.mid = Mid(width)\n"
         "\n"
         "    def forward(self, x):\n"
-        "        return self.mid(x)\n"
-        "\n"
-        "\n"
-        "# tensorviz: input=2,8\n",
+        "        return self.mid(x)\n",
         encoding="utf-8",
     )
     step = tmp_path / "step.py"
@@ -417,6 +415,47 @@ def test_more_steps_than_the_bound_are_refused_before_any_user_code_runs() -> No
     assert envelope["error"]["type"] == "UsageError"
     assert "200" in envelope["error"]["message"]
     assert "200" in stderr
+
+
+def test_the_batch_check_reads_the_declaration_of_the_class_it_runs(tmp_path: Path) -> None:
+    """Only ``Second`` declares a batch, inside its own body.
+
+    The check before the run read the file for no class in particular, found no
+    declaration that every class shared, and refused a run whose class had one. It
+    now reads the traced class's declaration, which is the batch the run is fed.
+    """
+    model = tmp_path / "pair.py"
+    model.write_text(
+        "import torch.nn as nn\n"
+        "\n"
+        "\n"
+        "class First(nn.Module):\n"
+        "    def __init__(self):\n"
+        "        super().__init__()\n"
+        "        self.fc = nn.Linear(8, 8)\n"
+        "\n"
+        "    def forward(self, x):\n"
+        "        return self.fc(x)\n"
+        "\n"
+        "\n"
+        "class Second(nn.Module):\n"
+        "    # tensorviz: input=3,16\n"
+        "    def __init__(self):\n"
+        "        super().__init__()\n"
+        "        self.fc = nn.Linear(16, 16)\n"
+        "\n"
+        "    def forward(self, x):\n"
+        "        return self.fc(x)\n",
+        encoding="utf-8",
+    )
+    envelope = watch(
+        "--kind", "train_step",
+        "--file", str(model),
+        "--cls", "Second",
+        "--callable", f"{SCRIPTS / 'train_step.py'}:train_step",
+        "--json",
+    )
+    assert envelope["error"] is None
 
 
 def test_steps_is_refused_for_a_kind_that_only_ever_runs_once() -> None:

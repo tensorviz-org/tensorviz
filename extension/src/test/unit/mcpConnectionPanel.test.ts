@@ -206,6 +206,23 @@ suite('MCP setup guidance', () => {
     assert.match(copied[0], /selection_required/);
     assert.doesNotMatch(copied[0], /TensorViz failure/);
   });
+  test('input setup help carries pending values and continues the exact opening before starting another', async () => {
+    const opening: GraphOpeningState = { id: 'pending-inputs', target, phase: 'needs_setup', hasCapture: false,
+      detail: 'Complete inputs.', draft: { profileName: 'saved_model', profile: { kind: 'model',
+        inputs: { args: [], kwargs: { x: { kind: 'tensor', shape: [3, 12], dtype: 'float64', requires_grad: false,
+          generator: { kind: 'full', value: 2 } } } } } } };
+    showMcpConnection('http://127.0.0.1:8766/mcp', context, target, 'local', undefined, { opening });
+    assert.match(panel.webview.html, /Complete this input setup/);
+    assert.doesNotMatch(panel.webview.html, /Investigate this failure/);
+    await receive({ type: 'copy_help_prompt' });
+    assert.match(copied[0], /suggest_graph_inputs/);
+    assert.match(copied[0], /configure_graph_setup/);
+    assert.match(copied[0], /pending-inputs/);
+    assert.match(copied[0], /saved_model/);
+    assert.match(copied[0], /float64/);
+    assert.match(copied[0], /pending draft/);
+    assert.deepEqual(commands, []);
+  });
 
   test('failure details are bounded and script-like model text stays inert', () => {
     const opening: GraphOpeningState = { id: 'failed-opening', target: { ...target, file: '</script><script>bad()</script>.py' },

@@ -82,6 +82,8 @@ def test_candidate_keeps_forward_and_construction_failures_with_provenance(tmp_p
         assert any(d.code == 'invalid_shape' for d in capture.diagnostics)
     else:
         assert envelope['result'] is None
+        assert envelope['worker']['candidatePlanCurrent'] is True
+        assert envelope['worker']['candidatePlanDigest'] == envelope['worker']['planDigest']
     assert (root / 'model.py').read_text() == LINEAR
 
 

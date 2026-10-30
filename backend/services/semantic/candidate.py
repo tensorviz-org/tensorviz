@@ -18,7 +18,8 @@ from typing import Callable
 from uuid import uuid4
 
 from ..validation.host_snapshot import snapshot
-from .contracts import CandidateExecution, CaptureSnapshot, ResolvedExecutionPlan
+from .contracts import (CandidateExecution, CaptureSnapshot, ResolvedExecutionPlan,
+    ReviewedPythonSource, SourceCandidateRequest, SourceCandidateExecution)
 from .execution_plan import applicability_digest, fingerprint, verify_saved_plan
 from .source_edits import CapturedEditResolver, MAX_FILES, MAX_BYTES, MAX_FILE_BYTES
 from .candidate_postconditions import (LiteralPostcondition, ActivationPostcondition, OperandPostcondition,
@@ -102,20 +103,21 @@ def _regular_source(root: Path, relative: str) -> Path:
 @dataclass(frozen=True)
 class StagedCandidate:
     workspace: Path
-    execution: CandidateExecution
+    execution: CandidateExecution | SourceCandidateExecution
     postconditions: LiteralPostcondition | ActivationPostcondition | OperandPostcondition | DeletionPostcondition | ConstructorPostcondition | ConfigurationPostcondition | None
 
 
 @contextmanager
 def stage_candidate(workspace: str, plan: ResolvedExecutionPlan, capture: CaptureSnapshot,
-                    intent: dict, reviewed_file: str, reviewed_source: str, *,
+                    intent: dict | None = None, reviewed_file: str | None = None, reviewed_source: str | None = None, *,
+                    reviewed_sources: list[ReviewedPythonSource] | None = None,
                     cancelled: Callable[[], bool] = lambda: False, temporary_parent: str | None = None,
                     candidate_id: str | None = None):
     """Yield an independent saved candidate and remove it on every exit.
 
-The exact retained plan/capture, closed intent and reviewed source come from the
-host, never directly from browser-supplied paths or arbitrary Python. Staging is
-static; running the returned plan requires separate explicit execution authority.
+The exact retained plan/capture and reviewed sources come from the host, either
+with a closed recipe or as a bounded source set. Staging is static; running the
+returned plan requires separate explicit execution authority.
 """
     def check_cancelled():
         if cancelled():
@@ -127,13 +129,24 @@ static; running the returned plan requires separate explicit execution authority
         raise CandidateRefused("candidate_requires_resolved_plan")
     plan = ResolvedExecutionPlan.model_validate(plan.model_dump(mode="json"))
     capture = CaptureSnapshot.model_validate(capture.model_dump(mode="json"))
+    identifier = candidate_id if candidate_id is not None else f"candidate:{uuid4()}"
+    if reviewed_sources is not None:
+        if intent is not None or reviewed_file is not None or reviewed_source is not None:
+            raise CandidateRefused("candidate_competing_edits")
+        # Revalidate mutable records, including UTF-8 and aggregate byte limits.
+        request = SourceCandidateRequest(version=2, id=identifier, plan=plan, capture=capture,
+            reviewedSources=[item.model_dump(mode="json") if isinstance(item, ReviewedPythonSource) else item
+                for item in reviewed_sources])
+        reviewed_sources = request.reviewedSources
+    elif (not isinstance(intent, dict) or not isinstance(reviewed_file, str)
+            or not isinstance(reviewed_source, str) or len(reviewed_source.encode("utf-8")) > MAX_FILE_BYTES):
+        raise CandidateRefused("candidate_source_limit")
     base_digest = applicability_digest(plan)
     if capture.planDigest != base_digest or capture.source != plan.source or capture.attemptId != plan.id:
         raise CandidateRefused("candidate_capture_plan_mismatch")
     if len(plan.source.files) > MAX_COPY_FILES:
         raise CandidateRefused("candidate_copy_limit")
-    if (sum(file.role == "source" for file in plan.source.files) > MAX_FILES
-            or not isinstance(reviewed_source, str) or len(reviewed_source.encode("utf-8")) > MAX_FILE_BYTES):
+    if sum(file.role == "source" for file in plan.source.files) > MAX_FILES:
         raise CandidateRefused("candidate_source_limit")
     verify_replay_base(plan, workspace)
     check_cancelled()
@@ -155,12 +168,32 @@ static; running the returned plan requires separate explicit execution authority
         if hashlib.sha256(data).hexdigest() != file.digest:
             raise CandidateRefused("candidate_base_changed")
         sources[file.path] = data.decode("utf-8")
-    patch = CapturedEditResolver(capture, sources).plan(intent)
-    if not patch["edits"]:
-        raise CandidateRefused("candidate_unchanged")
-    if patch["file"] != reviewed_file:
-        raise CandidateRefused("candidate_review_mismatch")
-    proposed = _apply_reviewed_patch(sources[patch["file"]], patch, reviewed_source)
+    patch = None
+    if reviewed_sources is None:
+        patch = CapturedEditResolver(capture, sources).plan(intent)
+        if not patch["edits"]:
+            raise CandidateRefused("candidate_unchanged")
+        if patch["file"] != reviewed_file:
+            raise CandidateRefused("candidate_review_mismatch")
+        replacements = {patch["file"]: _apply_reviewed_patch(sources[patch["file"]], patch, reviewed_source)}
+        changes = [dict(file=patch["file"], beforeDigest=patch["expected_digest"], afterDigest=patch["source_digest"])]
+    else:
+        replacements, changes = {}, []
+        tracked = {file.path: file for file in plan.source.files if file.role == "source"}
+        for item in sorted(reviewed_sources, key=lambda item: item.file):
+            if item.file not in tracked or item.beforeDigest != tracked[item.file].digest:
+                raise CandidateRefused("candidate_review_mismatch")
+            proposed = item.source.encode("utf-8")
+            after_digest = hashlib.sha256(proposed).hexdigest()
+            if after_digest == item.beforeDigest:
+                raise CandidateRefused("candidate_unchanged")
+            try:
+                # Compilation performs syntax checks only; no import or execution.
+                compile(proposed, item.file, "exec", dont_inherit=True)
+            except Exception:
+                raise CandidateRefused("candidate_syntax_invalid") from None
+            replacements[item.file] = proposed
+            changes.append(dict(file=item.file, beforeDigest=item.beforeDigest, afterDigest=after_digest))
     check_cancelled()
     with tempfile.TemporaryDirectory(prefix="tensorviz-candidate-", dir=temporary_parent) as temporary:
         directory = Path(temporary).resolve(strict=True)
@@ -209,26 +242,28 @@ static; running the returned plan requires separate explicit execution authority
                 if current.is_symlink():
                     raise CandidateRefused("candidate_symlink_dependency")
             (candidate_root / cwd).mkdir(mode=0o700, parents=True, exist_ok=True)
-        (candidate_root / patch["file"]).write_bytes(proposed)
-        identifier = candidate_id if candidate_id is not None else f"candidate:{uuid4()}"
+        for file, proposed in replacements.items():
+            (candidate_root / file).write_bytes(proposed)
         data = plan.model_dump(mode="json")
         data["id"] = identifier
         source = data["source"]
         source.update(id=f"source:{identifier}", workspaceId=identifier, generation=0,
             modelId=fingerprint([identifier, source["modelFile"], source["className"]]))
+        digests = {change["file"]: change["afterDigest"] for change in changes}
         for file in source["files"]:
             file["documentVersion"] = None
-            if file["path"] == patch["file"]:
-                file["digest"] = patch["source_digest"]
-        execution = CandidateExecution(version=1, id=identifier, baseCaptureId=capture.id,
+            if file["path"] in digests:
+                file["digest"] = digests[file["path"]]
+        provenance = dict(id=identifier, baseCaptureId=capture.id,
             baseAttemptId=plan.id, baseSourceId=capture.source.id, baseWorkspaceId=capture.source.workspaceId,
-            basePlanDigest=base_digest, intentDigest=fingerprint(intent),
-            file=patch["file"], beforeDigest=patch["expected_digest"], afterDigest=patch["source_digest"],
+            basePlanDigest=base_digest,
             plan=ResolvedExecutionPlan.model_validate(data))
+        execution = (CandidateExecution(version=1, **provenance, intentDigest=fingerprint(intent), **changes[0])
+            if patch is not None else SourceCandidateExecution(version=2, **provenance, changes=changes))
         # Copy races, new imports, configuration and package changes cannot turn a
         # stale base into a current proposal. The worker rechecks the staged plan.
         verify_replay_base(plan, workspace)
         verify_saved_plan(execution.plan, str(candidate_root))
         check_cancelled()
-        yield StagedCandidate(candidate_root, execution,
-            prepare_postconditions(execution.plan.source, execution.file, patch, intent, reviewed_source))
+        yield StagedCandidate(candidate_root, execution, prepare_postconditions(
+            execution.plan.source, patch["file"], patch, intent, reviewed_source) if patch is not None else None)

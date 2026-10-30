@@ -5,6 +5,7 @@ import { CodeFocusOptions, DEFAULT_CODE_FOCUS, isCodeFocusOptions,
   LocalBrowserTargetIdentity, LocalBrowserViewSelectionMessage } from '@tensorviz/contracts/protocol';
 import type { LocalBrowserHostPublish } from '@tensorviz/graph-host/localBrowserHostTransport';
 import type { LocalBrowserSync } from './localBrowserSync';
+import { splitBesideCanvas } from './canvasSplit';
 
 type Lines = [number, number];
 interface FocusSpan {
@@ -15,7 +16,7 @@ interface FocusSpan {
   } };
 }
 interface Plan { digest: string; ranges: Lines[]; highlights: Lines[] }
-type Selection = Pick<LocalBrowserViewSelectionMessage, 'viewId' | 'target' | 'nodeIds' | 'edgeIds' | 'tooLarge'>;
+type Selection = Pick<LocalBrowserViewSelectionMessage, 'viewId' | 'target' | 'nodeIds' | 'edgeIds' | 'tooLarge' | 'follow'>;
 
 function validLines(value: unknown, count: number): value is Lines[] {
   return Array.isArray(value) && value.length <= 512 && value.every(range => Array.isArray(range) && range.length === 2
@@ -103,13 +104,20 @@ export class CodeFocus implements vscode.Disposable {
     this.pending = undefined;
     reveal = reveal === 'always' || (reveal && (!previous || previous.viewId !== selection.viewId
       || JSON.stringify(previous.target) !== JSON.stringify(selection.target)
-      || previous.nodeIds.join('\0') !== selection.nodeIds.join('\0')));
+      || previous.nodeIds.join('\0') !== selection.nodeIds.join('\0')
+      // Turning Code focus on shows the current selection's source.
+      || (selection.follow === true && previous.follow !== true)));
     const generation = ++this.generation;
     this.erase();
     this.selection = selection;
     const spans = selection.nodeIds.map(id => current?.projection.spanmap[id] as FocusSpan | undefined);
     const parameter = spans.some(span => span?.focus && 'parameter' in span.focus);
-    if (!this.settings.enabled) { this.report(selection, 'Focus code is off.', parameter); return; }
+    // Code focus decides whether a selection touches the editor: off never does;
+    // on reveals it and dims only when dimming is on. A view that sends neither
+    // keeps the setting's own behaviour.
+    if (selection.follow === false) { this.report(selection, 'Code focus is off. Selecting a node does not open or dim code.', parameter); return; }
+    const dim = this.settings.enabled;
+    if (!dim && selection.follow !== true) { this.report(selection, 'Focus code is off.', parameter); return; }
     if (selection.tooLarge || !selection.nodeIds.length || selection.edgeIds.length) {
       this.report(selection, 'Select graph nodes to focus their source.'); return;
     }
@@ -150,6 +158,8 @@ export class CodeFocus implements vscode.Disposable {
         const [file, plan] = [...plans][0];
         const document = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
         if (generation !== this.generation) return;
+        await splitBesideCanvas();
+        if (generation !== this.generation) return;
         const editor = await vscode.window.showTextDocument(document, {
           viewColumn: vscode.ViewColumn.One, preserveFocus: true, preview: false });
         if (generation !== this.generation) return;
@@ -157,6 +167,7 @@ export class CodeFocus implements vscode.Disposable {
         editor.revealRange(new vscode.Range(first[0] - 1, 0, first[1] - 1, 0), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
       }
       if (generation !== this.generation || !this.context(selection.target)) return;
+      if (!dim) { this.report(selection, 'Source shown. Dimming is off.', parameter); return; }
       this.plans = plans;
       this.dim?.dispose();
       this.dim = vscode.window.createTextEditorDecorationType({ opacity: String(this.settings.opacity / 100),

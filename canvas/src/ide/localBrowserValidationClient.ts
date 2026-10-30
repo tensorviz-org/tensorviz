@@ -74,8 +74,7 @@ export function createLocalBrowserValidationClient(
       const requestId = newLocalBrowserMessageId();
       const promise = new Promise<ValidationReceipt>(resolve => { pending = { id: requestId, target, resolve }; });
       try {
-        if (!transport.send({ type: 'validateRequest', requestId, target,
-          ...(fresh ? { fresh: true as const } : {}) })) {
+        if (!transport.send({ type: 'validateRequest', requestId, target, ...(fresh ? { fresh: true as const } : {}) })) {
           settle({ status: 'refused', detail: 'Validation could not reach VS Code. Reconnect and try again.' });
         }
       } catch {

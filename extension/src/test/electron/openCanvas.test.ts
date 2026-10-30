@@ -1,7 +1,6 @@
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as net from 'node:net';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import * as vscode from 'vscode';
@@ -45,12 +44,10 @@ suite('openCanvas', () => {
   let api: TestApi;
   let squatter: net.Server | undefined;
   let modelDir: string;
-  const exportsDir = path.join(REPO, 'tensorviz-exports');
+  const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
+  const exportsDir = path.join(workspace, 'tensorviz-exports');
   const exportsDirExisted = fs.existsSync(exportsDir);
-  const stateDir = path.join(REPO, '.tensorviz');
-  // With no folder open the checkout IS the workspace, so the backend writes its
-  // lock and state database here. Remove them afterwards only if this run is what
-  // created the directory — a developer's own .tensorviz/views is not ours to delete.
+  const stateDir = path.join(workspace, '.tensorviz');
   const stateDirExisted = fs.existsSync(stateDir);
 
   suiteSetup(async function () {
@@ -77,8 +74,7 @@ suite('openCanvas', () => {
     assert.ok(extension, `${EXTENSION_ID} was not loaded by the extension host`);
     api = ((await extension.activate()) as { __test: TestApi }).__test;
 
-    // No folder is open in this run, so the checkout is both the repo and the
-    // workspace; the setting is what stops resolveRepoPath falling to the picker.
+    // Backend source is separate from the disposable model workspace.
     await vscode.workspace
       .getConfiguration('tensorviz')
       .update('repoPath', REPO, vscode.ConfigurationTarget.Global);
@@ -87,7 +83,8 @@ suite('openCanvas', () => {
     assert.equal(api.backendOrigin(), undefined, 'opening the starting screen must not start the backend');
     // Empty Canvas is intentionally an instruction, not a mounted builder.
     // Select a disposable model through the public sidebar route for liveness.
-    modelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tensorviz-canvas-model-'));
+    modelDir = path.join(process.env.TENSORVIZ_TEST_WORKSPACE!, 'canvas');
+    assert.equal(vscode.workspace.getWorkspaceFolder(vscode.Uri.file(modelDir))?.uri.fsPath, modelDir);
     const file = path.join(modelDir, 'model.py');
     fs.writeFileSync(file, 'import torch.nn as nn\nclass Net(nn.Module):\n    def __init__(self):\n        super().__init__()\n        self.fc = nn.Linear(4, 4)\n    def forward(self, x):\n        return self.fc(x)\n');
     await vscode.commands.executeCommand('tensorviz.openAsGraph', { uri: vscode.Uri.file(file).toString(), cls: 'Net' });
@@ -214,7 +211,7 @@ suite('openCanvas', () => {
     assert.equal(fs.existsSync(path.join(REPO, '..', 'escaped')), false);
   });
 
-  test('choosing the separate environment reconnects Canvas without another Open command', async function () {
+  test('choosing the capture environment resumes Canvas without restarting its service or another Open command', async function () {
     this.timeout(120_000);
     const previousToken = api.launchToken();
     const previousSession = api.sidebarState()?.sessionId;
@@ -229,12 +226,12 @@ suite('openCanvas', () => {
     surface.showInformationMessage = async () => undefined;
     try {
       assert.equal(await vscode.commands.executeCommand('tensorviz.selectEnvironment'), true);
-      assert.notEqual(api.launchToken(), previousToken, 'the environment change must restart the backend');
+      assert.equal(api.launchToken(), previousToken, 'capture Python selection must retain the tool service');
       assert.equal((await fetch(`${api.backendOrigin()}/health`)).status, 200);
       const deadline = Date.now() + 30_000;
       while (!api.sidebarState()?.ready && Date.now() < deadline) await sleep(100);
       assert.equal(api.sidebarState()?.ready, true, 'a healthy backend must not leave Canvas on the connection error page');
-      assert.notEqual(api.sidebarState()?.sessionId, previousSession, 'Canvas must reconnect with the new launch token');
+      assert.equal(api.sidebarState()?.sessionId, previousSession, 'the existing Canvas connection must remain usable');
       const captureDeadline = Date.now() + 60_000;
       while (api.graphOpeningState()?.phase !== 'ready' && Date.now() < captureDeadline) await sleep(100);
       assert.notEqual(api.graphOpeningState()?.id, previousOpening, 'environment selection must recheck dependencies and reopen the retained model');

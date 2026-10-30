@@ -50,12 +50,12 @@ def client() -> TestClient:
     return TestClient(server_v2.app)
 
 
-def trace_of(module: str, cls: str, *arguments: str) -> Dict[str, Any]:
+def trace_of(module: str, cls: str, *arguments: str, folder: Path = CUSTOM) -> Dict[str, Any]:
     """The worker envelope for one fixture class, as the extension would get it."""
     completed = subprocess.run(
         [
             sys.executable, "-m", "services.ingest.worker",
-            "--file", str(CUSTOM / f"{module}.py"), "--cls", cls, "--json", *arguments,
+            "--file", str(folder / f"{module}.py"), "--cls", cls, "--json", *arguments,
         ],
         cwd=str(BACKEND),
         capture_output=True,
@@ -234,6 +234,33 @@ def test_a_symbolic_declaration_is_recorded_and_still_yields_no_shape():
     assert symbolic["_shape_provenance"] == "declared"
     assert symbolic["_declared_out_shape"] == "B, D"
     assert "_out_shape" not in symbolic
+
+
+def _saved_with_a_bom(folder: Path) -> Path:
+    """``declared.py`` as VS Code's "UTF-8 with BOM" (and Windows Notepad) saves it."""
+    copy = folder / "declared.py"
+    copy.write_text((CUSTOM / "declared.py").read_text(encoding="utf-8"), encoding="utf-8-sig")
+    return copy
+
+
+def test_a_block_declared_in_a_file_saved_with_a_bom_keeps_its_shape(tmp_path):
+    """Python imports a file that starts with a byte order mark, but `ast` refuses the
+    mark. Read with it, the file's `# tensorviz: out_shape=` lines were all lost, and the
+    block and every card after it were left without a shape."""
+    _saved_with_a_bom(tmp_path)
+    params = params_of(trace_of("declared", "Branchy", "--depth", "1", folder=tmp_path))
+
+    assert params["declared"]["_shape_provenance"] == "declared"
+    assert params["declared"]["_out_shape"] == "2x16"
+
+
+def test_a_file_saved_with_a_bom_still_says_where_each_class_lives(tmp_path):
+    """The line a card reveals when `inspect` cannot find its class's source."""
+    from services.ingest import introspect  # noqa: PLC0415 - imports torch (task.md §8.3)
+
+    lines = introspect._class_lines(str(CUSTOM / "declared.py"))
+    assert lines
+    assert introspect._class_lines(str(_saved_with_a_bom(tmp_path))) == lines
 
 
 # ── validation and verification ──────────────────────────────────────────────

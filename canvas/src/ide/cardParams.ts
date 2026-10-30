@@ -195,7 +195,7 @@ export interface InputProvenanceNote {
   readonly detail: string;
 }
 
-const DECLARE = 'Declare one with `# tensorviz: input=` to measure the model you mean.';
+const DECLARE = 'Declare one with `# tensorviz: input=` directly above the model class to measure the model you mean.';
 
 /**
  * What the Input card and the Validate verdict should say about where the traced

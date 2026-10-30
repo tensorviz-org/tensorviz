@@ -4,8 +4,6 @@ import { Wrench } from 'lucide-react';
 import LocalCanvasMenu from '../../ide/LocalCanvasMenu';
 import type { ModelNode } from '../../types';
 
-jest.mock('../../canvas/GraphQueryPanel', () => ({ GraphOverlayControls: () => <div>Measured overlay controls</div> }));
-
 const names = { 'view-blocks': 'Blocks view', 'view-expanded': 'Expanded view', 'svg-overview': 'SVG overview',
   layout: 'Auto layout', select: 'Select tool', focus: 'Focus selected', 'zoom-in': 'Zoom in', 'zoom-out': 'Zoom out',
   fullscreen: 'Fullscreen canvas', 'download-svg': 'Download SVG' };
@@ -38,9 +36,9 @@ it('keeps every existing action reachable in the grouped menu and respects disab
   expect(screen.getByRole('button', { name: 'More tools' })).toHaveFocus();
 });
 
-it('supports keyboard navigation and keeps metric settings behind their explicit action', () => {
+it('supports keyboard navigation and keeps display settings behind their explicit action', () => {
   mount();
-  expect(screen.queryByText('Measured overlay controls')).toBeNull();
+  expect(screen.queryByRole('combobox', { name: 'Canvas appearance' })).toBeNull();
   const menu = screen.getByRole('menu');
   fireEvent.keyDown(menu, { key: 'ArrowUp' });
   expect(screen.getByRole('menuitem', { name: 'Download SVG' })).toHaveFocus();
@@ -49,7 +47,9 @@ it('supports keyboard navigation and keeps metric settings behind their explicit
   fireEvent.keyDown(menu, { key: 'End' });
   expect(screen.getByRole('menuitem', { name: 'Download SVG' })).toHaveFocus();
   fireEvent.click(screen.getByRole('menuitem', { name: 'Display settings' }));
-  expect(screen.getByRole('dialog', { name: 'Display settings' })).toHaveTextContent('Measured overlay controls');
+  const display = screen.getByRole('dialog', { name: 'Display settings' });
+  expect(within(display).getByRole('combobox', { name: 'Canvas appearance' })).toBeVisible();
+  expect(within(display).queryByRole('group', { name: 'Overlay metric' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Back to canvas actions' }));
   fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
   expect(screen.queryByRole('menu')).toBeNull();

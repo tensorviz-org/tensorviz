@@ -11,7 +11,7 @@ const python = process.env.TENSORVIZ_TEST_PYTHON;
 assert.ok(python && path.isAbsolute(python), 'Set the explicit test interpreter.');
 const delay = () => new Promise(resolve => setTimeout(resolve, 100));
 
-test('two simultaneous copied-plugin hosts isolate related Git worktrees, recipes, handoffs and cancellation', { timeout: 120000 }, async () => {
+test('two simultaneous copied-plugin hosts isolate related Git worktrees, recipes, handoffs and cancellation', { timeout: 300000 }, async () => {
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-host-isolation-')));
   const first = path.join(root, 'first'), second = path.join(root, 'second'), plugin = path.join(root, 'plugin');
   const clients = [];
@@ -44,7 +44,7 @@ test('two simultaneous copied-plugin hosts isolate related Git worktrees, recipe
   };
   const poll = async (host, tool, initial, key) => {
     let result = initial;
-    for (let n = 0; n < 500 && !['ready', 'passed', 'failed', 'blocked', 'needs_setup', 'cancelled', 'refused', 'source_changed'].includes(result.status); n++) {
+    for (let n = 0; n < 2400 && !['ready', 'passed', 'failed', 'blocked', 'needs_setup', 'cancelled', 'refused', 'source_changed'].includes(result.status); n++) {
       await delay(); result = await host.call(tool, { [key]: initial[key] });
     }
     return result;

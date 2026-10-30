@@ -739,13 +739,17 @@ def test_a_stub_the_model_never_uses_still_ingests(tmp_path):
     )
 
 
-@pytest.mark.skipif(
-    available_libraries()["timm"], reason="timm is installed here, so nothing is missing"
-)
-def test_a_missing_optional_extra_answers_422_with_the_install_command():
+def test_a_missing_optional_extra_answers_422_with_the_install_command(monkeypatch):
     """``500 ingestion failed: RuntimeError: timm is not installed (optional extra)``
     blames the server for a request it simply cannot serve here, and leaves the caller
     with nothing to do about it."""
+    from services.ingest import resolvers
+    original = resolvers.importlib.import_module
+    def missing_timm(name, *args, **kwargs):
+        if name == "timm":
+            raise ModuleNotFoundError("No module named 'timm'", name="timm")
+        return original(name, *args, **kwargs)
+    monkeypatch.setattr(resolvers.importlib, "import_module", missing_timm)
     app = FastAPI()
     app.include_router(ingest_router.router)
     response = TestClient(app).post(

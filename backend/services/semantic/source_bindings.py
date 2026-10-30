@@ -77,12 +77,15 @@ class SourceIndex:
         lines = importlib.util.decode_source(data).split("\n")
         self.expressions, self.definitions = {}, {}
         self.callees = {}
-        # Only the nonexecuting edit resolver retains AST nodes. The capture
-        # worker keeps location records alone, as before.
+        self.shape_reads = {}
+        self.expanded_calls = set()
+        # Only the edit resolver retains AST nodes. Capture keeps bounded
+        # locations and simple call recipes without retaining the tree.
         self.bound_nodes = {}
         self.definition_nodes = {}
         self.tree = tree if retain_nodes else None
         scope = []
+        forward_definitions = []
         count = 0
 
         def binding(node, kind, qualified):
@@ -97,6 +100,8 @@ class SourceIndex:
                 if retain_nodes and kind == "definition":
                     self.definition_nodes[found["id"]] = (found, node)
                 if isinstance(node, ast.Call):
+                    if any(isinstance(arg, ast.Starred) for arg in node.args) or any(kw.arg is None for kw in node.keywords):
+                        self.expanded_calls.add(found["id"])
                     parts, callee = [], node.func
                     while isinstance(callee, ast.Attribute) and len(parts) < 16:
                         parts.append(callee.attr)
@@ -105,6 +110,26 @@ class SourceIndex:
                         parts.append(callee.id)
                         if len(parts) <= 16 and sum(map(len, parts)) <= 512:
                             self.callees[found["id"]] = tuple(reversed(parts))
+                    arguments = [(["args", i], arg) for i, arg in enumerate(node.args)] + [
+                        (["kwargs", arg.arg], arg.value) for arg in node.keywords if arg.arg is not None]
+                    reads = 0
+                    for path, argument in arguments:
+                        leaves = [(path + ["items", i], item) for i, item in enumerate(argument.elts)] if isinstance(argument, (ast.List, ast.Tuple)) else [(path, argument)]
+                        for leaf_path, leaf in leaves:
+                            if (reads >= 32 or not forward_definitions or forward_definitions[-1] is None or not isinstance(leaf, ast.Subscript)
+                                    or not isinstance(leaf.value, ast.Attribute) or leaf.value.attr != "shape"
+                                    or not isinstance(leaf.value.value, ast.Name)):
+                                continue
+                            axis, sign = leaf.slice, 1
+                            if isinstance(axis, ast.UnaryOp) and isinstance(axis.op, (ast.USub, ast.UAdd)):
+                                sign = -1 if isinstance(axis.op, ast.USub) else 1
+                                axis = axis.operand
+                            if isinstance(axis, ast.Constant) and type(axis.value) is int and -32 <= sign * axis.value <= 31:
+                                attribute = leaf.value
+                                key = (qualified, attribute.lineno, attribute.end_lineno, attribute.col_offset, attribute.end_col_offset)
+                                self.shape_reads[key] = dict(callId=found["id"], path=leaf_path, axis=sign * axis.value,
+                                    definitionId=forward_definitions[-1])
+                                reads += 1
             return found
 
         def visit(node):
@@ -116,12 +141,24 @@ class SourceIndex:
                 scope.append(node.name)
                 if not isinstance(node, ast.ClassDef):
                     scope.append("<locals>")
+                    body = node.body[1:] if node.body and isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Constant) and type(node.body[0].value.value) is str else node.body
+                    # A source call may run at most once in this actual forward
+                    # frame. Loops, exception retries, comprehensions and helper
+                    # frames cannot reuse an earlier property-read observation.
+                    single_pass = (isinstance(node, ast.FunctionDef) and node.name == "forward" and not node.decorator_list
+                        and body and len(body) <= 128 and isinstance(body[-1], ast.Return)
+                        and all(isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and isinstance(stmt.targets[0], ast.Name)
+                            or isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name) and stmt.value is not None for stmt in body[:-1])
+                        and not any(isinstance(child, (ast.Lambda, ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp,
+                            ast.Yield, ast.YieldFrom, ast.Await, ast.IfExp)) for stmt in body for child in ast.walk(stmt)))
+                    forward_definitions.append(found["id"] if found and single_pass else None)
                 # Expressions inside a function have its code scope, without
                 # <locals>; nested definitions introduce that component.
                 for child in node.body:
                     visit(child)
                 if not isinstance(node, ast.ClassDef):
                     scope.pop()
+                    forward_definitions.pop()
                 scope.pop()
                 return
             if isinstance(node, (ast.Call, ast.BinOp, ast.UnaryOp, ast.Compare, ast.Subscript)):
@@ -159,7 +196,8 @@ class CapturedSourceEvidence(SourceEvidence):
 
         super().__init__(snapshot, workspace_root, on_source=loaded)
         directory = Path(__file__).parent
-        self.internal.update({__file__, str(directory / "recorder.py"), str(directory.parent / "ingest" / "trace.py")})
+        self.internal.update({__file__, str(directory / "recorder.py"), str(directory / "source_shape_call.py"),
+                              str(directory.parent / "ingest" / "trace.py")})
         import torch
         self.torch_directory = os.path.dirname(torch.__file__) + os.sep
 
@@ -220,6 +258,63 @@ class CapturedSourceEvidence(SourceEvidence):
             return None
         index = self.indexes.get(binding["anchors"][0]["file"])
         return index.callees.get(binding["id"]) if index else None
+
+    def direct_shape_call(self, target, receiver=None, method=None):
+        """Match the callable and its transient frame identity, without retaining a frame."""
+        from .construction import _is_direct_class, _lookup, _MISSING
+        frame = sys._getframe(1)
+        try:
+            for _ in range(MAX_FRAMES):
+                if frame is None:
+                    return None
+                filename = frame.f_code.co_filename
+                if filename in self.internal or filename.startswith(self.torch_directory):
+                    frame = frame.f_back
+                    continue
+                binding = self.expression(frame.f_code, frame.f_lasti)
+                parts = self.constructor_callee(binding)
+                if binding is None or binding["id"] in self.indexes[binding["anchors"][0]["file"]].expanded_calls:
+                    return None
+                namespace = frame.f_locals
+                if type(namespace) is not dict and not frame.f_code.co_flags & inspect.CO_OPTIMIZED:
+                    return None
+                def lookup(name):
+                    candidate = _lookup(dict.items(namespace) if type(namespace) is dict else namespace.items(), name)
+                    return _lookup(dict.items(frame.f_globals), name) if candidate is _MISSING else candidate
+                if method is None:
+                    if not _is_direct_class(parts, frame, target):
+                        return None
+                elif not parts or len(parts) != 2 or parts[1] != method or lookup(parts[0]) is not receiver:
+                    return None
+                return binding, id(frame)
+        finally:
+            del frame
+        return None
+
+    def shape_read_site(self, caller_codes):
+        """A direct shape getter inside one observed standard Module call frame."""
+        frame = sys._getframe(1)
+        try:
+            for _ in range(MAX_FRAMES):
+                if frame is None:
+                    return None
+                filename = frame.f_code.co_filename
+                if filename in self.internal or filename.startswith(self.torch_directory):
+                    frame = frame.f_back
+                    continue
+                if frame.f_back is None or not any(frame.f_back.f_code is code for code in caller_codes):
+                    return None
+                code = frame.f_code
+                if not hasattr(code, "co_positions") or frame.f_lasti < 0:
+                    return None
+                location = self.location(code, code.co_firstlineno)
+                index = self.source_index(location["file"]) if location else None
+                position = next(islice(code.co_positions(), frame.f_lasti // 2, None), None)
+                site = index.shape_reads.get((code.co_qualname, *position)) if index and position else None
+                return (site, id(frame)) if site is not None else None
+        finally:
+            del frame
+        return None
 
     def definition_binding(self, module):
         cls = type(module)

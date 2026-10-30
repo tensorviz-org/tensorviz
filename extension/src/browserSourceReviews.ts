@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import type { LocalBrowserSourceEdits, SourceProposalOutcome, SourceProposalReview } from './localBrowserSourceEdits';
 import type { LocalBrowserHostPublish } from '@tensorviz/graph-host/localBrowserHostTransport';
-import type { LocalBrowserCandidateRequestMessage, LocalBrowserSourceEditRequestMessage, CandidateRecord } from '@tensorviz/contracts/protocol';
+import type { LocalBrowserCandidateRequestMessage, LocalBrowserSourceEditRequestMessage } from '@tensorviz/contracts/protocol';
 import { sameTargetIdentity } from './localBrowserSync';
 import { GraphToolError } from '@tensorviz/graph-host/mcpGraph';
 
@@ -13,7 +13,7 @@ interface Review {
   retries: Map<string, string>;
 }
 type Source = Pick<LocalBrowserSourceEdits, 'propose' | 'runCandidate' | 'cancelCandidate' | 'getCandidate'
-  | 'listCandidates' | 'inspectCandidate' | 'forgetCandidates' | 'inspectAppliedSource'>;
+  | 'listCandidates' | 'inspectCandidate' | 'inspectCandidateCheckpointText' | 'forgetCandidates' | 'inspectAppliedSource'>;
 
 export class BrowserSourceReviews {
   private readonly reviews = new Map<string, Review>();
@@ -57,7 +57,7 @@ export class BrowserSourceReviews {
   clear(): void { for (const item of this.reviews.values()) this.remove(item); }
 
   control(message: LocalBrowserCandidateRequestMessage): void {
-    let result: { candidates: CandidateRecord[]; page: ReturnType<Source['inspectCandidate']> | null } | null = null;
+    let result: Extract<LocalBrowserHostPublish, { type: 'candidateResult' }>['result'] = null;
     let detail = 'Candidate result. This describes the reviewed copy, not the live editor buffer.';
     try {
       this.prune();
@@ -82,6 +82,8 @@ export class BrowserSourceReviews {
         }
       } else if (action.kind === 'cancel') result = { candidates: [this.source.cancelCandidate(item.sourceId, action.runId)], page: null };
       else if (action.kind === 'list') result = { candidates: this.source.listCandidates(item.sourceId), page: null };
+      else if (action.kind === 'checkpoint') result = { candidates: [this.source.getCandidate(item.sourceId, action.runId)], page: null,
+        checkpoint: this.source.inspectCandidateCheckpointText(item.sourceId, action.runId, { offset: action.offset, limit: action.limit }) };
       else result = { candidates: [this.source.getCandidate(item.sourceId, action.runId)],
         page: action.query ? this.source.inspectCandidate(item.sourceId, action.runId, action.query) : null };
     } catch (error) {

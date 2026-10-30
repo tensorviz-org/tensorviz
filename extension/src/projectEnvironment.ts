@@ -96,9 +96,10 @@ export async function rememberEnvironment(context: Context, choice: EnvironmentC
   await context.workspaceState.update(ENVIRONMENT_KEY, undefined);
 }
 
-/** One read-only choice for profile resolution, capture and candidate execution.
+/** One resolved choice for inspection, profile resolution, capture and candidates.
  * A saved choice is authoritative; checking a ready managed runtime never provisions it.
- * Explicit missing paths must fail in that environment, not silently switch Python. */
+ * Explicit missing paths must fail in that environment, not silently switch Python.
+ * Opening may adopt and save a project environment; read-only callers never select one. */
 export async function selectedExecutionInterpreter(context: Context, resource: vscode.Uri,
   readyManaged: () => Promise<string | undefined>): Promise<string | undefined> {
   return (await selectedExecutionEnvironment(context, resource, readyManaged)).interpreter;
@@ -106,15 +107,41 @@ export async function selectedExecutionInterpreter(context: Context, resource: v
 
 export async function selectedExecutionEnvironment(context: Context, resource: vscode.Uri,
   readyManaged: () => Promise<string | undefined>): Promise<{ interpreter?: string;
-    source: 'project' | 'managed' | 'setting' | 'python-extension' }> {
+    source: 'project' | 'managed' | 'setting' | 'selection_required' }> {
   const selected = savedEnvironment(context, resource);
   if (selected?.kind === 'project') return { interpreter: selected.interpreter, source: 'project' };
   if (selected?.kind === 'managed') return { interpreter: await readyManaged(), source: 'managed' };
   const configured = vscode.workspace.getConfiguration('tensorviz', resource).get<string>('pythonPath', '').trim();
   if (configured) return { interpreter: environmentExecutable(configured), source: 'setting' };
-  const active = await userInterpreter(resource);
-  return active ? { interpreter: active, source: 'python-extension' }
-    : { interpreter: await readyManaged(), source: 'managed' };
+  return { source: 'selection_required' };
+}
+
+/** Inspection cannot promise an execution target before opening has selected it. */
+export async function inspectExecutionEnvironment(context: Context, backendDir: string, options: {
+  resource: vscode.Uri; signal: AbortSignal; readyManaged(): Promise<string | undefined>;
+  managerPython?: string; runner?: EnvironmentRunner;
+}) {
+  options.signal.throwIfAborted();
+  if (!vscode.workspace.isTrusted) return { ok: false,
+    detail: 'Workspace Trust is required to inspect Python. No environment was changed.' };
+  const { resource, signal } = options;
+  const configured = vscode.workspace.getConfiguration('tensorviz', resource).get<string>('pythonPath', '').trim();
+  if (!savedEnvironment(context, resource) && !configured) {
+    const candidates = await discoverEnvironments(context, backendDir, options);
+    const file = /\.pyw?$/i.test(resource.fsPath) ? resource.fsPath : undefined;
+    return { ok: false, resolution: 'selection_required' as const, candidates,
+      detail: 'No capture environment is selected for this model. Open the model to resolve or choose its Python environment.',
+      nextAction: { tool: 'open_graph', arguments: file ? { file } : {}, ...(!file ? { requiredArguments: ['file'] } : {}) },
+      usage: 'Candidates are suggestions, not dependency-install targets. Opening may adopt a compatible project environment. No environment was selected or changed.' };
+  }
+  const selected = await selectedExecutionEnvironment(context, resource, options.readyManaged);
+  signal.throwIfAborted();
+  if (!selected.interpreter) return { ok: false, resolution: 'selected' as const, environment: selected,
+    detail: 'The selected TensorViz interpreter is unavailable. No other environment was substituted.' };
+  const result = await (options.runner ?? runEnvironmentHelper)(selected.interpreter, backendDir, ['inspect-runtime'], () => signal.aborted);
+  signal.throwIfAborted();
+  return { ...result, resolution: 'selected' as const, environment: { ...result.environment, ...selected },
+    usage: 'This is the selected capture and dependency-install target. Use open_graph action: install_dependencies; the agent shell may use a different Python.' };
 }
 
 /** Only bounded, host-local sources. Probes read metadata and never import the model. */

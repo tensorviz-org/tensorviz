@@ -1,7 +1,7 @@
 import React from 'react';
 import { LocalBrowserContext } from './localBrowserContext';
-import type { BrowserCandidateState } from './localBrowserCandidateClient';
-import { candidatePostconditionsText, type CaptureInspectionQuery, type AppliedSourceObservation } from './protocol.generated';
+import type { BrowserCandidateState, LocalBrowserCandidateClient } from './localBrowserCandidateClient';
+import { candidatePostconditionsText, type CaptureInspectionQuery, type AppliedSourceObservation, type CandidateCheckpointPage } from './protocol.generated';
 import { CaptureDetails } from '../canvas/CaptureDetails';
 import './candidateReview.css';
 
@@ -21,19 +21,58 @@ const unavailableLabels = {
   check_failed: 'The source check could not finish. Try again.',
 };
 
+function CheckpointDetails({ client, proposalId, runId, busy }: {
+  client: LocalBrowserCandidateClient; proposalId: string; runId: string; busy: boolean;
+}) {
+  const [page, setPage] = React.useState<CandidateCheckpointPage | null>(null);
+  const [detail, setDetail] = React.useState('');
+  React.useEffect(() => () => client.cancelRead(), [client]);
+  const read = async (offset: number) => {
+    const result = await client.request(proposalId, { kind: 'checkpoint', runId, offset, limit: 20 });
+    setPage(result.checkpoint ?? null); setDetail(result.checkpoint ? '' : result.detail);
+  };
+  return <div className="candidate-checkpoint-details">
+    <div className="candidate-review-actions">
+      <button disabled={busy} onClick={() => { void read(0); }}>{page ? 'First checkpoint page' : 'Inspect checkpoint load…'}</button>
+      {page?.nextOffset != null && <button disabled={busy} onClick={() => { void read(page.nextOffset!); }}>Next checkpoint entries</button>}
+    </div>
+    {page && <>
+      <p>Checkpoint entries from {Math.min(page.offset + 1, page.count)} of {page.count}.
+        {page.nextOffset !== null ? ' More entries are available.' : ' End of retained entries.'}</p>
+      <pre tabIndex={0} aria-label="Checkpoint-load evidence">{page.text}</pre>
+    </>}
+    {detail && <p role="status">{detail}</p>}
+  </div>;
+}
+
 function AppliedSourceResult({ value, stale }: { value: AppliedSourceObservation; stale?: boolean }) {
   const result = value.reconciliation;
+  const sourceSet = value.sourceSetComparison;
   return <div aria-label="Applied-source result">
     <p>Checked {new Date(value.checkedAt).toLocaleTimeString()}. {stale ? 'The graph or source has changed since this check.' : 'This describes the source and setup at check time.'}</p>
     <dl>
       <dt>Source at check</dt><dd>{sourceLabels[value.source]}</dd>
       <dt>Saved setup at check</dt><dd>{label(value.captureFreshness)}</dd>
+      {value.receipt.files && <><dt>Reviewed files</dt><dd>{value.receipt.files.map(file => file.file).join(', ')}</dd></>}
       {result && <>
         <dt>Recorded source comparison</dt><dd>{label(result.reason)}</dd>
         <dt>Tracked dependency scope</dt><dd>{result.dependencyScope}{result.dependencyScope === 'partial' ? ' — untracked dependencies are unverified' : ''}</dd>
         <dt>Inputs compared with original capture</dt><dd>{result.inputs}</dd>
         <dt>State compared with original capture</dt><dd>{result.state}</dd>
         <dt>Recorded requested change</dt><dd>{candidatePostconditionsText({ postconditions: result.postconditions ?? undefined })}</dd>
+      </>}
+      {sourceSet && <>
+        <dt>Recorded source comparison</dt><dd>{label(sourceSet.reason)}</dd>
+        <dt>Tracked dependency scope</dt><dd>{sourceSet.dependencyScope}{sourceSet.dependencyScope === 'partial' ? ' — untracked dependencies are unverified' : ''}</dd>
+        <dt>Inputs compared with original capture</dt><dd>{sourceSet.inputs}</dd>
+        <dt>State compared with original capture</dt><dd>{sourceSet.state}</dd>
+        {sourceSet.comparison && <>
+          <dt>Captured computation</dt><dd>{sourceSet.comparison.equivalent === true ? 'Equivalent within the captured paths.'
+            : sourceSet.comparison.equivalent === false ? 'Recorded computation differs.' : 'Equivalence is unresolved.'}</dd>
+          <dt>Observed changes</dt><dd>{sourceSet.comparison.changedFieldCount} computation fields; {sourceSet.comparison.observedFieldCount} observation fields.</dd>
+          <dt>Unresolved evidence</dt><dd>{sourceSet.comparison.unresolvedFieldCount} fields; {sourceSet.comparison.unmatchedRecordCount} unmatched records; {sourceSet.comparison.unresolvedConnectionCount} connections.</dd>
+        </>}
+        <dt>Requested behavior</dt><dd>Not checked. A source-set comparison does not establish task correctness or training quality.</dd>
       </>}
     </dl>
     {value.unavailable && <p>{unavailableLabels[value.unavailable]}</p>}
@@ -91,8 +130,14 @@ export function CandidateReviewPanel({ embedded = false }: { embedded?: boolean 
         <dt>Source freshness at check</dt><dd>{summary.freshness}</dd><dt>Capture</dt><dd>{summary.capture}</dd>
         <dt>Actual inputs</dt><dd>{summary.inputs}</dd><dt>Initial model state</dt><dd>{summary.state}</dd>
         <dt>Requested semantic change</dt><dd>{candidatePostconditionsText(summary)}</dd>
+        {summary.checkpoint && <><dt>Checkpoint load</dt><dd>{summary.checkpoint.loadStatus}. {summary.checkpoint.complete ? 'Complete' : 'Partial'} metadata.
+          {' '}{summary.checkpoint.shapeDifferences} shape differences, {summary.checkpoint.dtypeDifferences} dtype differences;
+          {' '}{summary.checkpoint.registeredOnly} registered-only and {summary.checkpoint.checkpointOnly} checkpoint-only entries.
+          {summary.checkpoint.unknownPresence > 0 ? ` Presence unknown for ${summary.checkpoint.unknownPresence} entries.` : ''}</dd></>}
         <dt>Temporary-file cleanup</dt><dd>{label(summary.cleanup)}</dd>
       </dl>}
+      {summary?.checkpoint && runId && <CheckpointDetails key={`${review.id}:${runId}`} client={client}
+        proposalId={review.id} runId={runId} busy={state.busy} />}
       {record?.capture && !record.unavailable && <CaptureDetails key={record.runId} label="Reviewed candidate" buttonLabel="Inspect candidate capture…"
         reference={{ version: 1, ...record.capture, kind: 'input', semanticId: record.capture.captureId }} client={reader} stale initialQuery={rootQuery} />}
       {record?.unavailable && <p>Capture evidence: {label(record.unavailable)}.</p>}

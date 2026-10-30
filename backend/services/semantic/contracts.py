@@ -338,7 +338,6 @@ class Invocation(Contract):
     # Recursive unique registered parameters, measured at this call's entry.
     parameterCount: Nat | None = None
     parameterCountUnavailable: Literal["item_limit", "unsupported_type"] | None = None
-    callSiteDigest: Digest | None = None
     sourceBindingIds: Annotated[list[Id], Field(max_length=64)]
 
     @model_validator(mode="after")
@@ -364,6 +363,95 @@ class MutationEffect(Contract):
     after: Annotated[Union[ValueRef, OpaqueArgument], Field(discriminator="kind")]
 
 
+class SourceTensorDimension(Contract):
+    valueId: Id
+    axis: Annotated[StrictInt, Field(ge=-32, le=31)]
+
+
+class SourceShapeDimension(Contract):
+    sourcePath: ArgumentPath
+    dimension: Annotated[Nat, Field(le=31)]
+    value: IntLiteral
+    tensorDimension: SourceTensorDimension | None = Field(default=None,
+        exclude_if=lambda value: value is None,
+        json_schema_extra=lambda schema: schema.pop("default", None))
+
+    @model_validator(mode="after")
+    def source_argument(self):
+        path = self.sourcePath
+        if (len(path) not in (2, 4) or path[0] not in ("args", "kwargs")
+                or path[0] == "args" and (type(path[1]) is not int or path[1] > 255)
+                or path[0] == "kwargs" and (type(path[1]) is not str or not path[1])
+                or len(path) == 4 and (path[2] != "items" or type(path[3]) is not int or path[3] > 31)
+                or abs(int(self.value.value)) > 9007199254740991):
+            raise ValueError("source shape dimensions require bounded scalar argument paths")
+        return self
+
+
+class SourceShapeCall(Contract):
+    callable: Literal["torch.reshape", "torch.Tensor.reshape", "torch.Tensor.view"]
+    bindingId: Id
+    dimensions: Annotated[list[SourceShapeDimension], Field(min_length=1, max_length=32)]
+
+    @model_validator(mode="after")
+    def call_paths(self):
+        paths = [item.sourcePath for item in self.dimensions]
+        if self.callable == "torch.reshape":
+            prefix = paths[0][:2]
+            valid = prefix in (["args", 1], ["kwargs", "shape"]) and paths == [
+                prefix + ["items", index] for index in range(len(paths))]
+        else:
+            valid = paths == [["args", index] for index in range(len(paths))] or paths == [
+                ["args", 0, "items", index] for index in range(len(paths))]
+        if not valid:
+            raise ValueError("source shape paths must follow the observed callable signature")
+        return self
+
+
+class SourceFlattenArgument(Contract):
+    parameter: Literal["start_dim", "end_dim"]
+    sourcePath: ArgumentPath
+    value: Annotated[StrictInt, Field(ge=-32, le=31)]
+
+
+class SourceFlattenCall(Contract):
+    callable: Literal["torch.flatten", "torch.Tensor.flatten"]
+    bindingId: Id
+    startDim: Annotated[StrictInt, Field(ge=-32, le=31)]
+    endDim: Annotated[StrictInt, Field(ge=-32, le=31)]
+    arguments: Annotated[list[SourceFlattenArgument], Field(max_length=2)]
+
+    @model_validator(mode="after")
+    def supplied_arguments(self):
+        supplied = {item.parameter: item for item in self.arguments}
+        if len(supplied) != len(self.arguments):
+            raise ValueError("flatten parameters must be distinct")
+        offset = 1 if self.callable == "torch.flatten" else 0
+        for index, (name, value, default) in enumerate((("start_dim", self.startDim, 0), ("end_dim", self.endDim, -1))):
+            item = supplied.get(name)
+            if item is None:
+                if value != default:
+                    raise ValueError("omitted flatten arguments must use the standard default")
+            elif item.value != value or item.sourcePath not in (["args", index + offset], ["kwargs", name]):
+                raise ValueError("flatten arguments must match the observed callable signature")
+        start, end = supplied.get("start_dim"), supplied.get("end_dim")
+        if end is not None and end.sourcePath[0] == "args" and (start is None or start.sourcePath != ["args", offset]):
+            raise ValueError("positional flatten arguments must be contiguous")
+        return self
+
+    def output_dimensions(self, shape):
+        if (type(shape) is not list or len(shape) > 32
+                or any(type(d) is not int or not 0 <= d <= 9007199254740991 for d in shape)):
+            return None
+        rank = max(1, len(shape))
+        start = self.startDim if self.startDim >= 0 else rank + self.startDim
+        end = self.endDim if self.endDim >= 0 else rank + self.endDim
+        if not 0 <= start <= end < rank:
+            return None
+        result = [1] if not shape else [*shape[:start], math.prod(shape[start:end + 1]), *shape[end + 1:]]
+        return result if all(d <= 9007199254740991 for d in result) else None
+
+
 class Operation(Contract):
     id: Id
     sequence: Nat
@@ -376,6 +464,12 @@ class Operation(Contract):
     status: Literal["completed", "failed", "interrupted"]
     diagnosticId: Id | None
     sourceBindingIds: Annotated[list[Id], Field(max_length=64)]
+    sourceShapeCall: SourceShapeCall | None = Field(default=None,
+        exclude_if=lambda value: value is None,
+        json_schema_extra=lambda schema: schema.pop("default", None))
+    sourceFlattenCall: SourceFlattenCall | None = Field(default=None,
+        exclude_if=lambda value: value is None,
+        json_schema_extra=lambda schema: schema.pop("default", None))
 
     @model_validator(mode="after")
     def outcome(self):
@@ -385,6 +479,24 @@ class Operation(Contract):
             raise ValueError("failed operations need a diagnostic")
         if self.status == "interrupted" and self.effects:
             raise ValueError("interrupted operations cannot claim observed effects")
+        if self.sourceShapeCall is not None:
+            call = self.sourceShapeCall
+            args = self.arguments.args
+            if (self.status != "completed" or self.effects or self.target != "aten.view.default"
+                    or self.sourceBindingIds != [call.bindingId] or len(args) != 2 or self.arguments.kwargs
+                    or not isinstance(args[0], ValueRef) or not isinstance(args[1], SequenceArgument)
+                    or not isinstance(self.output, ValueRef) or len(call.dimensions) != len(args[1].items)
+                    or [item.dimension for item in call.dimensions] != list(range(len(args[1].items)))
+                    or len({tuple(item.sourcePath) for item in call.dimensions}) != len(call.dimensions)
+                    or any(item.value != args[1].items[item.dimension] for item in call.dimensions)):
+                raise ValueError("source shape call must match every dimension of one completed view")
+        if self.sourceFlattenCall is not None:
+            call, args = self.sourceFlattenCall, self.arguments.args
+            if (self.sourceShapeCall is not None or self.status != "completed" or self.effects or self.target != "aten.view.default"
+                    or self.sourceBindingIds != [call.bindingId] or len(args) != 2 or self.arguments.kwargs
+                    or not isinstance(args[0], ValueRef) or not isinstance(args[1], SequenceArgument)
+                    or not isinstance(self.output, ValueRef) or any(not isinstance(d, IntLiteral) for d in args[1].items)):
+                raise ValueError("source flatten call requires one completed direct view")
         return self
 
 
@@ -520,6 +632,45 @@ class CandidateExecution(Contract):
             raise ValueError("candidate replay must contain the exact proposed source")
         if self.beforeDigest == self.afterDigest:
             raise ValueError("unchanged source is not a candidate edit")
+        return self
+
+
+class SourceChangeIdentity(Contract):
+    file: Path
+    beforeDigest: Digest
+    afterDigest: Digest
+
+    @model_validator(mode="after")
+    def changed_python(self):
+        if not self.file.endswith(".py") or self.beforeDigest == self.afterDigest:
+            raise ValueError("source candidates require changed Python files")
+        return self
+
+
+class SourceCandidateExecution(Contract):
+    """Exact reviewed source set; successful replay is not a recipe verdict."""
+    version: Literal[2]
+    id: Id
+    baseCaptureId: Id
+    baseAttemptId: Id
+    baseSourceId: Id
+    baseWorkspaceId: Id
+    basePlanDigest: Digest
+    changes: Annotated[list[SourceChangeIdentity], Field(min_length=1, max_length=16)]
+    plan: ResolvedExecutionPlan
+
+    @model_validator(mode="after")
+    def exact_changes(self):
+        if (self.id != self.plan.id or self.id == self.baseAttemptId
+                or self.plan.source.id == self.baseSourceId or self.plan.source.workspaceId == self.baseWorkspaceId):
+            raise ValueError("candidate replay requires its own attempt and source identity")
+        paths = [change.file for change in self.changes]
+        if paths != sorted(set(paths)):
+            raise ValueError("candidate changes require unique sorted paths")
+        files = {file.path: file for file in self.plan.source.files}
+        if any(change.file not in files or files[change.file].role != "source"
+                or files[change.file].digest != change.afterDigest for change in self.changes):
+            raise ValueError("candidate replay must contain every exact proposed source")
         return self
 
 
@@ -1206,6 +1357,33 @@ class CaptureSnapshot(Contract):
         for item in [*self.definitions, *self.invocations, *self.operations]:
             if len(item.sourceBindingIds) != len(set(item.sourceBindingIds)) or any(b not in bindings for b in item.sourceBindingIds):
                 raise ValueError("unknown or duplicate source binding")
+        for operation in self.operations:
+            if operation.sourceFlattenCall is not None:
+                call = operation.sourceFlattenCall
+                binding = bindings[call.bindingId]
+                operand = values.get(operation.arguments.args[0].id)
+                output = values.get(operation.output.id)
+                dimensions = call.output_dimensions(operand.shape if operand else None)
+                if (binding.quality != "exact" or binding.kind != "call" or dimensions is None or output is None
+                        or output.shape != dimensions
+                        or [item.value for item in operation.arguments.args[1].items] != list(map(str, dimensions))):
+                    raise ValueError("source flatten call must reproduce the recorded view dimensions")
+            if operation.sourceShapeCall is not None:
+                binding = bindings[operation.sourceShapeCall.bindingId]
+                if binding.quality != "exact" or binding.kind != "call":
+                    raise ValueError("source shape calls require an exact call binding")
+                for dimension in operation.sourceShapeCall.dimensions:
+                    read = dimension.tensorDimension
+                    if read is None:
+                        continue
+                    fact = values.get(read.valueId)
+                    shape = fact.shape if fact is not None else None
+                    axis = read.axis if read.axis >= 0 else len(shape or []) + read.axis
+                    producer = ops.get(fact.producer.operationId) if fact is not None and fact.producer is not None else None
+                    if (shape is None or not 0 <= axis < len(shape) or type(shape[axis]) is not int
+                            or shape[axis] != int(dimension.value.value)
+                            or fact.producer is not None and (producer is None or producer.sequence >= operation.sequence)):
+                        raise ValueError("source tensor dimensions require matching prior captured values")
         for diagnostic in self.diagnostics:
             if diagnostic.sourceBindingId is not None and diagnostic.sourceBindingId not in bindings:
                 raise ValueError("unknown diagnostic source binding")
@@ -1497,6 +1675,34 @@ class CandidateRequest(Contract):
     reviewedSource: Annotated[StrictStr, Field(max_length=1048576)]
 
 
+class ReviewedPythonSource(Contract):
+    file: Path
+    beforeDigest: Digest
+    source: Annotated[StrictStr, Field(max_length=262144)]
+
+    @model_validator(mode="after")
+    def bounded_python(self):
+        if not self.file.endswith(".py") or len(self.source.encode("utf-8")) > 262144:
+            raise ValueError("reviewed Python source exceeds its boundary")
+        return self
+
+
+class SourceCandidateRequest(Contract):
+    """Private exact-file proposal; execution still requires the host Run action."""
+    version: Literal[2]
+    id: Id
+    plan: ResolvedExecutionPlan
+    capture: CaptureSnapshot
+    reviewedSources: Annotated[list[ReviewedPythonSource], Field(min_length=1, max_length=16)]
+
+    @model_validator(mode="after")
+    def bounded_set(self):
+        if (len({item.file for item in self.reviewedSources}) != len(self.reviewedSources)
+                or sum(len(item.source.encode("utf-8")) for item in self.reviewedSources) > 1048576):
+            raise ValueError("reviewed sources require a unique bounded file set")
+        return self
+
+
 class CaptureReconciliationRequest(Contract):
     """Private static check of a later live capture against the approved edit."""
     version: Literal[1]
@@ -1617,9 +1823,11 @@ class SemanticContracts(Contract):
     state: CaptureState
     plan: ResolvedExecutionPlan
     candidateExecution: CandidateExecution
+    sourceCandidateExecution: SourceCandidateExecution
     captureReconciliationRequest: CaptureReconciliationRequest
     captureReconciliation: CaptureReconciliation
     candidateRequest: CandidateRequest
+    sourceCandidateRequest: SourceCandidateRequest
     candidatePostconditions: CandidatePostconditions
     preparation: CapturePreparation
     correspondence: SourceCorrespondence

@@ -63,6 +63,33 @@ suite('standard MCP HTTP transport', () => {
     const second = await connect('client-two');
     assert.equal((await second.client.listTools()).tools.length, 1);
   });
+  test('private Canvas sessions survive idle time; external sessions still expire', async () => {
+    for (const retained of [false, true]) {
+      const sweep: Array<() => void> = [];
+      const interval = global.setInterval;
+      const endpoint = new GraphMcpServer(mcp => {
+        mcp.registerTool('fixture', { inputSchema: {} }, async () => ({ content: [] }));
+      }, undefined, 'private-fixture-token', retained);
+      let url: string;
+      try {
+        global.setInterval = ((callback: () => void, ms: number) => { sweep.push(callback); return interval(callback, ms); }) as typeof setInterval;
+        ({ url } = await endpoint.start());
+      } finally { global.setInterval = interval; }
+      const client = new Client({ name: 'idle-test', version: '1' });
+      try {
+        await client.connect(new StreamableHTTPClientTransport(new URL(url!), {
+          requestInit: { headers: { Authorization: 'Bearer private-fixture-token' } },
+        }));
+        const now = Date.now;
+        try { Date.now = () => now() + 31 * 60_000; sweep.forEach(callback => callback()); }
+        finally { Date.now = now; }
+        await new Promise<void>(resolve => setImmediate(resolve));
+        assert.equal(endpoint.sessionCount, retained ? 1 : 0);
+        if (retained) assert.equal((await client.listTools()).tools.length, 1);
+      } finally { await client.close(); await endpoint.close(); }
+      assert.equal(endpoint.sessionCount, 0, 'explicit close still revokes retained sessions');
+    }
+  });
 
   test('window sessions cannot cross endpoints', async () => {
     const other = new GraphMcpServer(() => {});

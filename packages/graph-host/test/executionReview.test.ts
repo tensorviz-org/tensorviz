@@ -55,8 +55,6 @@ suite('explicit execution review', () => {
     await tick();
     assert.equal(calls, 1); assert.equal(h.review.state!.phase, 'running');
     assert.equal(h.action('select', 'cpu'), false, 'the device cannot change once running');
-    assert.equal(isGraphSetupAction({ kind: 'execution', reviewId: h.review.state!.id, action: 'configure', device: 'cuda:0',
-      timing: { warmup: 0, iterations: 1, profileIterations: 1 } }), false);
     assert.equal(h.action('run'), false);
     assert.equal(h.action('cancel'), true); assert.equal(signal.aborted, true); assert.equal(h.review.state!.phase, 'cancelling');
     finish(); await run; assert.equal(h.review.state!.phase, 'cancelled'); assert.equal(calls, 1);
@@ -129,23 +127,19 @@ suite('explicit execution review', () => {
     assert.equal(h.review.action({ ...target, cls: 'Other' }, 'foreign', { kind: 'execution', reviewId: h.review.state!.id, action: 'run', device: 'cuda:0' }), false);
     h.current = false; const stopped = assert.rejects(run, /Source changed/); assert.equal(h.action('run'), false); await stopped; assert.equal(calls, 0);
   });
-  test('a capture review is one forward and preparation does not claim model calls', () => {
-    assert.equal(executionStages('capture').reduce((n, s) => n + s.calls, 0), 1);
-    assert.equal(executionStages('trace').reduce((n, s) => n + s.calls, 0), 1);
+  test('a capture review plans one call, refuses timing and passes no profiling job to the run', async () => {
+    assert.deepEqual(executionStages('capture'), [{ label: 'Capture shapes and operations', calls: 1 }]);
     assert.equal(executionStages('prepare')[0].calls, 0);
-    assert.equal(executionStages('capture').some(stage => /warm|profile|benchmark/i.test(stage.label)), false);
-  });
-  test('a reviewed capture runs one forward without a separate measurement job', async () => {
-    const h = harness(); let calls = 0; let extra: unknown[] = ['unset'];
+    const h = harness(); const runs: unknown[][] = [];
     const run = h.review.run(target, new AbortController().signal, { kind: 'capture', execution, interpreter: '/python', profileName: 'saved.run' },
-      async (_signal, _device, ...rest) => { extra = rest; calls++; });
+      async (...args: unknown[]) => { runs.push(args); });
     assert.equal(h.review.state!.profileName, 'saved.run');
-    assert.equal(h.review.state!.kind, 'capture');
-    assert.equal(h.review.state!.stages.reduce((sum, stage) => sum + stage.calls, 0), 1);
-    assert.ok(isGraphOpeningState({ id: 'opening', target, phase: 'awaiting_execution', detail: 'Review', hasCapture: false, execution: h.review.state }));
-    assert.equal(isGraphSetupAction({ kind: 'execution', reviewId: h.review.state!.id, action: 'configure', device: 'cuda:0', timing: null }), false);
-    h.action('run');
-    await run; assert.equal(calls, 1); assert.deepEqual(extra, []);
+    assert.equal('timing' in h.review.state!, false);
+    assert.equal(h.review.action(target, 'timing', { kind: 'execution', reviewId: h.review.state!.id, action: 'configure', device: 'cuda:0',
+      timing: { warmup: 2, iterations: 7, profileIterations: 4 } } as never), false, 'a timing request never configures or approves the run');
+    assert.equal(h.review.state!.phase, 'review'); assert.equal(runs.length, 0);
+    h.action('run'); await run;
+    assert.equal(runs.length, 1); assert.equal(runs[0].length, 2, 'the run receives its signal and device only');
   });
   test('a measured manual invocation promotes an explicitly source-only opening', () => {
     const opening = new GraphOpeningController({ publish: () => {} } as never);

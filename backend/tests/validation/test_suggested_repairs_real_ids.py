@@ -15,8 +15,6 @@ already says what is wrong.
 
 from __future__ import annotations
 
-import pytest
-
 from models.architecture_models import ArchitectureGraph
 from services.canonical_validation import CanonicalValidationService
 
@@ -49,15 +47,7 @@ def _all_suggested_ids(result):
 
 
 def _validate(graph):
-    svc = CanonicalValidationService()
-    for name in ("validate", "validate_graph", "validate_architecture"):
-        fn = getattr(svc, name, None)
-        if callable(fn):
-            try:
-                return fn(graph)
-            except TypeError:
-                continue
-    pytest.skip("no single-argument validate entrypoint on CanonicalValidationService")
+    return CanonicalValidationService().validate(graph)
 
 
 def test_a_disconnected_layer_is_not_told_to_connect_from_a_nonexistent_input():

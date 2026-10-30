@@ -415,7 +415,7 @@ export default function GraphOpeningPanel({ state, connected, onAction, onClose,
             init: example.init, inputs: example.inputs ?? emptyBinding() } }));
         }}><option value="">Choose an example…</option>{discovery.examples.map((ex, i) => <option key={i} value={i}>{ex.file}:{ex.line}{ex.inputs ? ' · model and inputs' : ' · constructor only'}</option>)}</select></label>}
         {inputsFirst ? [inputSection, modelSection] : [modelSection, inputSection]}
-        {profile.framework === 'jax' ? <p className="graph-setup-hint">JAX tracing infers tensor shapes. It does not time the run. Flax initialization uses the saved seed.</p> : null}
+        {profile.framework === 'jax' ? <p className="graph-setup-hint">JAX tracing infers tensor shapes. Flax initialization uses the saved seed.</p> : null}
         <details className="graph-setup-options graph-setup-run-options"><summary><span>Run settings</span><small>{profile.device} · {profile.mode === 'train' ? 'Training' : 'Evaluation'} · {profile.grad_enabled ? 'Gradients enabled' : 'No gradients'}</small></summary>
         <div className="graph-setup-row"><label>Mode<select disabled={profile.framework === 'jax'} value={profile.mode} onChange={e => update({ mode: e.target.value })}><option value="eval">Evaluation</option><option value="train">Training</option></select></label>
           <label>Device<input required value={profile.device} onChange={e => update({ device: e.target.value })} placeholder={profile.framework === 'jax' ? 'cpu or cuda:0' : 'cpu, mps or cuda:0'} /></label>

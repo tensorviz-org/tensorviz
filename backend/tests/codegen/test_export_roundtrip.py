@@ -9,10 +9,9 @@ equals the verified output shape.
 
 Coverage is the 6 headline gallery models (ViT, BERT, GPT-2, T5, ResNet, GAN) plus a
 deterministic stride-sample of the canonical registry (sorted ids, fixed stride — no
-randomness, so the set is reproducible run to run). Templates that don't cleanly
-round-trip yet are documented in KNOWN_EXPORT_GAPS with a one-line reason and marked
-xfail(strict=False); the suite is GREEN today and each gap auto-flips to XPASS the
-moment its codegen/verify gap is closed. Nothing is silently skipped.
+randomness, so the set is reproducible run to run). Only templates offered by the
+product are round-trip candidates. Archived unsupported templates must be excluded
+from the catalogue and refuse export explicitly.
 
 Run: KMP_DUPLICATE_LIB_OK=TRUE <viz-python> -m pytest tests/test_export_roundtrip.py -q
 """
@@ -48,55 +47,14 @@ _VALIDATOR = CanonicalValidationService()
 def _registry_sample(n_target: int = 12) -> list:
     """Deterministic stride sample of the canonical registry: sort every contract id,
     take every ``step``-th (step derived from a target count). No randomness — the same
-    ids come out every run so KNOWN_EXPORT_GAPS stays stable."""
-    ids = sorted(c.template_id for c in _REGISTRY.all_contracts())
+    ids come out every run."""
+    ids = sorted(c.template_id for c in _REGISTRY.list_contracts())
     step = max(1, len(ids) // n_target)
     return ids[::step]
 
 
 SAMPLE = _registry_sample()
 
-
-# ── Known export-parity gaps. xfail(strict=False) so each auto-flips to XPASS when its
-# underlying codegen/verify gap is closed. Reasons distinguish the cause honestly:
-# codegen emits a nonexistent nn class, verify can't build a custom op, an exec error, or
-# an analytic/torch shape drift. "The block is inherently multi-input" was a fifth cause
-# until 2026-08-26; it turned out to describe nothing — see the FPN note below. ────────
-KNOWN_EXPORT_GAPS = {
-    # --- registry: verify_model cannot produce a shape (not an export-parity candidate yet) ---
-    "gnn_mean_1hop_block": "verify build fails: message passing needs a connectivity input "
-                           "the canvas cannot carry, so neighbor_sampler / message_mlp / "
-                           "mean_aggregate have no faithful torch.nn form",
-    # CLOSED: "aspp_block" — "verify forward fails: parallel dilated branches yield
-    # mismatched sizes before concat". Not a template bug: every dilated branch pads to
-    # preserve size and the block round-trips at its declared 224x224. `_cap` below was
-    # shrinking the graph input AFTER instantiate had resolved image_up's
-    # `size=[224, 224]` against the contract's assumed shape, so only that branch stayed
-    # at 224. See _pins_absolute_spatial_size.
-    # CLOSED: "detr_fpn_l4_head_block" / "fcos_fpn_l6_head_block" / "yolo_fpn_l4_head_block"
-    # — "verify arity error: FPN head Conv2d fed N pyramid inputs (multi-input block)".
-    # Not inherently multi-input: the block has ONE external input and the fan-in was
-    # internal, which merge ops already express. The template simply had no merge — it
-    # wired all L pyramid levels straight into a Conv2d. template_expansion_pack now
-    # concatenates them on the channel axis first. Folding then had to be corrected too:
-    # graph_modularizer collapsed the L identical level convs into one ModuleList node
-    # and deduped their L edges into the concat down to one.
-    # CLOSED: "latent_diffusion_block" — "verify build fails: custom op 'gaussian_noise'
-    # has no torch.nn class". It needs no class: x + sigma*eps is shape-preserving, so
-    # the dry forward passes it through and code_generation emits a real GaussianNoise
-    # module, the same split the GRN/RoPE/adaLN ops already use.
-    # CLOSED: "tfm_enc_rmsnorm_silu_h8_block" — "verify build fails: custom op 'rmsnorm'
-    # has no torch.nn class". It was never a custom op: nn.RMSNorm is real (torch >= 2.4)
-    # and the templates emit the lowercase id "rmsnorm", which build_layer could not match
-    # to a class name. verification_service._LAYER_ID_TO_CLASS now maps it like every other
-    # palette id.
-    # CLOSED: "unet_w64_d4_block" — "exported UNet conv in_channels don't track the
-    # skip-concat widening (channel mismatch on forward)". The cause was
-    # graph_modularizer folding on op type alone, so conv spans that differed only in
-    # in_channels collapsed onto the first span's params. Repeat detection is now
-    # params-aware (services/graph_modularizer.py `_sig`) and this passes, so the
-    # entry is removed rather than left to rot as a permanent XPASS.
-}
 
 
 def _cap(shape):
@@ -196,7 +154,7 @@ def _exec_forward(model_py: str, input_shape):
 def roundtrip(kind: str, template_id: str):
     """instantiate -> verify_model (verified shape) -> generate+package code -> exec ->
     forward dummy input (executed shape). Returns (verified_shape, executed_shape).
-    Raises on any failure so a gap template trips its xfail."""
+    Raises on every verification, generation or execution failure."""
     payload, input_shape = _gallery_graph(template_id) if kind == "gallery" else _registry_graph(template_id)
     assert input_shape, f"{template_id}: could not determine an input shape"
 
@@ -211,14 +169,8 @@ def roundtrip(kind: str, template_id: str):
 
 
 def _params():
-    out = []
-    for kind, ids in (("gallery", GALLERY), ("registry", SAMPLE)):
-        for tid in ids:
-            marks = []
-            if tid in KNOWN_EXPORT_GAPS:
-                marks.append(pytest.mark.xfail(strict=False, reason=KNOWN_EXPORT_GAPS[tid]))
-            out.append(pytest.param(kind, tid, id=tid, marks=marks))
-    return out
+    return [pytest.param(kind, template_id, id=template_id)
+            for kind, ids in (("gallery", GALLERY), ("registry", SAMPLE)) for template_id in ids]
 
 
 @pytest.mark.parametrize("kind,template_id", _params())
@@ -229,32 +181,18 @@ def test_export_roundtrip(kind, template_id):
     )
 
 
-def test_export_coverage(capsys):
-    """Independent walk of the selected templates: prints N/M round-trip and is the real
-    regression gate — fails if any NON-gap template stops round-tripping."""
-    selected = [("gallery", t) for t in GALLERY] + [("registry", t) for t in SAMPLE]
-    total = len(selected)
-    passed = 0
-    unexpected_fail, unexpected_pass = [], []
-    for kind, tid in selected:
-        try:
-            verified, executed = roundtrip(kind, tid)
-            ok = executed == verified
-        except Exception:
-            ok = False
-        passed += int(ok)
-        if not ok and tid not in KNOWN_EXPORT_GAPS:
-            unexpected_fail.append(tid)
-        if ok and tid in KNOWN_EXPORT_GAPS:
-            unexpected_pass.append(tid)
+def test_export_coverage():
+    for kind, ids in (("gallery", GALLERY), ("registry", SAMPLE)):
+        for template_id in ids:
+            test_export_roundtrip(kind, template_id)
 
-    with capsys.disabled():
-        print(f"\n[Tier-5 export round-trip] {passed}/{total} templates round-trip "
-              f"({len(KNOWN_EXPORT_GAPS)} known gaps documented)")
-        if unexpected_pass:
-            print("FIXED (prune from KNOWN_EXPORT_GAPS): " + ", ".join(sorted(unexpected_pass)))
 
-    assert not unexpected_fail, f"Non-gap templates regressed (exported shape != verified): {unexpected_fail}"
-    selected_ids = {t for _, t in selected}
-    stale = set(KNOWN_EXPORT_GAPS) - selected_ids
-    assert not stale, f"KNOWN_EXPORT_GAPS references templates not in the selected set: {stale}"
+def test_archived_graph_network_refuses_export_instead_of_emitting_nonexistent_layers():
+    from core.graph_input_safety import UnsafeGraphInput
+    template_id = "gnn_mean_1hop_block"
+    assert template_id in {contract.template_id for contract in _REGISTRY.all_contracts()}
+    assert template_id not in {contract.template_id for contract in _REGISTRY.list_contracts()}
+    payload, input_shape = _registry_graph(template_id)
+    assert verify_model(payload, input_shape)["ok"] is False
+    with pytest.raises(UnsafeGraphInput, match="neighbor_sampler.*not a supported operation"):
+        export_package(payload, input_shape, MODEL_NAME)

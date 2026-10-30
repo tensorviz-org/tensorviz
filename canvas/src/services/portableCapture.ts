@@ -3,6 +3,7 @@
 import { isPortableCapture } from '../types/portableValidators.generated';
 import type { components } from '../types/semanticContracts.generated';
 import { initializerArgumentsValid } from '../ide/initializerArguments.generated';
+import { sourceShapeCallValid } from '../ide/sourceShapeCall.generated';
 
 export type PortableCapture = components['schemas']['PortableCapture'];
 export type CaptureSnapshot = PortableCapture['capture'];
@@ -145,6 +146,7 @@ function validateRelations(capture: CaptureSnapshot): void {
     check(record.diagnosticId === null || diagnostics.has(record.diagnosticId));
   }
   for (const op of capture.operations) {
+    check(sourceShapeCallValid(op, bindings, values, ops));
     check(op.sequence > previousSequence && !sequences.has(op.sequence)); previousSequence = op.sequence;
     if (op.invocationId !== null) {
       const call = calls.get(op.invocationId);
@@ -210,8 +212,23 @@ function validateRelations(capture: CaptureSnapshot): void {
   check(new Blob([JSON.stringify(capture)]).size <= capture.limits.bytes);
 }
 
-export function requirePortableCapture(value: unknown): PortableCapture {
+/** Files saved before 28 October 2026 can carry module timing and call-site digests,
+ *  which the format no longer has. They are dropped, not refused. */
+function withoutRemovedTiming(value: unknown): unknown {
+  const record = (item: unknown): item is Record<string, unknown> => !!item && typeof item === 'object' && !Array.isArray(item);
+  if (!record(value) || !record(value.capture)) return value;
+  const { latencyProfile: _profile, ...capture } = value.capture;
+  if (Array.isArray(capture.invocations)) capture.invocations = capture.invocations.map(call => {
+    if (!record(call)) return call;
+    const { latency: _latency, callSiteDigest: _site, ...kept } = call;
+    return kept;
+  });
+  return { ...value, capture };
+}
+
+export function requirePortableCapture(input: unknown): PortableCapture {
   try {
+    const value = withoutRemovedTiming(input);
     requireCaptureFact(structure(value));
     const source = value.capture.source;
     requireCaptureFact(source.workspaceSessionId === 'portable' && source.workspaceId === 'portable' && source.modelId === 'portable'

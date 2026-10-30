@@ -14,12 +14,15 @@ Product versions in this tree: extension `0.1.19`, plugin host `0.3.20`, VS Code
 
 ## Extension settings
 
-Fifteen keys under `contributes.configuration.properties`. `tensorviz.graphSurface` and `tensorviz.traceOnSave` are deprecated; the descriptions in the manifest say what they do now.
+18 keys under `contributes.configuration.properties`. `tensorviz.graphSurface` is deprecated. Save validation and execution caching are enabled by default.
 
 | Setting | Type | Default | Scope | Notes |
 | --- | --- | --- | --- | --- |
+| `tensorviz.agent.claudeAcpPath` | string | `""` | machine | Absolute executable path for the optional ACP pipeline. Tested adapter: `@agentclientprotocol/claude-agent-acp@0.99.0`. Uses the existing signed-in agent; no... |
 | `tensorviz.agent.claudePath` | string | `""` | machine | Optional absolute path to the Claude Code executable for Canvas chat. Empty uses the workspace host's PATH and standard installation locations. Sign in to th... |
+| `tensorviz.agent.codexAcpPath` | string | `""` | machine | Absolute executable path for the optional ACP pipeline. Tested adapter: `@agentclientprotocol/codex-acp@2.3.0`. Uses the existing signed-in agent; no provide... |
 | `tensorviz.agent.codexPath` | string | `""` | machine | Optional absolute path to the Codex executable for Canvas chat. Empty uses the workspace host's PATH and standard installation locations. Sign in to the inst... |
+| `tensorviz.agent.pipeline` | string | `native` | machine | enum: `native`, `acp`. Canvas chat runtime. Native keeps the existing CLI bridge; ACP uses persistent Agent Client Protocol sessions. Set adapter paths and s... |
 | `tensorviz.autoOpenCanvas` | boolean | `true` | window | Open the sidebar Canvas initially when a Python model or project is found. Only tensorViz IDE enables this implicitly; stock VS Code requires an explicit set... |
 | `tensorviz.codeFocus` | object | `{"enabled":false,"scope":"node","references":"both","opacity":25}` | — | Dim code outside selected Canvas nodes. Configure **Model / class**, **Function**, or **Node / expression**, parameter declarations/uses, and opacity from **... |
 | `tensorviz.devServerUrl` | string | `""` | machine-overridable | Load the canvas from this URL instead of the app bundled with the extension — for developing the frontend against a live `npm start`. When empty (the default... |
@@ -31,12 +34,14 @@ Fifteen keys under `contributes.configuration.properties`. `tensorviz.graphSurfa
 | `tensorviz.pythonPath` | string | `""` | machine-overridable | Absolute Python path offered in the environment picker and used for model execution when this workspace folder has no saved choice. Use tensorViz: Select Pyt... |
 | `tensorviz.repoPath` | string | `""` | machine-overridable | **Developer override.** Absolute path to a canvas checkout, used as the backend source instead of the one tensorViz ships with. You do not need this: the bac... |
 | `tensorviz.showGraphPrompt` | boolean | `true` | application | Show an Open as Graph notification when the active saved Python file contains a discovered PyTorch model. Each file is offered once per VS Code window sessio... |
-| `tensorviz.traceOnSave` | boolean | `false` | resource | Legacy capture-on-save setting. Sidebar Canvas always refreshes source on save without executing. Opening a model captures it; use Run model to review the de... |
+| `tensorviz.traceOnSave` | boolean | `true` | resource | Validate the selected model after saving changed model code or a known Python dependency. Rapid saves are combined; validation uses the saved inputs, device... |
 | `tensorviz.traceTier` | string | `real` | resource | enum: `real`, `fake`. How the trace worker runs your model. `real` uses real tensors, so data-dependent control flow (`if x.sum() > 0`) takes a branch instea... |
 
 `tensorviz.mcpPort` allows 0 through 65535. Zero chooses an available port. `tensorviz.codeFocus.opacity` allows 10 through 60.
 
-`tensorviz.traceOnSave` stays in the manifest so an old value still loads. `browserTraceSettings` in `extension/src/traceSettings.ts` always returns `onSave: false`, so a true value does not schedule a capture. Saving refreshes the source projection. Opening a model captures it. **Run model** reviews another capture. `scheduleTrace` in `extension/src/localBrowserSync.ts` still exists, and it returns immediately because that reader never opts in.
+Saving relevant model or dependency changes schedules validation in the selected model environment. Changes invalidate the previous result first; rapid saves are coalesced and superseded runs are cancelled. Set `tensorviz.traceOnSave` to `false` to retain source refresh with manual execution. `tensorviz.traceTier` accepts only `real` and `fake`; automatic tier selection is unavailable.
+
+`tensorviz.agent.pipeline` defaults to `native`, the existing CLI bridge. Select `acp` and configure an absolute adapter path with `tensorviz.agent.codexAcpPath` or `tensorviz.agent.claudeAcpPath` to use persistent ACP sessions. Start a new chat after switching. Adapter paths are restricted machine settings; Send never installs an adapter. The extension uses the signed-in agent account, and Canvas receives no provider key.
 
 ## Commands
 
@@ -85,12 +90,14 @@ Names below are every `registerTool` and `registerAppTool` registration under `e
 
 | Tool | Registered for | Source |
 | --- | --- | --- |
+| `analyze_computation_change` | extension | `packages/graph-host/src/mcpCaptures.ts` |
 | `cancel_proposal_candidate` | extension | `extension/src/mcpProposals.ts` |
 | `cancel_run` | extension | `packages/graph-host/src/mcpValidation.ts` |
 | `close_graph_panel` | plugin panel | `plugin/src/graphPanel.ts` |
 | `compare_runs` | extension | `packages/graph-host/src/mcpValidation.ts` |
 | `configure_graph_setup` | extension | `packages/graph-host/src/mcpGraphSetup.ts` |
 | `detach_graph_panel` | plugin panel | `plugin/src/graphPanel.ts` |
+| `find_computation` | extension | `packages/graph-host/src/mcpCaptures.ts` |
 | `focus_view` | extension | `packages/graph-host/src/mcpViews.ts` |
 | `get_execution_environment` | extension, plugin | `packages/graph-host/src/mcpOpenGraph.ts`, `plugin/src/main.ts` |
 | `get_graph` | extension | `packages/graph-host/src/mcpGraph.ts` |
@@ -112,8 +119,10 @@ Names below are every `registerTool` and `registerAppTool` registration under `e
 | `open_graph_diff` | extension, plugin | `extension/src/mcpGraphDiff.ts`, `plugin/src/main.ts` |
 | `open_graph_panel` | plugin panel | `plugin/src/graphPanel.ts` |
 | `open_graph_view` | extension, plugin | `packages/graph-host/src/mcpGraphView.ts`, `plugin/src/main.ts` |
-| `propose_code_edit` | canvas agent | `extension/src/mcpProposals.ts` |
 | `propose_edit` | extension | `extension/src/mcpProposals.ts` |
+| `propose_source_set` | canvas agent | `extension/src/mcpProposals.ts` |
+| `query_computation` | extension | `packages/graph-host/src/mcpCaptures.ts` |
+| `query_source_context` | extension | `packages/graph-host/src/mcpSourceContext.ts` |
 | `read_model_source` | canvas agent | `extension/src/mcpProposals.ts` |
 | `run_proposal_candidate` | extension | `extension/src/mcpProposals.ts` |
 | `suggest_graph_inputs` | extension | `packages/graph-host/src/mcpGraphSetup.ts` |

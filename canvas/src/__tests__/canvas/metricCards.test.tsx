@@ -2,7 +2,6 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import { LayerShapeUtil } from '../../canvas/LayerShapeUtil';
 import { TensorSummary } from '../../canvas/TensorSummary';
-import { overlayScale } from '../../canvas/graphOverlay';
 import { ModelNode } from '../../types';
 
 jest.mock('tldraw', () => ({
@@ -11,13 +10,12 @@ jest.mock('tldraw', () => ({
 }));
 jest.mock('../../canvas/graphDetail', () => ({ useGraphDetail: () => 'inspection' }));
 jest.mock('../../canvas/NodePort', () => ({ NodePorts: () => null }));
-jest.mock('../../canvas/NodeSourceControls', () => ({ NodeEditButton: () => null, NodeSourceLink: () => null }));
+jest.mock('../../canvas/NodeSourceControls', () => ({ NodeSourceLink: () => null }));
 jest.mock('../../canvas/graphQueryState', () => ({
   graphSearchResult: { get: () => ({}) }, searchStateFor: () => undefined,
-  graphOverlayScale: { get: () => ({ values: new Map() }) },
 }));
 
-it.each(['layer', 'summary'])('%s card and overlay resolve the same current trace instead of cached dimensions', renderer => {
+it.each(['layer', 'summary'])('%s card resolves the current trace instead of cached dimensions', renderer => {
   const node = { id: 'fc1', type: 'layerNode', position: { x: 0, y: 0 }, data: {
     layerType: { id: 'linear', name: 'Linear', category: 'linear', parameters: [] },
     parameters: { _shape_provenance: 'observed', _in_shape: '3x4', _out_shape: '3x4' },
@@ -31,10 +29,8 @@ it.each(['layer', 'summary'])('%s card and overlay resolve the same current trac
   const view = render(card());
   expect(view.container.textContent).toContain('(3, 4)');
   expect(view.container.textContent).not.toContain('(2, 4)');
-  expect(overlayScale([node], 'activation').max).toBe(48);
   node.data = { ...node.data, parameters: { _shape_provenance: 'observed' } }; // incomplete replacement
   view.rerender(card());
   expect(view.container.textContent).not.toContain('3, 4');
   expect(view.container.textContent).not.toContain('2, 4');
-  expect(overlayScale([node], 'activation').values.size).toBe(0);
 });

@@ -28,7 +28,7 @@ For eligible models with unknown inputs, a constructor-only worker can look for 
 
 **Run model** opens a review where you can choose another device, then **Run**. **Run** closes the review while the toolbar shows progress and Cancel. A model the editor auto-opened waits for that review instead of running immediately.
 
-**Model settings** names the resolved `tensorviz.toml` profile. Mode reads `mode`, Gradients reads `grad_enabled`, and the Inputs table reads the saved recipe. **Edit** beside an input selects that field in the editor. Save, then **Run again**, which reviews the saved values. Saving retires the waiting review and does not run the model by itself.
+**Model settings** names the resolved `tensorviz.toml` profile. Mode reads `mode`, Gradients reads `grad_enabled`, and the Inputs table reads the saved recipe. **Edit** beside an input selects that field in the editor. Saving a model or tracked dependency automatically validates the open model by default. Set `tensorviz.traceOnSave` to `false` to keep execution manual; **Run again** reviews the saved values.
 
 After a run finishes, fails, or is cancelled, **Run again** requests a fresh review. Constructor-only preparation uses **Prepare again**. The repeat waits until the previous host operation has settled.
 

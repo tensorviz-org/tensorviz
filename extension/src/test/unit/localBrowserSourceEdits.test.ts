@@ -1,6 +1,8 @@
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { mock } from 'node:test';
+import { workspace } from 'vscode';
 import { LocalBrowserSourceEdits } from '../../localBrowserSourceEdits';
 import { sha256 } from '../../sourceChanges';
 import { LocalBrowserSourceEdit, LocalBrowserSourceEditRequestMessage, ProjectionPayload } from '@tensorviz/contracts/protocol';
@@ -13,10 +15,24 @@ const EDIT: LocalBrowserSourceEdit = { kind: 'set_param', nodeId: 'fc', param: '
 
 suite('local browser source review', () => {
   setup(() => { reset(); resetEditors(); });
+  teardown(() => mock.restoreAll());
 
-  function harness(review?: ConstructorParameters<typeof LocalBrowserSourceEdits>[0]['review']) {
+  function harness(review?: ConstructorParameters<typeof LocalBrowserSourceEdits>[0]['review'], _analytics?: unknown,
+    draft?: ConstructorParameters<typeof LocalBrowserSourceEdits>[0]['draft'],
+    accepted?: ConstructorParameters<typeof LocalBrowserSourceEdits>[0]['accepted']) {
     editorState.documents.set('/work/net.py', BEFORE);
     editorState.documents.set('/work/dep.py', '# dependency\n');
+    if (accepted) {
+      const apply = (workspace as any).applyEdit;
+      mock.method(workspace as any, 'applyEdit', async (edit: any) => {
+        const result = await apply(edit);
+        if (result) {
+          editorState.documents.set('/work/net.py', AFTER);
+          editorState.versions.set('/work/net.py', 2);
+        }
+        return result;
+      });
+    }
     const requests: Array<{ url: string; body: any; headers: any }> = [];
     const replies: any[] = [];
     let done!: (value: any) => void;
@@ -27,6 +43,8 @@ suite('local browser source review', () => {
       dependencies: new Map([['net.py', sha256(BEFORE)], ['dep.py', sha256('# dependency\n')]]),
     };
     const host = new LocalBrowserSourceEdits({
+      draft,
+      accepted,
       origin: () => 'http://127.0.0.1:9901', token: () => 'private-launch-credential',
       context: target => current && JSON.stringify(target) === JSON.stringify(TARGET) ? context : undefined,
       publish: reply => { replies.push(reply); done(reply); }, channel: { appendLine() {} },
@@ -44,6 +62,73 @@ suite('local browser source review', () => {
     });
     return { host, result, requests, replies, message, context, retarget: () => { current = false; } };
   }
+
+  test('accepted typed source starts its follow-up once, after write and review cleanup', async () => {
+    let calls = 0, draftClosed = false;
+    const h = harness(undefined, undefined, () => ({ show() {}, dispose() { draftClosed = true; } }), async change => {
+      calls++;
+      assert.equal(h.host.reviewing, false);
+      assert.equal(draftClosed, true);
+      assert.equal(editorState.appliedEdits.length, 1);
+      assert.equal(change.file, 'net.py'); assert.deepEqual(change.target, TARGET);
+      assert.equal(change.current(), true);
+      editorState.documents.set('/work/dep.py', '# changed dependency');
+      assert.equal(change.current(), false, 'a later dependency change cannot execute unreviewed source');
+      return 'Saved and opening the updated model.';
+    });
+    h.host.handle(h.message()); h.host.handle(h.message());
+    assert.equal((await h.result).status, 'applied');
+    assert.equal(calls, 1);
+    assert.match(h.replies[0].detail, /Saved and opening/);
+    h.host.dispose();
+  });
+
+  for (const decision of ['discard', 'stale', 'cancel'] as const) test(`automatic capture never follows ${decision}`, async () => {
+    let calls = 0;
+    const h = harness(async () => {
+      if (decision === 'stale') h.retarget();
+      if (decision === 'cancel') h.host.cancel();
+      return decision !== 'discard';
+    }, undefined, undefined, async () => { calls++; return 'Unexpected run'; });
+    const outcome = await h.host.propose(h.message());
+    assert.notEqual(outcome.status, 'applied'); assert.equal(calls, 0);
+    h.host.dispose();
+  });
+
+  test('automatic capture failure preserves the confirmed source write', async () => {
+    const h = harness(undefined, undefined, undefined, async () => { throw new Error('save failed'); });
+    const result = await h.host.propose(h.message());
+    assert.equal(result.status, 'applied');
+    assert.equal(editorState.documents.get('/work/net.py'), AFTER);
+    assert.match(result.detail, /automatic capture could not start/);
+    h.host.dispose();
+  });
+
+  for (const decision of ['accept', 'discard', 'stale', 'cancel', 'error'] as const) test(`typed draft ${decision} uses frozen sources and closes before a guarded write`, async () => {
+    let shown = false, disposed = false;
+    const h = harness(async (_title, artifact, _signal, _candidate, onShown) => {
+      assert.equal(artifact.after, AFTER); assert.equal(editorState.appliedEdits.length, 0);
+      if (decision === 'error') throw new Error('diff unavailable');
+      return new Promise(resolve => onShown?.(async () => {}, resolve));
+    }, undefined, (input, signal, current) => {
+      assert.equal(input.id, 'edit1'); assert.equal(input.canRevise, false);
+      assert.deepEqual(input.target, TARGET); assert.equal(input.artifacts[0].before, BEFORE); assert.equal(input.artifacts[0].after, AFTER);
+      assert.deepEqual(input.sources.entries.map(source => source.source), [BEFORE, '# dependency\n']);
+      assert.equal(current(), true); assert.equal(signal.aborted, false);
+      return { show(_reveal, choose) {
+        shown = true;
+        if (decision === 'stale') h.retarget();
+        if (decision === 'cancel') h.host.cancel();
+        choose(decision !== 'discard');
+      }, dispose() { disposed = true; assert.equal(editorState.appliedEdits.length, 0); } };
+    });
+    try {
+      const result = await h.host.propose(h.message());
+      assert.equal(shown, decision !== 'error'); assert.ok(disposed);
+      assert.equal(result.status, decision === 'accept' ? 'applied' : ['discard', 'cancel'].includes(decision) ? 'cancelled' : 'refused');
+      assert.equal(editorState.appliedEdits.length, decision === 'accept' ? 1 : 0);
+    } finally { h.host.dispose(); }
+  });
 
   test('reviews exact source before one WorkspaceEdit and keeps credentials inside host requests', async () => {
     const h = harness(async (_title, artifact) => {

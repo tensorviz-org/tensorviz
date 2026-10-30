@@ -30,7 +30,7 @@ def index_review(request: ReviewIndexRequest) -> dict:
             trees[file] = ast.parse(source)
         except SyntaxError as error:
             notes.append({"file": file, "detail": f"could not parse {file}:{error.lineno or 1}"})
-    declarations = module_declarations(sources)
+    declarations = module_declarations(sources, index=index)
     imports = {}
     for module, record in index.modules.items():
         dependencies = {record.file, *record.wildcard_dependencies}

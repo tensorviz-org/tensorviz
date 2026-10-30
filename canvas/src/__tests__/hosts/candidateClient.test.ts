@@ -26,6 +26,22 @@ function harness() {
 }
 afterEach(() => jest.useRealTimers());
 
+test('checkpoint reads check run and page identity and late replies cannot cross a cancelled read', async () => {
+  const h = harness(); h.begin('p', target); h.end('p');
+  const pending = h.client.request('p', {kind:'checkpoint',runId:'run1',offset:0,limit:1});
+  const checkpoint = {runId:'run1',offset:0,count:2,nextOffset:1,text:'Actual load: failed'};
+  for (const wrong of [{runId:'old'},{offset:1},{nextOffset:2}]) {
+    h.respond({result:{candidates:[record],page:null,checkpoint:{...checkpoint,...wrong}}});
+    expect(h.client.snapshot().busy).toBe(true);
+  }
+  h.respond({result:{candidates:[record],page:null,checkpoint}});
+  expect((await pending).checkpoint).toEqual(checkpoint);
+  const second = h.client.request('p', {kind:'checkpoint',runId:'run1',offset:1,limit:1});
+  h.client.cancelRead(); expect((await second).checkpoint).toBeUndefined();
+  h.respond({result:{candidates:[record],page:null,checkpoint:{...checkpoint,offset:1,nextOffset:null}}});
+  expect(h.client.snapshot().busy).toBe(false); h.client.dispose();
+});
+
 test('source preparation grants no execution and adds the broker connection identity', async () => {
   const h = harness(), source = createLocalBrowserSourceEditClient(h.transport, () => target);
   const proposal = source.propose({ kind: 'remove_layer', nodeId: 'fc' });

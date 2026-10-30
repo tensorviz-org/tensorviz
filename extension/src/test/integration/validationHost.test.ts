@@ -16,7 +16,7 @@ import { savedExecutionGuard } from '@tensorviz/graph-host/executionGuard';
 import { TraceWorker } from '../../worker';
 import { executionSpecSchema } from '@tensorviz/graph-host/executionSpec';
 import { translateProfile } from '@tensorviz/graph-host/validationProfileBridge';
-import { selectedExecutionInterpreter } from '../../projectEnvironment';
+import { ENVIRONMENTS_KEY, selectedExecutionInterpreter } from '../../projectEnvironment';
 import * as vscode from 'vscode';
 
 const repo = path.resolve(__dirname, '../../../..');
@@ -161,7 +161,9 @@ class Model(torch.nn.Module):
 `);
       const logs: string[] = [];
       const channel = { appendLine: (line: string) => { logs.push(line); } } as unknown as vscode.OutputChannel;
-      const managedContext = { workspaceState: { get: () => ({ kind: 'managed' }) },
+      if (mode === 'managed_profile') state.workspaceFolders = [{ uri: vscode.Uri.file(root) }];
+      const managedContext = { workspaceState: { get: (key: string) => key === ENVIRONMENTS_KEY
+        ? { [root]: { kind: 'managed', explicit: true } } : undefined },
         globalState: { get: () => undefined } } as unknown as vscode.ExtensionContext;
       const interpreter = mode === 'managed_profile'
         ? (resource: vscode.Uri) => selectedExecutionInterpreter(managedContext, resource, async () => python)

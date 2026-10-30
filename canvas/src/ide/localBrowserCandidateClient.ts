@@ -1,4 +1,4 @@
-import type { CandidateAction, CandidateRecord, CandidateReviewSnapshot, CaptureInspectionPage, LocalBrowserTargetIdentity, AppliedSourceObservation } from './protocol.generated';
+import type { CandidateAction, CandidateRecord, CandidateReviewSnapshot, CaptureInspectionPage, CandidateCheckpointPage, LocalBrowserTargetIdentity, AppliedSourceObservation } from './protocol.generated';
 import { newLocalBrowserMessageId } from './protocol.generated';
 import type { LocalBrowserViewTransport } from './localBrowserViewTransport';
 import { sameValidationTarget } from './localBrowserValidationClient';
@@ -14,7 +14,7 @@ export interface BrowserCandidateReview {
   captured?: boolean;
 }
 export interface BrowserCandidateState { reviews: BrowserCandidateReview[]; selectedId: string | null; busy: boolean }
-export interface CandidateReply { candidates: CandidateRecord[] | null; page: CaptureInspectionPage | null; detail: string; applied?: AppliedSourceObservation }
+export interface CandidateReply { candidates: CandidateRecord[] | null; page: CaptureInspectionPage | null; detail: string; applied?: AppliedSourceObservation; checkpoint?: CandidateCheckpointPage }
 export interface LocalBrowserCandidateClient {
   snapshot(): BrowserCandidateState;
   onChange(listener: () => void): () => void;
@@ -40,7 +40,7 @@ export function createLocalBrowserCandidateClient(transport: LocalBrowserViewTra
     if (item) { clearTimeout(item.timer); item.resolve(reply); emit(); }
   };
   const cancelRead = () => {
-    if (pending?.action.kind === 'inspect' || pending?.action.kind === 'list' || pending?.action.kind === 'reconcile') {
+    if (pending?.action.kind === 'inspect' || pending?.action.kind === 'checkpoint' || pending?.action.kind === 'list' || pending?.action.kind === 'reconcile') {
       settle({ candidates: null, page: null, detail: 'Candidate inspection closed.' });
     }
   };
@@ -65,6 +65,10 @@ export function createLocalBrowserCandidateClient(transport: LocalBrowserViewTra
     if (page && (!query || page.captureId !== query.captureId || page.sourceId !== query.sourceId
       || JSON.stringify(page.path) !== JSON.stringify(query.path) || JSON.stringify(page.entity ?? null) !== JSON.stringify(query.entity ?? null))) return;
     const action = pending.action, item = pending.review, records = message.result?.candidates;
+    const checkpoint = message.result?.checkpoint;
+    if (checkpoint && (action.kind !== 'checkpoint' || checkpoint.runId !== action.runId || checkpoint.offset !== action.offset
+      || (checkpoint.nextOffset !== null && checkpoint.nextOffset > action.offset + action.limit))) return;
+    if (action.kind === 'checkpoint' && message.result && (!checkpoint || page !== null)) return;
     const applied = message.result?.applied;
     if (applied && action.kind !== 'reconcile') return;
     if (action.kind === 'reconcile' && message.result && (!applied || records?.length !== 0 || page !== null)) return;
@@ -79,7 +83,8 @@ export function createLocalBrowserCandidateClient(transport: LocalBrowserViewTra
       if (action.kind === 'run') { retries.delete(item.id); item.candidate = clone(records[0].summary); }
     }
     item.detail = message.detail;
-    settle({ candidates: records ?? null, page: page ?? null, detail: message.detail, ...(applied ? { applied: clone(applied) } : {}) });
+    settle({ candidates: records ?? null, page: page ?? null, detail: message.detail, ...(applied ? { applied: clone(applied) } : {}),
+      ...(checkpoint ? { checkpoint: clone(checkpoint) } : {}) });
   });
   const offStatus = transport.onStatusChange(status => {
     if (status.phase === 'connected' && status.hostLink === 'connected') return;

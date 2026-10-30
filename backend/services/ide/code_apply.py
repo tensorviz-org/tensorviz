@@ -58,6 +58,7 @@ from __future__ import annotations
 import ast
 import difflib
 import keyword
+import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
@@ -173,20 +174,35 @@ class _Index:
     module_head: Optional[cst.BaseStatement] = None
     #: Every name the module's top-level imports already bind.
     imported_names: Set[str] = field(default_factory=set)
+    #: The source's lines, numbered as LibCST and the AST number them (only
+    #: \r\n, \r and \n end a line). Spans count UTF-16 code units and LibCST
+    #: positions count code points; these lines convert one into the other.
+    lines: List[str] = field(default_factory=list)
+
+    def _line(self, line: int) -> str:
+        return self.lines[line - 1] if 0 < line <= len(self.lines) else ""
+
+    def utf16_column(self, line: int, column: int) -> int:
+        text = self._line(line)
+        return column if text.isascii() else len(text[:column].encode("utf-16-le")) // 2
+
+    def code_point_column(self, line: int, column: int) -> int:
+        text = self._line(line)
+        return column if text.isascii() else len(text.encode("utf-16-le")[: column * 2].decode("utf-16-le", "ignore"))
 
     def range_of(self, node: cst.CSTNode) -> Dict[str, Any]:
         location = self.positions[node]
         return {
             "file": self.file,
-            "start": [location.start.line, location.start.column],
-            "end": [location.end.line, location.end.column],
+            "start": [location.start.line, self.utf16_column(location.start.line, location.start.column)],
+            "end": [location.end.line, self.utf16_column(location.end.line, location.end.column)],
         }
 
     def site_for(self, span: Mapping[str, Any]) -> Optional[_Site]:
         start = span.get("start") or []
         if len(start) < 2:
             return None
-        key = (int(start[0]), int(start[1]))
+        key = (int(start[0]), self.code_point_column(int(start[0]), int(start[1])))
         return (
             self.by_position.get(key)
             or self.calls_by_position.get(key)
@@ -346,7 +362,8 @@ def _read(source: str, cls: str, file: str) -> _Index:
     # below sees as `original_node`. Without it the two trees are copies and every
     # identity check silently fails.
     wrapper = MetadataWrapper(module, unsafe_skip_copy=True)
-    index = _Index(module=module, positions=wrapper.resolve(PositionProvider), file=file)
+    index = _Index(module=module, positions=wrapper.resolve(PositionProvider), file=file,
+                   lines=re.split(r"\r\n?|\n", source))
     wrapper.visit(_Reader(index, cls))
     _index_imports(index)
     return index
@@ -1402,6 +1419,11 @@ def apply_operations(
         return ApplyResult(edits=[], refused=refused, source=source)
 
     rendered = index.module.visit(_Writer(plan)).code
+    # LibCST keeps a file's last line break only when it is a \n: a final lone
+    # \r ends the last line on the way in and is gone on the way out, which
+    # would make every edit to such a file also strip its last line break.
+    if source.endswith("\r") and not index.module.has_trailing_newline:
+        rendered += "\r"
     try:
         ast.parse(rendered)
     except SyntaxError as error:  # pragma: no cover - a bug in this module
@@ -1446,6 +1468,12 @@ def _apply_connect(
     )
 
 
+#: One line with the break that ends it. Only \r\n, \r and \n end a line, for
+#: the AST and for VS Code; str.splitlines() also ends one at a form feed,
+#: U+0085 or U+2028, and every edit below it would land a line low.
+_LINE = re.compile(r"[^\r\n]*(?:\r\n?|\n)|[^\r\n]+")
+
+
 def _line_edits(original: str, rendered: str) -> List[Dict[str, Any]]:
     """The changed line ranges, and only those.
 
@@ -1455,8 +1483,8 @@ def _line_edits(original: str, rendered: str) -> List[Dict[str, Any]]:
     than a whole-file replacement — and it is why this diffs rendered output
     instead of trying to compute a range per operation.
     """
-    old = original.splitlines(keepends=True)
-    new = rendered.splitlines(keepends=True)
+    old = _LINE.findall(original)
+    new = _LINE.findall(rendered)
     edits: List[Dict[str, Any]] = []
     for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(a=old, b=new, autojunk=False).get_opcodes():
         if tag == "equal":
@@ -1475,7 +1503,7 @@ def _end_position(lines: Sequence[str], index: int) -> List[int]:
 
     One past the last line is the end of the document, which only exists as a
     position of its own when the file ends with a newline; otherwise it is the
-    end of the last line's text.
+    end of the last line's text, in UTF-16 code units like every other column.
     """
     if index < len(lines):
         return [index + 1, 0]
@@ -1483,4 +1511,4 @@ def _end_position(lines: Sequence[str], index: int) -> List[int]:
         return [1, 0]
     if lines[-1].endswith(("\n", "\r")):
         return [len(lines) + 1, 0]
-    return [len(lines), len(lines[-1])]
+    return [len(lines), len(lines[-1].encode("utf-16-le")) // 2]

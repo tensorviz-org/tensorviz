@@ -257,13 +257,15 @@ Product versions in this tree: extension `{version}`, plugin host `{plugin_versi
 
 ## Extension settings
 
-Fifteen keys under `contributes.configuration.properties`. `tensorviz.graphSurface` and `tensorviz.traceOnSave` are deprecated; the descriptions in the manifest say what they do now.
+{len(setting_keys())} keys under `contributes.configuration.properties`. `tensorviz.graphSurface` is deprecated. Save validation and execution caching are enabled by default.
 
 {_settings_table()}
 
 `tensorviz.mcpPort` allows 0 through 65535. Zero chooses an available port. `tensorviz.codeFocus.opacity` allows 10 through 60.
 
-`tensorviz.traceOnSave` stays in the manifest so an old value still loads. `browserTraceSettings` in `extension/src/traceSettings.ts` always returns `onSave: false`, so a true value does not schedule a capture. Saving refreshes the source projection. Opening a model captures it. **Run model** reviews another capture. `scheduleTrace` in `extension/src/localBrowserSync.ts` still exists, and it returns immediately because that reader never opts in.
+Saving relevant model or dependency changes schedules validation in the selected model environment. Changes invalidate the previous result first; rapid saves are coalesced and superseded runs are cancelled. Set `tensorviz.traceOnSave` to `false` to retain source refresh with manual execution. `tensorviz.traceTier` accepts only `real` and `fake`; automatic tier selection is unavailable.
+
+`tensorviz.agent.pipeline` defaults to `native`, the existing CLI bridge. Select `acp` and configure an absolute adapter path with `tensorviz.agent.codexAcpPath` or `tensorviz.agent.claudeAcpPath` to use persistent ACP sessions. Start a new chat after switching. Adapter paths are restricted machine settings; Send never installs an adapter. The extension uses the signed-in agent account, and Canvas receives no provider key.
 
 ## Commands
 

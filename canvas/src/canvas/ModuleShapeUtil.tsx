@@ -1,7 +1,5 @@
 import { GraphReviewBadge, GraphReviewValue } from './GraphReviewChanges';
 import React from 'react';
-import { graphOverlayScale } from './graphQueryState';
-import { heatColor } from './graphOverlay';
 import CanvasTooltip from '../components/CanvasTooltip';
 import {
   BaseBoxShapeUtil,
@@ -27,7 +25,7 @@ import { graphIsReadOnly } from './graphAccess';
 import { NodeIssues } from './NodeIssues';
 import { NodeChanges } from './NodeChanges';
 import { ownGraphIssues } from './graphIssues';
-import { NodeEditButton, NodeSourceLink } from './NodeSourceControls';
+import { NodeSourceLink } from './NodeSourceControls';
 import { LocalBrowserContext } from '../ide/localBrowserContext';
 
 /* ── Status helpers ──────────────────────────────────────────── */
@@ -210,8 +208,6 @@ export class ModuleShapeUtil extends BaseBoxShapeUtil<ModuleShape> {
 const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleShape; editor: Editor }) {
     const copySource = React.useContext(LocalBrowserContext)?.sourceAction === 'copy';
     const data = shape.props.nodeData;
-    const heat = graphOverlayScale.get().values.get(shapeIdToNodeId(shape.id))?.heat;
-    const heatStyle = heat === undefined ? {} : { ['--node-heat' as string]: heatColor(heat) };
     const detail = useGraphDetail(editor);
     const isSelected = editor.getSelectedShapeIds().includes(shape.id);
     const isHovered = editor.getHoveredShapeId() === shape.id;
@@ -303,8 +299,7 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
         <div className={`module-node passthrough-node${isSelected ? ' selected' : ''}${isHovered ? ' hovered' : ''}${data.diffStatus ? ` diff-${data.diffStatus}` : ''}`}
           data-node-id={shapeIdToNodeId(shape.id)} data-pass-through="true"
           data-error={moduleStatus === 'error'}
-          data-heat={heat === undefined ? undefined : ""}
-          style={{ width: shape.props.w, height: shape.props.h, ...heatStyle }}>
+          style={{ width: shape.props.w, height: shape.props.h }}>
           {hasSource ? <button className="passthrough-title" title={`Open source: ${path}`}
             {...canvasButtonHandlers(() => reportNodeClick(sourceNodeId))}>{title}</button>
             : <div className="passthrough-title" title={localBrowserMode() ? `${path} · Source location not mapped` : path}>{title}</div>}
@@ -325,9 +320,7 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
             data-node-id={shapeIdToNodeId(shape.id)}
             data-block={block.kind}
             data-error={moduleStatus === 'error'}
-            data-heat={heat === undefined ? undefined : ""}
             style={{
-              ...heatStyle,
               width: '100%',
               height: '100%',
               border: `1.5px dashed ${moduleStatus === 'error' ? 'var(--error)' : isSelected ? accent : 'var(--border-strong)'}`,
@@ -411,7 +404,6 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
               >
                 <Minimize2 size={13} />
               </button></CanvasTooltip>
-              {detail === 'inspection' && <NodeEditButton nodeId={shapeIdToNodeId(shape.id)} data={data} />}
             </div>
             {definitionFile && (
               <div className="module-resolution-block">
@@ -442,8 +434,7 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
           data-block={block.kind}
           data-error={moduleStatus === 'error'}
           data-detail={detail}
-          data-heat={heat === undefined ? undefined : ""}
-          style={{ width: shape.props.w, height: shape.props.h, ...heatStyle,
+          style={{ width: shape.props.w, height: shape.props.h,
             borderColor: moduleStatus === 'error' ? 'var(--error)' : isSelected ? accent : 'var(--border-color)',
             boxShadow: isSelected
               ? `0 0 0 2px ${accent}, var(--shadow-md)`
@@ -463,7 +454,6 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
             </div>
             {!data.sourceReplacement && <div className="module-header-actions">
               <GraphReviewBadge review={data.review} />
-              {detail === 'inspection' && <NodeEditButton nodeId={shapeIdToNodeId(shape.id)} data={data} />}
               {!isProjectFrame && (
                 <CanvasTooltip text="Arrange the layers inside this module again. This changes canvas positions without running the model."><button
                   className="expand-button"

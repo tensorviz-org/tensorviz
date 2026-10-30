@@ -82,6 +82,25 @@ def test_later_ancestor_writes_and_super_initializers_cannot_confirm_a_nested_as
     assert facts['assignments']['@assignment:blocks[0].relu']['ambiguous']
 
 
+@pytest.mark.parametrize('later', [
+    'with torch.no_grad():\n            self.blocks = make_blocks()',
+    'try:\n            super().__init__()\n        except RuntimeError:\n            pass',
+    'match mode:\n            case 1:\n                self.blocks[0] = make_block()',
+])
+def test_later_writes_inside_compound_blocks_cannot_confirm_a_nested_assignment(later):
+    def facts(statement):
+        return review_class(source_with(statement), 'Net', 'model.py')
+    assert facts(f'self.blocks[0].relu = nn.GELU()\n        {later}')['assignments']['@assignment:blocks[0].relu']['ambiguous']
+    # So a capture taken before the assignment never lends it context.
+    assert facts(f'self.blocks[0].relu = nn.GELU()\n        {later}')['structureDigest'] != facts(later)['structureDigest']
+
+
+def test_nested_assignments_inside_compound_blocks_are_conditional_display_facts():
+    facts = review_class(source_with('with torch.no_grad():\n            self.block.relu = nn.GELU()'), 'Net', 'model.py')
+    fact = next(iter(facts['assignments'].values()))
+    assert fact['target'] == 'block.relu' and fact['conditional'] and not fact['ambiguous']
+
+
 def test_earlier_ancestor_write_and_later_sibling_do_not_make_the_target_ambiguous():
     source = source_with('self.blocks = make_blocks()\n        self.blocks[0].relu = nn.GELU()\n        self.blocks[1].relu = nn.SiLU()')
     facts = review_class(source, 'Net', 'model.py')['assignments']
@@ -95,6 +114,20 @@ def test_assignment_digest_changes_with_value_or_guard_but_not_formatting():
     assert first['digest'] == fact('self.layer3[0].relu = nn.GELU( ) # comment')['digest']
     assert first['digest'] != fact('self.layer3[0].relu = nn.Sigmoid()')['digest']
     assert first['digest'] != fact('if enabled:\n            self.layer3[0].relu = nn.GELU()')['digest']
+
+
+def test_assignment_spans_count_utf16_columns_and_still_admit_capture_context():
+    # A statement joined after non-ASCII text starts where VS Code counts it,
+    # and the structural comparison still finds it at that location.
+    def utf16(text):
+        return len(text.encode('utf-16-le')) // 2
+    tag = 'self.tag = nn.Identity(note="😀")'
+    line = f'        {tag}; self.blocks[0].relu = nn.GELU()'
+    facts = review_class(source_with(line.strip()), 'Net', 'model.py')
+    fact = facts['assignments']['@assignment:blocks[0].relu']
+    assert (fact['span']['start'], fact['span']['end']) == ([6, utf16(line[:line.index('self.blocks')])], [6, utf16(line)])
+    assert facts['members']['tag']['span']['end'] == [6, utf16(line[:line.index(';')])]
+    assert facts['structureDigest'] == review_class(source_with(tag), 'Net', 'model.py')['structureDigest']
 
 
 def test_assignment_paths_are_ast_segments_not_display_labels():

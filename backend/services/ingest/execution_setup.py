@@ -314,12 +314,21 @@ def prepare_execution(file: str, cls: str, workspace: str, spec: dict,
             or Path(inspect.getfile(type(model))).resolve() != file_path):
         raise ExecutionRequirement("construction", "invalid_factory", ["model"], "provide_factory")
     checkpoint_info = None
+    checkpoint_compatibility = None
     if checkpoint:
         with setup_stage("materialization", ["checkpoint"], "edit_profile", "invalid_config"):
             state, digest = _load_tensor_file(checkpoint)
             if 'key' in spec['checkpoint']:
                 state = state[spec['checkpoint']['key']]
-            report = model.load_state_dict(state, strict=spec['checkpoint']['strict'])
+            from .checkpoint_state import CheckpointLoadFailure, checkpoint_comparison
+            checkpoint_compatibility = checkpoint_comparison(model, state,
+                {**spec['checkpoint'], 'digest': digest}, source_digest)
+            try:
+                report = model.load_state_dict(state, strict=spec['checkpoint']['strict'])
+            except Exception as error:
+                checkpoint_compatibility['loadStatus'] = 'failed'
+                raise CheckpointLoadFailure(checkpoint_compatibility) from error
+            checkpoint_compatibility['loadStatus'] = 'succeeded'
         checkpoint_info = {**spec['checkpoint'], 'digest': digest,
                            'missingKeys': report.missing_keys, 'unexpectedKeys': report.unexpected_keys}
     with setup_stage("materialization", ["device"], "select_environment"):
@@ -380,4 +389,6 @@ def prepare_execution(file: str, cls: str, workspace: str, spec: dict,
                 'moduleModes': {name: module.training for name, module in model.named_modules()},
                 'gradEnabled': spec['gradEnabled'], 'cwd': spec['cwd'], 'environment': environment(device),
                 'rngDigest': tensor_digest(torch.get_rng_state()), 'rng': rng_identity(device)}
+    if checkpoint_compatibility is not None:
+        evidence['checkpointCompatibility'] = checkpoint_compatibility
     return PreparedExecution(model, args, kwargs, batch, evidence)

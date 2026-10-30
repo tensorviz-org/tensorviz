@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { checkOpeningEnvironment, recoverOpeningEnvironment, type OpeningEnvironmentOptions } from '../../openingEnvironment';
-import { automaticProjectCandidate, ENVIRONMENTS_KEY, discoverEnvironments, environmentCost, rankEnvironmentCandidates, readyForModel } from '../../projectEnvironment';
+import { automaticProjectCandidate, ENVIRONMENTS_KEY, discoverEnvironments, environmentCost, rankEnvironmentCandidates, readyForModel, inspectExecutionEnvironment } from '../../projectEnvironment';
 import type { GraphEnvironmentCandidate } from '@tensorviz/contracts/protocol';
 import { reset, setInfoResponder, state } from '../vscodeStub';
 import type { EnvironmentRunner } from '@tensorviz/graph-host/projectEnvironmentCore';
@@ -84,6 +84,24 @@ suite('native opening environment recovery', () => {
     assert.equal((await checkOpeningEnvironment(options)).reason, 'ready');
     assert.deepEqual(store.get(ENVIRONMENTS_KEY), { [root]: { kind: 'project', interpreter: path.join(root, '.venv', 'bin', 'python') } });
     assert.deepEqual(calls.map(args => args[2]), ['inspect-candidate', 'inspect-capture', 'inspect-model', 'probe-capture']);
+  });
+  test('first inspection lists the local venv without selecting it; opening then establishes the inspected target', async () => {
+    const resource = vscode.Uri.file(path.join(root, 'model.py')), expected = path.join(root, '.venv/bin/python');
+    const base = options.runner!;
+    const runner: EnvironmentRunner = async (python, backend, args, ...rest) => args[0] === 'inspect-runtime'
+      ? { ok: true, environment: { executable: python, prefix: path.dirname(path.dirname(python)), python: '3.12.13',
+        platform: 'darwin', architecture: 'arm64', torch: '2.6.0', pip: null } }
+      : base(python, backend, args, ...rest);
+    const inspect = () => inspectExecutionEnvironment(options.context, options.backendDir, { ...options, resource, runner });
+    const before = await inspect();
+    assert.equal(before.resolution, 'selection_required'); assert.equal(before.environment, undefined);
+    assert.equal(before.candidates?.[0].interpreter, expected);
+    assert.equal(store.get(ENVIRONMENTS_KEY), undefined, 'metadata reads must not silently choose Python');
+    assert.deepEqual(calls.map(args => args[2]), ['inspect-capture']);
+    assert.equal((await checkOpeningEnvironment(options)).reason, 'ready');
+    const after = await inspect();
+    assert.equal(after.resolution, 'selected'); assert.equal(after.environment?.interpreter, expected);
+    assert.equal(after.environment?.source, 'project');
   });
   test('failed creation reports an environment failure without selecting or treating it as a successful repair', async () => {
     const blocked = await checkOpeningEnvironment(options, { refresh: true });

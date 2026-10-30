@@ -99,7 +99,6 @@
         "gradEnabled": false,
         "parameterCount": 0,
         "parameterCountUnavailable": null,
-        "callSiteDigest": null,
         "sourceBindingIds": []
       }
     ],

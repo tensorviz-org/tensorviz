@@ -3,8 +3,7 @@ import { shapeIdToNodeId } from './canvasShapeId';
 import { operationTensorRows } from './operationTensorData';
 import { OperationTensorRows } from './OperationTensorRows';
 import { scopedNodeLabel } from './nodeScope';
-import { graphOverlayScale, graphSearchResult, searchStateFor } from './graphQueryState';
-import { heatColor } from './graphOverlay';
+import { graphSearchResult, searchStateFor } from './graphQueryState';
 /**
  * LayerShapeUtil renders layer and operation cards on the shared tldraw canvas.
  */
@@ -25,7 +24,7 @@ import { changedDimensions, tensorEvidence, tensorShapes, coverageLabel } from '
 import { ownGraphIssues, nodeFailureLines } from './graphIssues';
 import { NodeChanges } from './NodeChanges';
 import { NodeIssues } from './NodeIssues';
-import { NodeEditButton, NodeSourceLink } from './NodeSourceControls';
+import { NodeSourceLink } from './NodeSourceControls';
 import { operationGroupCard } from '../services/operationGroups';
 import { classifyBlock } from './blockFamily';
 import { BlockIdentity } from './BlockIdentity';
@@ -228,7 +227,6 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
     const nodeId = shapeIdToNodeId(shape.id);
     const issues = ownGraphIssues(nodeId, data);
     const searchState = searchStateFor(nodeId, graphSearchResult.get());
-    const heat = graphOverlayScale.get().values.get(nodeId)?.heat;
     // The statistics are rendered as their own row, not as parameters: they are
     // objects, and `+2 more params` counting them would also desynchronise
     // cardMetrics (which excludes them for the same reason). A custom card also
@@ -300,11 +298,9 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
           data-detail={detail}
           data-node-id={nodeId}
           data-search={searchState}
-          data-heat={heat === undefined ? undefined : ''}
           data-source-assignment={data.sourceAssignment ? '' : undefined}
           data-block={block.kind}
-          style={{ width: shape.props.w, height: shape.props.h,
-            ...(heat === undefined ? {} : { ['--node-heat' as any]: heatColor(heat) }) }}
+          style={{ width: shape.props.w, height: shape.props.h }}
         >
           <div className="ui2-node-header">
             <BlockIdentity block={block} />
@@ -335,7 +331,6 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
               title={data.error || resolutionDetail || (poisoned ? 'Non-finite activation or gradient values' : evidence === 'stale' ? 'Tensor shapes: stale' : coverage || `Tensor shapes: ${evidence}`)}>
               {data.error || poisoned || resolutionSeverity === 'warning' || resolutionSeverity === 'error' ? <LucideIcons.AlertTriangle size={13} /> : data.debugEvidence === 'previous' ? 'Previous run' : data.debugEvidence === 'source' ? 'Source only' : data.diffStatus || (evidence === 'stale' ? evidence : coverageLabel(data, true) || (measuredRows && evidence !== 'measured' ? evidence : ''))}
             </span>}
-            {detail === 'inspection' && !data.operationGroup && !data.sourceAssignment && <NodeEditButton nodeId={nodeId} data={data} />}
           </div>
 
           {data.operationGroup && data.operationGroup.kind !== 'slice' && <button type="button" className="node-operation-group"

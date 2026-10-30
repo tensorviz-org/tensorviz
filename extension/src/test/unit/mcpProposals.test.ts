@@ -1,3 +1,4 @@
+import { candidateObservationFixture } from '../candidateObservationFixture';
 import * as assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,6 +16,7 @@ import type { CandidateRunResult } from '@tensorviz/graph-host/candidateExecutio
 import type { CandidateExecution } from '../../executionPlan';
 import { canonicalFixture, appliedFixture } from '../../../../tests/fixtures/semantic.cjs';
 import { GraphToolError } from '@tensorviz/graph-host/mcpGraph';
+import { candidateCheckpointFixture } from '../candidateCheckpointFixture';
 
 suite('standard HTTP MCP source proposals', () => {
   let endpoint: GraphMcpServer, graph: McpGraphService, proposals: McpProposals, model: McpModel;
@@ -59,6 +61,8 @@ suite('standard HTTP MCP source proposals', () => {
     }, getCandidate: (requestId, runId) => history.get(requestId, runId),
     listCandidates: requestId => history.list(requestId),
     inspectCandidate: (requestId, runId, query) => history.inspect(requestId, runId, query),
+    inspectCandidateCheckpoint: (requestId, runId, query) => history.inspectCheckpoint(requestId, runId, query),
+    inspectCandidateObservations: (requestId, runId, query) => history.inspectObservations(requestId, runId, query),
     cancelCandidate: (requestId, runId) => {
       const retained = history.get(requestId, runId);
       if (requestId === received.at(-1)?.requestId && candidate?.snapshot().runId === runId) candidate.cancel();
@@ -92,6 +96,16 @@ suite('standard HTTP MCP source proposals', () => {
     const { intent } = JSON.parse(readFileSync(join(__dirname, '../../../../tests/fixtures/contracts/captured-source-edit.json'), 'utf8'));
     return start({ ...intent, nodeId: 'fc' });
   };
+
+  test('typed proposal inspection does not grant code revision or release its writer reservation', async () => {
+    const { data } = await startCaptured();
+    assert.equal(proposals.get(owners[0], data.proposalId).status, 'review');
+    assert.throws(() => proposals.beginRevision(`mcp-${data.proposalId}`, new AbortController().signal), /no longer available/);
+    assert.equal((await start()).data.error.code, 'BUSY');
+    assert.equal(received.length, 1);
+    assert.equal(executions, 0);
+    assert.equal(signal.aborted, false);
+  });
 
   test('applied-source inspection is read-only, owner-scoped and independent of candidate execution', async () => {
     const proposalId = (await startCaptured()).data.proposalId;
@@ -268,9 +282,53 @@ suite('standard HTTP MCP source proposals', () => {
     for (const [name, args] of [
       ['run_proposal_candidate', { proposalId, requestId: randomUUID() }], ['list_proposal_candidates', { proposalId }],
       ['cancel_proposal_candidate', { proposalId, runId: run.runId }], ['inspect_proposal_candidate', { proposalId, runId: run.runId }],
+      ['inspect_proposal_candidate', { proposalId, runId: run.runId, checkpoint: {} }],
     ] as const) assert.equal((await call(name, args, other.client)).data.error.code, 'UNKNOWN_PROPOSAL');
     assert.equal(executions, 1);
     assert.equal((await call('list_proposal_candidates', { proposalId })).data.candidates.length, 1);
+  });
+
+  test('standard MCP reads private candidate observations without another execution or raw tensors', async () => {
+    execute = async () => ({ ...candidateResult(), evidence: candidateObservationFixture() });
+    const { proposalId } = (await startCaptured()).data;
+    const runId = (await call('run_proposal_candidate', { proposalId, requestId: randomUUID() })).data.candidate.runId;
+    await tick(); finish!({ status: 'cancelled', detail: 'Discarded explicitly.' }); await tick();
+    const args = { proposalId, runId, observations: { section: 'outputs', limit: 1 } };
+    const first = (await call('inspect_proposal_candidate', args)).data;
+    assert.equal(first.candidate.review, 'historical');
+    assert.equal(first.observations.evidence.leaves.items[0].path, '$[0]');
+    assert.equal(first.observations.evidence.leaves.nextOffset, 1);
+    assert.equal(first.observations.comparison, null); assert.doesNotMatch(JSON.stringify(first), /AAAAQA|base64/);
+    assert.equal((await call('inspect_proposal_candidate', { ...args, checkpoint: {} })).data.error.code, 'INVALID_QUERY');
+    assert.ok((await call('inspect_proposal_candidate', { ...args, observations: { limit: 101 } })).error);
+    const other = await connect('observation-intruder');
+    assert.equal((await call('inspect_proposal_candidate', args, other.client)).data.error.code, 'UNKNOWN_PROPOSAL');
+    assert.equal(executions, 1);
+    proposals.cancelOwner(owners[0]);
+    assert.equal((await call('inspect_proposal_candidate', args)).data.error.code, 'UNKNOWN_PROPOSAL');
+  });
+
+  test('standard MCP pages a failed checkpoint load after review closes without rerunning', async () => {
+    execute = async () => {
+      const result = candidateResult(); result.evidence = candidateCheckpointFixture();
+      result.outcome = { ...result.outcome, ok: false, reason: 'load failed', detail: '', exitCode: 3 };
+      return result;
+    };
+    const { proposalId } = (await startCaptured()).data;
+    const runId = (await call('run_proposal_candidate', { proposalId, requestId: randomUUID() })).data.candidate.runId;
+    await tick(); finish!({ status: 'cancelled', detail: 'Discarded explicitly.' }); await tick();
+    const first = (await call('inspect_proposal_candidate', { proposalId, runId, checkpoint: { limit: 1 } })).data;
+    assert.equal(first.candidate.capture, null); assert.equal(first.candidate.review, 'historical');
+    assert.equal(first.checkpoint.checkpoint.loadStatus, 'failed');
+    assert.equal(first.checkpoint.items[0].name, 'left.weight'); assert.equal(first.checkpoint.nextOffset, 1);
+    const second = (await call('inspect_proposal_candidate', { proposalId, runId, checkpoint: { offset: 1, limit: 1 } })).data;
+    assert.equal(second.checkpoint.items[0].name, 'right.weight'); assert.equal(second.checkpoint.nextOffset, null);
+    assert.ok((await call('inspect_proposal_candidate', { proposalId, runId, checkpoint: { offset: -1 } })).error);
+    const both = await call('inspect_proposal_candidate', { proposalId, runId, checkpoint: {},
+      query: { captureId: 'x', sourceId: 'y', path: [] } });
+    assert.equal(both.data.error.code, 'INVALID_QUERY'); assert.equal(executions, 1);
+    proposals.cancelOwner(owners[0]);
+    assert.equal((await call('inspect_proposal_candidate', { proposalId, runId, checkpoint: {} })).data.error.code, 'UNKNOWN_PROPOSAL');
   });
 
   test('revoking a session cancels execution and cannot resurrect evidence on late completion', async () => {

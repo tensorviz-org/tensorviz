@@ -1,7 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { selectedNodeEdit } from './local-browser-node-controls';
 
 // The real disposable installed extension supplies its authenticated page URL.
 const pageFile = process.env.TENSORVIZ_QA_PAGE_FILE;
@@ -38,7 +37,7 @@ test('selection works without a chatbot, Inspector or reserved canvas space', as
 });
 
 for (const [width, height] of [[698, 994], [1024, 768], [1440, 900]]) {
-  test(`installed controls and source form fit ${width}x${height}`, async ({ page }) => {
+  test(`installed controls fit ${width}x${height}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await open(page);
     await select(page);
@@ -53,29 +52,17 @@ for (const [width, height] of [[698, 994], [1024, 768], [1440, 900]]) {
     await page.getByRole('button', { name: 'More tools', exact: true }).click();
     await expect(page.getByRole('menuitem', { name: 'Auto layout', exact: true })).toBeInViewport();
     await page.getByRole('button', { name: 'More tools', exact: true }).press('Escape');
-    const canvas = page.locator('.tldraw-canvas-wrapper');
-    const before = await canvas.boundingBox();
-    await (await selectedNodeEdit(page)).click();
-    await expect(page.getByRole('region', { name: 'Edit node source', exact: true })).toBeInViewport();
-    expect(await canvas.boundingBox()).toEqual(before);
-    await page.getByRole('button', { name: 'Close source editor' }).click();
     expect(await page.evaluate(() => ({ width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight }))).toEqual({ width, height });
   });
 }
 
-test('source form Escape preserves selection, focus and read-only architecture', async ({ page }) => {
+test('a selection keeps keyboard focus and the read-only architecture', async ({ page }) => {
   const failures: string[] = [];
   page.on('pageerror', error => failures.push(String(error)));
   page.on('response', response => { if (response.status() === 401) failures.push('HTTP 401'); });
   page.on('request', request => { if (/\/api\/(projects|ai)(?:[/?]|$)/.test(request.url())) failures.push('Legacy API request'); });
   await open(page);
   await select(page);
-  const edit = await selectedNodeEdit(page);
-  await edit.click();
-  await page.getByRole('textbox', { name: 'Parameter value' }).press('Escape');
-  await expect(page.getByRole('region', { name: 'Edit node source', exact: true })).toHaveCount(0);
-  await expect(edit).toBeFocused();
-  await expect(page.locator('[data-shape-id="shape:node:branch_fc"] .layer-node')).toHaveClass(/\bselected\b/);
   await page.getByRole('button', { name: 'Move focus to canvas', exact: true }).press('Enter');
   await expect.poll(() => page.evaluate(() => document.activeElement?.getAttribute('role'))).toBe('application');
   const count = await page.getByTitle('Model summary', { exact: true }).innerText();

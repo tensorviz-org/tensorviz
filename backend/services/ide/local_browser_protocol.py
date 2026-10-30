@@ -251,8 +251,30 @@ def _candidate_postconditions_is_valid(value):
         return False
 
 
+def _candidate_checkpoint_summary_is_valid(value):
+    keys = {"loadStatus", "complete", "entries", "shapeDifferences", "dtypeDifferences", "registeredOnly", "checkpointOnly", "unknownPresence"}
+    if (not isinstance(value, dict) or set(value) != keys or value["loadStatus"] not in ("succeeded", "failed")
+            or not isinstance(value["complete"], bool) or not _project_count(value["entries"]) or value["entries"] > 8192):
+        return False
+    if not all(_project_count(value[key]) and value[key] <= value["entries"] for key in keys - {"loadStatus", "complete", "entries"}):
+        return False
+    both = value["entries"] - value["registeredOnly"] - value["checkpointOnly"] - value["unknownPresence"]
+    return (both >= 0 and value["shapeDifferences"] <= both and value["dtypeDifferences"] <= both
+        and (not value["complete"] or value["unknownPresence"] == 0))
+
+
+def _candidate_checkpoint_page_is_valid(value):
+    return (isinstance(value, dict) and set(value) == {"runId", "offset", "count", "nextOffset", "text"}
+        and _is_bounded_string(value["runId"], 128)
+        and _project_count(value["offset"]) and value["offset"] <= 8192
+        and _project_count(value["count"]) and value["count"] <= 8192
+        and (value["nextOffset"] is None or _project_count(value["nextOffset"])
+            and value["offset"] < value["nextOffset"] < value["count"])
+        and _is_bounded_string(value["text"], 131072))
+
+
 def _candidate_summary_is_valid(value):
-    return (isinstance(value, dict) and len(value) == 9 + ("runId" in value) + ("postconditions" in value)
+    return (isinstance(value, dict) and len(value) == 9 + ("runId" in value) + ("postconditions" in value) + ("checkpoint" in value)
         and ("runId" not in value or _is_bounded_string(value["runId"], 128))
         and value.get("staticCheck") == "passed"
         and ((value.get("semanticPostconditions") == "not_checked") if "postconditions" not in value else
@@ -265,6 +287,9 @@ def _candidate_summary_is_valid(value):
         and value.get("capture") in ("unavailable", "complete", "partial", "failed")
         and value.get("inputs") in ("same", "different", "unavailable")
         and value.get("state") in ("same", "different", "unavailable")
+        and ("checkpoint" not in value or _candidate_checkpoint_summary_is_valid(value["checkpoint"])
+            and value.get("runtime") in ("succeeded", "failed") and value.get("cleanup") == "complete"
+            and (value["checkpoint"]["loadStatus"] != "failed" or value.get("runtime") == "failed" and value.get("capture") == "unavailable"))
         and value.get("cleanup") in ("not_run", "pending", "complete", "failed", "unavailable")
         and isinstance(value.get("diagnostics"), list) and len(value["diagnostics"]) <= 16
         and all(isinstance(code, str) and re.fullmatch(r"[a-z_]{1,80}", code) for code in value["diagnostics"]))
@@ -281,6 +306,7 @@ def _candidate_record_is_valid(value):
         and (value["executionId"] is None or _is_bounded_string(value["executionId"], 128))
         and (capture is None or (isinstance(capture, dict) and set(capture) == {"captureId", "sourceId"}
             and all(_is_bounded_string(item, 128) for item in capture.values())))
+        and (value["summary"].get("checkpoint", {}).get("loadStatus") != "failed" or capture is None)
         and ("postconditions" not in value["summary"] or
             value["summary"]["postconditions"]["executionId"] == value["executionId"]
             and (value["summary"]["postconditions"]["captureId"] is None or capture is None
@@ -298,6 +324,10 @@ def _candidate_action_is_valid(value):
         return set(value) == {"kind", "retryId"} and _is_bounded_string(value["retryId"], 128)
     if kind == "cancel":
         return set(value) == {"kind", "runId"} and _is_bounded_string(value["runId"], 128)
+    if kind == "checkpoint":
+        return (set(value) == {"kind", "runId", "offset", "limit"} and _is_bounded_string(value["runId"], 128)
+            and _project_count(value["offset"]) and value["offset"] <= 8192
+            and _project_count(value["limit"]) and 1 <= value["limit"] <= 200)
     return (kind == "inspect" and set(value) == ({"kind", "runId", "query"} if "query" in value else {"kind", "runId"})
         and _is_bounded_string(value.get("runId"), 128) and ("query" not in value or _capture_query_is_valid(value["query"])))
 
@@ -479,8 +509,7 @@ def _validation_summary_is_valid(value: Any) -> bool:
     if not isinstance(value, dict):
         return False
     status, revision = value.get("status"), value.get("projectionRevision")
-    return (len(value) == 4 + ("projectionRevision" in value) + ("evidence" in value) + ("validationPassed" in value)
-        and ("validationPassed" not in value or value["validationPassed"] is True)
+    return (len(value) == 4 + ("projectionRevision" in value) + ("evidence" in value)
         and _target_is_valid(value.get("target")) and _is_bounded_string(value.get("runId"), 128)
         and isinstance(status, str) and status in {"running", "passed", "failed", "refused", "cancelled"}
         and _is_bounded_string(value.get("detail"), 512)
@@ -654,7 +683,8 @@ def is_local_browser_message(value: Any, expected_workspace_session_id: str | No
         state = value.get("state")
         return "state" in value and (state is None or (isinstance(state, dict) and _is_bounded_string(state.get("id"), 128)
                 and ("proposal" not in state or (isinstance(state["proposal"], dict) and _is_bounded_string(state["proposal"].get("id"), 128)
-                    and ("unavailable" not in state["proposal"] or isinstance(state["proposal"]["unavailable"], bool))))
+                    and ("unavailable" not in state["proposal"] or isinstance(state["proposal"]["unavailable"], bool))
+                    and ("canRevise" not in state["proposal"] or isinstance(state["proposal"]["canRevise"], bool))))
                 and isinstance(state.get("before"), dict) and isinstance(state.get("after"), dict)
                 and isinstance(state.get("beforeLabel"), str) and isinstance(state.get("afterLabel"), str)
                 and isinstance(state.get("stale"), bool) and isinstance(state.get("changedFiles"), list)
@@ -691,7 +721,12 @@ def is_local_browser_message(value: Any, expected_workspace_session_id: str | No
         overflow = value.get("tooLarge") is True
         if "tooLarge" in value and not (message_type == "viewSelection" and overflow and value.get("nodeIds") == [] and value.get("edgeIds") == []):
             return False
-        return (len(value) == (9 if message_type == "focusView" or overflow else 8) and ids(value.get("nodeIds")) and ids(value.get("edgeIds"))
+        # Code focus (True: on, False: off) travels on selections only;
+        # views that send none keep code focus's own behaviour.
+        if "follow" in value and not (message_type == "viewSelection" and isinstance(value["follow"], bool)):
+            return False
+        optional = 1 if message_type == "focusView" else int(overflow) + int("follow" in value)
+        return (len(value) == 8 + optional and ids(value.get("nodeIds")) and ids(value.get("edgeIds"))
             and (message_type != "focusView" or _is_bounded_string(value.get("requestId"), 128)))
 
     if message_type == "graphOpening":
@@ -739,8 +774,8 @@ def is_local_browser_message(value: Any, expected_workspace_session_id: str | No
         if message_type == "validateResult":
             from .graph_setup_protocol import failure
             from .graph_setup_protocol import execution_reuse
-            return (len(value) == 8 + ("failure" in value) + ("validationPassed" in value) + ("reused" in value)
-                and ("validationPassed" not in value or value["validationPassed"] is True) and isinstance(value.get("status"), str)
+            return (len(value) == 8 + ("failure" in value) + ("reused" in value)
+                and isinstance(value.get("status"), str)
                 and ("reused" not in value or execution_reuse(value["reused"]) and value["status"] == "passed")
                 and ("failure" not in value or failure(value["failure"]))
                 and value["status"] in {"passed", "failed", "refused", "cancelled"}
@@ -757,10 +792,15 @@ def is_local_browser_message(value: Any, expected_workspace_session_id: str | No
             return len(value) == 9 and _candidate_action_is_valid(value.get("action"))
         result = value.get("result")
         return (len(value) == 10 and "result" in value and _is_bounded_string(value.get("detail"), 512)
-            and (result is None or (isinstance(result, dict) and set(result) == ({"candidates", "page", "applied"} if "applied" in result else {"candidates", "page"})
+            and (result is None or (isinstance(result, dict) and set(result) == ({"candidates", "page"}
+                | ({"applied"} if "applied" in result else set()) | ({"checkpoint"} if "checkpoint" in result else set()))
                 and isinstance(result["candidates"], list) and len(result["candidates"]) <= 32
                 and all(_candidate_record_is_valid(item) for item in result["candidates"])
                 and ("applied" not in result or _applied_source_is_valid(result["applied"]))
+                and ("checkpoint" not in result or _candidate_checkpoint_page_is_valid(result["checkpoint"])
+                    and result["page"] is None and "applied" not in result and len(result["candidates"]) == 1
+                    and result["candidates"][0]["runId"] == result["checkpoint"]["runId"]
+                    and result["candidates"][0]["summary"].get("checkpoint", {}).get("entries") == result["checkpoint"]["count"])
                 and (result["page"] is None or _capture_page_is_valid(result["page"])))))
 
     if message_type in {"sourceEditRequest", "sourceEditCancel", "sourceEditResult", "sourceEditReview"}:

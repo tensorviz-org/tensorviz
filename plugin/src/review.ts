@@ -102,7 +102,10 @@ export class StandaloneReview {
     };
     const [before, after] = await Promise.all([project('before'), project('after')]);
     const live = this.host.target(), target = model?.after ?? model?.before;
-    const liveContext = live && live.workspaceFolder === data.folder && live.file === target?.file && live.cls === target.cls
+    // open_graph may be rooted at a nested project; review names files from the Git
+    // toplevel. Both roots are real paths, so the same joined path is the same file.
+    const liveContext = live && target && data.folder && live.cls === target.cls
+      && path.join(live.workspaceFolder, live.file) === path.join(data.folder, target.file)
       ? { workspaceFolder: live.workspaceFolder, file: live.file, cls: live.cls } : undefined;
     const coverage = reviewCoverage(inventory, model);
     return { id: randomUUID(), workspaceRoot: data.folder, title: data.title,

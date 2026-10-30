@@ -277,6 +277,13 @@ def project_workspace(
     from .code_focus import enrich_focus_spans
     spanmap = enrich_focus_spans(spanmap, document, source_map)
     document.semantic.metadata["reviewClass"] = review_class
+    # Review-only: each declaration key ties its layer's span, so the live
+    # Canvas would offer it beside that layer on cursor focus.
+    if request.review_only:
+        from .review_declarations import review_declarations
+        evidence = review_declarations(source_map)
+        document.semantic.metadata["reviewDeclarations"] = evidence
+        spanmap.update({key: fact["span"] for key, fact in evidence["entries"].items()})
     if traced:
         capture = ((request.trace_result or {}).get("result", {}).get("diagnostics") or {}).get("semantic_capture")
         if capture:

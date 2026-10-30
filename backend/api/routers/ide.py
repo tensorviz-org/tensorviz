@@ -65,6 +65,28 @@ CAPTURE_EDIT_INPUT_MAX_BYTES = 24 * 1024 * 1024
 # Two retained 16 MiB captures, up to 8 MiB of original source and a 1 MiB
 # reviewed file; independent of browser frames (this endpoint is host-only).
 CAPTURE_RECONCILE_INPUT_MAX_BYTES = 48 * 1024 * 1024
+SOURCE_CONTEXT_INPUT_MAX_BYTES = 8 * 1024 * 1024
+
+
+@router.post("/source-context")
+async def source_context(request: Request, user: CurrentUser = Depends(get_current_user)):
+    """Static lexical context from a bounded host-owned source inventory."""
+    from services.semantic.source_context import query_source_context, SourceContextRefused
+    body = bytearray()
+    async for chunk in request.stream():
+        if len(body) + len(chunk) > SOURCE_CONTEXT_INPUT_MAX_BYTES:
+            raise HTTPException(413, "Source context exceeds the preparation limit.")
+        body.extend(chunk)
+    try:
+        result = query_source_context(json.loads(body))
+        rendered = json.dumps(result, ensure_ascii=False)
+        if len(rendered.encode()) > 64 * 1024:
+            raise HTTPException(413, "Source context exceeds the response limit.")
+        return Response(rendered, media_type="application/json", headers={"Cache-Control": "no-store"})
+    except SourceContextRefused as error:
+        raise HTTPException(422, dict(error="source_context_refused", reason=str(error))) from None
+    except (ValueError, TypeError, RecursionError, SyntaxError, UnicodeError):
+        raise HTTPException(400, "Invalid source context request.") from None
 
 
 @router.post("/capture/edit")
@@ -180,6 +202,7 @@ class BufferClassesRequest(BaseModel):
     file: str = Field(min_length=1, max_length=_MAX_PATH)
     source: str = Field(max_length=_MAX_SOURCE)
     include_unresolved_bases: bool = False
+    check_compilation: bool = False
 
 #: How many run files ``GET /runs`` will open, and how many lines it will read out of
 #: each. `.tensorviz/runs/` is append-only and nobody prunes it, so an unbounded read
@@ -778,6 +801,10 @@ def buffer_classes(
     from services.ingest.repo_scan import scan_source
 
     try:
+        if request.check_compilation:
+            # AST parsing alone accepts e.g. a top-level return. Compile the
+            # reviewed bytes to check that boundary without executing them.
+            compile(request.source.encode("utf-8"), request.file, "exec", dont_inherit=True)
         classes = scan_source(request.source, include_unresolved_bases=request.include_unresolved_bases)
     except SyntaxError as error:
         # The exact shape /api/ide/parse reports, so the editor's answer to "the buffer

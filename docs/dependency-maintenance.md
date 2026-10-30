@@ -65,3 +65,7 @@ Use the checks in [local setup](local-setup.md#checks), including generated
 contract checks, both host suites, Canvas tests/build, backend tests, and local
 package verification. Run `npm ci` against every changed lockfile; do not accept
 an incremental install as proof that a clean checkout can install.
+
+## Canvas agent transport dependencies
+
+The source sync adds the ACP SDK to the editor host and AI SDK transport packages to Canvas. Destination security overrides and existing release identities remain. AI SDK upstream notice metadata is retained under `plugin/licenses/` for archive notice generation; notices are still assembled from the actual bundle. The local VSIX is a development artifact and does not establish renderer distribution permission.

@@ -1,13 +1,9 @@
 import React from 'react';
-import { ChevronDown, CloudUpload, Download, FolderOpen, Workflow } from 'lucide-react';
-import { bridgeActive } from './bridge';
+import { ChevronDown, Workflow } from 'lucide-react';
 import type { LocalBrowserTargetIdentity } from './protocol.generated';
 
-export default function LocalBrowserModelMenu({ target, exportDisabled, fileActionsAvailable = true }: {
-  target: LocalBrowserTargetIdentity | null;
-  exportDisabled: boolean;
-  fileActionsAvailable?: boolean;
-}) {
+/** The model's file, environment and saved setup, kept out of the toolbar until asked for. */
+export default function LocalBrowserModelMenu({ target, children }: { target: LocalBrowserTargetIdentity | null; children?: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
   const root = React.useRef<HTMLDivElement>(null);
   const trigger = React.useRef<HTMLButtonElement>(null);
@@ -31,12 +27,6 @@ export default function LocalBrowserModelMenu({ target, exportDisabled, fileActi
     };
   }, [open]);
 
-  const command = (name: string) => {
-    window.dispatchEvent(new CustomEvent('builder-command', { detail: { command: name } }));
-    setOpen(false);
-    trigger.current?.focus();
-  };
-
   return <div ref={root} className="local-browser-model-menu">
     <button ref={trigger} type="button" className="local-browser-model-trigger"
       aria-label="Model and file actions" aria-expanded={open} aria-controls={id}
@@ -49,15 +39,7 @@ export default function LocalBrowserModelMenu({ target, exportDisabled, fileActi
     </button>
     {open && <div id={id} className="local-browser-model-actions" role="group" aria-label="Model actions">
       {target && <p>{target.file}</p>}
-      {/* In VS Code a graph goes to the member's tensorViz account, where they share it;
-          the browser page has no host to sign in through, so it saves a file instead. */}
-      {fileActionsAvailable && <>{bridgeActive()
-        ? <button type="button" disabled={exportDisabled} title="Add this graph to your tensorViz account, then choose who can see it"
-          onClick={() => command('share-graph-file')}><CloudUpload size={15} aria-hidden="true" />Add to tensorViz</button>
-        : <button type="button" disabled={exportDisabled} title="Save a read-only snapshot with the current layout"
-          onClick={() => command('export-graph-file')}><Download size={15} aria-hidden="true" />Export graph</button>}
-      <a href="./viewer/index.html" target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
-        <FolderOpen size={15} aria-hidden="true" />Open graph file viewer</a></>}
+      {children}
     </div>}
   </div>;
 }

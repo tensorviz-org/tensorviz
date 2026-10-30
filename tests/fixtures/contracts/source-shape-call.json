@@ -1,0 +1,106 @@
+{
+  "portable": {
+    "version": 1,
+    "sourceNames": "anonymized",
+    "capture": {
+      "version": 1,
+      "id": "capture:7f885311-c366-4069-833e-4768d27419de",
+      "attemptId": "attempt:0",
+      "source": {
+        "version": 1,
+        "id": "portable:836ebb112f61389b21965f85969749630695a7b8ade1ab333d19da114342b35f",
+        "workspaceSessionId": "portable",
+        "workspaceId": "portable",
+        "modelId": "portable",
+        "modelFile": "file-0.py",
+        "className": "Model",
+        "generation": 0,
+        "files": [{"path": "file-0.py", "digest": "d3be4a669c760ee4fafdfb676bb08176dfdef9ff2d24a54f8fb07719a41095eb", "documentVersion": null, "role": "source"}],
+        "dependencyScope": "complete",
+        "configDigest": null,
+        "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "sourceMode": "saved"
+      },
+      "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "preparationDigest": null,
+      "automatic": null,
+      "inputDigest": null,
+      "stateDigest": null,
+      "backend": "runtime",
+      "backendVersion": "1",
+      "torchVersion": "2.7.1",
+      "jaxVersion": null,
+      "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch", "Source bindings identify authored expressions, not independently editable dispatcher operations"],
+      "status": "complete",
+      "rootInvocationId": "invocation:0",
+      "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+      "output": {"kind": "value", "id": "tensor1"},
+      "definitions": [{"id": "definition:0", "qualifiedName": "test_model.Model", "sourceBindingIds": ["binding:42958d5bb69f2ba7a56cd375aa094fee2a07829ff7d869b50808371b64a14ab4"]}],
+      "modules": [{"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": ["constructor:binding:0548515339baf5d61ec2de4ee6949c2765a9bffd83442f59f26eddbac957727a"], "constructorClassVerified": true, "initializerArguments": {"phase": "initializer_entry", "status": "observed", "reason": null, "positionalOnly": 0, "positional": [], "keywordOnly": [], "varArgs": [], "varKwargs": {}}}],
+      "invocations": [{"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 2, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor1"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 0, "parameterCountUnavailable": null, "sourceBindingIds": []}],
+      "operations": [
+        {
+          "id": "operation:0",
+          "sequence": 1,
+          "invocationId": "invocation:0",
+          "target": "aten.view.default",
+          "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+          "arguments": {"args": [{"kind": "value", "id": "tensor0"}, {"kind": "list", "items": [{"kind": "int", "value": "4"}, {"kind": "int", "value": "2"}]}], "kwargs": {}},
+          "output": {"kind": "value", "id": "tensor1"},
+          "effects": [],
+          "status": "completed",
+          "diagnosticId": null,
+          "sourceBindingIds": ["binding:82296be0f42d9893c7c6393874ebb49fc511fa3f8704379b73de7256be3de751"],
+          "sourceShapeCall": {"callable": "torch.Tensor.view", "bindingId": "binding:82296be0f42d9893c7c6393874ebb49fc511fa3f8704379b73de7256be3de751", "dimensions": [{"sourcePath": ["args", 0], "dimension": 0, "value": {"kind": "int", "value": "4"}, "tensorDimension": {"valueId": "tensor0", "axis": -1}}, {"sourcePath": ["args", 1], "dimension": 1, "value": {"kind": "int", "value": "2"}, "tensorDimension": {"valueId": "tensor0", "axis": 0}}]}
+        }
+      ],
+      "values": [
+        {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [2, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 32, "producer": null, "origin": "input", "state": []},
+        {"id": "tensor1", "objectId": "object1", "storageId": "storage0", "version": 0, "shape": [4, 2], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor0", "previousVersion": null, "logicalVersion": 0, "stride": [2, 1], "storageOffset": 0, "logicalBytes": 32, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []}
+      ],
+      "sourceBindings": [
+        {
+          "id": "binding:42958d5bb69f2ba7a56cd375aa094fee2a07829ff7d869b50808371b64a14ab4",
+          "snapshotId": "portable:836ebb112f61389b21965f85969749630695a7b8ade1ab333d19da114342b35f",
+          "kind": "definition",
+          "quality": "exact",
+          "anchors": [{"file": "file-0.py", "digest": "d3be4a669c760ee4fafdfb676bb08176dfdef9ff2d24a54f8fb07719a41095eb", "startLine": 3, "startColumn": 4, "endLine": 4, "endColumn": 46, "scope": "Model.forward", "tokenDigest": "1050922e79f47d1598fcff88246d6f6e410f9df05a670743848af2d7d75d2bec"}]
+        },
+        {
+          "id": "constructor:binding:0548515339baf5d61ec2de4ee6949c2765a9bffd83442f59f26eddbac957727a",
+          "snapshotId": "portable:836ebb112f61389b21965f85969749630695a7b8ade1ab333d19da114342b35f",
+          "kind": "constructor",
+          "quality": "exact",
+          "anchors": [{"file": "file-0.py", "digest": "d3be4a669c760ee4fafdfb676bb08176dfdef9ff2d24a54f8fb07719a41095eb", "startLine": 6, "startColumn": 11, "endLine": 6, "endColumn": 18, "scope": "create", "tokenDigest": "6ad97797daa3b4d11398a73a99175a97ba7b0a8f6b06cb7e30ac4b463284149d"}]
+        },
+        {
+          "id": "binding:82296be0f42d9893c7c6393874ebb49fc511fa3f8704379b73de7256be3de751",
+          "snapshotId": "portable:836ebb112f61389b21965f85969749630695a7b8ade1ab333d19da114342b35f",
+          "kind": "call",
+          "quality": "exact",
+          "anchors": [{"file": "file-0.py", "digest": "d3be4a669c760ee4fafdfb676bb08176dfdef9ff2d24a54f8fb07719a41095eb", "startLine": 4, "startColumn": 15, "endLine": 4, "endColumn": 46, "scope": "Model.forward", "tokenDigest": "166a61f16c7c70b03e01cf86bb70d58cf7307756344849d2abdb70a684218610"}]
+        }
+      ],
+      "diagnostics": [],
+      "coverage": {"scope": "executed_path", "operationsSeen": 1, "invocationsSeen": 1, "omissions": [], "modules": [{"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null}]},
+      "limits": {"operations": 1000, "invocations": 1000, "values": 1000, "bytes": 4194304}
+    }
+  },
+  "cases": [
+    {"name": "wrong source binding", "patches": [{"path": ["operations", 0, "sourceShapeCall", "bindingId"], "value": "absent"}]},
+    {"name": "nonexact source location", "patches": [{"path": ["sourceBindings", 2, "quality"], "value": "candidate"}]},
+    {"name": "definition instead of call", "patches": [{"path": ["sourceBindings", 2, "kind"], "value": "definition"}]},
+    {"name": "duplicate dimension index", "patches": [{"path": ["operations", 0, "sourceShapeCall", "dimensions", 0, "dimension"], "value": 1}]},
+    {"name": "wrong source argument slot", "patches": [{"path": ["operations", 0, "sourceShapeCall", "dimensions", 0, "sourcePath"], "value": ["args", 1]}]},
+    {"name": "negative source argument slot", "patches": [{"path": ["operations", 0, "sourceShapeCall", "dimensions", 0, "sourcePath"], "value": ["args", -1]}]},
+    {"name": "wrong recorded value", "patches": [{"path": ["operations", 0, "sourceShapeCall", "dimensions", 0, "value", "value"], "value": "5"}]},
+    {"name": "incomplete dimension coverage", "patches": [{"path": ["operations", 0, "sourceShapeCall", "dimensions"], "value": [{"sourcePath": ["args", 0], "dimension": 0, "value": {"kind": "int", "value": "4"}}]}]},
+    {"name": "wrong callable signature", "patches": [{"path": ["operations", 0, "sourceShapeCall", "callable"], "value": "torch.reshape"}]},
+    {"name": "different operation", "patches": [{"path": ["operations", 0, "target"], "value": "aten.add.Tensor"}]},
+    {"name": "unsafe integer", "patches": [{"path": ["operations", 0, "sourceShapeCall", "dimensions", 0, "value", "value"], "value": "9007199254740992"}, {"path": ["operations", 0, "arguments", "args", 1, "items", 0, "value"], "value": "9007199254740992"}]},
+    {"name": "unknown tensor dimension value", "patches": [{"path": ["operations", 0, "sourceShapeCall", "dimensions", 0, "tensorDimension"], "value": {"valueId": "absent", "axis": -1}}]},
+    {"name": "out of range tensor dimension", "patches": [{"path": ["operations", 0, "sourceShapeCall", "dimensions", 0, "tensorDimension"], "value": {"valueId": "tensor0", "axis": -3}}]},
+    {"name": "mismatched tensor dimension", "patches": [{"path": ["operations", 0, "sourceShapeCall", "dimensions", 0, "tensorDimension"], "value": {"valueId": "tensor0", "axis": 0}}]},
+    {"name": "future tensor dimension", "patches": [{"path": ["operations", 0, "sourceShapeCall", "dimensions", 0, "tensorDimension"], "value": {"valueId": "tensor1", "axis": 0}}]}
+  ]
+}

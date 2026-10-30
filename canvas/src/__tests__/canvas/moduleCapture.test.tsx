@@ -10,7 +10,6 @@ import { moduleCardHeight } from '../../canvas/cardMetrics';
 import captureDocument from '../../test/fixtures/canvas/capture-document.json';
 import { currentProjection, reportProjectExpand, reportNodeClick, showingProjectGraph } from '../../ide/projection';
 
-jest.mock('../../canvas/graphQueryState', () => ({ graphOverlayScale: { get: () => ({ values: new Map() }) } }));
 
 jest.mock('tldraw', () => ({
   BaseBoxShapeUtil: class {}, HTMLContainer: ({ children }: any) => <div>{children}</div>,
@@ -178,17 +177,20 @@ it.each([[1, 28], [2, 28], [3, 48], [4, 48], [7, 48]])(
   },
 );
 
-it('keeps issue rows alongside the constructor grid', () => {
+it('keeps the issue row alongside the constructor grid; older timing adds no row', () => {
   const data = { ...capturedModule(), parameters: { ...capturedModule().parameters, in_features: 8, out_features: 16 } };
   const diagnostic: ModelNodeData['moduleDiagnostics'] = [{ id: 'shape', nodeId: 'encoder.layers.0',
     label: 'CustomBlock', severity: 'error', message: 'Expected the recorded input width.' }];
   const warning = { ...data, moduleDiagnosticStatus: 'error' as const, moduleDiagnostics: diagnostic };
+  const timed = { ...warning, moduleLatency: { cpuTotalUs: [10, 20, 30], cpuSelfUs: [1, 2, 3],
+    deviceTotalUs: null, deviceMethod: null } };
   expect(moduleCardHeight(data)).toBe(180);
   expect(moduleCardHeight(warning)).toBe(215);
-  renderCard(warning);
+  expect(moduleCardHeight(timed)).toBe(215);
+  renderCard(timed);
   expect(screen.getByLabelText('Constructor arguments')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '1 error in encoder.layers.0' })).toBeInTheDocument();
-  expect(screen.getByRole('group', { name: 'Input and output shapes' })).toBeInTheDocument();
+  expect(screen.queryByLabelText(/Module latency/)).toBeNull();
 });
 
 it('reserves a current-run change note alongside constructor values and measured boundaries', () => {
@@ -437,3 +439,20 @@ it('refuses malformed portable capture metadata', () => {
 });
 
 
+const olderTiming = { cpuTotalUs: [10, 20, 30], cpuSelfUs: [1, 2, 3], deviceTotalUs: null, deviceMethod: null };
+
+it.each(['collapsed', 'expanded', 'passthrough'])('shows no older timing in the %s module presentation', presentation => {
+  const plain = { ...capturedModule(), expanded: presentation === 'expanded',
+    capturePassThrough: presentation === 'passthrough' ? {} as never : undefined };
+  const data = { ...plain, moduleLatency: olderTiming };
+  const { container } = renderCard(data);
+  expect(screen.queryByLabelText(/Module latency/)).toBeNull();
+  expect(container.textContent).not.toMatch(/CPU|µs/);
+  expect(moduleCardHeight(data)).toBe(moduleCardHeight(plain));
+});
+
+it('drops older timing evidence when the graph is saved again', () => {
+  const saved = { nodes: [{ id: 'call', type: 'moduleNode', position: { x: 0, y: 0 }, data: { ...capturedModule(), moduleLatency: olderTiming } }], edges: [] };
+  const document = modelGraphToDocumentV2(saved, { name: 'Net', revision: 1 });
+  expect(document.semantic.nodes[0].metadata).not.toHaveProperty('moduleLatency');
+});

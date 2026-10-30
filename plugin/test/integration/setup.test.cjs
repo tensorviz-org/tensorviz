@@ -1,3 +1,4 @@
+const { readyService } = require('../fixtures/service.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
@@ -19,6 +20,7 @@ async function fixture(required, decide = async () => true) {
   const project = path.join(root, 'project'), plugin = path.join(root, 'plugin');
   await fs.mkdir(project); await fs.writeFile(path.join(project, 'model.py'), source(required));
   await fs.cp(path.resolve(__dirname, '../../../plugins/tensorviz'), plugin, { recursive: true });
+    await readyService(plugin, path.join(root, 'state'));
   const prompts = [];
   let client;
   const connect = async () => {
@@ -149,9 +151,10 @@ test('a fresh project offers a previously used Python and remembers the explicit
     await fs.mkdir(second); await fs.writeFile(path.join(second, 'model.py'), source(false));
     const choice = await f.poll(await f.call('open_graph', { workspaceRoot: second, file: 'model.py', cls: 'Tiny' }));
     assert.equal(choice.nextAction.kind, 'select_environment');
-    assert.ok(choice.candidates.includes(python));
+    const candidate = choice.opening.environment.candidates.find(item => path.resolve(item.interpreter) === path.resolve(python));
+    assert.ok(candidate, JSON.stringify(choice));
     await assert.rejects(fs.stat(path.join(second, 'tensorviz.toml')), { code: 'ENOENT' });
-    const result = await f.poll(await f.call('open_graph', { ...choice.nextAction.arguments, interpreter: python }));
+    const result = await f.poll(await f.call('open_graph', { ...choice.nextAction.arguments, candidateId: candidate.id }));
     assert.equal(result.status, 'ready', JSON.stringify(result));
     await f.restart();
     const again = await f.poll(await f.call('open_graph', { workspaceRoot: second, file: 'model.py', cls: 'Tiny' }));

@@ -29,11 +29,26 @@ suite('MCP graph inspection', () => {
     return { error: reply.isError, data: reply.structuredContent as any };
   }
   const ref = () => graph.reference(model!);
-  test('a stale revision is refused and a page does not return private source text', async () => {
-    const page = await call('get_graph', { ...ref(), mode: 'graph', limit: 1 });
-    assert.equal(page.error, undefined);
-    assert.equal(page.data.nextNodeOffset, 1);
-    assert.doesNotMatch(JSON.stringify(page.data), /_source_code|private/);
+  test('attached inspection matches MCP facts and rejects stale or unknown selections', async () => {
+    const reference = ref();
+    for (const [offset, limit] of [[0, 50], [0, 1], [1, 1]]) {
+      const direct = graph.inspectNodes(reference, ['fc'], offset, limit);
+      const viaTool = await call('inspect_nodes', { ...reference, nodeIds: ['fc'], edgeOffset: offset, limit });
+      assert.deepEqual(direct, viaTool.data);
+    }
+    const inspected = graph.inspectNodes(reference, ['fc']);
+    assert.deepEqual((inspected.nodes as any[])[0].parameters, { out_features: 8 });
+    assert.deepEqual((inspected.nodes as any[])[0].shapes, { input: null, output: [1, 8], provenance: 'observed' });
+    assert.throws(() => graph.inspectNodes(reference, ['missing']), /distinct node ids/);
+    model!.current = false;
+    assert.throws(() => graph.inspectNodes(reference, ['fc']), /revision changed/);
+    model!.current = true; model!.target.documentVersion++;
+    assert.throws(() => graph.inspectNodes(reference, ['fc']), /revision changed/);
+  });
+  test('counts first pages and real outcomes without sending graph contents', async () => {
+    await call('get_graph', { ...ref(), mode: 'graph', limit: 1 });
+    await call('get_graph', { ...ref(), mode: 'graph', nodeOffset: 1, limit: 1 });
+    await call('inspect_nodes', { ...ref(), nodeIds: ['fc'] });
     const old = ref(); model!.target.documentVersion++;
     assert.equal((await call('get_graph', old)).data.error.code, 'STALE_TARGET');
   });
@@ -80,13 +95,17 @@ suite('MCP graph inspection', () => {
     const node = (model!.projection.document as any).semantic.nodes[1];
     node.metadata.parentId = null;
     node.metadata.canvas.parentId = 'stale-parent';
+    node.params._in_shape = '1x4';
     node.params._out_shape = '4';
-    for (const provenance of ['not_observed', 'capture_limited', 'static_only', 'unresolved', 'failed', 'state']) {
+    for (const provenance of ['unreached', 'not_observed', 'capture_limited', 'static_only', 'unresolved', 'failed', 'unknown', 'state']) {
       node.params._shape_provenance = provenance;
       const result = await call('inspect_nodes', { ...ref(), nodeIds: ['fc'] });
       assert.equal(result.data.nodes[0].parentId, null);
       assert.equal(result.data.nodes[0].shapes.provenance, provenance);
+      assert.deepEqual(result.data.nodes[0].shapes.input, provenance === 'state' ? [1, 4] : null);
       assert.deepEqual(result.data.nodes[0].shapes.output, provenance === 'state' ? [4] : null);
+      const page = await call('get_graph', { ...ref(), mode: 'graph', nodeIds: ['fc'] });
+      assert.deepEqual(page.data.nodes[0].shapes, result.data.nodes[0].shapes);
     }
   });
 
@@ -115,6 +134,7 @@ suite('MCP graph inspection', () => {
     assert.deepEqual(result.data.nodes[0].shapes, { input: [1, 10], output: [1, 8], provenance: 'observed' });
     node.params._shape_provenance = 'unreached';
     result = await call('inspect_nodes', { ...ref(), nodeIds: ['fc'] });
+    assert.equal(result.data.nodes[0].shapes.input, null, 'An unreached node must not expose a cached input as capture evidence');
     assert.equal(result.data.nodes[0].shapes.output, null);
     node.params._shape_provenance = 'declared';
     result = await call('inspect_nodes', { ...ref(), nodeIds: ['fc'] });

@@ -2,15 +2,16 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { mock } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { McpGraphService, type McpModel } from '@tensorviz/graph-host/mcpGraph';
 import type { ProjectionPayload } from '@tensorviz/contracts/protocol';
-import { LocalBrowserSourceEdits, type AgentCodeEdit, type SourceEditsOptions } from '../../localBrowserSourceEdits';
+import { LocalBrowserSourceEdits, type AgentSourceSetEdit, type SourceEditsOptions } from '../../localBrowserSourceEdits';
 import { McpProposals, registerCanvasCodeTools, registerMcpProposalTools } from '../../mcpProposals';
 import { GraphMcpServer } from '../../mcpServer';
 import { sha256 } from '../../sourceChanges';
-import { editorState, reset, resetEditors, state } from '../vscodeStub';
+import { editorState, reset, resetEditors, state, workspace } from '../vscodeStub';
 
 const BEFORE = 'from torchvision.models.resnet import ResNet, Bottleneck\n\nclass ResNet152(ResNet):\n    def __init__(self):\n        super().__init__(block=Bottleneck, layers=[3, 8, 36, 3])\n';
 const AFTER = 'import torch.nn as nn\n' + BEFORE + '        self.fc = nn.Sequential(nn.Linear(2048, 2048), nn.ReLU(), self.fc)\n';
@@ -20,8 +21,10 @@ suite('Canvas agent normal code proposals', () => {
   let root: string, host: LocalBrowserSourceEdits, target: McpModel['target'], model: McpModel;
   let review: NonNullable<SourceEditsOptions['review']>, syntaxOk: boolean, syntaxStatus: number, requests: any[];
   let draft: SourceEditsOptions['draft'];
-  const edit = (): AgentCodeEdit => ({ kind: 'replace_model_source', beforeDigest: sha256(BEFORE), source: AFTER });
-  const propose = (signal?: AbortSignal) => host.proposeCode({ requestId: 'canvas-code', target, edit: edit() }, signal);
+  let dependencies: Map<string, string>;
+  const edit = (source = AFTER, beforeDigest = sha256(BEFORE)): AgentSourceSetEdit => ({ kind: 'replace_source_set',
+    sources: [{ file: target.file, beforeDigest, source }] });
+  const propose = (signal?: AbortSignal) => host.proposeSourceSet({ requestId: 'canvas-code', target, edit: edit() }, signal);
   setup(() => {
     reset(); resetEditors();
     root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'tensorviz-code-test-')));
@@ -29,14 +32,19 @@ suite('Canvas agent normal code proposals', () => {
     editorState.documents.set(path.join(root, 'vision_models.py'), BEFORE);
     target = { workspaceFolder: root, file: 'vision_models.py', cls: 'ResNet152', documentVersion: 1,
       sourceDigest: sha256(BEFORE), backendRevision: 1 };
+    dependencies = new Map([['vision_models.py', target.sourceDigest]]);
     // A real captured shape: fc has no typed capability and no local declaration span.
     model = { target, current: true, projection: { document: { semantic: { metadata: { capture: {} },
       nodes: [{ node_id: 'fc', metadata: { captureRef: { kind: 'invocation' } } }], edges: [] } }, spanmap: {} } as unknown as ProjectionPayload };
     review = async () => false; syntaxOk = true; syntaxStatus = 400; requests = []; draft = undefined;
     host = new LocalBrowserSourceEdits({ origin: () => 'http://127.0.0.1:9901', token: () => 'private',
       context: value => model.current && JSON.stringify(value) === JSON.stringify(target)
-        ? { projection: model.projection, dependencies: new Map([['vision_models.py', target.sourceDigest]]) } : undefined,
-      channel: { appendLine() {} }, publish() {}, review: (...args) => review(...args),
+        ? { projection: model.projection, dependencies } : undefined,
+      channel: { appendLine() {} }, publish() {}, reviewSources: (title, files, signal, candidate, onShown, onDecision) => {
+        assert.equal(files.length, 1);
+        onShown?.(async () => {}, () => {}); // The native review mock has opened its one diff.
+        return review(title, files[0], signal, candidate, onShown, onDecision);
+      },
       draft: (...args) => draft?.(...args) ?? { show() {}, dispose() {} },
       fetchImpl: (async (_url, init) => {
         requests.push(JSON.parse(String(init?.body)));
@@ -46,7 +54,33 @@ suite('Canvas agent normal code proposals', () => {
       }) as typeof fetch,
     });
   });
-  teardown(() => { host.dispose(); fs.rmSync(root, { recursive: true, force: true }); });
+  teardown(() => { mock.restoreAll(); host.dispose(); fs.rmSync(root, { recursive: true, force: true }); });
+
+  for (const approved of [true, false]) test(`whole-file ${approved ? 'Accept' : 'Discard'} controls automatic capture`, async () => {
+    let calls = 0;
+    review = async () => approved;
+    const apply = (workspace as any).applyEdit;
+    mock.method(workspace as any, 'applyEdit', async (value: any) => {
+      const result = await apply(value);
+      if (result) {
+        editorState.documents.set(path.join(root, target.file), AFTER);
+        editorState.versions.set(path.join(root, target.file), 2);
+      }
+      return result;
+    });
+    (host as unknown as { options: SourceEditsOptions }).options.accepted = async change => {
+      calls++;
+      assert.equal(host.reviewing, false);
+      assert.equal(change.current(), true);
+      assert.equal(change.file, target.file);
+      assert.equal(editorState.documents.get(path.join(root, target.file)), AFTER);
+      return 'Saved the accepted change. Starting capture.';
+    };
+    const result = await propose();
+    assert.equal(result.status, approved ? 'applied' : 'cancelled');
+    assert.equal(calls, approved ? 1 : 0);
+    if (approved) assert.match(result.detail, /Starting capture/);
+  });
 
   test('a human follow-up preserves the unaccepted source, checks syntax before replacement, and Accept writes both changes', async () => {
     const proposals = new McpProposals(host), graph = new McpGraphService('canvas-test', () => model);
@@ -60,31 +94,31 @@ suite('Canvas agent normal code proposals', () => {
     };
     const ref = graph.reference(model);
     try {
-      const first = await proposals.startCode('canvas-owner', graph, ref, edit()); await tick();
+      const first = await proposals.startSourceSet('canvas-owner', graph, ref, edit()); await tick();
       const id = String(first.proposalId), requestId = `mcp-${id}`;
-      await assert.rejects(proposals.startCode('canvas-owner', graph, ref, edit()), /Finish or discard/);
+      await assert.rejects(proposals.startSourceSet('canvas-owner', graph, ref, edit()), /Finish or discard/);
       assert.throws(() => proposals.beginRevision('wrong-id', new AbortController().signal), /no longer available/);
       const turn = new AbortController();
       const context = proposals.beginRevision(requestId, turn.signal);
-      assert.equal(context.source, AFTER);
+      assert.deepEqual(context.files, [{ file: target.file, baseDigest: sha256(BEFORE), source: AFTER, sourceTruncated: false }]);
       const read = await proposals.readSource(graph, ref, 'canvas-owner');
       assert.equal(read.source, BEFORE); assert.equal(read.pendingDraft?.source, AFTER);
       assert.equal((await proposals.readSource(graph, ref, 'other-owner')).pendingDraft, undefined);
-      const revised = { ...edit(), source: AFTER + '        self.activation = nn.Sigmoid()\n' };
+      const revised = edit(AFTER + '        self.activation = nn.Sigmoid()\n');
       syntaxOk = false;
-      await assert.rejects(proposals.startCode('canvas-owner', graph, ref, revised), /syntax error/);
+      await assert.rejects(proposals.startSourceSet('canvas-owner', graph, ref, revised), /syntax error/);
       assert.equal(proposals.get('canvas-owner', id).status, 'review');
       assert.deepEqual(artifacts, [AFTER], 'invalid revisions leave the usable draft and native review open');
       assert.equal(editorState.appliedEdits.length, 0);
       syntaxOk = true;
-      const second = await proposals.startCode('canvas-owner', graph, ref, revised); await tick();
+      const second = await proposals.startSourceSet('canvas-owner', graph, ref, revised); await tick();
       assert.equal(proposals.get('canvas-owner', id).status, 'cancelled');
-      assert.deepEqual(artifacts, [AFTER, revised.source]);
+      assert.deepEqual(artifacts, [AFTER, revised.sources[0].source]);
       assert.equal(editorState.appliedEdits.length, 0, 'a revision never applies the prior draft');
       assert.equal(fs.readFileSync(path.join(root, 'vision_models.py'), 'utf8'), BEFORE);
       decide(true); await tick();
       assert.equal(proposals.get('canvas-owner', String(second.proposalId)).status, 'applied');
-      assert.equal(editorState.appliedEdits[0].replacements[0].newText, revised.source);
+      assert.equal(editorState.appliedEdits[0].replacements[0].newText, revised.sources[0].source);
     } finally { proposals.clear(); await tick(); }
   });
 
@@ -93,12 +127,12 @@ suite('Canvas agent normal code proposals', () => {
     review = async (_title, _artifact, signal) => new Promise(resolve => signal.addEventListener('abort', () => resolve(false), { once: true }));
     const ref = graph.reference(model);
     try {
-      const first = await proposals.startCode('canvas-owner', graph, ref, edit()); await tick();
+      const first = await proposals.startSourceSet('canvas-owner', graph, ref, edit()); await tick();
       const turn = new AbortController(); proposals.beginRevision(`mcp-${first.proposalId}`, turn.signal);
       proposals.endRevision(turn.signal);
-      await assert.rejects(proposals.startCode('canvas-owner', graph, ref, edit()), /Finish or discard/);
+      await assert.rejects(proposals.startSourceSet('canvas-owner', graph, ref, edit()), /Finish or discard/);
       proposals.beginRevision(`mcp-${first.proposalId}`, turn.signal); turn.abort();
-      await assert.rejects(proposals.startCode('canvas-owner', graph, ref, edit()), /Finish or discard/);
+      await assert.rejects(proposals.startSourceSet('canvas-owner', graph, ref, edit()), /Finish or discard/);
       assert.equal(proposals.get('canvas-owner', String(first.proposalId)).status, 'review');
       assert.equal(editorState.appliedEdits.length, 0);
     } finally { proposals.clear(); await tick(); }
@@ -113,10 +147,10 @@ suite('Canvas agent normal code proposals', () => {
     };
     const ref = graph.reference(model);
     try {
-      const first = await proposals.startCode('canvas-owner', graph, ref, edit()); await tick();
+      const first = await proposals.startSourceSet('canvas-owner', graph, ref, edit()); await tick();
       proposals.beginRevision(`mcp-${first.proposalId}`, new AbortController().signal);
-      host.checkCode = async () => new Promise(resolve => { checked = resolve; });
-      const revision = proposals.startCode('canvas-owner', graph, ref, { ...edit(), source: AFTER + '# revised\n' });
+      host.checkSourceSet = async () => new Promise(resolve => { checked = resolve; });
+      const revision = proposals.startSourceSet('canvas-owner', graph, ref, edit(AFTER + '# revised\n'));
       decided(); // Native review has decided, but its asynchronous cleanup has not returned.
       checked();
       await assert.rejects(revision, /accepted, discarded or cancelled/);
@@ -134,7 +168,8 @@ suite('Canvas agent normal code proposals', () => {
       resetEditors(); editorState.documents.set(path.join(root, 'vision_models.py'), BEFORE);
       let shown = false, disposed = false;
       draft = (input, signal, current) => {
-        assert.equal(input.artifact.after, AFTER); assert.equal(input.sources.entries[0].source, BEFORE);
+        assert.equal(input.canRevise, true, 'workspace code drafts keep their owned follow-up workflow');
+        assert.equal(input.artifacts[0].after, AFTER); assert.equal(input.sources.entries[0].source, BEFORE);
         assert.equal(signal.aborted, false); assert.ok(current());
         return { show() { shown = true; }, dispose() { disposed = true; } };
       };
@@ -150,6 +185,45 @@ suite('Canvas agent normal code proposals', () => {
     }
   });
 
+  test('source lookup returns exact graph-recorded local dependencies through MCP, without granting edits', async () => {
+    const file = 'blocks.py', source = 'from torch import nn\nclass Block(nn.Module):\n    activation = nn.GELU()\n';
+    fs.writeFileSync(path.join(root, file), source); editorState.documents.set(path.join(root, file), source);
+    dependencies.set(file, sha256(source));
+    const proposals = new McpProposals(host), graph = new McpGraphService('dependency-test', () => model);
+    const endpoint = new GraphMcpServer(server => registerCanvasCodeTools(server, graph, proposals, 'owner'));
+    const client = new Client({ name: 'dependency-test', version: '1' });
+    try {
+      const { url } = await endpoint.start(); await client.connect(new StreamableHTTPClientTransport(new URL(url)));
+      const ref = graph.reference(model);
+      const modelRead = await client.callTool({ name: 'read_model_source', arguments: ref });
+      assert.deepEqual((modelRead.structuredContent as any).dependencies, [file]);
+      const read = await client.callTool({ name: 'read_model_source', arguments: { ...ref, file } });
+      assert.notEqual(read.isError, true);
+      assert.equal((read.structuredContent as any).source, source); assert.equal((read.structuredContent as any).digest, sha256(source));
+      assert.equal((read.structuredContent as any).file, file);
+      assert.equal(editorState.appliedEdits.length, 0); assert.equal(requests.length, 0, 'source reads do not execute Python');
+      const refused = await client.callTool({ name: 'propose_source_set', arguments: { ...ref, sources: [{ file: target.file, beforeDigest: sha256(source), source }] } });
+      const id = String((refused.structuredContent as any).proposalId);
+      for (let i = 0; i < 50 && proposals.get('owner', id).status === 'preparing'; i++) await tick();
+      assert.equal(proposals.get('owner', id).status, 'refused', 'dependency digest cannot authorize replacing the model');
+      assert.equal(editorState.appliedEdits.length, 0);
+    } finally { await client.close(); await endpoint.close(); proposals.clear(); }
+  });
+
+  for (const change of ['unrecorded', 'changed', 'root-changed', 'untrusted', 'symlink', 'traversal', 'oversized']) {
+    test(`dependency source lookup refuses ${change} evidence`, async () => {
+      const source = change === 'oversized' ? '#'.repeat(262145) : '# verified dependency\n';
+      const file = path.join(root, 'blocks.py'); fs.writeFileSync(file, source); editorState.documents.set(file, source);
+      if (change !== 'unrecorded') dependencies.set('blocks.py', sha256(source));
+      if (change === 'changed') editorState.documents.set(file, source + '# unsaved change\n');
+      if (change === 'root-changed') editorState.documents.set(path.join(root, target.file), BEFORE + '# changed\n');
+      if (change === 'untrusted') state.isTrusted = false;
+      if (change === 'symlink') { fs.renameSync(file, path.join(root, 'original.py')); fs.symlinkSync(path.join(root, 'original.py'), file); }
+      await assert.rejects(host.readModelSource(target, change === 'traversal' ? '../outside.py' : 'blocks.py'));
+      assert.equal(editorState.appliedEdits.length, 0);
+    });
+  }
+
   test('inherited captured fc can propose its workspace subclass with no writes before Apply', async () => {
     const source = await host.readModelSource(target);
     assert.equal(source.source, BEFORE); assert.equal(source.digest, sha256(BEFORE));
@@ -164,7 +238,7 @@ suite('Canvas agent normal code proposals', () => {
     assert.equal(editorState.appliedEdits.length, 1);
     assert.equal(editorState.appliedEdits[0].replacements[0].newText, AFTER);
     assert.equal(fs.readFileSync(path.join(root, 'vision_models.py'), 'utf8'), BEFORE, 'Apply remains unsaved');
-    assert.deepEqual(requests, [{ file: 'vision_models.py', source: AFTER }], 'only AST syntax inspection, never model execution');
+    assert.deepEqual(requests, [{ file: 'vision_models.py', source: AFTER, check_compilation: true }], 'only syntax/compilation inspection, never model execution');
   });
 
   test('Discard and syntax failure write nothing', async () => {
@@ -203,8 +277,8 @@ suite('Canvas agent normal code proposals', () => {
 
   test('stale digest, oversized source, path traversal and symlinks cannot open a review', async () => {
     review = async () => { assert.fail('unsafe request reached native review'); };
-    assert.equal((await host.proposeCode({ requestId: 'x', target, edit: { ...edit(), beforeDigest: 'a'.repeat(64) } })).status, 'refused');
-    assert.equal((await host.proposeCode({ requestId: 'x', target, edit: { ...edit(), source: 'x'.repeat(262145) } })).status, 'refused');
+    assert.equal((await host.proposeSourceSet({ requestId: 'x', target, edit: edit(AFTER, 'a'.repeat(64)) })).status, 'refused');
+    assert.equal((await host.proposeSourceSet({ requestId: 'x', target, edit: edit('x'.repeat(262145)) })).status, 'refused');
     target.file = '../outside.py'; await assert.rejects(host.readModelSource(target));
     target.file = 'vision_models.py';
     fs.renameSync(path.join(root, target.file), path.join(root, 'original.py'));
@@ -240,7 +314,7 @@ suite('Canvas agent normal code proposals', () => {
       const ref = graph.reference(model);
       const read = await client.callTool({ name: 'read_model_source', arguments: ref });
       assert.equal((read.structuredContent as { source: string }).source, BEFORE);
-      const call = await client.callTool({ name: 'propose_code_edit', arguments: { ...ref, beforeDigest: sha256(BEFORE), source: AFTER } });
+      const call = await client.callTool({ name: 'propose_source_set', arguments: { ...ref, sources: edit().sources } });
       assert.ok(!call.isError);
       const id = String((call.structuredContent as { proposalId: string }).proposalId);
       assert.ok(!JSON.stringify(call).includes('nn.Sequential'), 'receipts do not duplicate source bodies');

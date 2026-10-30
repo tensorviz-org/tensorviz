@@ -27,7 +27,7 @@ export class ValidationSummaryStore {
   }
 
   begin(runId: string, target: LocalBrowserTargetIdentity,
-    origin: components['schemas']['RunAttempt']['origin'] = 'manual', request: unknown = null, validationPassed?: true) {
+    origin: components['schemas']['RunAttempt']['origin'] = 'manual', request: unknown = null) {
     const generation = ++this.generation;
     const requested = { ...target };
     const attempt = this.ledger.begin(runId, requested, origin, request);
@@ -43,7 +43,7 @@ export class ValidationSummaryStore {
       }
       const capture = measured && (status === 'passed' || status === 'failed') ? measured : undefined;
       this.latest = { runId, target: { ...(capture?.target ?? requested) }, status, detail: validationDetail(detail),
-        ...(capture ? { projectionRevision: capture.revision } : {}), ...(validationPassed ? { validationPassed } : {}) };
+        ...(capture ? { projectionRevision: capture.revision } : {}) };
       this.publish(this.snapshot(this.latest.target)!);
     };
     update('running', validationPhaseDetails.checking);

@@ -2,7 +2,7 @@
  * Python owns the source AST, lexical flow and full activation/alias proof; this is not a
  * second edit planner or a cross-run operation matcher. */
 import { isDeepStrictEqual } from 'node:util';
-import type { CandidateRequest, CandidateExecution } from './executionPlanCore';
+import type { RecipeCandidateRequest as CandidateRequest, RecipeCandidateExecution as CandidateExecution } from './executionPlanCore';
 import type { CaptureSnapshot } from './semanticCapture';
 import type { CandidatePostconditions } from '@tensorviz/contracts/protocol';
 import { initializerSourceArgument } from '@tensorviz/contracts/initializerArguments';

@@ -98,6 +98,12 @@ export class GraphOpeningController {
 
   invalidate(target: LocalBrowserTargetIdentity, dependencyChanged = false): void {
     if (this.value?.phase === 'cancelled' && !this.value.cancellationReason) return;
+    // A version alone is not a source change: VS Code restarts it when it reloads an
+    // unchanged buffer. Follow it so later checks compare against the live document.
+    if (this.value && !dependencyChanged && sameModel(this.value.target, target) && this.value.target.sourceDigest === target.sourceDigest) {
+      if (this.value.target.documentVersion !== target.documentVersion) this.set({ target: { ...this.value.target, documentVersion: target.documentVersion } });
+      return;
+    }
     if (this.value && (dependencyChanged || !sameSource(this.value.target, target))) {
       this.cancel();
       this.set({ target: { ...target }, phase: 'cancelled', cancellationReason: 'source_changed', hasCapture: false, detail: 'Source changed. Refresh the saved model to capture it.' });
@@ -355,9 +361,10 @@ export class GraphOpeningController {
         if (!this.current(controller)) return false;
         this.set({ phase: 'needs_setup', draft, detail: 'Complete and save the Python factory in VS Code, then save the input setup here.' });
       } else {
-        // Retain the exact manual draft for the agent and the form on return. This
-        // publishes context only; saving still uses the explicit submit/tool path.
-        if (action.kind === 'agent_help' && action.draft) this.set({ draft: action.draft });
+        if (action.kind === 'agent_help' && action.draft) {
+          if (state.phase !== 'needs_setup' && !(state.phase === 'failed' && state.failure?.kind === 'setup')) return false;
+          this.set({ draft: action.draft, evidence: undefined });
+        }
         const fresh = await this.dependencies.recover(target, action.kind, controller.signal, action);
         if (this.controller !== controller || controller.signal.aborted) return false;
         if (fresh) {

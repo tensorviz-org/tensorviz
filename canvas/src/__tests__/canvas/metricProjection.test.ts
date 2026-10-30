@@ -1,7 +1,6 @@
 import fixtures from '../../test/fixtures/metricProjections.json';
 import { applyProjection } from '../../ide/projection';
-import { overlayScale } from '../../canvas/graphOverlay';
-import { measuredOutputTensor, tensorShapes } from '../../canvas/graphSemantics';
+import { tensorShapes } from '../../canvas/graphSemantics';
 import { createGraphFile, parseGraphFile } from '../../services/graphFile';
 import { graphDocumentV2ToModelGraph } from '../../services/graphDocumentAdapter';
 import { ProjectionPayload } from '../../ide/protocol.generated';
@@ -13,17 +12,19 @@ const payload = (name: keyof typeof fixtures, greyed = false): ProjectionPayload
   sourceDigest: 'same-source', traced: true, greyed, viewRestored: true,
 } as unknown as ProjectionPayload);
 
+const bytes = (nodes: { data: { outputTensor?: { logicalBytes: number } } }[]) => nodes.flatMap(n => n.data.outputTensor ? [n.data.outputTensor.logicalBytes] : []);
+const counts = (nodes: { data: { parameterCount?: number } }[]) => nodes.flatMap(n => n.data.parameterCount === undefined ? [] : [n.data.parameterCount]);
+
 beforeEach(() => { window.__TENSORVIZ_LOCAL_BROWSER__ = true; });
 afterEach(() => { delete window.__TENSORVIZ_LOCAL_BROWSER__; });
 
 it('replaces batch evidence from the actual backend projection and preserves exact small/zero counts', () => {
   const old = applyProjection(payload('batch2'), [])!;
   const current = applyProjection(payload('batch3'), old.nodes)!;
-  const scale = overlayScale(current.nodes, 'activation');
-  expect([scale.min, scale.max]).toEqual([24, 48]);
+  expect([Math.min(...bytes(current.nodes)), Math.max(...bytes(current.nodes))]).toEqual([24, 48]);
   expect(current.nodes.find(n => n.id === 'fc1')!.data.outputShape).toEqual([3, 4]);
   expect(current.nodes.find(n => n.id === 'fc2')!.data.outputShape).toEqual([3, 2]);
-  expect(Array.from(overlayScale(current.nodes, 'params').values.values()).map(v => v.value)).toEqual([20, 10, 0]);
+  expect(counts(current.nodes)).toEqual([20, 10, 0]);
   expect(current.nodes.map(n => n.position)).toEqual(old.nodes.map(n => n.position));
 });
 
@@ -35,43 +36,36 @@ it.each([['batch3', 24, 48], ['double', 48, 96], ['empty', 0, 0]] as const)(
     const file = parseGraphFile(JSON.stringify(createGraphFile(graph, { name: 'GoodNet', status: 'traced' })));
     const restored = graphDocumentV2ToModelGraph(file.document);
     expect(JSON.stringify(file)).not.toContain('SECRET');
-    expect(overlayScale(restored.nodes, 'activation')).toMatchObject({ min, max, unmeasured: 1 });
-    expect(overlayScale(restored.nodes, 'params').values.get('relu')!.value).toBe(0);
+    expect([Math.min(...bytes(restored.nodes)), Math.max(...bytes(restored.nodes))]).toEqual([min, max]);
+    expect(restored.nodes.find(n => n.id === 'relu')!.data.parameterCount).toBe(0);
     graph.nodes.forEach((node, i) => {
-      expect(measuredOutputTensor(restored.nodes[i].data)).toEqual(measuredOutputTensor(node.data));
+      const { source: _private, ...tensor } = (node.data.outputTensor ?? {}) as Record<string, unknown>;
+      expect(restored.nodes[i].data.outputTensor ?? {}).toEqual(tensor);
     });
   });
 
-it('uses one observed-shape rule for cards, bytes and portable export even if presentation shapes lag', () => {
+it('uses one observed-shape rule for cards and portable export even if presentation shapes lag', () => {
   const graph = applyProjection(payload('batch3'), [])!;
   const fc = graph.nodes.find(n => n.id === 'fc1')!;
   fc.data.outputShape = [2, 4];
   expect(tensorShapes(fc.data).outputShape).toEqual([3, 4]);
-  expect(overlayScale([fc], 'activation').max).toBe(48);
   const restored = graphDocumentV2ToModelGraph(createGraphFile(graph, { name: 'GoodNet', status: 'traced' }).document);
   expect(restored.nodes.find(n => n.id === 'fc1')!.data.outputShape).toEqual([3, 4]);
 });
 
-it('does not carry old bytes through missing/incomplete output, stale refresh or static replacement', () => {
+it('does not carry old bytes through missing output or static replacement', () => {
   const old = applyProjection(payload('batch2'), [])!;
   const incomplete = JSON.parse(JSON.stringify(payload('batch3')));
   delete incomplete.document.view.layout.node_data.fc1.outputTensor;
   const next = applyProjection(incomplete, old.nodes)!;
-  expect(overlayScale(next.nodes, 'activation').values.has('fc1')).toBe(false);
-  const stale = applyProjection(payload('batch3', true), next.nodes)!;
-  expect(overlayScale(stale.nodes, 'activation').values.size).toBe(0);
-  expect(overlayScale(stale.nodes, 'params').values.size).toBe(0);
-  const portable = createGraphFile(next, { name: 'GoodNet', status: 'stale' });
-  const restored = graphDocumentV2Model(portable);
-  expect(overlayScale(restored.nodes, 'params').values.size).toBe(0);
-  expect(overlayScale(restored.nodes, 'activation').values.size).toBe(0);
+  expect(next.nodes.find(n => n.id === 'fc1')!.data.outputTensor).toBeUndefined();
   const staticPayload = JSON.parse(JSON.stringify(payload('batch3')));
   staticPayload.traced = false;
   staticPayload.document.semantic.nodes.forEach((n: any) => { n.params = {}; });
   staticPayload.document.view.layout.node_data = {};
-  const stat = applyProjection(staticPayload, stale.nodes)!;
-  expect(overlayScale(stat.nodes, 'activation').values.size).toBe(0);
-  expect(overlayScale(stat.nodes, 'params').values.size).toBe(0);
+  const stat = applyProjection(staticPayload, next.nodes)!;
+  expect(bytes(stat.nodes)).toEqual([]);
+  expect(counts(stat.nodes)).toEqual([]);
 });
 
 function graphDocumentV2Model(file: ReturnType<typeof createGraphFile>) {
@@ -90,8 +84,8 @@ it.each([1, 2, 3])('reads legacy version %s without guessing bytes or recovering
   });
   const restored = graphDocumentV2Model(file);
   expect(restored.nodes.find(n => n.id === 'fc1')!.data.outputShape).toEqual([3, 4]);
-  expect(overlayScale(restored.nodes, 'activation').values.size).toBe(0);
-  expect(overlayScale(restored.nodes, 'params').values.size).toBe(0);
+  expect(bytes(restored.nodes)).toEqual([]);
+  expect(counts(restored.nodes)).toEqual([]);
 });
 
 it.each([

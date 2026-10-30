@@ -10,6 +10,8 @@ import type { TensorInputs } from '@tensorviz/graph-host/tensorInputs';
 import type { TraceOutcome } from '@tensorviz/graph-host/traceWorkerCore';
 import type { ExecutionSpec } from '@tensorviz/graph-host/executionSpec';
 import { ValidationSummaryStore } from '@tensorviz/graph-host/validationSummary';
+import { checkpointFixture } from './checkpointFixture';
+import { inspectEvidence } from '@tensorviz/graph-host/mcpRunEvidence';
 
 suite('MCP validation jobs', () => {
   const inputs: TensorInputs = [{ shape: [1, 8], dtype: 'float32', fill: 'ones' }];
@@ -219,6 +221,23 @@ suite('MCP validation jobs', () => {
     assert.equal((await call('inspect_run', { runId: result.runId })).data.evidenceAvailable, false);
   });
 
+  test('output metadata pages never expose retained raw tensors or turn truncation into completeness', async () => {
+    const run = (await start()).data;
+    capture({ ok: true, exitCode: 0, envelope: { protocol_version: 1, spans: {}, error: null, worker: {},
+      result: { diagnostics: { run_evidence: { version: 1, outputs: { digest: null, truncated: ['tensor_bytes'],
+        containers: [{ path: '$', kind: 'list', length: 2 }], leaves: [
+          { path: '$[0]', kind: 'tensor', shape: [1], values: { data: 'private_raw_tensor' }, nonfinite: 0 },
+          { path: '$[1]', kind: 'str', value: 'private_literal', digest: 'a'.repeat(64) },
+        ] } } } } } });
+    finish({ status: 'passed', detail: 'Observed output.' }); await tick();
+    const first = (await call('inspect_run', { runId: run.runId, section: 'outputs', limit: 1 })).data;
+    assert.equal(first.leaves.nextOffset, 1); assert.equal(first.leaves.items[0].valuesRetained, true);
+    assert.deepEqual(first.outputs.truncated, ['tensor_bytes']); assert.doesNotMatch(JSON.stringify(first), /private_raw_tensor/);
+    const next = (await call('inspect_run', { runId: run.runId, section: 'outputs', offset: 1, limit: 1 })).data;
+    assert.equal(next.leaves.items[0].path, '$[1]'); assert.doesNotMatch(JSON.stringify(next), /private_literal/);
+    assert.equal(count, 1); assert.ok((await call('inspect_run', { runId: run.runId })).data.sections.includes('outputs'));
+  });
+
   test('worker setup failures are inspectable without borrowing an older projection', async () => {
     const run = (await start()).data;
     capture({ ok: false, reason: 'private setup text', detail: '', exitCode: 3,
@@ -228,6 +247,23 @@ suite('MCP validation jobs', () => {
     const inspected = (await call('inspect_run', { runId: run.runId, section: 'failure' })).data;
     assert.equal(inspected.error.type, 'ModuleNotFoundError'); assert.equal(inspected.error.stage, 'setup');
     assert.equal(inspected.result, null); assert.equal(inspected.failure, null);
+  });
+
+  test('checkpoint metadata remains readable after failed setup and later source edits', async () => {
+    const run = (await call('validate_model', { ...ref(), execution: { inputs: { args: inputs }, checkpoint: { file: 'weights.pt' } } })).data;
+    capture({ ok: false, reason: 'Load failed', detail: '', exitCode: 3, envelope: { protocol_version: 1, result: null, spans: {},
+      worker: { checkpointCompatibility: checkpointFixture() }, error: { type: 'CheckpointLoadFailure', message: 'private', frames: [] } } });
+    finish({ status: 'failed', detail: 'Checkpoint load failed.' }); await tick();
+    model.target = { ...model.target, documentVersion: 2, sourceDigest: 'c'.repeat(64) };
+    const result = await call('inspect_run', { runId: run.runId, section: 'checkpoint', limit: 1 });
+    assert.equal(result.error, undefined); assert.equal(result.data.immutable, true);
+    assert.equal(result.data.checkpoint.sourceDigest, 'a'.repeat(64));
+    assert.equal(result.data.checkpoint.loadStatus, 'failed');
+    assert.equal(result.data.items[0].shape, 'different');
+    assert.equal(result.data.result, null);
+    assert.equal(count, 1, 'read-only checkpoint inspection must not relaunch the worker');
+    assert.equal((await call('inspect_run', { runId: run.runId, section: 'setup' })).data.worker.checkpointCompatibility, undefined);
+    assert.ok((await call('inspect_run', { runId: run.runId })).data.sections.includes('checkpoint'));
   });
 
   test('a second worker callback cannot replace evidence while the run is still active', async () => {
@@ -281,6 +317,7 @@ suite('MCP validation jobs', () => {
   test('compare_runs enforces completion, ownership, expiry and read-only retained paging', async () => {
     const first = (await start()).data;
     assert.equal((await call('compare_runs', { baselineRunId: first.runId, candidateRunId: first.runId })).data.error.code, 'RUN_IN_PROGRESS');
+    assert.equal((await call('compare_runs', { baselineRunId: first.runId, candidateRunId: first.runId, section: 'outputs' })).data.error.code, 'RUN_IN_PROGRESS');
     finish({ status: 'failed', detail: 'First retained run.' }); await tick();
     const second = (await start()).data;
     finish({ status: 'failed', detail: 'Second retained run.' }); await tick();
@@ -288,10 +325,16 @@ suite('MCP validation jobs', () => {
     assert.equal(comparisons.error, undefined); assert.equal(comparisons.data.changes.count, 0);
     assert.equal(count, 2, 'inspection never starts another worker');
     assert.throws(() => runs.compare('other', first.runId, second.runId), /unavailable/);
+    assert.throws(() => runs.compare('other', first.runId, second.runId, 'outputs'), /unavailable/);
+    const outputs = await call('compare_runs', { baselineRunId: first.runId, candidateRunId: second.runId, section: 'outputs' });
+    assert.equal(outputs.error, undefined);
+    assert.equal(count, 2, 'output comparison also remains read-only');
     assert.ok((await call('compare_runs', { baselineRunId: first.runId, candidateRunId: second.runId, atol: -1 })).error);
     const now = Date.now;
     try {
       Date.now = () => now() + 31 * 60_000;
+      assert.throws(() => runs.compare('client-one', first.runId, second.runId, 'outputs'), /unavailable/);
+      assert.throws(() => runs.inspect('client-one', second.runId, 'outputs'), /unavailable/);
       assert.throws(() => runs.compare('client-one', first.runId, second.runId), /unavailable/);
     } finally { Date.now = now; }
   });

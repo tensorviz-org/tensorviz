@@ -35,6 +35,11 @@ release publication are not in this tree.
 
 ## Unreleased
 
+- Sync the eligible extension source through 2026-10-30, preserving this repository's visualization scope and release identity. See the [sync record](../docs/sync-2026-10-30.md).
+- Enable automatic validation after relevant saves and execution caching by default, with opt-outs and source/environment freshness checks.
+- Share class-scoped input declarations across setup, capture and generated source; avoid disabled statistics hooks on ScriptModules.
+- Add bounded source/computation queries, nested declaration review, multi-file agent drafts, checkpoint/output evidence, explicit code focus and streaming Canvas chat with optional ACP sessions. Inline editing forms are replaced by agent-assisted native source review.
+
 ## 0.1.19
 
 - Show captured dictionary keys and keyword input names on Input/Output cards, module boundaries and port tooltips. Older graph files recover names from their retained capture; unnamed values use readable one-based labels.

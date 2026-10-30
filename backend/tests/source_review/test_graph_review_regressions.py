@@ -100,6 +100,43 @@ def test_review_declarations_keep_conditions_and_exclude_nested_scopes():
     assert before["layer"]["digest"] == review_class("\n\n" + source, "Net", "model.py")["members"]["layer"]["digest"]
 
 
+def test_review_members_inside_try_with_and_match_blocks_keep_their_guards():
+    from services.ide.projection import review_class
+    source = BASE.replace("def __init__(self):", "def __init__(self, mode=8):").replace("self.layer = nn.Dropout(0.1)", "\n        ".join([
+        "self.layer = nn.Dropout(0.1)",
+        "try:", "    self.attn = FlashMHA(4)", "except ImportError:", "    self.attn = nn.MultiheadAttention(4, 1)",
+        "else:", "    self.ready = True", "finally:", "    self.tried = True",
+        'with torch.device("meta"):', "    self.head = nn.Linear(4, 2)",
+        "match mode:", "    case 8:", "        self.out = nn.Identity()",
+        "try:", "    pass", "except* ValueError:", "    self.fallback = nn.ReLU()",
+    ]))
+    members = review_class(source, "Net", "model.py")["members"]
+    assert set(members) == {"layer", "attn", "ready", "tried", "head", "out", "fallback"}
+    # Two alternative writes stay ambiguous, as an if/else pair does.
+    assert members["attn"]["ambiguous"] and not members["head"]["ambiguous"]
+    assert "self.head = nn.Linear(4, 2)" in source.split("\n")[members["head"]["span"]["start"][0] - 1]
+    for before, after, name in [("except ImportError", "except Exception", "attn"),
+                                ('torch.device("meta")', 'torch.device("cpu")', "head"),
+                                ("case 8", "case 16", "out"), ("except* ValueError", "except* TypeError", "fallback")]:
+        changed = review_class(source.replace(before, after), "Net", "model.py")["members"]
+        assert [n for n in members if changed[n]["digest"] != members[n]["digest"]] == [name], before
+
+
+@pytest.mark.parametrize("wrap", [
+    'with torch.device("meta"):\n            {}',
+    "try:\n            {}\n        except ImportError:\n            pass",
+    "match mode:\n            case 8:\n                {}",
+])
+def test_review_navigates_to_unlowered_members_inside_compound_blocks(client, wrap):
+    statement = "self.output_projection = nn.Linear(4, 4) if project else nn.Identity()"
+    source = BASE.replace("def __init__(self):", "def __init__(self, project=True, mode=8):").replace(
+        "self.layer = nn.Dropout(0.1)", "self.layer = nn.Dropout(0.1)\n        " + wrap.format(statement))
+    result = project(client, source, review_only=True).json()
+    assert result["document"]["semantic"]["metadata"]["reviewClass"]["members"]["output_projection"]["digest"]
+    span = result["spanmap"]["output_projection"]
+    assert span["kind"] == "decl" and statement in source.split("\n")[span["start"][0] - 1]
+
+
 def test_aliases_and_keyword_equivalence_keep_constructor_meaning_and_source_spans(client):
     before = project(client, BASE).json()
     after_source = BASE.replace("from torch import nn", "from torch import nn as layers").replace("nn.", "layers.").replace("Dropout(0.1)", "Dropout(p=0.1)")

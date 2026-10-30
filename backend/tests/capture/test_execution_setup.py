@@ -108,6 +108,9 @@ def test_fixture_keyword_inputs_checkpoint_and_mode_are_recorded(tmp_path):
     execution = envelope['result']['diagnostics']['execution']
     assert execution['state']['digest'] and execution['inputs']['fixtureDigest']
     assert execution['setup']['checkpoint']['missingKeys'] == []
+    comparison = execution['checkpointCompatibility']
+    assert comparison['loadStatus'] == 'succeeded' and comparison['checkpoint']['key'] == 'weights'
+    assert comparison['entries'][0]['shape'] == comparison['entries'][0]['dtype'] == 'same'
     assert execution['moduleModes'] == {'': True, 'fc': True}
     assert execution['mode'] == 'train' and execution['seed'] == 17
     assert envelope['result']['diagnostics']['seed'] == execution['seed']
@@ -168,6 +171,55 @@ def test_non_strict_checkpoint_discloses_missing_keys(tmp_path):
         'checkpoint': {'file': 'empty.pt', 'strict': False}})
     assert process.returncode == 0, envelope['error']
     assert envelope['result']['diagnostics']['execution']['setup']['checkpoint']['missingKeys'] == ['fc.weight']
+
+
+def test_checkpoint_shape_failure_retains_metadata_before_any_forward(tmp_path):
+    fixture(tmp_path)
+    torch.save({'fc.weight': torch.ones(2, 4)}, tmp_path / 'wide.pt')
+    process, envelope = run_worker(tmp_path, {'inputs': {'fixture': 'batch.pt'},
+        'checkpoint': {'file': 'wide.pt'}})
+    assert process.returncode == 3 and envelope['result'] is None
+    report = envelope['worker']['checkpointCompatibility']
+    assert report['loadStatus'] == 'failed'
+    assert report['checkpoint']['file'] == 'wide.pt'
+    assert report['sourceDigest'] and report['checkpoint']['digest']
+    entry = report['entries'][0]
+    assert entry['name'] == 'fc.weight' and entry['shape'] == 'different'
+    assert entry['registered']['shape'] == [2, 3]
+    assert entry['stored']['shape'] == [2, 4]
+
+
+def test_strict_missing_keys_retains_comparison_without_a_forward(tmp_path):
+    fixture(tmp_path)
+    torch.save({}, tmp_path / 'empty.pt')
+    process, envelope = run_worker(tmp_path, {'inputs': {'fixture': 'batch.pt'},
+        'checkpoint': {'file': 'empty.pt', 'strict': True}})
+    assert process.returncode == 3 and envelope['result'] is None
+    report = envelope['worker']['checkpointCompatibility']
+    assert report['loadStatus'] == 'failed' and report['checkpoint']['strict']
+    assert report['complete'] and report['entries'][0]['presence'] == 'registered_only'
+
+
+@pytest.mark.parametrize('reject', [False, True])
+def test_checkpoint_custom_loader_outcome_is_not_inferred_from_matching_shapes(tmp_path, reject):
+    fixture(tmp_path)
+    torch.save({'fc.weight': torch.ones(2, 3, dtype=torch.float64)}, tmp_path / 'weights.pt')
+    source = MODEL.replace('    def forward(self, *, tokens, scale):', f'''    def load_state_dict(self, state, strict=True):
+        from pathlib import Path
+        marker = Path(__file__).with_suffix('.load-count')
+        assert not marker.exists(), "loader called more than once"
+        marker.touch()
+        if {reject!r}:
+            raise RuntimeError("custom loader refusal")
+        return super().load_state_dict(state, strict=strict)
+    def forward(self, *, tokens, scale):''')
+    process, envelope = run_worker(tmp_path, {'inputs': {'fixture': 'batch.pt'},
+        'checkpoint': {'file': 'weights.pt'}}, source)
+    report = (envelope['worker'] if reject else envelope['result']['diagnostics']['execution'])['checkpointCompatibility']
+    assert process.returncode == (3 if reject else 0)
+    assert report['entries'][0]['shape'] == 'same' and report['entries'][0]['dtype'] == 'different'
+    assert report['loadStatus'] == ('failed' if reject else 'succeeded')
+    assert (tmp_path / 'net.load-count').exists()
 
 
 def test_input_identity_preserves_aliases_and_keyword_order():

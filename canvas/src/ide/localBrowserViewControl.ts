@@ -1,6 +1,7 @@
 import type { LocalBrowserTargetIdentity } from './protocol.generated';
 import type { LocalBrowserViewTransport } from './localBrowserViewTransport';
 import { sameValidationTarget } from './localBrowserValidationClient';
+import { isCodeFocusOn, onCodeFocusOnChange } from './codeFocusOn';
 
 /** Presentation bridge for this exact browser connection. No source writes. */
 export function createLocalBrowserViewControl(transport: LocalBrowserViewTransport, target: () => LocalBrowserTargetIdentity | null) {
@@ -9,24 +10,28 @@ export function createLocalBrowserViewControl(transport: LocalBrowserViewTranspo
   const refresh = () => {
     if (!disposed && transport.session?.viewId) window.dispatchEvent(new CustomEvent('builder-command', { detail: { command: 'report-selection' } }));
   };
+  // Code focus travels with every selection: on asks the host to open it.
+  const follow = isCodeFocusOn;
   const onSelection = (event: Event) => {
     const current = target(), viewId = transport.session?.viewId;
     const detail = (event as CustomEvent).detail;
     if (disposed || document.hidden || !current || !viewId || !Array.isArray(detail?.nodeIds) || !Array.isArray(detail?.edgeIds)) return;
     // Never silently turn a huge selection into a different, smaller one.
     if (detail.nodeIds.length > 100 || detail.edgeIds.length > 100) {
-      transport.send({ type: 'viewSelection', viewId, target: current, nodeIds: [], edgeIds: [], tooLarge: true });
+      transport.send({ type: 'viewSelection', viewId, target: current, nodeIds: [], edgeIds: [], tooLarge: true, follow: follow() });
       return;
     }
-    transport.send({ type: 'viewSelection', viewId, target: current, nodeIds: detail.nodeIds, edgeIds: detail.edgeIds });
+    transport.send({ type: 'viewSelection', viewId, target: current, nodeIds: detail.nodeIds, edgeIds: detail.edgeIds, follow: follow() });
   };
   window.addEventListener('tensorviz-selection', onSelection);
   const onVisibility = () => {
     const current = target(), viewId = transport.session?.viewId;
-    if (document.hidden && current && viewId) transport.send({ type: 'viewSelection', viewId, target: current, nodeIds: [], edgeIds: [] });
+    if (document.hidden && current && viewId) transport.send({ type: 'viewSelection', viewId, target: current, nodeIds: [], edgeIds: [], follow: follow() });
     else refresh();
   };
   document.addEventListener('visibilitychange', onVisibility);
+  // Re-report the current selection so turning Code focus on opens it and off clears it.
+  const offFocus = onCodeFocusOnChange(refresh);
   const offStatus = transport.onStatusChange(status => {
     if (status.phase === 'connected' && status.hostLink === 'connected') refresh();
     else for (const cancel of Array.from(pending)) cancel();
@@ -58,6 +63,6 @@ export function createLocalBrowserViewControl(transport: LocalBrowserViewTranspo
     for (const cancel of Array.from(pending)) cancel();
     window.removeEventListener('tensorviz-selection', onSelection);
     document.removeEventListener('visibilitychange', onVisibility);
-    offMessage(); offStatus();
+    offMessage(); offStatus(); offFocus();
   } };
 }

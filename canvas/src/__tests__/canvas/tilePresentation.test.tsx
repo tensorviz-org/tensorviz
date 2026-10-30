@@ -14,10 +14,9 @@ jest.mock('tldraw', () => ({
 let mockDetail = 'overview';
 jest.mock('../../canvas/graphDetail', () => ({ useGraphDetail: () => mockDetail }));
 jest.mock('../../canvas/NodePort', () => ({ NodePorts: () => null }));
-jest.mock('../../canvas/NodeSourceControls', () => ({ NodeEditButton: () => null, NodeSourceLink: () => null }));
+jest.mock('../../canvas/NodeSourceControls', () => ({ NodeSourceLink: () => null }));
 jest.mock('../../canvas/graphQueryState', () => ({
   graphSearchResult: { get: () => ({}) }, searchStateFor: () => undefined,
-  graphOverlayScale: { get: () => ({ values: new Map() }) },
 }));
 jest.mock('../../ide/projection', () => ({ currentProjection: () => null, reportNodeClick: jest.fn(), reportProjectExpand: jest.fn() }));
 

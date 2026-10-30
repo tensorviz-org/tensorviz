@@ -41,7 +41,7 @@ export function compareSemanticRuns(baseline: ComparableRun, candidate: Comparab
     if (section === 'setup') return { ...unavailable, ...page(setupDetails.map(detail => ({ ...detail,
       baseline: inline(detail.baseline), candidate: inline(detail.candidate) })), offset, limit) };
     if (section === 'outputs') return { ...unavailable, ...numericSummary, ...page(rows(outputs.items), offset, limit) };
-    return { ...unavailable, outputs: numericSummary, sections: ['setup', 'outputs'] };
+    return { ...unavailable, outputs: numericSummary, sections: ['experiment', 'setup', 'outputs'] };
   }
   const report = compareCaptures(before, after);
   const projection = (run: ComparableRun, capture: CaptureSnapshot) => {
@@ -126,5 +126,5 @@ export function compareSemanticRuns(baseline: ComparableRun, candidate: Comparab
       Object.fromEntries(Object.entries(kinds).map(([kind, ids]) => [kind, ids.length]))])),
     uncertainMatchCount: report.correspondence.uncertain.length, outputs: numericSummary,
     firstObservedDivergence: null, firstObservedDivergenceUnavailable: 'Canonical records do not retain intermediate tensor payloads or establish alignment for every event.',
-    sections: ['setup', 'nodes', 'connections', 'coverage', 'outputs', 'observations', 'correspondence'] };
+    sections: ['experiment', 'setup', 'nodes', 'connections', 'coverage', 'outputs', 'observations', 'correspondence'] };
 }

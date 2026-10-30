@@ -148,8 +148,7 @@ def test_the_shipped_example_draws_every_layer_it_declares() -> None:
     # reproduced this on a clean install: six cards drawn under a toolbar that
     # said seven. It ships, so a user can hit it in under a minute.
     path = os.path.join(REPO, "examples", "graph_ui", "branches.py")
-    if not os.path.exists(path):
-        pytest.skip(f"{path} is not in this checkout")
+    assert os.path.exists(path), f"shipped example is missing: {path}"
     with open(path, "r", encoding="utf-8") as handle:
         source = handle.read()
     assert "self.output" in source, "the example no longer triggers the collision"

@@ -43,6 +43,24 @@ export class InputShapeUtil extends BaseBoxShapeUtil<InputShape> {
     };
   }
 
+  // Like layer and module cards: the card keeps its measured size and outlines
+  // itself, so tldraw's blue selection box and handles stay off.
+  override canResize() {
+    return false;
+  }
+
+  override hideSelectionBoundsFg() {
+    return true;
+  }
+
+  override hideResizeHandles() {
+    return true;
+  }
+
+  override hideRotateHandle() {
+    return true;
+  }
+
   override canBind() {
     return true;
   }

@@ -90,6 +90,8 @@ const decision = () => screen.getByRole('group', { name: 'Draft decision' });
 test('the draft toolbar is compact: one code action and one decision row, no Close, Refresh or revision modes', () => {
   const { onSource } = toolbar(draft());
   expect(screen.getByText('Draft · Not run')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Accept' })).toHaveAttribute('title',
+    'Save the accepted source and run the model with its saved inputs and device');
   expect(screen.getByText('1 / 1')).toBeVisible();
   expect(screen.getByLabelText('1 added')).toHaveTextContent('+1');
   expect(screen.getByText(/inherited base forward was not inspected/)).toBeVisible();

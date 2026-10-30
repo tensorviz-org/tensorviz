@@ -1,4 +1,6 @@
 import React from 'react';
+import { useChat } from '@ai-sdk/react';
+import { CanvasAgentChatTransport, agentUIMessages, type AgentUIMessage } from './canvasAgentChatTransport';
 import { ArrowUp, ChevronDown, Copy, Crosshair, Ellipsis, LockKeyhole, MessageCircle, Minus, SlidersHorizontal, Square, SquarePen } from 'lucide-react';
 import { newLocalBrowserMessageId, type CanvasAgentAction, type CanvasAgentAvailability, type CanvasAgentModel, type CanvasAgentProvider, type CanvasAgentSettings, type CanvasAgentState, type LocalBrowserTargetIdentity } from './protocol.generated';
 import type { LocalBrowserViewTransport } from './localBrowserViewTransport';
@@ -10,7 +12,7 @@ interface Props {
   target: LocalBrowserTargetIdentity | null;
   connected: boolean;
   /** The pending source draft: Send revises it (never applies it); a stale draft cannot be revised. */
-  draftReview?: { id: string; stale: boolean };
+  draftReview?: { id: string; stale: boolean; canRevise?: boolean };
 }
 
 /** Window event that opens the chat at its prompt, keeping the typed text (e.g. Continue editing a draft). */
@@ -72,7 +74,6 @@ export function CanvasAgentChat({ transport, target, connected, draftReview }: P
   const focusSettings = React.useRef(false);
   const history = React.useRef<HTMLDivElement>(null);
   const follow = React.useRef(true);
-  const running = state?.status === 'running' || pending !== null;
   const copyText = React.useCallback((text: string) => {
     void (bridgeActive() ? writeClipboardText(text) : navigator.clipboard.writeText(text)).then(() => {
       if (openRef.current) setNotice({ text: 'Copied.' });
@@ -95,6 +96,25 @@ export function CanvasAgentChat({ transport, target, connected, draftReview }: P
     const viewId = transport?.session?.viewId;
     return (viewId && transport?.send({ type: 'agentRequest', viewId, ...action })) || null;
   }, [transport]);
+  const sendRef = React.useRef(sendAction); sendRef.current = sendAction;
+  const chatTransport = React.useMemo(() => new CanvasAgentChatTransport(action => {
+    const sent = !!sendRef.current(action);
+    if (action.action === 'send') {
+      if (sent) { setPending(action.requestId); follow.current = true; setSettingsOpen(false); input.current?.focus(); }
+      else setNotice({ text: 'Canvas is reconnecting. Your draft is saved; try again when connected.' });
+    }
+    return sent;
+  }), []);
+  const chat = useChat<AgentUIMessage>({ transport: chatTransport, onError: error => {
+    setPending(null); setNotice({ text: error.message, error: true });
+    if (stateRef.current) setMessages(agentUIMessages(stateRef.current));
+  } });
+  const { setMessages } = chat;
+  const running = state?.status === 'running' || pending !== null || chat.status === 'submitted' || chat.status === 'streaming';
+  React.useEffect(() => {
+    if (state && !chatTransport.streaming) setMessages(agentUIMessages(state));
+  }, [state, chat.status, chatTransport, setMessages]);
+  React.useEffect(() => () => chatTransport.disconnect(), [chatTransport]);
 
   React.useEffect(() => {
     if (!transport) return;
@@ -112,12 +132,14 @@ export function CanvasAgentChat({ transport, target, connected, draftReview }: P
       if (message.type !== 'agentState' || message.viewId !== transport.session?.viewId) return;
       const previous = stateRef.current;
       if (previous?.sessionId === message.state.sessionId && previous.revision > message.state.revision) return;
+      chatTransport.accept(message.state);
       if (!openRef.current && previous?.status === 'running' && message.state.status !== 'running') setUnread(true);
       if (previous?.status === 'running' && message.state.status !== 'running') {
         setAnnouncementText(message.state.status === 'error' ? 'Agent needs attention' : message.state.status === 'stopped' ? 'Agent stopped' : 'Agent reply ready');
       } else if (message.state.status === 'running' || !message.state.messages.length) setAnnouncementText('');
       const checked = message.state.agents?.[message.state.provider]?.status;
-      if (openRef.current && previous?.agents?.[message.state.provider]?.status === 'checking' && checked && checked !== 'checking') {
+      // An interrupted check (Not checked) has no verdict to announce.
+      if (openRef.current && previous?.agents?.[message.state.provider]?.status === 'checking' && checked && checked !== 'checking' && checked !== 'unchecked') {
         setAnnouncementText(checked === 'ready' ? `${AGENT_NAMES[message.state.provider]} ready` : `${AGENT_NAMES[message.state.provider]} needs attention`);
       }
       stateRef.current = message.state; setState(message.state);
@@ -130,14 +152,17 @@ export function CanvasAgentChat({ transport, target, connected, draftReview }: P
       // A newer edit outlives an older ack; an acknowledged edit yields to the host even if it was refused.
       const { ack, messages } = message.state;
       const resynced = ack && ack === syncId.current?.id ? syncId.current : null;
-      if (resynced) syncId.current = null;
+      if (resynced) {
+        syncId.current = null;
+        if (resynced.pendingId && !messages.some(turn => turn.id === resynced.pendingId)) chatTransport.disconnect();
+      }
       setEdit(current => current && (ack ? ack === current.requestId : echoes(current, message.state)) ? null : current);
       setPending(current => current && (resynced?.pendingId === current || ack === current || messages.some(turn => turn.id === current)) ? null : current);
     });
     const offStatus = transport.onStatusChange(sync);
     sync();
     return () => { off(); offStatus(); };
-  }, [transport, sendAction]);
+  }, [transport, sendAction, chatTransport]);
 
   React.useEffect(() => {
     setSelection([]); setNodeLabels({});
@@ -220,10 +245,10 @@ export function CanvasAgentChat({ transport, target, connected, draftReview }: P
     const requestId = newLocalBrowserMessageId();
     setNotice(null);
     submitted.current = { id: requestId, text: draft.trim(), context: { target: { ...target }, nodeIds: [...selection] } };
-    if (sendAction({ action: 'send', requestId, provider, prompt: draft.trim(), settings: { ...settings }, target, nodeIds: selection,
-      ...(draftReview ? { draftId: draftReview.id } : {}) })) {
-      setPending(requestId); follow.current = true; setSettingsOpen(false); input.current?.focus();
-    } else setNotice({ text: 'Canvas is reconnecting. Your draft is saved; try again when connected.' });
+    void chat.sendMessage({ id: requestId, parts: [{ type: 'text', text: draft.trim() }] }, { body: { action: {
+      action: 'send', requestId, provider, prompt: draft.trim(), settings: { ...settings }, target, nodeIds: selection,
+      ...(draftReview ? { draftId: draftReview.id } : {}),
+    } } });
   };
   const pinned = pending ? submitted.current?.context : state?.status === 'running' ? state.context : undefined;
   const contextTarget = pinned?.target ?? target;
@@ -248,7 +273,9 @@ export function CanvasAgentChat({ transport, target, connected, draftReview }: P
   // Each reply names the settings it requested, on the first reply and whenever they change.
   const turnModels = state ? state.agents?.[state.provider]?.models ?? [] : [];
   let lastRequested = '';
-  const turns = (state?.messages ?? []).filter(message => message.text).map(message => {
+  const turns = chat.messages.map(message => ({ id: message.id, role: message.role,
+    text: message.parts.map(part => part.type === 'text' ? part.text : '').join(''), settings: message.metadata?.settings,
+  })).filter(message => message.text).map(message => {
     const requested = message.role === 'assistant' && message.settings ? requestedLabel(message.settings, turnModels) : '';
     const shown = requested !== lastRequested ? requested : '';
     if (requested) lastRequested = requested;
@@ -349,7 +376,7 @@ export function CanvasAgentChat({ transport, target, connected, draftReview }: P
       ? <span id={blockerId} className="canvas-agent-announcement">{blocker}</span>
       : readinessRow)}
     <div className={`canvas-agent-composer${hasHistory ? ' canvas-agent-composer-compact' : ''}`}>
-      <textarea ref={input} aria-label="Message to coding agent" placeholder={draftReview ? 'Describe a revision to the draft…' : 'Ask or describe a change…'} value={draft} maxLength={16000} rows={hasHistory ? 2 : 3}
+      <textarea ref={input} aria-label="Message to coding agent" placeholder={draftReview?.canRevise === false ? 'Ask about this draft…' : draftReview ? 'Describe a revision to the draft…' : 'Ask or describe a change…'} value={draft} maxLength={16000} rows={hasHistory ? 2 : 3}
         aria-describedby={[blocker && blockerId, draftBlocker && draftBlockerId].filter(Boolean).join(' ') || undefined}
         onChange={event => setDraft(event.target.value)} onKeyDown={event => {
           if (bridgeActive() && (event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'v') {
@@ -379,7 +406,7 @@ export function CanvasAgentChat({ transport, target, connected, draftReview }: P
           if (sendAction({ action: 'stop', requestId })) input.current?.focus();
           else setNotice({ text: 'Could not stop while disconnected. Reconnect to check the agent and stop it.', error: true });
         }
-      }}><Square size={11} fill="currentColor" /></button> : <button type="button" className="canvas-agent-send" aria-label="Send request" title={blocker || draftBlocker || (draftReview ? 'Revise the draft' : 'Send request')} disabled={!draft.trim() || !!unavailable || !!blocker || !!draftBlocker} onClick={submit}><ArrowUp size={16} /></button>}
+      }}><Square size={11} fill="currentColor" /></button> : <button type="button" className="canvas-agent-send" aria-label="Send request" title={blocker || draftBlocker || (draftReview && draftReview.canRevise !== false ? 'Revise the draft' : 'Send request')} disabled={!draft.trim() || !!unavailable || !!blocker || !!draftBlocker} onClick={submit}><ArrowUp size={16} /></button>}
     </div>
   </section></>;
 }

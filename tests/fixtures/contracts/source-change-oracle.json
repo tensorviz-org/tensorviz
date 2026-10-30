@@ -1,0 +1,924 @@
+{
+  "version": 1,
+  "python": "3.12.14",
+  "torch": "2.7.1",
+  "scope": "Authored CPU oracle, conditional source arithmetic; no live-agent or installed acceptance",
+  "sources": [
+    {"file": "_tensorviz_change_config.py", "source": "WIDTH = 12\nHEADS = 3\n", "digest": "83e184acdc182920bc058c50a632001e2de6ec12777667241b012c6d4324e009"},
+    {
+      "file": "model.py",
+      "source": "import torch\nfrom _tensorviz_change_config import WIDTH, HEADS\nclass Model(torch.nn.Module):\n    def __init__(self):\n        super().__init__()\n        self.up = torch.nn.Linear(8, WIDTH)\n        self.tied = self.up\n        self.norm = torch.nn.LayerNorm(WIDTH)\n        self.down = torch.nn.Linear(WIDTH, 4)\n    def forward(self, x):\n        hidden = self.norm(self.up(x) + self.tied(x))\n        split = hidden.reshape(x.shape[0], HEADS, WIDTH // HEADS)\n        return self.down(split.flatten(1))\n",
+      "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04"
+    }
+  ],
+  "queries": [
+    {
+      "query": {"file": "_tensorviz_change_config.py", "symbol": "WIDTH", "direction": "downstream", "depth": 8, "limit": 100, "assumeValue": 16},
+      "page": {
+        "version": 1,
+        "indexId": "1818849e92103c32fe137ca7bc281e3b6416daa616d94adac7acf09bc4277736",
+        "evidence": "source_only",
+        "scope": "supplied_python_files",
+        "files": [{"file": "_tensorviz_change_config.py", "digest": "83e184acdc182920bc058c50a632001e2de6ec12777667241b012c6d4324e009"}, {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04"}],
+        "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+        "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+        "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+        "omittedDiagnostics": 0,
+        "traversal": {"entities": 31, "boundaries": 1, "omittedSeeds": 0},
+        "total": 65,
+        "items": [
+          {
+            "id": "source:b3b21510989b87d495a383cbf92afc8cd65621b99595a8e345a2ae55f0159650",
+            "kind": "definition",
+            "name": "WIDTH",
+            "anchor": {"file": "_tensorviz_change_config.py", "digest": "83e184acdc182920bc058c50a632001e2de6ec12777667241b012c6d4324e009", "startLine": 1, "startColumn": 0, "endLine": 1, "endColumn": 5, "scope": "<module>", "tokenDigest": "a75163de251157a73c7bc6399af56f277ac38c3d0c23e0fc9d641a5b745540fb"},
+            "bindingKind": "assignment",
+            "excerpt": "WIDTH = 12",
+            "literalSource": "12",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 12, "after": 16, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:2c5595bda53b61d96af34e70b9fe47a0b7b2981ffc5df4d17744f115538fcd7f",
+            "kind": "definition",
+            "name": "WIDTH",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 2, "startColumn": 37, "endLine": 2, "endColumn": 42, "scope": "<module>", "tokenDigest": "2158bd3394300f8af99f31afe7c1ff82521a52979d61390583ddf6ca27cfa686"},
+            "bindingKind": "import",
+            "excerpt": "from _tensorviz_change_config import WIDTH, HEADS",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 12, "after": 16, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:5bf61444648208e1b4e882d086dad81417981251ca534b96ca40b6666167bc30",
+            "kind": "reference",
+            "name": "WIDTH",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 6, "startColumn": 37, "endLine": 6, "endColumn": 42, "scope": "Model.__init__", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+            "excerpt": "        self.up = torch.nn.Linear(8, WIDTH)",
+            "resolution": "lexical",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 12, "after": 16, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:0976870efcfcd4b901b4003842584ea1c87fb506039374afcadf8bc87225bab4",
+            "kind": "reference",
+            "name": "WIDTH",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 8, "startColumn": 39, "endLine": 8, "endColumn": 44, "scope": "Model.__init__", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+            "excerpt": "        self.norm = torch.nn.LayerNorm(WIDTH)",
+            "resolution": "lexical",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 12, "after": 16, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:c0c9c37c8f4560865d58ca3de090042fc2acf933cc887785df6ddeb2d1705e3e",
+            "kind": "reference",
+            "name": "WIDTH",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 9, "startColumn": 36, "endLine": 9, "endColumn": 41, "scope": "Model.__init__", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+            "excerpt": "        self.down = torch.nn.Linear(WIDTH, 4)",
+            "resolution": "lexical",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 12, "after": 16, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:a636d716fbf8465749d6ed47d29ed3daa8c17158af671ac60a49b7523e82796c",
+            "kind": "reference",
+            "name": "WIDTH",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 12, "startColumn": 50, "endLine": 12, "endColumn": 55, "scope": "Model.forward", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+            "excerpt": "        split = hidden.reshape(x.shape[0], HEADS, WIDTH // HEADS)",
+            "resolution": "lexical",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 12, "after": 16, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:d4151a334f5b3924352c9ac890b0f86cf7e107c61a8478163f1eba3440c50af5",
+            "kind": "call",
+            "name": "torch.nn.Linear",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 6, "startColumn": 18, "endLine": 6, "endColumn": 43, "scope": "Model.__init__", "tokenDigest": "cf0179246d26aa863c590cc3ba2fa8a213d51e58bfaabf04de927cc09afc2276"},
+            "excerpt": "        self.up = torch.nn.Linear(8, WIDTH)",
+            "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 1], "status": "derived", "before": 12, "after": 16, "reason": "integer_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "derived", "before": 8, "after": 8, "reason": "integer_expression"}, {"path": ["args", 1], "status": "derived", "before": 12, "after": 16, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:fd6860dcfa28b51de8e0888b225131b66bb396612b66f9625e0c31ab015b8720",
+            "kind": "call",
+            "name": "torch.nn.LayerNorm",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 8, "startColumn": 20, "endLine": 8, "endColumn": 45, "scope": "Model.__init__", "tokenDigest": "cef9907f65e93c0b7f8c8c91d70375eda267124e998864ad38702fc372eeb99a"},
+            "excerpt": "        self.norm = torch.nn.LayerNorm(WIDTH)",
+            "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 0], "status": "derived", "before": 12, "after": 16, "reason": "integer_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "derived", "before": 12, "after": 16, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:2cd3ba865d8bd353080cf18c91e7a564e028d2fc1267026b053ed6b0e3cf36b0",
+            "kind": "call",
+            "name": "torch.nn.Linear",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 9, "startColumn": 20, "endLine": 9, "endColumn": 45, "scope": "Model.__init__", "tokenDigest": "a9e4ca4823166f38f96fccd5851ea86faa27fcff14366b18f0a2effac76da792"},
+            "excerpt": "        self.down = torch.nn.Linear(WIDTH, 4)",
+            "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 0], "status": "derived", "before": 12, "after": 16, "reason": "integer_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "derived", "before": 12, "after": 16, "reason": "integer_expression"}, {"path": ["args", 1], "status": "derived", "before": 4, "after": 4, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:5e9e28fc6bf8f1aae9bfa739e62bd1d78b5e458606807f10bad4fbdd73074e4f",
+            "kind": "expression",
+            "name": "BinOp",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 12, "startColumn": 50, "endLine": 12, "endColumn": 64, "scope": "Model.forward", "tokenDigest": "9232cd567730ea511586bfa99958812b2f041b97389737b6256c08cf2fd90235"},
+            "excerpt": "        split = hidden.reshape(x.shape[0], HEADS, WIDTH // HEADS)",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 5, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:c26a09f82e0b168fe8b6442abf8115b3dd5a9b37ed8b3d798e8184add84ea3f0",
+            "kind": "reference",
+            "name": "self.up",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 6, "startColumn": 8, "endLine": 6, "endColumn": 15, "scope": "Model.__init__", "tokenDigest": "12df4648137decd7a3a24ed3b334a14a5789d70b3fd9da9c5efc2afcffb522c0"},
+            "excerpt": "        self.up = torch.nn.Linear(8, WIDTH)",
+            "resolution": "attribute_write",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:579c940d541a8d1636c71240aa839212ff3cc103eb7dcc318c96146afb020251",
+            "kind": "reference",
+            "name": "self.norm",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 8, "startColumn": 8, "endLine": 8, "endColumn": 17, "scope": "Model.__init__", "tokenDigest": "a73af345c0c7030269e24cc132f25312fc33389ed71d7a2e15f4866a6b50e726"},
+            "excerpt": "        self.norm = torch.nn.LayerNorm(WIDTH)",
+            "resolution": "attribute_write",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:d2c6ade0777872865823c61367e5a3462498e8e1af84ef09f511d9bd664964bc",
+            "kind": "reference",
+            "name": "self.down",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 9, "startColumn": 8, "endLine": 9, "endColumn": 17, "scope": "Model.__init__", "tokenDigest": "3e52ac33d292bece60cc2fdf052311f05de25e0fbebb2c7bf43b9513fef6da8c"},
+            "excerpt": "        self.down = torch.nn.Linear(WIDTH, 4)",
+            "resolution": "attribute_write",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:e4032f08acbccfa77fd4d84b831b5c9f5dbc9d30f68445f0ca9a05d71d300313",
+            "kind": "call",
+            "name": "hidden.reshape",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 12, "startColumn": 16, "endLine": 12, "endColumn": 65, "scope": "Model.forward", "tokenDigest": "d9ecbfd1d6fd56e7e5dfe4164a5f61c4340039c997852c5c46a4c0faddccaba1"},
+            "excerpt": "        split = hidden.reshape(x.shape[0], HEADS, WIDTH // HEADS)",
+            "configurationChange": {
+              "kind": "call",
+              "arguments": [{"path": ["args", 2], "status": "derived", "before": 4, "after": 5, "reason": "integer_expression"}],
+              "omittedArguments": 0,
+              "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}, {"path": ["args", 1], "status": "derived", "before": 3, "after": 3, "reason": "integer_expression"}, {"path": ["args", 2], "status": "derived", "before": 4, "after": 5, "reason": "integer_expression"}],
+              "omittedArgumentValues": 0,
+              "hasExpansion": false
+            }
+          },
+          {
+            "id": "source:4be4b9d47ae3ccbbdfec37e854c036fb5da737e4b4be1d7a343082d1334253f5",
+            "kind": "reference",
+            "name": "self.up",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 7, "startColumn": 20, "endLine": 7, "endColumn": 27, "scope": "Model.__init__", "tokenDigest": "b64bb16a3f58f4cfc8aeebbf7205729789a1b407ff465eef6ed4053eeb46a8e0"},
+            "excerpt": "        self.tied = self.up",
+            "resolution": "possible_attribute",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:aaa04e7a06ed0ad3512d002f856f651610b649a348c01e1491827d73bd273a2c",
+            "kind": "reference",
+            "name": "self.up",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 27, "endLine": 11, "endColumn": 34, "scope": "Model.forward", "tokenDigest": "b64bb16a3f58f4cfc8aeebbf7205729789a1b407ff465eef6ed4053eeb46a8e0"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "resolution": "possible_attribute",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:0f3cf30d15dbc4f2645c13c6dc4d44571a822a50fc4b524ecd679608159abcee",
+            "kind": "reference",
+            "name": "self.norm",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 17, "endLine": 11, "endColumn": 26, "scope": "Model.forward", "tokenDigest": "f3d0c32b47d0c32dd65d091de4c8afa732bd14d506fbdf86ca86eccc1a5a55cc"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "resolution": "possible_attribute",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:a4b6556bc22becf0506f56476eb6fdd6c6224529b97cfe2a47d5b4a90edb9029",
+            "kind": "reference",
+            "name": "self.down",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 13, "startColumn": 15, "endLine": 13, "endColumn": 24, "scope": "Model.forward", "tokenDigest": "3d2d9d6e3ee2fee8defc05e90d085c951f0b0368c5b0ed8ae527f48fd68f87b8"},
+            "excerpt": "        return self.down(split.flatten(1))",
+            "resolution": "possible_attribute",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:3aa26b81a282be18658cb2bc1de94a9c75af97c2b023a7bad4d43650e14380b2",
+            "kind": "definition",
+            "name": "split",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 12, "startColumn": 8, "endLine": 12, "endColumn": 13, "scope": "Model.forward", "tokenDigest": "c5b8565c4eeb762788459a64bb1ccdab52f2d6951434bbce10978b45711b6800"},
+            "bindingKind": "assignment",
+            "excerpt": "        split = hidden.reshape(x.shape[0], HEADS, WIDTH // HEADS)",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}
+          },
+          {
+            "id": "source:ee32e2f8981af7a3b99205898deb7dd1d107cf63fe249f0e20b2117910899a34",
+            "kind": "reference",
+            "name": "self.tied",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 7, "startColumn": 8, "endLine": 7, "endColumn": 17, "scope": "Model.__init__", "tokenDigest": "c953fe449a8f9d3c025f8f343c3107209c2983dc0f3a129c27ef582e4e09823b"},
+            "excerpt": "        self.tied = self.up",
+            "resolution": "attribute_write",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:7ab0183c40bc95c5b07f1036fcd274497399ebf886cb8f090b8a83f7f72f9843",
+            "kind": "call",
+            "name": "self.up",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 27, "endLine": 11, "endColumn": 37, "scope": "Model.forward", "tokenDigest": "5cc62d98b7d5932f7dfd37d3ac3a502df7a1fa05d0a3b3580d345fd2ee766ed5"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "configurationChange": {"kind": "call", "arguments": [], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:283f2d93746935d7a535794141debd91af544d5b3257ad2c458df59a4a26ab3d",
+            "kind": "call",
+            "name": "self.norm",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 17, "endLine": 11, "endColumn": 53, "scope": "Model.forward", "tokenDigest": "a4503d95b9418806f9140bfbe93c1f32fd7c74182cc5cf3ad928f1f85058a7bd"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:a1d6ce1e44aac69de1abb681a333fe8a1bb726b10cf12f91226722ed51c201ea",
+            "kind": "call",
+            "name": "self.down",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 13, "startColumn": 15, "endLine": 13, "endColumn": 42, "scope": "Model.forward", "tokenDigest": "be90919c7be7910773cbb0bc3c17682847e786aae5319ce00050fa6976da976f"},
+            "excerpt": "        return self.down(split.flatten(1))",
+            "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:99bdb8ea41691bc0b3045303e1074c8d1b6ae91f79c89a542213d8022b40347f",
+            "kind": "reference",
+            "name": "split",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 13, "startColumn": 25, "endLine": 13, "endColumn": 30, "scope": "Model.forward", "tokenDigest": "923dfac6ee503d4e391eba77436293046c1abc2415ae7d784924a804627a8174"},
+            "excerpt": "        return self.down(split.flatten(1))",
+            "resolution": "lexical",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}
+          },
+          {
+            "id": "source:a02b2f6b41fe281f7951227514a543e25bbff4a9083607dfc042d8f5f27bb278",
+            "kind": "reference",
+            "name": "self.tied",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 40, "endLine": 11, "endColumn": 49, "scope": "Model.forward", "tokenDigest": "c59af48c2b36438527e13286e8ae5571938b40ec60cf17dd0808e2df994963b7"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "resolution": "possible_attribute",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:bf37dec20c45145f5d273f116e01ca148172a03c226701c706fc0556d31c5ae6",
+            "kind": "expression",
+            "name": "BinOp",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 27, "endLine": 11, "endColumn": 52, "scope": "Model.forward", "tokenDigest": "40eccf776a783caaad85da1df53a15b2c1a99cbee0c214936a916b0fa8d02ca7"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}
+          },
+          {
+            "id": "source:8a74b2060016c3971669299ddebdf7e7f9fd9eb37b28d701ca36d0ef98fc5cec",
+            "kind": "definition",
+            "name": "hidden",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 8, "endLine": 11, "endColumn": 14, "scope": "Model.forward", "tokenDigest": "9771e3ba7cb3a66eea5b8684a2b64074c602154b27aa08a05ff6302edba12996"},
+            "bindingKind": "assignment",
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}
+          },
+          {
+            "id": "source:469352ed3a18d5edd4199d20ac4782f3ff31a4e3be3ccad40230f9acbb54e2a6",
+            "kind": "reference",
+            "name": "split.flatten",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 13, "startColumn": 25, "endLine": 13, "endColumn": 38, "scope": "Model.forward", "tokenDigest": "4b79324d69c68836a121e8d91bac5ce197da1a8a0864d8a3431bfb73f28617fd"},
+            "excerpt": "        return self.down(split.flatten(1))",
+            "resolution": "unresolved_attribute",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:aad6bdeeb2a80b85b1f1a51da5e54bed538e544b4a6eb804a45d461e2aea53a4",
+            "kind": "call",
+            "name": "self.tied",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 40, "endLine": 11, "endColumn": 52, "scope": "Model.forward", "tokenDigest": "4969ca0f26862c8e2e07aaaff4a7d7f28918b8216de73cb740cdb875a2133d1c"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "configurationChange": {"kind": "call", "arguments": [], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:e06583bdf8ec022057efbd24b4822de9ecce4e89699d5346bfe0aa94ea9e53ed",
+            "kind": "reference",
+            "name": "hidden",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 12, "startColumn": 16, "endLine": 12, "endColumn": 22, "scope": "Model.forward", "tokenDigest": "4774dce9d7bf144782025dffbc596ccff6b812a67fee00383bb631a6ff662c25"},
+            "excerpt": "        split = hidden.reshape(x.shape[0], HEADS, WIDTH // HEADS)",
+            "resolution": "lexical",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}
+          },
+          {
+            "id": "source:ccb5c5536a06066e0bd0c30ec53b5fafc623fba9d8358faa494be51245da7c50",
+            "kind": "call",
+            "name": "split.flatten",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 13, "startColumn": 25, "endLine": 13, "endColumn": 41, "scope": "Model.forward", "tokenDigest": "99541a60c82767f99ddc230168b5af7352dc4d60f9663387aa33541251086665"},
+            "excerpt": "        return self.down(split.flatten(1))",
+            "configurationChange": {"kind": "call", "arguments": [], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "derived", "before": 1, "after": 1, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {"kind": "relation", "source": "source:b3b21510989b87d495a383cbf92afc8cd65621b99595a8e345a2ae55f0159650", "target": "source:2c5595bda53b61d96af34e70b9fe47a0b7b2981ffc5df4d17744f115538fcd7f", "relation": "import", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:2c5595bda53b61d96af34e70b9fe47a0b7b2981ffc5df4d17744f115538fcd7f", "target": "source:5bf61444648208e1b4e882d086dad81417981251ca534b96ca40b6666167bc30", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:c26a09f82e0b168fe8b6442abf8115b3dd5a9b37ed8b3d798e8184add84ea3f0", "target": "source:4be4b9d47ae3ccbbdfec37e854c036fb5da737e4b4be1d7a343082d1334253f5", "relation": "reference", "certainty": "possible"},
+          {"kind": "relation", "source": "source:2c5595bda53b61d96af34e70b9fe47a0b7b2981ffc5df4d17744f115538fcd7f", "target": "source:0976870efcfcd4b901b4003842584ea1c87fb506039374afcadf8bc87225bab4", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:2c5595bda53b61d96af34e70b9fe47a0b7b2981ffc5df4d17744f115538fcd7f", "target": "source:c0c9c37c8f4560865d58ca3de090042fc2acf933cc887785df6ddeb2d1705e3e", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:579c940d541a8d1636c71240aa839212ff3cc103eb7dcc318c96146afb020251", "target": "source:0f3cf30d15dbc4f2645c13c6dc4d44571a822a50fc4b524ecd679608159abcee", "relation": "reference", "certainty": "possible"},
+          {"kind": "relation", "source": "source:c26a09f82e0b168fe8b6442abf8115b3dd5a9b37ed8b3d798e8184add84ea3f0", "target": "source:aaa04e7a06ed0ad3512d002f856f651610b649a348c01e1491827d73bd273a2c", "relation": "reference", "certainty": "possible"},
+          {"kind": "relation", "source": "source:ee32e2f8981af7a3b99205898deb7dd1d107cf63fe249f0e20b2117910899a34", "target": "source:a02b2f6b41fe281f7951227514a543e25bbff4a9083607dfc042d8f5f27bb278", "relation": "reference", "certainty": "possible"},
+          {"kind": "relation", "source": "source:8a74b2060016c3971669299ddebdf7e7f9fd9eb37b28d701ca36d0ef98fc5cec", "target": "source:e06583bdf8ec022057efbd24b4822de9ecce4e89699d5346bfe0aa94ea9e53ed", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:2c5595bda53b61d96af34e70b9fe47a0b7b2981ffc5df4d17744f115538fcd7f", "target": "source:a636d716fbf8465749d6ed47d29ed3daa8c17158af671ac60a49b7523e82796c", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:d2c6ade0777872865823c61367e5a3462498e8e1af84ef09f511d9bd664964bc", "target": "source:a4b6556bc22becf0506f56476eb6fdd6c6224529b97cfe2a47d5b4a90edb9029", "relation": "reference", "certainty": "possible"},
+          {"kind": "relation", "source": "source:3aa26b81a282be18658cb2bc1de94a9c75af97c2b023a7bad4d43650e14380b2", "target": "source:99bdb8ea41691bc0b3045303e1074c8d1b6ae91f79c89a542213d8022b40347f", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:d4151a334f5b3924352c9ac890b0f86cf7e107c61a8478163f1eba3440c50af5", "target": "source:c26a09f82e0b168fe8b6442abf8115b3dd5a9b37ed8b3d798e8184add84ea3f0", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:5bf61444648208e1b4e882d086dad81417981251ca534b96ca40b6666167bc30", "target": "source:d4151a334f5b3924352c9ac890b0f86cf7e107c61a8478163f1eba3440c50af5", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 1]},
+          {"kind": "relation", "source": "source:4be4b9d47ae3ccbbdfec37e854c036fb5da737e4b4be1d7a343082d1334253f5", "target": "source:ee32e2f8981af7a3b99205898deb7dd1d107cf63fe249f0e20b2117910899a34", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:fd6860dcfa28b51de8e0888b225131b66bb396612b66f9625e0c31ab015b8720", "target": "source:579c940d541a8d1636c71240aa839212ff3cc103eb7dcc318c96146afb020251", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:0976870efcfcd4b901b4003842584ea1c87fb506039374afcadf8bc87225bab4", "target": "source:fd6860dcfa28b51de8e0888b225131b66bb396612b66f9625e0c31ab015b8720", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 0]},
+          {"kind": "relation", "source": "source:2cd3ba865d8bd353080cf18c91e7a564e028d2fc1267026b053ed6b0e3cf36b0", "target": "source:d2c6ade0777872865823c61367e5a3462498e8e1af84ef09f511d9bd664964bc", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:c0c9c37c8f4560865d58ca3de090042fc2acf933cc887785df6ddeb2d1705e3e", "target": "source:2cd3ba865d8bd353080cf18c91e7a564e028d2fc1267026b053ed6b0e3cf36b0", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 0]},
+          {"kind": "relation", "source": "source:283f2d93746935d7a535794141debd91af544d5b3257ad2c458df59a4a26ab3d", "target": "source:8a74b2060016c3971669299ddebdf7e7f9fd9eb37b28d701ca36d0ef98fc5cec", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:0f3cf30d15dbc4f2645c13c6dc4d44571a822a50fc4b524ecd679608159abcee", "target": "source:283f2d93746935d7a535794141debd91af544d5b3257ad2c458df59a4a26ab3d", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:bf37dec20c45145f5d273f116e01ca148172a03c226701c706fc0556d31c5ae6", "target": "source:283f2d93746935d7a535794141debd91af544d5b3257ad2c458df59a4a26ab3d", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 0]},
+          {"kind": "relation", "source": "source:7ab0183c40bc95c5b07f1036fcd274497399ebf886cb8f090b8a83f7f72f9843", "target": "source:bf37dec20c45145f5d273f116e01ca148172a03c226701c706fc0556d31c5ae6", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:aaa04e7a06ed0ad3512d002f856f651610b649a348c01e1491827d73bd273a2c", "target": "source:7ab0183c40bc95c5b07f1036fcd274497399ebf886cb8f090b8a83f7f72f9843", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:aad6bdeeb2a80b85b1f1a51da5e54bed538e544b4a6eb804a45d461e2aea53a4", "target": "source:bf37dec20c45145f5d273f116e01ca148172a03c226701c706fc0556d31c5ae6", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:a02b2f6b41fe281f7951227514a543e25bbff4a9083607dfc042d8f5f27bb278", "target": "source:aad6bdeeb2a80b85b1f1a51da5e54bed538e544b4a6eb804a45d461e2aea53a4", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:e4032f08acbccfa77fd4d84b831b5c9f5dbc9d30f68445f0ca9a05d71d300313", "target": "source:3aa26b81a282be18658cb2bc1de94a9c75af97c2b023a7bad4d43650e14380b2", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "boundary", "anchorId": "source:f9ee60c6ae1b3622a4694d79b15fb36a8cc49ae7ce60be06c63189762a954433", "via": {"kind": "relation", "source": "source:e06583bdf8ec022057efbd24b4822de9ecce4e89699d5346bfe0aa94ea9e53ed", "target": "source:f9ee60c6ae1b3622a4694d79b15fb36a8cc49ae7ce60be06c63189762a954433", "relation": "expression", "certainty": "lexical"}, "reason": "depth_limit"},
+          {"kind": "relation", "source": "source:5e9e28fc6bf8f1aae9bfa739e62bd1d78b5e458606807f10bad4fbdd73074e4f", "target": "source:e4032f08acbccfa77fd4d84b831b5c9f5dbc9d30f68445f0ca9a05d71d300313", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 2]},
+          {"kind": "relation", "source": "source:a636d716fbf8465749d6ed47d29ed3daa8c17158af671ac60a49b7523e82796c", "target": "source:5e9e28fc6bf8f1aae9bfa739e62bd1d78b5e458606807f10bad4fbdd73074e4f", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:a4b6556bc22becf0506f56476eb6fdd6c6224529b97cfe2a47d5b4a90edb9029", "target": "source:a1d6ce1e44aac69de1abb681a333fe8a1bb726b10cf12f91226722ed51c201ea", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:ccb5c5536a06066e0bd0c30ec53b5fafc623fba9d8358faa494be51245da7c50", "target": "source:a1d6ce1e44aac69de1abb681a333fe8a1bb726b10cf12f91226722ed51c201ea", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 0]},
+          {"kind": "relation", "source": "source:469352ed3a18d5edd4199d20ac4782f3ff31a4e3be3ccad40230f9acbb54e2a6", "target": "source:ccb5c5536a06066e0bd0c30ec53b5fafc623fba9d8358faa494be51245da7c50", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:99bdb8ea41691bc0b3045303e1074c8d1b6ae91f79c89a542213d8022b40347f", "target": "source:469352ed3a18d5edd4199d20ac4782f3ff31a4e3be3ccad40230f9acbb54e2a6", "relation": "expression", "certainty": "lexical"}
+        ],
+        "nextOffset": null,
+        "changeAnalysis": {
+          "version": 1,
+          "evidence": "conditional_source_arithmetic",
+          "definitionId": "source:b3b21510989b87d495a383cbf92afc8cd65621b99595a8e345a2ae55f0159650",
+          "before": 12,
+          "after": 16,
+          "scope": "source_records_on_this_page",
+          "assumptions": ["Only the selected integer definition changes; supported direct lexical bindings retain their source meanings.", "Branches, call order, import overrides and runtime mutation are not evaluated."],
+          "limitations": ["Only integer literals, direct names/imports, unary signs and +, -, *, //, % are evaluated.", "No execution, tensor shape, checkpoint compatibility or candidate-validity claim is made."]
+        }
+      }
+    },
+    {
+      "query": {"file": "_tensorviz_change_config.py", "symbol": "WIDTH", "direction": "downstream", "depth": 8, "limit": 100, "assumeValue": 24},
+      "page": {
+        "version": 1,
+        "indexId": "1818849e92103c32fe137ca7bc281e3b6416daa616d94adac7acf09bc4277736",
+        "evidence": "source_only",
+        "scope": "supplied_python_files",
+        "files": [{"file": "_tensorviz_change_config.py", "digest": "83e184acdc182920bc058c50a632001e2de6ec12777667241b012c6d4324e009"}, {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04"}],
+        "assumptions": ["Lexical relationships do not prove execution order, runtime values or import behavior.", "Unresolved attributes, dynamic namespaces and omitted files require source inspection or new evidence."],
+        "limitations": ["Default-value edges apply only when the caller omits that argument; receiver-attribute edges are possible relationships.", "This is not a call graph or complete control-flow analysis. Type annotations and dynamic namespace resolution are not indexed."],
+        "diagnostics": [{"file": "model.py", "line": 1, "reason": "unresolved_import", "module": "torch"}],
+        "omittedDiagnostics": 0,
+        "traversal": {"entities": 31, "boundaries": 1, "omittedSeeds": 0},
+        "total": 65,
+        "items": [
+          {
+            "id": "source:b3b21510989b87d495a383cbf92afc8cd65621b99595a8e345a2ae55f0159650",
+            "kind": "definition",
+            "name": "WIDTH",
+            "anchor": {"file": "_tensorviz_change_config.py", "digest": "83e184acdc182920bc058c50a632001e2de6ec12777667241b012c6d4324e009", "startLine": 1, "startColumn": 0, "endLine": 1, "endColumn": 5, "scope": "<module>", "tokenDigest": "a75163de251157a73c7bc6399af56f277ac38c3d0c23e0fc9d641a5b745540fb"},
+            "bindingKind": "assignment",
+            "excerpt": "WIDTH = 12",
+            "literalSource": "12",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 12, "after": 24, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:2c5595bda53b61d96af34e70b9fe47a0b7b2981ffc5df4d17744f115538fcd7f",
+            "kind": "definition",
+            "name": "WIDTH",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 2, "startColumn": 37, "endLine": 2, "endColumn": 42, "scope": "<module>", "tokenDigest": "2158bd3394300f8af99f31afe7c1ff82521a52979d61390583ddf6ca27cfa686"},
+            "bindingKind": "import",
+            "excerpt": "from _tensorviz_change_config import WIDTH, HEADS",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 12, "after": 24, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:5bf61444648208e1b4e882d086dad81417981251ca534b96ca40b6666167bc30",
+            "kind": "reference",
+            "name": "WIDTH",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 6, "startColumn": 37, "endLine": 6, "endColumn": 42, "scope": "Model.__init__", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+            "excerpt": "        self.up = torch.nn.Linear(8, WIDTH)",
+            "resolution": "lexical",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 12, "after": 24, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:0976870efcfcd4b901b4003842584ea1c87fb506039374afcadf8bc87225bab4",
+            "kind": "reference",
+            "name": "WIDTH",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 8, "startColumn": 39, "endLine": 8, "endColumn": 44, "scope": "Model.__init__", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+            "excerpt": "        self.norm = torch.nn.LayerNorm(WIDTH)",
+            "resolution": "lexical",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 12, "after": 24, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:c0c9c37c8f4560865d58ca3de090042fc2acf933cc887785df6ddeb2d1705e3e",
+            "kind": "reference",
+            "name": "WIDTH",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 9, "startColumn": 36, "endLine": 9, "endColumn": 41, "scope": "Model.__init__", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+            "excerpt": "        self.down = torch.nn.Linear(WIDTH, 4)",
+            "resolution": "lexical",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 12, "after": 24, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:a636d716fbf8465749d6ed47d29ed3daa8c17158af671ac60a49b7523e82796c",
+            "kind": "reference",
+            "name": "WIDTH",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 12, "startColumn": 50, "endLine": 12, "endColumn": 55, "scope": "Model.forward", "tokenDigest": "d3acb02b34ed227402840e11308a74f4cfa0da9d7d7319be38e76da8c00ac5db"},
+            "excerpt": "        split = hidden.reshape(x.shape[0], HEADS, WIDTH // HEADS)",
+            "resolution": "lexical",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 12, "after": 24, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:d4151a334f5b3924352c9ac890b0f86cf7e107c61a8478163f1eba3440c50af5",
+            "kind": "call",
+            "name": "torch.nn.Linear",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 6, "startColumn": 18, "endLine": 6, "endColumn": 43, "scope": "Model.__init__", "tokenDigest": "cf0179246d26aa863c590cc3ba2fa8a213d51e58bfaabf04de927cc09afc2276"},
+            "excerpt": "        self.up = torch.nn.Linear(8, WIDTH)",
+            "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 1], "status": "derived", "before": 12, "after": 24, "reason": "integer_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "derived", "before": 8, "after": 8, "reason": "integer_expression"}, {"path": ["args", 1], "status": "derived", "before": 12, "after": 24, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:fd6860dcfa28b51de8e0888b225131b66bb396612b66f9625e0c31ab015b8720",
+            "kind": "call",
+            "name": "torch.nn.LayerNorm",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 8, "startColumn": 20, "endLine": 8, "endColumn": 45, "scope": "Model.__init__", "tokenDigest": "cef9907f65e93c0b7f8c8c91d70375eda267124e998864ad38702fc372eeb99a"},
+            "excerpt": "        self.norm = torch.nn.LayerNorm(WIDTH)",
+            "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 0], "status": "derived", "before": 12, "after": 24, "reason": "integer_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "derived", "before": 12, "after": 24, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:2cd3ba865d8bd353080cf18c91e7a564e028d2fc1267026b053ed6b0e3cf36b0",
+            "kind": "call",
+            "name": "torch.nn.Linear",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 9, "startColumn": 20, "endLine": 9, "endColumn": 45, "scope": "Model.__init__", "tokenDigest": "a9e4ca4823166f38f96fccd5851ea86faa27fcff14366b18f0a2effac76da792"},
+            "excerpt": "        self.down = torch.nn.Linear(WIDTH, 4)",
+            "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 0], "status": "derived", "before": 12, "after": 24, "reason": "integer_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "derived", "before": 12, "after": 24, "reason": "integer_expression"}, {"path": ["args", 1], "status": "derived", "before": 4, "after": 4, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:5e9e28fc6bf8f1aae9bfa739e62bd1d78b5e458606807f10bad4fbdd73074e4f",
+            "kind": "expression",
+            "name": "BinOp",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 12, "startColumn": 50, "endLine": 12, "endColumn": 64, "scope": "Model.forward", "tokenDigest": "9232cd567730ea511586bfa99958812b2f041b97389737b6256c08cf2fd90235"},
+            "excerpt": "        split = hidden.reshape(x.shape[0], HEADS, WIDTH // HEADS)",
+            "configurationChange": {"kind": "scalar", "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}
+          },
+          {
+            "id": "source:c26a09f82e0b168fe8b6442abf8115b3dd5a9b37ed8b3d798e8184add84ea3f0",
+            "kind": "reference",
+            "name": "self.up",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 6, "startColumn": 8, "endLine": 6, "endColumn": 15, "scope": "Model.__init__", "tokenDigest": "12df4648137decd7a3a24ed3b334a14a5789d70b3fd9da9c5efc2afcffb522c0"},
+            "excerpt": "        self.up = torch.nn.Linear(8, WIDTH)",
+            "resolution": "attribute_write",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:579c940d541a8d1636c71240aa839212ff3cc103eb7dcc318c96146afb020251",
+            "kind": "reference",
+            "name": "self.norm",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 8, "startColumn": 8, "endLine": 8, "endColumn": 17, "scope": "Model.__init__", "tokenDigest": "a73af345c0c7030269e24cc132f25312fc33389ed71d7a2e15f4866a6b50e726"},
+            "excerpt": "        self.norm = torch.nn.LayerNorm(WIDTH)",
+            "resolution": "attribute_write",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:d2c6ade0777872865823c61367e5a3462498e8e1af84ef09f511d9bd664964bc",
+            "kind": "reference",
+            "name": "self.down",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 9, "startColumn": 8, "endLine": 9, "endColumn": 17, "scope": "Model.__init__", "tokenDigest": "3e52ac33d292bece60cc2fdf052311f05de25e0fbebb2c7bf43b9513fef6da8c"},
+            "excerpt": "        self.down = torch.nn.Linear(WIDTH, 4)",
+            "resolution": "attribute_write",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:e4032f08acbccfa77fd4d84b831b5c9f5dbc9d30f68445f0ca9a05d71d300313",
+            "kind": "call",
+            "name": "hidden.reshape",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 12, "startColumn": 16, "endLine": 12, "endColumn": 65, "scope": "Model.forward", "tokenDigest": "d9ecbfd1d6fd56e7e5dfe4164a5f61c4340039c997852c5c46a4c0faddccaba1"},
+            "excerpt": "        split = hidden.reshape(x.shape[0], HEADS, WIDTH // HEADS)",
+            "configurationChange": {
+              "kind": "call",
+              "arguments": [{"path": ["args", 2], "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}],
+              "omittedArguments": 0,
+              "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}, {"path": ["args", 1], "status": "derived", "before": 3, "after": 3, "reason": "integer_expression"}, {"path": ["args", 2], "status": "derived", "before": 4, "after": 8, "reason": "integer_expression"}],
+              "omittedArgumentValues": 0,
+              "hasExpansion": false
+            }
+          },
+          {
+            "id": "source:4be4b9d47ae3ccbbdfec37e854c036fb5da737e4b4be1d7a343082d1334253f5",
+            "kind": "reference",
+            "name": "self.up",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 7, "startColumn": 20, "endLine": 7, "endColumn": 27, "scope": "Model.__init__", "tokenDigest": "b64bb16a3f58f4cfc8aeebbf7205729789a1b407ff465eef6ed4053eeb46a8e0"},
+            "excerpt": "        self.tied = self.up",
+            "resolution": "possible_attribute",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:aaa04e7a06ed0ad3512d002f856f651610b649a348c01e1491827d73bd273a2c",
+            "kind": "reference",
+            "name": "self.up",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 27, "endLine": 11, "endColumn": 34, "scope": "Model.forward", "tokenDigest": "b64bb16a3f58f4cfc8aeebbf7205729789a1b407ff465eef6ed4053eeb46a8e0"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "resolution": "possible_attribute",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:0f3cf30d15dbc4f2645c13c6dc4d44571a822a50fc4b524ecd679608159abcee",
+            "kind": "reference",
+            "name": "self.norm",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 17, "endLine": 11, "endColumn": 26, "scope": "Model.forward", "tokenDigest": "f3d0c32b47d0c32dd65d091de4c8afa732bd14d506fbdf86ca86eccc1a5a55cc"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "resolution": "possible_attribute",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:a4b6556bc22becf0506f56476eb6fdd6c6224529b97cfe2a47d5b4a90edb9029",
+            "kind": "reference",
+            "name": "self.down",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 13, "startColumn": 15, "endLine": 13, "endColumn": 24, "scope": "Model.forward", "tokenDigest": "3d2d9d6e3ee2fee8defc05e90d085c951f0b0368c5b0ed8ae527f48fd68f87b8"},
+            "excerpt": "        return self.down(split.flatten(1))",
+            "resolution": "possible_attribute",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:3aa26b81a282be18658cb2bc1de94a9c75af97c2b023a7bad4d43650e14380b2",
+            "kind": "definition",
+            "name": "split",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 12, "startColumn": 8, "endLine": 12, "endColumn": 13, "scope": "Model.forward", "tokenDigest": "c5b8565c4eeb762788459a64bb1ccdab52f2d6951434bbce10978b45711b6800"},
+            "bindingKind": "assignment",
+            "excerpt": "        split = hidden.reshape(x.shape[0], HEADS, WIDTH // HEADS)",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}
+          },
+          {
+            "id": "source:ee32e2f8981af7a3b99205898deb7dd1d107cf63fe249f0e20b2117910899a34",
+            "kind": "reference",
+            "name": "self.tied",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 7, "startColumn": 8, "endLine": 7, "endColumn": 17, "scope": "Model.__init__", "tokenDigest": "c953fe449a8f9d3c025f8f343c3107209c2983dc0f3a129c27ef582e4e09823b"},
+            "excerpt": "        self.tied = self.up",
+            "resolution": "attribute_write",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:7ab0183c40bc95c5b07f1036fcd274497399ebf886cb8f090b8a83f7f72f9843",
+            "kind": "call",
+            "name": "self.up",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 27, "endLine": 11, "endColumn": 37, "scope": "Model.forward", "tokenDigest": "5cc62d98b7d5932f7dfd37d3ac3a502df7a1fa05d0a3b3580d345fd2ee766ed5"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "configurationChange": {"kind": "call", "arguments": [], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:283f2d93746935d7a535794141debd91af544d5b3257ad2c458df59a4a26ab3d",
+            "kind": "call",
+            "name": "self.norm",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 17, "endLine": 11, "endColumn": 53, "scope": "Model.forward", "tokenDigest": "a4503d95b9418806f9140bfbe93c1f32fd7c74182cc5cf3ad928f1f85058a7bd"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:a1d6ce1e44aac69de1abb681a333fe8a1bb726b10cf12f91226722ed51c201ea",
+            "kind": "call",
+            "name": "self.down",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 13, "startColumn": 15, "endLine": 13, "endColumn": 42, "scope": "Model.forward", "tokenDigest": "be90919c7be7910773cbb0bc3c17682847e786aae5319ce00050fa6976da976f"},
+            "excerpt": "        return self.down(split.flatten(1))",
+            "configurationChange": {"kind": "call", "arguments": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:99bdb8ea41691bc0b3045303e1074c8d1b6ae91f79c89a542213d8022b40347f",
+            "kind": "reference",
+            "name": "split",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 13, "startColumn": 25, "endLine": 13, "endColumn": 30, "scope": "Model.forward", "tokenDigest": "923dfac6ee503d4e391eba77436293046c1abc2415ae7d784924a804627a8174"},
+            "excerpt": "        return self.down(split.flatten(1))",
+            "resolution": "lexical",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}
+          },
+          {
+            "id": "source:a02b2f6b41fe281f7951227514a543e25bbff4a9083607dfc042d8f5f27bb278",
+            "kind": "reference",
+            "name": "self.tied",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 40, "endLine": 11, "endColumn": 49, "scope": "Model.forward", "tokenDigest": "c59af48c2b36438527e13286e8ae5571938b40ec60cf17dd0808e2df994963b7"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "resolution": "possible_attribute",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:bf37dec20c45145f5d273f116e01ca148172a03c226701c706fc0556d31c5ae6",
+            "kind": "expression",
+            "name": "BinOp",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 27, "endLine": 11, "endColumn": 52, "scope": "Model.forward", "tokenDigest": "40eccf776a783caaad85da1df53a15b2c1a99cbee0c214936a916b0fa8d02ca7"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}
+          },
+          {
+            "id": "source:8a74b2060016c3971669299ddebdf7e7f9fd9eb37b28d701ca36d0ef98fc5cec",
+            "kind": "definition",
+            "name": "hidden",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 8, "endLine": 11, "endColumn": 14, "scope": "Model.forward", "tokenDigest": "9771e3ba7cb3a66eea5b8684a2b64074c602154b27aa08a05ff6302edba12996"},
+            "bindingKind": "assignment",
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}
+          },
+          {
+            "id": "source:469352ed3a18d5edd4199d20ac4782f3ff31a4e3be3ccad40230f9acbb54e2a6",
+            "kind": "reference",
+            "name": "split.flatten",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 13, "startColumn": 25, "endLine": 13, "endColumn": 38, "scope": "Model.forward", "tokenDigest": "4b79324d69c68836a121e8d91bac5ce197da1a8a0864d8a3431bfb73f28617fd"},
+            "excerpt": "        return self.down(split.flatten(1))",
+            "resolution": "unresolved_attribute",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unresolved_binding"}
+          },
+          {
+            "id": "source:aad6bdeeb2a80b85b1f1a51da5e54bed538e544b4a6eb804a45d461e2aea53a4",
+            "kind": "call",
+            "name": "self.tied",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 40, "endLine": 11, "endColumn": 52, "scope": "Model.forward", "tokenDigest": "4969ca0f26862c8e2e07aaaff4a7d7f28918b8216de73cb740cdb875a2133d1c"},
+            "excerpt": "        hidden = self.norm(self.up(x) + self.tied(x))",
+            "configurationChange": {"kind": "call", "arguments": [], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {
+            "id": "source:e06583bdf8ec022057efbd24b4822de9ecce4e89699d5346bfe0aa94ea9e53ed",
+            "kind": "reference",
+            "name": "hidden",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 12, "startColumn": 16, "endLine": 12, "endColumn": 22, "scope": "Model.forward", "tokenDigest": "4774dce9d7bf144782025dffbc596ccff6b812a67fee00383bb631a6ff662c25"},
+            "excerpt": "        split = hidden.reshape(x.shape[0], HEADS, WIDTH // HEADS)",
+            "resolution": "lexical",
+            "configurationChange": {"kind": "scalar", "status": "unknown", "before": null, "after": null, "reason": "unsupported_expression"}
+          },
+          {
+            "id": "source:ccb5c5536a06066e0bd0c30ec53b5fafc623fba9d8358faa494be51245da7c50",
+            "kind": "call",
+            "name": "split.flatten",
+            "anchor": {"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 13, "startColumn": 25, "endLine": 13, "endColumn": 41, "scope": "Model.forward", "tokenDigest": "99541a60c82767f99ddc230168b5af7352dc4d60f9663387aa33541251086665"},
+            "excerpt": "        return self.down(split.flatten(1))",
+            "configurationChange": {"kind": "call", "arguments": [], "omittedArguments": 0, "argumentValues": [{"path": ["args", 0], "status": "derived", "before": 1, "after": 1, "reason": "integer_expression"}], "omittedArgumentValues": 0, "hasExpansion": false}
+          },
+          {"kind": "relation", "source": "source:b3b21510989b87d495a383cbf92afc8cd65621b99595a8e345a2ae55f0159650", "target": "source:2c5595bda53b61d96af34e70b9fe47a0b7b2981ffc5df4d17744f115538fcd7f", "relation": "import", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:2c5595bda53b61d96af34e70b9fe47a0b7b2981ffc5df4d17744f115538fcd7f", "target": "source:5bf61444648208e1b4e882d086dad81417981251ca534b96ca40b6666167bc30", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:c26a09f82e0b168fe8b6442abf8115b3dd5a9b37ed8b3d798e8184add84ea3f0", "target": "source:4be4b9d47ae3ccbbdfec37e854c036fb5da737e4b4be1d7a343082d1334253f5", "relation": "reference", "certainty": "possible"},
+          {"kind": "relation", "source": "source:2c5595bda53b61d96af34e70b9fe47a0b7b2981ffc5df4d17744f115538fcd7f", "target": "source:0976870efcfcd4b901b4003842584ea1c87fb506039374afcadf8bc87225bab4", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:2c5595bda53b61d96af34e70b9fe47a0b7b2981ffc5df4d17744f115538fcd7f", "target": "source:c0c9c37c8f4560865d58ca3de090042fc2acf933cc887785df6ddeb2d1705e3e", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:579c940d541a8d1636c71240aa839212ff3cc103eb7dcc318c96146afb020251", "target": "source:0f3cf30d15dbc4f2645c13c6dc4d44571a822a50fc4b524ecd679608159abcee", "relation": "reference", "certainty": "possible"},
+          {"kind": "relation", "source": "source:c26a09f82e0b168fe8b6442abf8115b3dd5a9b37ed8b3d798e8184add84ea3f0", "target": "source:aaa04e7a06ed0ad3512d002f856f651610b649a348c01e1491827d73bd273a2c", "relation": "reference", "certainty": "possible"},
+          {"kind": "relation", "source": "source:ee32e2f8981af7a3b99205898deb7dd1d107cf63fe249f0e20b2117910899a34", "target": "source:a02b2f6b41fe281f7951227514a543e25bbff4a9083607dfc042d8f5f27bb278", "relation": "reference", "certainty": "possible"},
+          {"kind": "relation", "source": "source:8a74b2060016c3971669299ddebdf7e7f9fd9eb37b28d701ca36d0ef98fc5cec", "target": "source:e06583bdf8ec022057efbd24b4822de9ecce4e89699d5346bfe0aa94ea9e53ed", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:2c5595bda53b61d96af34e70b9fe47a0b7b2981ffc5df4d17744f115538fcd7f", "target": "source:a636d716fbf8465749d6ed47d29ed3daa8c17158af671ac60a49b7523e82796c", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:d2c6ade0777872865823c61367e5a3462498e8e1af84ef09f511d9bd664964bc", "target": "source:a4b6556bc22becf0506f56476eb6fdd6c6224529b97cfe2a47d5b4a90edb9029", "relation": "reference", "certainty": "possible"},
+          {"kind": "relation", "source": "source:3aa26b81a282be18658cb2bc1de94a9c75af97c2b023a7bad4d43650e14380b2", "target": "source:99bdb8ea41691bc0b3045303e1074c8d1b6ae91f79c89a542213d8022b40347f", "relation": "reference", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:d4151a334f5b3924352c9ac890b0f86cf7e107c61a8478163f1eba3440c50af5", "target": "source:c26a09f82e0b168fe8b6442abf8115b3dd5a9b37ed8b3d798e8184add84ea3f0", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:5bf61444648208e1b4e882d086dad81417981251ca534b96ca40b6666167bc30", "target": "source:d4151a334f5b3924352c9ac890b0f86cf7e107c61a8478163f1eba3440c50af5", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 1]},
+          {"kind": "relation", "source": "source:4be4b9d47ae3ccbbdfec37e854c036fb5da737e4b4be1d7a343082d1334253f5", "target": "source:ee32e2f8981af7a3b99205898deb7dd1d107cf63fe249f0e20b2117910899a34", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:fd6860dcfa28b51de8e0888b225131b66bb396612b66f9625e0c31ab015b8720", "target": "source:579c940d541a8d1636c71240aa839212ff3cc103eb7dcc318c96146afb020251", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:0976870efcfcd4b901b4003842584ea1c87fb506039374afcadf8bc87225bab4", "target": "source:fd6860dcfa28b51de8e0888b225131b66bb396612b66f9625e0c31ab015b8720", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 0]},
+          {"kind": "relation", "source": "source:2cd3ba865d8bd353080cf18c91e7a564e028d2fc1267026b053ed6b0e3cf36b0", "target": "source:d2c6ade0777872865823c61367e5a3462498e8e1af84ef09f511d9bd664964bc", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:c0c9c37c8f4560865d58ca3de090042fc2acf933cc887785df6ddeb2d1705e3e", "target": "source:2cd3ba865d8bd353080cf18c91e7a564e028d2fc1267026b053ed6b0e3cf36b0", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 0]},
+          {"kind": "relation", "source": "source:283f2d93746935d7a535794141debd91af544d5b3257ad2c458df59a4a26ab3d", "target": "source:8a74b2060016c3971669299ddebdf7e7f9fd9eb37b28d701ca36d0ef98fc5cec", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:0f3cf30d15dbc4f2645c13c6dc4d44571a822a50fc4b524ecd679608159abcee", "target": "source:283f2d93746935d7a535794141debd91af544d5b3257ad2c458df59a4a26ab3d", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:bf37dec20c45145f5d273f116e01ca148172a03c226701c706fc0556d31c5ae6", "target": "source:283f2d93746935d7a535794141debd91af544d5b3257ad2c458df59a4a26ab3d", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 0]},
+          {"kind": "relation", "source": "source:7ab0183c40bc95c5b07f1036fcd274497399ebf886cb8f090b8a83f7f72f9843", "target": "source:bf37dec20c45145f5d273f116e01ca148172a03c226701c706fc0556d31c5ae6", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:aaa04e7a06ed0ad3512d002f856f651610b649a348c01e1491827d73bd273a2c", "target": "source:7ab0183c40bc95c5b07f1036fcd274497399ebf886cb8f090b8a83f7f72f9843", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:aad6bdeeb2a80b85b1f1a51da5e54bed538e544b4a6eb804a45d461e2aea53a4", "target": "source:bf37dec20c45145f5d273f116e01ca148172a03c226701c706fc0556d31c5ae6", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:a02b2f6b41fe281f7951227514a543e25bbff4a9083607dfc042d8f5f27bb278", "target": "source:aad6bdeeb2a80b85b1f1a51da5e54bed538e544b4a6eb804a45d461e2aea53a4", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:e4032f08acbccfa77fd4d84b831b5c9f5dbc9d30f68445f0ca9a05d71d300313", "target": "source:3aa26b81a282be18658cb2bc1de94a9c75af97c2b023a7bad4d43650e14380b2", "relation": "assignment", "certainty": "lexical"},
+          {"kind": "boundary", "anchorId": "source:f9ee60c6ae1b3622a4694d79b15fb36a8cc49ae7ce60be06c63189762a954433", "via": {"kind": "relation", "source": "source:e06583bdf8ec022057efbd24b4822de9ecce4e89699d5346bfe0aa94ea9e53ed", "target": "source:f9ee60c6ae1b3622a4694d79b15fb36a8cc49ae7ce60be06c63189762a954433", "relation": "expression", "certainty": "lexical"}, "reason": "depth_limit"},
+          {"kind": "relation", "source": "source:5e9e28fc6bf8f1aae9bfa739e62bd1d78b5e458606807f10bad4fbdd73074e4f", "target": "source:e4032f08acbccfa77fd4d84b831b5c9f5dbc9d30f68445f0ca9a05d71d300313", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 2]},
+          {"kind": "relation", "source": "source:a636d716fbf8465749d6ed47d29ed3daa8c17158af671ac60a49b7523e82796c", "target": "source:5e9e28fc6bf8f1aae9bfa739e62bd1d78b5e458606807f10bad4fbdd73074e4f", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:a4b6556bc22becf0506f56476eb6fdd6c6224529b97cfe2a47d5b4a90edb9029", "target": "source:a1d6ce1e44aac69de1abb681a333fe8a1bb726b10cf12f91226722ed51c201ea", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:ccb5c5536a06066e0bd0c30ec53b5fafc623fba9d8358faa494be51245da7c50", "target": "source:a1d6ce1e44aac69de1abb681a333fe8a1bb726b10cf12f91226722ed51c201ea", "relation": "argument", "certainty": "lexical", "argumentPath": ["args", 0]},
+          {"kind": "relation", "source": "source:469352ed3a18d5edd4199d20ac4782f3ff31a4e3be3ccad40230f9acbb54e2a6", "target": "source:ccb5c5536a06066e0bd0c30ec53b5fafc623fba9d8358faa494be51245da7c50", "relation": "expression", "certainty": "lexical"},
+          {"kind": "relation", "source": "source:99bdb8ea41691bc0b3045303e1074c8d1b6ae91f79c89a542213d8022b40347f", "target": "source:469352ed3a18d5edd4199d20ac4782f3ff31a4e3be3ccad40230f9acbb54e2a6", "relation": "expression", "certainty": "lexical"}
+        ],
+        "nextOffset": null,
+        "changeAnalysis": {
+          "version": 1,
+          "evidence": "conditional_source_arithmetic",
+          "definitionId": "source:b3b21510989b87d495a383cbf92afc8cd65621b99595a8e345a2ae55f0159650",
+          "before": 12,
+          "after": 24,
+          "scope": "source_records_on_this_page",
+          "assumptions": ["Only the selected integer definition changes; supported direct lexical bindings retain their source meanings.", "Branches, call order, import overrides and runtime mutation are not evaluated."],
+          "limitations": ["Only integer literals, direct names/imports, unary signs and +, -, *, //, % are evaluated.", "No execution, tensor shape, checkpoint compatibility or candidate-validity claim is made."]
+        }
+      }
+    }
+  ],
+  "capture": {
+    "version": 1,
+    "id": "capture:b5b50f6e-78a8-4e3e-893f-102a6563af86",
+    "attemptId": "attempt:change-oracle",
+    "source": {
+      "version": 1,
+      "id": "source:change-oracle",
+      "workspaceSessionId": "session:oracle",
+      "workspaceId": "workspace:oracle",
+      "modelId": "model:change",
+      "modelFile": "model.py",
+      "className": "Model",
+      "generation": 0,
+      "files": [{"path": "_tensorviz_change_config.py", "digest": "83e184acdc182920bc058c50a632001e2de6ec12777667241b012c6d4324e009", "documentVersion": 1, "role": "source"}, {"path": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "documentVersion": 1, "role": "source"}],
+      "dependencyScope": "complete",
+      "configDigest": null,
+      "environmentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "sourceMode": "saved"
+    },
+    "planDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "preparationDigest": null,
+    "automatic": null,
+    "inputDigest": null,
+    "stateDigest": null,
+    "backend": "runtime",
+    "backendVersion": "1",
+    "torchVersion": "2.7.1",
+    "jaxVersion": null,
+    "normalizations": ["PyTorch dispatcher operations; Python syntax may be decomposed", "Dispatcher kernels are atomic; arbitrary Python statements are not recorded", "Dictionary subclasses are observed as stored mapping entries; custom attributes and methods are not evaluated", "Logical versions follow schema-declared writes; torch counters remain as observed under dispatch", "Source bindings identify authored expressions, not independently editable dispatcher operations"],
+    "status": "complete",
+    "rootInvocationId": "invocation:0",
+    "inputs": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}},
+    "output": {"kind": "value", "id": "tensor18"},
+    "definitions": [{"id": "definition:0", "qualifiedName": "source_change_oracle.Model", "sourceBindingIds": ["binding:48fdcfebe4b22413c84bf94df2e75426f61e6bee2169f6f477766bc1c85927f2"]}, {"id": "definition:1", "qualifiedName": "torch.nn.modules.linear.Linear", "sourceBindingIds": []}, {"id": "definition:2", "qualifiedName": "torch.nn.modules.normalization.LayerNorm", "sourceBindingIds": []}],
+    "modules": [
+      {"id": "module:0", "definitionId": "definition:0", "paths": [""], "constructorBindingIds": [], "constructorClassVerified": false, "initializerArguments": null},
+      {
+        "id": "module:1",
+        "definitionId": "definition:1",
+        "paths": ["up", "tied"],
+        "constructorBindingIds": ["constructor:binding:e172cdcc0b5f523d27efdf5c5738c89780d5f9010f4bc423c9291ffbe7e8f0b9"],
+        "constructorClassVerified": true,
+        "initializerArguments": {"phase": "initializer_entry", "status": "observed", "reason": null, "positionalOnly": 0, "positional": [{"name": "in_features", "value": {"kind": "int", "value": "8"}}, {"name": "out_features", "value": {"kind": "int", "value": "12"}}, {"name": "bias", "value": {"kind": "bool", "value": true}}, {"name": "device", "value": {"kind": "none"}}, {"name": "dtype", "value": {"kind": "none"}}], "keywordOnly": [], "varArgs": null, "varKwargs": null}
+      },
+      {
+        "id": "module:2",
+        "definitionId": "definition:2",
+        "paths": ["norm"],
+        "constructorBindingIds": ["constructor:binding:000035f32e7c1cfa23413467cf782e016798813633a337dbc1e21a40f0361b6f"],
+        "constructorClassVerified": true,
+        "initializerArguments": {
+          "phase": "initializer_entry",
+          "status": "observed",
+          "reason": null,
+          "positionalOnly": 0,
+          "positional": [{"name": "normalized_shape", "value": {"kind": "int", "value": "12"}}, {"name": "eps", "value": {"kind": "float", "value": 1e-05}}, {"name": "elementwise_affine", "value": {"kind": "bool", "value": true}}, {"name": "bias", "value": {"kind": "bool", "value": true}}, {"name": "device", "value": {"kind": "none"}}, {"name": "dtype", "value": {"kind": "none"}}],
+          "keywordOnly": [],
+          "varArgs": null,
+          "varKwargs": null
+        }
+      },
+      {
+        "id": "module:3",
+        "definitionId": "definition:1",
+        "paths": ["down"],
+        "constructorBindingIds": ["constructor:binding:51b89a7db56a29c4fb750ba5d7256298b0d9dc13461470611a685e94d6b63ac8"],
+        "constructorClassVerified": true,
+        "initializerArguments": {"phase": "initializer_entry", "status": "observed", "reason": null, "positionalOnly": 0, "positional": [{"name": "in_features", "value": {"kind": "int", "value": "12"}}, {"name": "out_features", "value": {"kind": "int", "value": "4"}}, {"name": "bias", "value": {"kind": "bool", "value": true}}, {"name": "device", "value": {"kind": "none"}}, {"name": "dtype", "value": {"kind": "none"}}], "keywordOnly": [], "varArgs": null, "varKwargs": null}
+      }
+    ],
+    "invocations": [
+      {"id": "invocation:0", "moduleId": "module:0", "parentId": null, "sequence": 0, "endSequence": 19, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor18"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 184, "parameterCountUnavailable": null, "sourceBindingIds": []},
+      {"id": "invocation:1", "moduleId": "module:1", "parentId": "invocation:0", "sequence": 1, "endSequence": 4, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor4"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 108, "parameterCountUnavailable": null, "sourceBindingIds": ["binding:035896ed0f558e581864085531e5ae56a623fd514b9405d551300899aaf03da3"]},
+      {"id": "invocation:2", "moduleId": "module:1", "parentId": "invocation:0", "sequence": 5, "endSequence": 8, "arguments": {"args": [{"kind": "value", "id": "tensor0"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor6"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 108, "parameterCountUnavailable": null, "sourceBindingIds": ["binding:b08c832c42e12c605a001225acb78859d2d4d561395fe6a5b2ef07006ef2906d"]},
+      {"id": "invocation:3", "moduleId": "module:2", "parentId": "invocation:0", "sequence": 10, "endSequence": 12, "arguments": {"args": [{"kind": "value", "id": "tensor7"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor10"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 24, "parameterCountUnavailable": null, "sourceBindingIds": ["binding:7debbfac4d54278c0fc5df286fce2e0964a6d0469dd31e9eeebf5926db0d6ef0"]},
+      {"id": "invocation:4", "moduleId": "module:3", "parentId": "invocation:0", "sequence": 15, "endSequence": 18, "arguments": {"args": [{"kind": "value", "id": "tensor14"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor18"}, "status": "completed", "diagnosticId": null, "training": false, "gradEnabled": false, "parameterCount": 52, "parameterCountUnavailable": null, "sourceBindingIds": ["binding:3cb0349e4c490d42649fb6b1f67529fec0d7f376cfbfc7dee89aee1b047ec752"]}
+    ],
+    "operations": [
+      {"id": "operation:0", "sequence": 2, "invocationId": "invocation:1", "target": "aten.t.default", "schemaSignature": "aten::t(Tensor(a) self) -> Tensor(a)", "arguments": {"args": [{"kind": "value", "id": "tensor1"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor2"}, "effects": [], "status": "completed", "diagnosticId": null, "sourceBindingIds": ["binding:035896ed0f558e581864085531e5ae56a623fd514b9405d551300899aaf03da3"]},
+      {
+        "id": "operation:1",
+        "sequence": 3,
+        "invocationId": "invocation:1",
+        "target": "aten.addmm.default",
+        "schemaSignature": "aten::addmm(Tensor self, Tensor mat1, Tensor mat2, *, Scalar beta=1, Scalar alpha=1) -> Tensor",
+        "arguments": {"args": [{"kind": "value", "id": "tensor3"}, {"kind": "value", "id": "tensor0"}, {"kind": "value", "id": "tensor2"}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor4"},
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": ["binding:035896ed0f558e581864085531e5ae56a623fd514b9405d551300899aaf03da3"]
+      },
+      {"id": "operation:2", "sequence": 6, "invocationId": "invocation:2", "target": "aten.t.default", "schemaSignature": "aten::t(Tensor(a) self) -> Tensor(a)", "arguments": {"args": [{"kind": "value", "id": "tensor1"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor5"}, "effects": [], "status": "completed", "diagnosticId": null, "sourceBindingIds": ["binding:b08c832c42e12c605a001225acb78859d2d4d561395fe6a5b2ef07006ef2906d"]},
+      {
+        "id": "operation:3",
+        "sequence": 7,
+        "invocationId": "invocation:2",
+        "target": "aten.addmm.default",
+        "schemaSignature": "aten::addmm(Tensor self, Tensor mat1, Tensor mat2, *, Scalar beta=1, Scalar alpha=1) -> Tensor",
+        "arguments": {"args": [{"kind": "value", "id": "tensor3"}, {"kind": "value", "id": "tensor0"}, {"kind": "value", "id": "tensor5"}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor6"},
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": ["binding:b08c832c42e12c605a001225acb78859d2d4d561395fe6a5b2ef07006ef2906d"]
+      },
+      {
+        "id": "operation:4",
+        "sequence": 9,
+        "invocationId": "invocation:0",
+        "target": "aten.add.Tensor",
+        "schemaSignature": "aten::add.Tensor(Tensor self, Tensor other, *, Scalar alpha=1) -> Tensor",
+        "arguments": {"args": [{"kind": "value", "id": "tensor4"}, {"kind": "value", "id": "tensor6"}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor7"},
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": ["binding:4af452234f6b43bb2142682c6eba33a4ef2c722b8220af15681bdcdbbcdb223f"]
+      },
+      {
+        "id": "operation:5",
+        "sequence": 11,
+        "invocationId": "invocation:3",
+        "target": "aten.native_layer_norm.default",
+        "schemaSignature": "aten::native_layer_norm(Tensor input, SymInt[] normalized_shape, Tensor? weight, Tensor? bias, float eps) -> (Tensor, Tensor, Tensor)",
+        "arguments": {"args": [{"kind": "value", "id": "tensor7"}, {"kind": "list", "items": [{"kind": "int", "value": "12"}]}, {"kind": "value", "id": "tensor8"}, {"kind": "value", "id": "tensor9"}, {"kind": "float", "value": 1e-05}], "kwargs": {}},
+        "output": {"kind": "tuple", "items": [{"kind": "value", "id": "tensor10"}, {"kind": "value", "id": "tensor11"}, {"kind": "value", "id": "tensor12"}]},
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": ["binding:7debbfac4d54278c0fc5df286fce2e0964a6d0469dd31e9eeebf5926db0d6ef0"]
+      },
+      {
+        "id": "operation:6",
+        "sequence": 13,
+        "invocationId": "invocation:0",
+        "target": "aten.view.default",
+        "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+        "arguments": {"args": [{"kind": "value", "id": "tensor10"}, {"kind": "list", "items": [{"kind": "int", "value": "2"}, {"kind": "int", "value": "3"}, {"kind": "int", "value": "4"}]}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor13"},
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": ["binding:dcec7a7b616b41f1eedfe72caead53a543d7a2a117a2ce08df38ee6054bdba38"],
+        "sourceShapeCall": {"callable": "torch.Tensor.reshape", "bindingId": "binding:dcec7a7b616b41f1eedfe72caead53a543d7a2a117a2ce08df38ee6054bdba38", "dimensions": [{"sourcePath": ["args", 0], "dimension": 0, "value": {"kind": "int", "value": "2"}, "tensorDimension": {"valueId": "tensor0", "axis": 0}}, {"sourcePath": ["args", 1], "dimension": 1, "value": {"kind": "int", "value": "3"}}, {"sourcePath": ["args", 2], "dimension": 2, "value": {"kind": "int", "value": "4"}}]}
+      },
+      {
+        "id": "operation:7",
+        "sequence": 14,
+        "invocationId": "invocation:0",
+        "target": "aten.view.default",
+        "schemaSignature": "aten::view(Tensor(a) self, SymInt[] size) -> Tensor(a)",
+        "arguments": {"args": [{"kind": "value", "id": "tensor13"}, {"kind": "list", "items": [{"kind": "int", "value": "2"}, {"kind": "int", "value": "12"}]}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor14"},
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": ["binding:aaaeb3fd07f6462d6b1621a2c3fd862fefd2ee02929ab053f0dc605069e11477"],
+        "sourceFlattenCall": {"callable": "torch.Tensor.flatten", "bindingId": "binding:aaaeb3fd07f6462d6b1621a2c3fd862fefd2ee02929ab053f0dc605069e11477", "startDim": 1, "endDim": -1, "arguments": [{"parameter": "start_dim", "sourcePath": ["args", 0], "value": 1}]}
+      },
+      {"id": "operation:8", "sequence": 16, "invocationId": "invocation:4", "target": "aten.t.default", "schemaSignature": "aten::t(Tensor(a) self) -> Tensor(a)", "arguments": {"args": [{"kind": "value", "id": "tensor15"}], "kwargs": {}}, "output": {"kind": "value", "id": "tensor16"}, "effects": [], "status": "completed", "diagnosticId": null, "sourceBindingIds": ["binding:3cb0349e4c490d42649fb6b1f67529fec0d7f376cfbfc7dee89aee1b047ec752"]},
+      {
+        "id": "operation:9",
+        "sequence": 17,
+        "invocationId": "invocation:4",
+        "target": "aten.addmm.default",
+        "schemaSignature": "aten::addmm(Tensor self, Tensor mat1, Tensor mat2, *, Scalar beta=1, Scalar alpha=1) -> Tensor",
+        "arguments": {"args": [{"kind": "value", "id": "tensor17"}, {"kind": "value", "id": "tensor14"}, {"kind": "value", "id": "tensor16"}], "kwargs": {}},
+        "output": {"kind": "value", "id": "tensor18"},
+        "effects": [],
+        "status": "completed",
+        "diagnosticId": null,
+        "sourceBindingIds": ["binding:3cb0349e4c490d42649fb6b1f67529fec0d7f376cfbfc7dee89aee1b047ec752"]
+      }
+    ],
+    "values": [
+      {"id": "tensor0", "objectId": "object0", "storageId": "storage0", "version": 0, "shape": [2, 8], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [8, 1], "storageOffset": 0, "logicalBytes": 64, "producer": null, "origin": "input", "state": []},
+      {"id": "tensor1", "objectId": "object1", "storageId": "storage1", "version": 1, "shape": [12, 8], "dtype": "torch.float32", "device": "cpu", "requiresGrad": true, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [8, 1], "storageOffset": 0, "logicalBytes": 384, "producer": null, "origin": "state", "state": [{"kind": "parameter", "name": "up.weight"}, {"kind": "parameter", "name": "tied.weight"}]},
+      {"id": "tensor2", "objectId": "object2", "storageId": "storage1", "version": 1, "shape": [8, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": true, "aliasOf": "tensor1", "previousVersion": null, "logicalVersion": 0, "stride": [1, 8], "storageOffset": 0, "logicalBytes": 384, "producer": {"operationId": "operation:0", "kind": "output", "path": []}, "origin": "operation", "state": []},
+      {"id": "tensor3", "objectId": "object3", "storageId": "storage2", "version": 1, "shape": [12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": true, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [1], "storageOffset": 0, "logicalBytes": 48, "producer": null, "origin": "state", "state": [{"kind": "parameter", "name": "up.bias"}, {"kind": "parameter", "name": "tied.bias"}]},
+      {"id": "tensor4", "objectId": "object4", "storageId": "storage3", "version": 0, "shape": [2, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:1", "kind": "output", "path": []}, "origin": "operation", "state": []},
+      {"id": "tensor5", "objectId": "object5", "storageId": "storage1", "version": 1, "shape": [8, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": true, "aliasOf": "tensor2", "previousVersion": null, "logicalVersion": 0, "stride": [1, 8], "storageOffset": 0, "logicalBytes": 384, "producer": {"operationId": "operation:2", "kind": "output", "path": []}, "origin": "operation", "state": []},
+      {"id": "tensor6", "objectId": "object6", "storageId": "storage4", "version": 0, "shape": [2, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:3", "kind": "output", "path": []}, "origin": "operation", "state": []},
+      {"id": "tensor7", "objectId": "object7", "storageId": "storage5", "version": 0, "shape": [2, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:4", "kind": "output", "path": []}, "origin": "operation", "state": []},
+      {"id": "tensor8", "objectId": "object8", "storageId": "storage6", "version": 1, "shape": [12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": true, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [1], "storageOffset": 0, "logicalBytes": 48, "producer": null, "origin": "state", "state": [{"kind": "parameter", "name": "norm.weight"}]},
+      {"id": "tensor9", "objectId": "object9", "storageId": "storage7", "version": 1, "shape": [12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": true, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [1], "storageOffset": 0, "logicalBytes": 48, "producer": null, "origin": "state", "state": [{"kind": "parameter", "name": "norm.bias"}]},
+      {"id": "tensor10", "objectId": "object10", "storageId": "storage8", "version": 0, "shape": [2, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:5", "kind": "output", "path": ["items", 0]}, "origin": "operation", "state": []},
+      {"id": "tensor11", "objectId": "object11", "storageId": "storage9", "version": 0, "shape": [2, 1], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [1, 1], "storageOffset": 0, "logicalBytes": 8, "producer": {"operationId": "operation:5", "kind": "output", "path": ["items", 1]}, "origin": "operation", "state": []},
+      {"id": "tensor12", "objectId": "object12", "storageId": "storage10", "version": 0, "shape": [2, 1], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [1, 1], "storageOffset": 0, "logicalBytes": 8, "producer": {"operationId": "operation:5", "kind": "output", "path": ["items", 2]}, "origin": "operation", "state": []},
+      {"id": "tensor13", "objectId": "object13", "storageId": "storage8", "version": 0, "shape": [2, 3, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor10", "previousVersion": null, "logicalVersion": 0, "stride": [12, 4, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:6", "kind": "output", "path": []}, "origin": "operation", "state": []},
+      {"id": "tensor14", "objectId": "object14", "storageId": "storage8", "version": 0, "shape": [2, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": "tensor13", "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 96, "producer": {"operationId": "operation:7", "kind": "output", "path": []}, "origin": "operation", "state": []},
+      {"id": "tensor15", "objectId": "object15", "storageId": "storage11", "version": 1, "shape": [4, 12], "dtype": "torch.float32", "device": "cpu", "requiresGrad": true, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [12, 1], "storageOffset": 0, "logicalBytes": 192, "producer": null, "origin": "state", "state": [{"kind": "parameter", "name": "down.weight"}]},
+      {"id": "tensor16", "objectId": "object16", "storageId": "storage11", "version": 1, "shape": [12, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": true, "aliasOf": "tensor15", "previousVersion": null, "logicalVersion": 0, "stride": [1, 12], "storageOffset": 0, "logicalBytes": 192, "producer": {"operationId": "operation:8", "kind": "output", "path": []}, "origin": "operation", "state": []},
+      {"id": "tensor17", "objectId": "object17", "storageId": "storage12", "version": 1, "shape": [4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": true, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [1], "storageOffset": 0, "logicalBytes": 16, "producer": null, "origin": "state", "state": [{"kind": "parameter", "name": "down.bias"}]},
+      {"id": "tensor18", "objectId": "object18", "storageId": "storage13", "version": 0, "shape": [2, 4], "dtype": "torch.float32", "device": "cpu", "requiresGrad": false, "aliasOf": null, "previousVersion": null, "logicalVersion": 0, "stride": [4, 1], "storageOffset": 0, "logicalBytes": 32, "producer": {"operationId": "operation:9", "kind": "output", "path": []}, "origin": "operation", "state": []}
+    ],
+    "sourceBindings": [
+      {"id": "binding:48fdcfebe4b22413c84bf94df2e75426f61e6bee2169f6f477766bc1c85927f2", "snapshotId": "source:change-oracle", "kind": "definition", "quality": "exact", "anchors": [{"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 10, "startColumn": 4, "endLine": 13, "endColumn": 42, "scope": "Model.forward", "tokenDigest": "7ff87d8dd5752c8fa070f2d918dbb1b25aa6dad38d29666c54e880ad91fb3b6b"}]},
+      {"id": "constructor:binding:e172cdcc0b5f523d27efdf5c5738c89780d5f9010f4bc423c9291ffbe7e8f0b9", "snapshotId": "source:change-oracle", "kind": "constructor", "quality": "exact", "anchors": [{"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 6, "startColumn": 18, "endLine": 6, "endColumn": 43, "scope": "Model.__init__", "tokenDigest": "cf0179246d26aa863c590cc3ba2fa8a213d51e58bfaabf04de927cc09afc2276"}]},
+      {"id": "constructor:binding:000035f32e7c1cfa23413467cf782e016798813633a337dbc1e21a40f0361b6f", "snapshotId": "source:change-oracle", "kind": "constructor", "quality": "exact", "anchors": [{"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 8, "startColumn": 20, "endLine": 8, "endColumn": 45, "scope": "Model.__init__", "tokenDigest": "cef9907f65e93c0b7f8c8c91d70375eda267124e998864ad38702fc372eeb99a"}]},
+      {"id": "constructor:binding:51b89a7db56a29c4fb750ba5d7256298b0d9dc13461470611a685e94d6b63ac8", "snapshotId": "source:change-oracle", "kind": "constructor", "quality": "exact", "anchors": [{"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 9, "startColumn": 20, "endLine": 9, "endColumn": 45, "scope": "Model.__init__", "tokenDigest": "a9e4ca4823166f38f96fccd5851ea86faa27fcff14366b18f0a2effac76da792"}]},
+      {"id": "binding:035896ed0f558e581864085531e5ae56a623fd514b9405d551300899aaf03da3", "snapshotId": "source:change-oracle", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 27, "endLine": 11, "endColumn": 37, "scope": "Model.forward", "tokenDigest": "5cc62d98b7d5932f7dfd37d3ac3a502df7a1fa05d0a3b3580d345fd2ee766ed5"}]},
+      {"id": "binding:b08c832c42e12c605a001225acb78859d2d4d561395fe6a5b2ef07006ef2906d", "snapshotId": "source:change-oracle", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 40, "endLine": 11, "endColumn": 52, "scope": "Model.forward", "tokenDigest": "4969ca0f26862c8e2e07aaaff4a7d7f28918b8216de73cb740cdb875a2133d1c"}]},
+      {"id": "binding:4af452234f6b43bb2142682c6eba33a4ef2c722b8220af15681bdcdbbcdb223f", "snapshotId": "source:change-oracle", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 27, "endLine": 11, "endColumn": 52, "scope": "Model.forward", "tokenDigest": "40eccf776a783caaad85da1df53a15b2c1a99cbee0c214936a916b0fa8d02ca7"}]},
+      {"id": "binding:7debbfac4d54278c0fc5df286fce2e0964a6d0469dd31e9eeebf5926db0d6ef0", "snapshotId": "source:change-oracle", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 11, "startColumn": 17, "endLine": 11, "endColumn": 53, "scope": "Model.forward", "tokenDigest": "a4503d95b9418806f9140bfbe93c1f32fd7c74182cc5cf3ad928f1f85058a7bd"}]},
+      {"id": "binding:dcec7a7b616b41f1eedfe72caead53a543d7a2a117a2ce08df38ee6054bdba38", "snapshotId": "source:change-oracle", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 12, "startColumn": 16, "endLine": 12, "endColumn": 65, "scope": "Model.forward", "tokenDigest": "d9ecbfd1d6fd56e7e5dfe4164a5f61c4340039c997852c5c46a4c0faddccaba1"}]},
+      {"id": "binding:aaaeb3fd07f6462d6b1621a2c3fd862fefd2ee02929ab053f0dc605069e11477", "snapshotId": "source:change-oracle", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 13, "startColumn": 25, "endLine": 13, "endColumn": 41, "scope": "Model.forward", "tokenDigest": "99541a60c82767f99ddc230168b5af7352dc4d60f9663387aa33541251086665"}]},
+      {"id": "binding:3cb0349e4c490d42649fb6b1f67529fec0d7f376cfbfc7dee89aee1b047ec752", "snapshotId": "source:change-oracle", "kind": "call", "quality": "exact", "anchors": [{"file": "model.py", "digest": "c6586cd11d57b435e752fc1e2a9202438884289db4d0efbc7950e67fc7e9bf04", "startLine": 13, "startColumn": 15, "endLine": 13, "endColumn": 42, "scope": "Model.forward", "tokenDigest": "be90919c7be7910773cbb0bc3c17682847e786aae5319ce00050fa6976da976f"}]}
+    ],
+    "diagnostics": [],
+    "coverage": {
+      "scope": "executed_path",
+      "operationsSeen": 10,
+      "invocationsSeen": 5,
+      "omissions": [],
+      "modules": [
+        {"modulePath": "", "status": "observed", "invocationIds": ["invocation:0"], "reason": null},
+        {"modulePath": "up", "status": "observed", "invocationIds": ["invocation:1", "invocation:2"], "reason": null},
+        {"modulePath": "tied", "status": "observed", "invocationIds": ["invocation:1", "invocation:2"], "reason": null},
+        {"modulePath": "norm", "status": "observed", "invocationIds": ["invocation:3"], "reason": null},
+        {"modulePath": "down", "status": "observed", "invocationIds": ["invocation:4"], "reason": null}
+      ]
+    },
+    "limits": {"operations": 200, "invocations": 100, "values": 200, "bytes": 1048576}
+  },
+  "independentRuns": [
+    {"width": 12, "parameterShapes": {"up.weight": [12, 8], "up.bias": [12], "norm.weight": [12], "norm.bias": [12], "down.weight": [4, 12], "down.bias": [4]}, "tiedObject": true, "forward": "passed", "outputShape": [2, 4]},
+    {"width": 16, "parameterShapes": {"up.weight": [16, 8], "up.bias": [16], "norm.weight": [16], "norm.bias": [16], "down.weight": [4, 16], "down.bias": [4]}, "tiedObject": true, "forward": "failed", "outputShape": null},
+    {"width": 24, "parameterShapes": {"up.weight": [24, 8], "up.bias": [24], "norm.weight": [24], "norm.bias": [24], "down.weight": [4, 24], "down.bias": [4]}, "tiedObject": true, "forward": "passed", "outputShape": [2, 4]}
+  ]
+}

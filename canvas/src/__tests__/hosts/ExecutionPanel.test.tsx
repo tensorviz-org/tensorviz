@@ -118,18 +118,12 @@ it('identifies the saved profile and navigates each setting or shape without run
   }
   expect(action.mock.calls.every(([value]) => value.kind === 'edit_execution')).toBe(true);
 });
-it('reviews a capture without latency measurement controls and still runs it', () => {
-  const action = jest.fn();
-  const view = render(<Panel state={state} connected onAction={action} />); open();
-  expect(screen.queryByRole('checkbox', { name: 'Measure latency' })).toBeNull();
-  expect(screen.queryByRole('spinbutton', { name: 'Warmups per phase' })).toBeNull();
+it('plans one capture call without a latency option', () => {
+  render(<Panel state={state} connected onAction={jest.fn()} />); open();
   expect(screen.getByText('One call captures shapes and operations.')).toBeVisible();
+  expect(screen.queryByRole('checkbox', { name: 'Measure latency' })).toBeNull();
+  expect(screen.queryByRole('spinbutton')).toBeNull();
   expect(screen.getByRole('button', { name: 'Run', exact: true })).toBeEnabled();
-  view.rerender(<Panel state={{ ...state, kind: 'trace', stages: [{ label: 'Trace', calls: 2 }] }} connected onAction={action} />);
-  expect(screen.getByRole('heading', { name: 'Trace inputs' })).toBeVisible();
-  expect(screen.getByText('2 traced calls')).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Run trace' }));
-  expect(action).toHaveBeenCalledWith({ kind: 'execution', reviewId: 'review1', action: 'run', device: 'cuda:0' });
 });
 it.each([
   [JSON.stringify({ factory: { file: 'example.py', callable: 'make_inputs' } }), 'Factory example.py:make_inputs()'],
@@ -193,16 +187,18 @@ it('bounds the sheet above the Canvas status bar instead of letting its actions 
 });
 describe('execution cache: a reused result', () => {
   const capturedAt = new Date(2026, 9, 25, 14, 2).getTime();
-  const reused: ExecutionReviewState = { ...state, phase: 'succeeded', detail: 'Reused identical result from 14:02 (no Python ran). Validation passed.',
+  const reused: ExecutionReviewState = { ...state, phase: 'succeeded', detail: 'Reused identical result from 14:02 (model not run again). Validation passed.',
     reused: { capturedAt } };
   it('is labelled on the strip and in the details, and offers Run fresh instead of Run again', () => {
     const onRunFresh = jest.fn(), onRepeat = jest.fn();
     render(<Panel state={reused} connected onAction={jest.fn()} onRepeat={onRepeat} onRunFresh={onRunFresh} />);
-    const trigger = screen.getByRole('button', { name: /^Execution details\. Reused identical result from .+ \(no Python ran\)$/ });
-    expect(within(trigger).getByText('Reused · no Python ran')).toBeInTheDocument();
+    // Serving still runs Python to resolve and recheck the plan: only the model is not run.
+    const trigger = screen.getByRole('button', { name: /^Execution details\. Reused identical result from .+ \(model not run again\)$/ });
+    expect(within(trigger).getByText('Reused · model not run again')).toBeInTheDocument();
     fireEvent.click(trigger);
     const label = screen.getByText(/^Reused identical result from/, { selector: 'strong' });
-    expect(label).toHaveTextContent(/\(no Python ran\)$/);
+    expect(label).toHaveTextContent(/\(model not run again\)$/);
+    expect(screen.queryByText(/no Python ran/)).toBeNull();
     expect(label.querySelector('time')).toHaveAttribute('dateTime', new Date(capturedAt).toISOString());
     expect(screen.queryByRole('button', { name: 'Run again' })).toBeNull();
     const fresh = screen.getByRole('button', { name: 'Run fresh' });
@@ -212,6 +208,12 @@ describe('execution cache: a reused result', () => {
     expect(onRepeat).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: /^Execution details/ })).toHaveFocus();
   });
+  it('explains what made the result reusable without pointing at timings the Canvas no longer shows', () => {
+    // 0.1.28 removed every timing display; the note said "Timings shown are from that run".
+    render(<Panel state={reused} connected onAction={jest.fn()} onRunFresh={jest.fn()} />); open2();
+    expect(screen.getByText('Same saved sources, setup, inputs, environment and tensorViz backend as that run.')).toBeInTheDocument();
+    expect(screen.queryByText(/Timings/)).toBeNull();
+  });
   it('Run fresh is disabled while disconnected or another run is pending', () => {
     render(<Panel state={reused} connected={false} onAction={jest.fn()} onRunFresh={jest.fn()} />); open2();
     expect(screen.getByRole('button', { name: 'Run fresh' })).toBeDisabled();
@@ -219,7 +221,7 @@ describe('execution cache: a reused result', () => {
   it('a fresh run has no reused label and keeps Run again', () => {
     render(<Panel state={{ ...state, phase: 'succeeded', detail: 'Validation passed.' }} connected onAction={jest.fn()} onRepeat={jest.fn()} onRunFresh={jest.fn()} />);
     open();
-    expect(screen.queryByText(/no Python ran/)).toBeNull();
+    expect(screen.queryByText(/model not run again/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Run again' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Run fresh' })).toBeNull();
   });

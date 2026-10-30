@@ -1,4 +1,3 @@
-jest.mock('../../canvas/GraphQueryPanel', () => ({ GraphOverlayControls: () => null }));
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import LocalCanvasNavigation from '../../ide/LocalCanvasNavigation';
@@ -6,24 +5,28 @@ import LocalBrowserValidate from '../../ide/LocalBrowserValidate';
 import { LocalBrowserContext, LocalBrowserContextValue } from '../../ide/localBrowserContext';
 import { EMPTY_LOCAL_BROWSER_PAGE_STATE } from '../../ide/localBrowserState';
 import { configureCanvasTheme, setCanvasHostTheme } from '../../styles/canvasTheme';
+import { configureCodeFocusOn, isCodeFocusOn } from '../../ide/codeFocusOn';
+import { DEFAULT_CODE_FOCUS } from '../../ide/protocol.generated';
 
-beforeEach(() => { localStorage.clear(); configureCanvasTheme('host'); });
+beforeEach(() => { localStorage.clear(); configureCanvasTheme('host'); configureCodeFocusOn('host'); });
 
-function mount(selected = false, fullscreen = false, headerCollapsed = false, measuringLatency = false,
-  extra: Pick<React.ComponentProps<typeof LocalCanvasNavigation>, 'layout'> & { reviewing?: boolean } = {}) {
+function mount(selected = false, fullscreen = false, compact = false, running = false,
+  extra: Pick<React.ComponentProps<typeof LocalCanvasNavigation>, 'layout'> & { reviewing?: boolean; sourceAction?: 'copy'; codeFocus?: boolean } = {}) {
   const actions = { find: jest.fn(), reveal: jest.fn(), run: jest.fn(), cancel: jest.fn() };
   const context: LocalBrowserContextValue = {
     page: EMPTY_LOCAL_BROWSER_PAGE_STATE,
     reviewing: extra.reviewing,
+    sourceAction: extra.sourceAction,
+    codeFocus: extra.codeFocus ? { options: DEFAULT_CODE_FOCUS, parameter: false, detail: '', change: jest.fn() } : undefined,
     status: { phase: 'connected', hostLink: 'connected', error: null },
-    validation: { running: measuringLatency, disabledReason: null, statusLabel: 'Failed',
+    validation: { running, disabledReason: null, statusLabel: 'Failed',
       lastResult: { status: 'failed', detail: 'Expected 3 channels; received 4.' }, run: actions.run, cancel: actions.cancel },
   };
   function Harness() {
     const [header, setHeader] = React.useState<HTMLDivElement | null>(null);
     const [footer, setFooter] = React.useState<HTMLDivElement | null>(null);
     return <><div ref={setHeader} data-testid="header" /><div ref={setFooter} data-testid="footer" />
-      <LocalBrowserContext.Provider value={{ ...context, reviewing: extra.reviewing, navigation: { header, footer, headerCollapsed, inputsOpen: false, changeInputs: jest.fn() } }}>
+      <LocalBrowserContext.Provider value={{ ...context, reviewing: extra.reviewing, navigation: { header, footer, compact, inputsOpen: false, changeInputs: jest.fn() } }}>
         <LocalCanvasNavigation onFind={actions.find} onReveal={actions.reveal} hasSelection={selected} nodeCount={12} more={null} fullscreen={fullscreen} detailLevel="layers" layout={extra.layout} />
       </LocalBrowserContext.Provider></>;
   }
@@ -31,13 +34,32 @@ function mount(selected = false, fullscreen = false, headerCollapsed = false, me
   return actions;
 }
 
+it.each([false, true])('turns Code focus on in one click, first in the header, when compact is %s', compact => {
+  mount(false, false, compact, false, { codeFocus: true });
+  const toggle = within(screen.getByTestId('header')).getByRole('button', { name: 'Code focus', exact: true });
+  expect(screen.getByRole('group', { name: 'Graph view' }).firstElementChild).toContainElement(toggle);
+  expect(screen.queryByRole('group', { name: 'Canvas mode' })).toBeNull();
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  expect(isCodeFocusOn()).toBe(true);
+});
+
+it('offers no Code focus where nothing can open in an editor or while reviewing changes', () => {
+  // The copy-only page has no Code focus client; graph review hides it.
+  mount(false, false, false, false, { sourceAction: 'copy' });
+  expect(screen.queryByRole('button', { name: 'Code focus', exact: true })).toBeNull();
+  cleanup();
+  mount(false, false, false, false, { reviewing: true, codeFocus: true });
+  expect(screen.queryByRole('button', { name: 'Code focus', exact: true })).toBeNull();
+});
+
 it('labels environment preparation accurately and leaves cancellation in the visible recovery panel', () => {
   const context: LocalBrowserContextValue = {
     page: { ...EMPTY_LOCAL_BROWSER_PAGE_STATE, opening: { id: 'opening', phase: 'resolving', hasCapture: false,
       target: { workspaceFolder: '/project', file: 'model.py', cls: 'Net', sourceDigest: 'source', documentVersion: 1, backendRevision: 1 },
       detail: 'Preparing the reviewed library repair.', environment: { reason: 'missing_libraries', candidates: [], detail: 'Missing SciPy.' } } },
     status: { phase: 'connected', hostLink: 'connected', error: null },
-    navigation: { header: null, footer: null, headerCollapsed: false, inputsOpen: true, changeInputs: jest.fn() },
+    navigation: { header: null, footer: null, compact: false, inputsOpen: true, changeInputs: jest.fn() },
     validation: { running: true, disabledReason: null, statusLabel: 'Not run', run: jest.fn(), cancel: jest.fn() },
   };
   render(<LocalBrowserContext.Provider value={context}><LocalBrowserValidate controls="run" /></LocalBrowserContext.Provider>);
@@ -49,8 +71,8 @@ it('labels environment preparation accurately and leaves cancellation in the vis
   expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
 });
 
-it.each([false, true])('renders one set of controls in the header and footer when minimized is %s', headerCollapsed => {
-  mount(true, false, headerCollapsed);
+it.each([false, true])('renders one set of controls in the header and footer when compact is %s', compact => {
+  mount(true, false, compact);
   const header = screen.getByTestId('header'), footer = screen.getByTestId('footer');
   expect(header).toContainElement(screen.getByRole('switch', { name: 'Dark canvas appearance' }));
   // Global getByRole also rejects duplicate controls outside the intended slot.
@@ -62,11 +84,8 @@ it.each([false, true])('renders one set of controls in the header and footer whe
     expect(footer).toContainElement(screen.getByRole('button', { name }));
   }
   expect(footer).toContainElement(screen.getByText('12 graph nodes'));
-  if (headerCollapsed) {
-    expect(screen.queryByRole('button', { name: 'Find a layer' })).toBeNull();
-  } else {
-    expect(header).toContainElement(screen.getByRole('button', { name: 'Find a layer' }));
-  }
+  // A compact header drops labels, never Find: there is no toggle to reveal it.
+  expect(header).toContainElement(screen.getByRole('button', { name: 'Find a layer' }));
 });
 
 it('keeps the direct appearance switch visible in graph review', () => {
@@ -78,8 +97,8 @@ it('keeps the direct appearance switch visible in graph review', () => {
   expect(screen.queryByRole('button', { name: 'Run model' })).toBeNull();
 });
 
-it.each([[false, true], [false, false], [true, false]])('switches appearance directly in fullscreen=%s, minimized=%s and preserves the choice', (fullscreen, headerCollapsed) => {
-  const actions = mount(false, fullscreen, headerCollapsed);
+it.each([[false, true], [false, false], [true, false]])('switches appearance directly in fullscreen=%s, compact=%s and preserves the choice', (fullscreen, compact) => {
+  const actions = mount(false, fullscreen, compact);
   const control = screen.getByRole('switch', { name: 'Dark canvas appearance' });
   expect(control).toHaveAttribute('aria-checked', 'true');
   fireEvent.focus(control);
@@ -114,17 +133,16 @@ it('routes header actions to the existing handlers and keeps failure details in 
   expect(screen.getByRole('dialog', { name: 'Latest validation result' })).toHaveTextContent('Expected 3 channels; received 4.');
 });
 
-it('keeps one labelled Run model action visible in the minimized toolbar', () => {
+it('keeps one labelled Run model action visible in the compact toolbar', () => {
   const actions = mount(false, false, true);
   const button = within(screen.getByTestId('header')).getByRole('button', { name: 'Run model' });
   expect(button).toBeEnabled(); expect(button).toHaveTextContent('Run model');
   fireEvent.focus(button);
   const help = screen.getByRole('tooltip');
-  expect(help).toHaveTextContent('Choose the device and review inputs before running');
+  expect(help).toHaveTextContent('Choose the device and review inputs before running.');
   expect(button).toHaveAttribute('aria-describedby', help.id);
   fireEvent.click(button);
   expect(actions.run).toHaveBeenCalledTimes(1);
-  expect(screen.queryByRole('button', { name: 'Measure latency' })).toBeNull();
 });
 
 it('says Run model reruns the saved setup when it reopens a model without a current capture', () => {
@@ -140,12 +158,13 @@ it('says Run model reruns the saved setup when it reopens a model without a curr
   expect(run).toHaveBeenCalledTimes(1);
 });
 
-it.each([false, true])('shows one busy Run action when minimized is %s and offers one Cancel', headerCollapsed => {
-  const actions = mount(false, false, headerCollapsed, true);
+it.each([false, true])('shows one busy Run action when compact is %s and offers one Cancel', compact => {
+  const actions = mount(false, false, compact, true);
   const button = screen.getByRole('button', { name: 'Running…' });
   expect(button).toBeDisabled(); expect(button).toHaveAttribute('aria-busy', 'true');
   expect(button).toHaveTextContent('Running…');
-  expect(screen.queryByRole('button', { name: 'Measure latency' })).toBeNull();
+  // A text label overflowed the icon-sized button onto the next control.
+  expect(screen.getByRole('button', { name: 'Cancel', exact: true })).toHaveTextContent(/^$/);
   fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
   expect(actions.cancel).toHaveBeenCalledTimes(1);
   expect(actions.run).not.toHaveBeenCalled();
@@ -178,8 +197,8 @@ it('keeps navigation reachable inside the fullscreen canvas instead of behind it
   expect(screen.getByRole('group', { name: 'Zoom and fit' }).closest('.local-canvas-fullscreen-footer')).not.toBeNull();
 });
 
-it.each([false, true])('offers both detail levels without another capture when minimized is %s', headerCollapsed => {
-  const actions = mount(false, false, headerCollapsed);
+it.each([false, true])('offers both detail levels without another capture when compact is %s', compact => {
+  const actions = mount(false, false, compact);
   const toggle = within(within(screen.getByTestId('header')).getByRole('group', { name: 'Graph detail' }));
   expect(toggle.getByRole('button', { name: 'Layers' })).toHaveAttribute('aria-pressed', 'true');
   const listener = jest.fn();
@@ -205,7 +224,14 @@ it('shows the connection guide on demand and restores keyboard focus on Escape',
   expect(screen.getByRole('button', { name: 'Canvas guide and shortcuts' })).toHaveFocus();
 });
 
-it('uses arrow keys for detail selection without invoking capture or latency', () => {
+it('does not promise that opening always runs the model, since the execution cache can reuse an identical result', () => {
+  mount();
+  fireEvent.keyDown(document.body, { key: '?' });
+  expect(screen.getByRole('dialog', { name: 'Canvas guide' }))
+    .toHaveTextContent('Opening a model runs it once with its saved inputs on the saved device, or reuses an identical earlier result.');
+});
+
+it('uses arrow keys for detail selection without invoking capture', () => {
   const actions = mount(false, false, true);
   const listener = jest.fn();
   window.addEventListener('builder-command', listener);
@@ -248,7 +274,7 @@ it('routes readable zoom through the same command from the footer, guide and sho
   } finally { window.removeEventListener('builder-command', listener); }
 });
 
-it('offers Auto, Horizontal and Vertical from the footer even with the toolbar minimized', () => {
+it('offers Auto, Horizontal and Vertical from the footer even with a compact toolbar', () => {
   mount(false, false, true, false, { layout: { choice: 'auto', direction: 'horizontal' } });
   const trigger = screen.getByRole('button', { name: 'Layout direction: Auto (horizontal)' });
   expect(screen.getByTestId('footer')).toContainElement(trigger);
@@ -282,7 +308,7 @@ it('names an explicit layout choice and hides the control where layout cannot ch
   expect(screen.queryByRole('button', { name: /Layout direction/ })).toBeNull();
 });
 
-it('reopens a pending timing review through Run model, then disables cancelling controls', () => {
+it('reopens a pending review through Run model, then disables cancelling controls', () => {
   const opening = { id: 'opening', phase: 'awaiting_execution' as const, hasCapture: true, detail: 'Review',
     target: { workspaceFolder: '/project', file: 'model.py', cls: 'Net', sourceDigest: 'a'.repeat(64), documentVersion: 1, backendRevision: 1 },
     execution: { id: 'review', kind: 'capture' as const, phase: 'review' as const, device: 'cpu', configuredDevice: 'cpu', detail: 'Review',
@@ -296,8 +322,6 @@ it('reopens a pending timing review through Run model, then disables cancelling 
   fireEvent.click(screen.getByRole('button', { name: 'Run model' }));
   expect(context.validation!.run).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('button', { name: 'Run model' })).toHaveAttribute('aria-busy', 'false');
-  expect(screen.queryByRole('button', { name: 'Measure latency' })).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Measuring latency…' })).toBeNull();
   view.rerender(<LocalBrowserContext.Provider value={{ ...context, page: { ...context.page,
     opening: { ...opening, execution: { ...opening.execution, phase: 'cancelling' } } } }}><LocalBrowserValidate controls="run" /></LocalBrowserContext.Provider>);
   expect(screen.getByRole('button', { name: 'Cancelling…' })).toBeDisabled();

@@ -55,3 +55,7 @@ The plugin service binds `127.0.0.1` and requires a launch token. It does not
 listen on `0.0.0.0`. The shared backend has the same loopback default: a public
 bind needs `TENSORVIZ_LOCAL_TOKEN`, and `AUTH_DISABLED` does not grant one.
 See [service bind](local-setup.md#service-bind).
+
+## Capture-role tests
+
+`npm run test:capture --prefix plugin` first checks explicit interpreter fixtures, then builds the host, browser and panel. Set all five variables to existing absolute Python paths: `TENSORVIZ_TEST_PYTHON`, `TENSORVIZ_TEST_SERVICE_PYTHON`, `TENSORVIZ_TEST_CAPTURE_PYTHON`, `TENSORVIZ_TEST_OTHER_PYTHON`, and `TENSORVIZ_TEST_MISSING_PYTHON`. Service Python needs the backend dependencies. The final three must be distinct disposable, pipless Torch/Pydantic environments without FastAPI, Uvicorn or libcst. The missing-library fixture also starts without scipy, torchmetrics or OpenCV; the repair test installs its missing packages. Tests run sequentially so environment mutations do not race. These integration checks are separate from plugin unit checks.

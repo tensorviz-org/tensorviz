@@ -2,6 +2,8 @@ import type { IdeMultifileProjectionResponse, IdeMultifileSpan, ProjectionPayloa
 import type { ReviewModelRoot } from './reviewSnapshotsCore';
 import type { SourceSet } from './workspaceSourceCore';
 
+interface ReviewDeclaration { span: IdeMultifileSpan; constructor: IdeMultifileSpan | null; parent?: string; children?: string[] }
+
 /** Both hosts analyze pinned source text and refuse execution-backed replies. */
 export async function projectReviewSnapshot(target: Pick<ReviewModelRoot, 'file' | 'cls' | 'project'>, sources: SourceSet,
   request: (body: unknown) => Promise<IdeMultifileProjectionResponse>): Promise<ProjectionPayload> {
@@ -15,11 +17,23 @@ export async function projectReviewSnapshot(target: Pick<ReviewModelRoot, 'file'
   }
   const classSpan = (response.document as { semantic?: { metadata?: { reviewClass?: { span?: IdeMultifileSpan } } } }).semantic?.metadata?.reviewClass?.span;
   const spanmap = { ...response.spanmap, ...(classSpan ? { '@class': classSpan } : {}) };
+  // Declarations and dependencies name project-relative files too. Review joins
+  // them to this spanmap, to Git renames and to captures: all workspace paths.
+  const moved = (span: IdeMultifileSpan) => ({ ...span, file: prefix + span.file });
+  const document = response.document as { semantic?: { metadata?: { reviewDeclarations?: { entries: Record<string, ReviewDeclaration> } } } };
+  const evidence = prefix ? document.semantic?.metadata?.reviewDeclarations : undefined;
+  const keys = new Map(Object.entries(evidence?.entries ?? {}).map(([key, fact]) => {
+    const spelled = `@declaration:[${JSON.stringify(fact.span.file)},`;
+    return [key, key.startsWith(spelled) ? `@declaration:[${JSON.stringify(prefix + fact.span.file)},${key.slice(spelled.length)}` : key];
+  }));
+  const declarations = evidence && { ...evidence, entries: Object.fromEntries(Object.entries(evidence.entries).map(([key, fact]) => [keys.get(key)!, {
+    ...fact, span: moved(fact.span), constructor: fact.constructor && moved(fact.constructor),
+    parent: fact.parent && (keys.get(fact.parent) ?? fact.parent), children: fact.children?.map(child => keys.get(child) ?? child) }])) };
   return { graphId: response.graph_id, revision: response.revision, cls: target.cls, file: target.file,
-    sourceDigest: root.digest, traced: false, greyed: false, viewRestored: false, document: response.document,
-    spanmap: Object.fromEntries(Object.entries(spanmap).map(([id, value]) => {
-      const span = value as IdeMultifileSpan; return [id, { ...span, file: prefix + span.file }];
-    })), projectionDigest: response.projection_digest, dependencies: response.dependencies,
+    sourceDigest: root.digest, traced: false, greyed: false, viewRestored: false, document: declarations
+      ? { ...document, semantic: { ...document.semantic, metadata: { ...document.semantic!.metadata, reviewDeclarations: declarations } } } : response.document,
+    spanmap: Object.fromEntries(Object.entries(spanmap).map(([id, value]) => [keys.get(id) ?? id, moved(value as IdeMultifileSpan)])),
+    projectionDigest: response.projection_digest, dependencies: response.dependencies?.map(entry => ({ ...entry, file: prefix + entry.file })),
     diagnostics: response.diagnostics, truncated: response.truncated };
 }
 

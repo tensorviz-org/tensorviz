@@ -123,10 +123,11 @@ suite('inputMemory', () => {
     writeInputMemory(sidecar, { input: '1,3,224,224', input_shape: [1, 3, 224, 224] });
     const declared = 'import torch.nn as nn\n# tensorviz: input=2,8\nclass Net(nn.Module):\n    pass\n';
 
-    // Nothing is passed on either tier: not `--input`, which would beat the
-    // declaration in the worker, and not `measured_input_shape`, which the backend
-    // ranks below it anyway — belt and braces, and one rule in one place.
-    assert.deepEqual(inputMemoryFor(sidecar, declared), {});
+    // The remembered `input` is dropped, because as `--input` it would beat the
+    // declaration in the worker. The measured shape is kept: the backend ranks it below the CLASS's own
+    // declaration, and in a file where only another class declares, it is the
+    // only thing that draws this class with a shape it has been traced with.
+    assert.deepEqual(inputMemoryFor(sidecar, declared), { input_shape: [1, 3, 224, 224] });
     // Without the declaration the same sidecar is used in full.
     assert.deepEqual(inputMemoryFor(sidecar, 'class Net(nn.Module):\n    pass\n'), {
       input: '1,3,224,224',

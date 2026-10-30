@@ -19,6 +19,18 @@ suite('canonical capture host boundary', () => {
     capture.coverage.scope = 'executed_path';
     assert.equal(read(), undefined);
   });
+  test('the format no longer carries module timing or call-site digests', () => {
+    for (const change of [
+      (capture: any) => { capture.latencyProfile = null; },
+      (capture: any) => { capture.invocations[0].latency = null; },
+      (capture: any) => { capture.invocations[0].callSiteDigest = null; },
+    ]) {
+      const { capture, plan } = canonicalFixture();
+      assert.ok(semanticCapture(capture, capture.attemptId, plan, capture.planDigest));
+      change(capture);
+      assert.equal(semanticCapture(capture, capture.attemptId, plan, capture.planDigest), undefined);
+    }
+  });
 
   test('constructor slots distinguish defaults, variadics and positional-only keyword names', () => {
     const entry = structuredClone(initializerFixture.entry);

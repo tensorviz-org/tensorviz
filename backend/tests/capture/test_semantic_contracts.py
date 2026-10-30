@@ -309,8 +309,9 @@ def test_setup_refusal_does_not_invent_an_executable_plan():
 
 def test_exported_schema_matches_python_and_both_consumers():
     root = Path(__file__).parent.resolve().parents[2]
-    schema = root / "tests/fixtures/contracts/semantic.schema.json"
-    assert schema.read_text() == json.dumps(schema_document(SemanticContracts), indent=2, sort_keys=True) + "\n"
+    generated = (root / "packages/contracts/src/semanticSchema.generated.ts").read_text()
+    schema = generated.split("const schema: object = ", 1)[1].removesuffix(";\nexport default schema;\n")
+    assert json.loads(schema) == schema_document(SemanticContracts)
     assert (root / "packages/contracts/src/semanticContracts.generated.ts").read_bytes() == (root / "canvas/src/types/semanticContracts.generated.ts").read_bytes()
 
 

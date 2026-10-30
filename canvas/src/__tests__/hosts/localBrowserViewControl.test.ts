@@ -1,8 +1,10 @@
 import { createLocalBrowserViewControl } from '../../ide/localBrowserViewControl';
+import { configureCodeFocusOn, setCodeFocusOn } from '../../ide/codeFocusOn';
 import type { LocalBrowserViewTransport, LocalBrowserViewMessage } from '../../ide/localBrowserViewTransport';
 import type { LocalBrowserTargetIdentity } from '../../ide/protocol.generated';
 
 const TARGET: LocalBrowserTargetIdentity = { workspaceFolder: '/work', file: 'net.py', cls: 'Net', documentVersion: 1, sourceDigest: 'a'.repeat(64), backendRevision: 1 };
+beforeEach(() => { localStorage.clear(); configureCodeFocusOn('host'); });
 
 test('hiding a view clears its selection and suppresses hidden selection updates', () => {
   const r = rig(), listener = jest.fn();
@@ -11,7 +13,7 @@ test('hiding a view clears its selection and suppresses hidden selection updates
     Object.defineProperty(document, 'hidden', { configurable: true, value: true });
     document.dispatchEvent(new Event('visibilitychange'));
     window.dispatchEvent(new CustomEvent('tensorviz-selection', { detail: { nodeIds: ['fc'], edgeIds: [] } }));
-    expect(r.sent).toEqual([{ type: 'viewSelection', viewId: 'view-one', target: TARGET, nodeIds: [], edgeIds: [] }]);
+    expect(r.sent).toEqual([{ type: 'viewSelection', viewId: 'view-one', target: TARGET, nodeIds: [], edgeIds: [], follow: false }]);
     Object.defineProperty(document, 'hidden', { configurable: true, value: false });
     document.dispatchEvent(new Event('visibilitychange'));
     expect(listener.mock.calls[0][0].detail.command).toBe('report-selection');
@@ -40,6 +42,23 @@ test('selection uses the broker-assigned view and current target; oversized sele
     window.dispatchEvent(new CustomEvent('tensorviz-selection', { detail: { nodeIds: Array.from({ length: 101 }, (_, i) => String(i)), edgeIds: [] } }));
     expect(r.sent[1]).toMatchObject({ tooLarge: true, nodeIds: [], edgeIds: [] });
   } finally { r.control.dispose(); }
+});
+
+test('each selection carries Code focus, and turning it on or off re-reports the selection', () => {
+  const r = rig(), listener = jest.fn();
+  window.addEventListener('builder-command', listener);
+  try {
+    window.dispatchEvent(new CustomEvent('tensorviz-selection', { detail: { nodeIds: ['fc'], edgeIds: [] } }));
+    expect(r.sent.at(-1)).toMatchObject({ nodeIds: ['fc'], follow: false });
+    setCodeFocusOn(true);
+    expect(listener.mock.calls.at(-1)[0].detail.command).toBe('report-selection');
+    window.dispatchEvent(new CustomEvent('tensorviz-selection', { detail: { nodeIds: ['fc'], edgeIds: [] } }));
+    expect(r.sent.at(-1)).toMatchObject({ nodeIds: ['fc'], follow: true });
+    r.control.dispose();
+    listener.mockClear();
+    setCodeFocusOn(false);
+    expect(listener).not.toHaveBeenCalled();
+  } finally { window.removeEventListener('builder-command', listener); r.control.dispose(); }
 });
 
 test('another view or a stale revision cannot focus this canvas', () => {

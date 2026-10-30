@@ -1035,6 +1035,49 @@
     {
       "protocolVersion": 1,
       "workspaceSessionId": "session-1",
+      "messageId": "draft-state",
+      "type": "graphReviewState",
+      "state": {
+        "id": "draft-1",
+        "beforeLabel": "Current code",
+        "afterLabel": "Proposed code",
+        "before": {},
+        "after": {},
+        "changedFiles": [
+          "model.py"
+        ],
+        "stale": false,
+        "proposal": {
+          "id": "draft-1",
+          "canRevise": true
+        }
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "draft-state",
+      "type": "graphReviewState",
+      "state": {
+        "id": "draft-1",
+        "beforeLabel": "Current code",
+        "afterLabel": "Proposed code",
+        "before": {},
+        "after": {},
+        "changedFiles": [
+          "model.py"
+        ],
+        "stale": false,
+        "proposal": {
+          "id": "draft-1",
+          "unavailable": true,
+          "canRevise": false
+        }
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
       "messageId": "agent-1",
       "viewId": "view-1",
       "type": "agentRequest",
@@ -1375,111 +1418,6 @@
       "messageId": "review-receipt",
       "type": "graphReviewState",
       "state": null
-    },
-    {
-      "protocolVersion": 1,
-      "workspaceSessionId": "session-1",
-      "messageId": "message-12",
-      "target": {
-        "workspaceFolder": "workspace-a",
-        "file": "model.py",
-        "cls": "Net",
-        "documentVersion": 3,
-        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        "backendRevision": 7
-      },
-      "type": "validationState",
-      "runId": "profile-phase",
-      "status": "running",
-      "detail": "Initial validation passed; profiling running",
-      "validationPassed": true
-    },
-    {
-      "protocolVersion": 1,
-      "workspaceSessionId": "session-1",
-      "messageId": "message-12",
-      "target": {
-        "workspaceFolder": "workspace-a",
-        "file": "model.py",
-        "cls": "Net",
-        "documentVersion": 3,
-        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        "backendRevision": 7
-      },
-      "type": "validationState",
-      "runId": "profile-phase",
-      "status": "failed",
-      "detail": "Initial validation passed; profiling failed",
-      "validationPassed": true
-    },
-    {
-      "protocolVersion": 1,
-      "workspaceSessionId": "session-1",
-      "messageId": "message-12",
-      "target": {
-        "workspaceFolder": "workspace-a",
-        "file": "model.py",
-        "cls": "Net",
-        "documentVersion": 3,
-        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        "backendRevision": 7
-      },
-      "type": "validationState",
-      "runId": "profile-phase",
-      "status": "cancelled",
-      "detail": "Initial validation passed; profiling cancelled",
-      "validationPassed": true
-    },
-    {
-      "protocolVersion": 1,
-      "workspaceSessionId": "session-1",
-      "messageId": "message-12",
-      "target": {
-        "workspaceFolder": "workspace-a",
-        "file": "model.py",
-        "cls": "Net",
-        "documentVersion": 3,
-        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        "backendRevision": 7
-      },
-      "type": "validationState",
-      "runId": "profile-phase",
-      "status": "passed",
-      "detail": "Initial validation passed; profiling passed",
-      "validationPassed": true
-    },
-    {
-      "protocolVersion": 1,
-      "workspaceSessionId": "session-1",
-      "messageId": "message-12",
-      "target": {
-        "workspaceFolder": "workspace-a",
-        "file": "model.py",
-        "cls": "Net",
-        "documentVersion": 3,
-        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        "backendRevision": 7
-      },
-      "type": "validateResult",
-      "requestId": "combined",
-      "status": "failed",
-      "detail": "Validation passed. Profiling timed out.",
-      "validationPassed": true
-    },
-    {
-      "protocolVersion": 1,
-      "workspaceSessionId": "session-1",
-      "messageId": "message-12",
-      "target": {
-        "workspaceFolder": "workspace-a",
-        "file": "model.py",
-        "cls": "Net",
-        "documentVersion": 3,
-        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        "backendRevision": 7
-      },
-      "type": "validateRequest",
-      "requestId": "validation-1"
     },
     {
       "protocolVersion": 1,
@@ -5251,6 +5189,65 @@
     {
       "protocolVersion": 1,
       "workspaceSessionId": "session-1",
+      "messageId": "view-mode-view",
+      "type": "viewSelection",
+      "viewId": "view-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "nodeIds": [
+        "fc"
+      ],
+      "edgeIds": [],
+      "follow": false
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "view-mode-edit",
+      "type": "viewSelection",
+      "viewId": "view-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "nodeIds": [
+        "fc"
+      ],
+      "edgeIds": [],
+      "follow": true
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "view-mode-overflow",
+      "type": "viewSelection",
+      "viewId": "view-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "nodeIds": [],
+      "edgeIds": [],
+      "tooLarge": true,
+      "follow": true
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
       "messageId": "view-control-1",
       "type": "focusView",
       "viewId": "view-1",
@@ -5552,9 +5549,330 @@
           "mode": "eval"
         }
       }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "checkpoint-load-failed",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "failed",
+              "freshness": "current",
+              "capture": "unavailable",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "failed",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 2,
+                "dtypeDifferences": 0,
+                "registeredOnly": 0,
+                "checkpointOnly": 0,
+                "unknownPresence": 0
+              }
+            },
+            "executionId": "execution:one",
+            "capture": null,
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "checkpoint-load-converted",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "failed",
+              "freshness": "current",
+              "capture": "unavailable",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "succeeded",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 0,
+                "dtypeDifferences": 2,
+                "registeredOnly": 0,
+                "checkpointOnly": 0,
+                "unknownPresence": 0
+              }
+            },
+            "executionId": "execution:one",
+            "capture": null,
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "checkpoint-load-page",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "failed",
+              "freshness": "current",
+              "capture": "unavailable",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "failed",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 2,
+                "dtypeDifferences": 0,
+                "registeredOnly": 0,
+                "checkpointOnly": 0,
+                "unknownPresence": 0
+              }
+            },
+            "executionId": "execution:one",
+            "capture": null,
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null,
+        "checkpoint": {
+          "runId": "run:one",
+          "offset": 0,
+          "count": 2,
+          "nextOffset": 1,
+          "text": "Actual load: failed\nleft.weight: model [2,3]; checkpoint [2,4]"
+        }
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "checkpoint-load-request",
+      "type": "candidateRequest",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "viewId": "view-1",
+      "proposalId": "proposal-1",
+      "action": {
+        "kind": "checkpoint",
+        "runId": "run:one",
+        "offset": 0,
+        "limit": 1
+      }
     }
   ],
   "invalid": [
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "message-12",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "validationState",
+      "runId": "profile-phase",
+      "status": "running",
+      "detail": "Initial validation passed; profiling running",
+      "validationPassed": true
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "message-12",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "validationState",
+      "runId": "profile-phase",
+      "status": "failed",
+      "detail": "Initial validation passed; profiling failed",
+      "validationPassed": true
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "message-12",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "validationState",
+      "runId": "profile-phase",
+      "status": "cancelled",
+      "detail": "Initial validation passed; profiling cancelled",
+      "validationPassed": true
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "message-12",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "validationState",
+      "runId": "profile-phase",
+      "status": "passed",
+      "detail": "Initial validation passed; profiling passed",
+      "validationPassed": true
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "message-12",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "validateResult",
+      "requestId": "combined",
+      "status": "failed",
+      "detail": "Validation passed. Profiling timed out.",
+      "validationPassed": true
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "message-12",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "validateRequest",
+      "requestId": "validation-1",
+      "measureLatency": true
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "message-12",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "validateRequest",
+      "requestId": "validation-1",
+      "measureLatency": true,
+      "fresh": true
+    },
     {
       "protocolVersion": 1,
       "workspaceSessionId": "session-1",
@@ -7394,6 +7712,48 @@
     {
       "protocolVersion": 1,
       "workspaceSessionId": "session-1",
+      "messageId": "draft-state",
+      "type": "graphReviewState",
+      "state": {
+        "id": "draft-1",
+        "beforeLabel": "Current code",
+        "afterLabel": "Proposed code",
+        "before": {},
+        "after": {},
+        "changedFiles": [
+          "model.py"
+        ],
+        "stale": false,
+        "proposal": {
+          "id": "draft-1",
+          "canRevise": "true"
+        }
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "draft-state",
+      "type": "graphReviewState",
+      "state": {
+        "id": "draft-1",
+        "beforeLabel": "Current code",
+        "afterLabel": "Proposed code",
+        "before": {},
+        "after": {},
+        "changedFiles": [
+          "model.py"
+        ],
+        "stale": false,
+        "proposal": {
+          "id": "draft-1",
+          "canRevise": null
+        }
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
       "messageId": "agent-1",
       "viewId": "view-1",
       "type": "agentState",
@@ -8609,23 +8969,6 @@
       "type": "validateRequest",
       "requestId": "validation-1",
       "measureLatency": null
-    },
-    {
-      "protocolVersion": 1,
-      "workspaceSessionId": "session-1",
-      "messageId": "message-12",
-      "target": {
-        "workspaceFolder": "workspace-a",
-        "file": "model.py",
-        "cls": "Net",
-        "documentVersion": 3,
-        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        "backendRevision": 7
-      },
-      "type": "validateRequest",
-      "requestId": "validation-1",
-      "measureLatency": true,
-      "fresh": true
     },
     {
       "protocolVersion": 1,
@@ -21005,6 +21348,87 @@
     {
       "protocolVersion": 1,
       "workspaceSessionId": "session-1",
+      "messageId": "view-mode-string",
+      "type": "viewSelection",
+      "viewId": "view-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "nodeIds": [
+        "fc"
+      ],
+      "edgeIds": [],
+      "follow": "edit"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "view-mode-null",
+      "type": "viewSelection",
+      "viewId": "view-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "nodeIds": [
+        "fc"
+      ],
+      "edgeIds": [],
+      "follow": null
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "view-mode-number",
+      "type": "viewSelection",
+      "viewId": "view-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "nodeIds": [
+        "fc"
+      ],
+      "edgeIds": [],
+      "follow": 1
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "view-mode-focus",
+      "type": "focusView",
+      "viewId": "view-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "focus-1",
+      "nodeIds": [
+        "fc"
+      ],
+      "edgeIds": [],
+      "follow": true
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
       "messageId": "view-control-1",
       "type": "focusView",
       "viewId": "view-1",
@@ -24658,6 +25082,800 @@
           "unknown": null
         }
       }
+    },
+    {
+      "type": "analyticsReceipt",
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "analytics-1",
+      "viewId": "view-1",
+      "view": "static",
+      "key": "local-only-digest",
+      "action": "send_source"
+    },
+    {
+      "type": "analyticsReceipt",
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "analytics-1",
+      "viewId": "view-1",
+      "view": "static",
+      "key": "local-only-digest",
+      "action": "render",
+      "path": "/private/model.py"
+    },
+    {
+      "type": "analyticsReceipt",
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "analytics-1",
+      "viewId": "",
+      "view": "static",
+      "key": "local-only-digest",
+      "action": "render"
+    },
+    {
+      "type": "analyticsReceipt",
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "analytics-1",
+      "viewId": "view-1",
+      "view": "static",
+      "key": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "action": "render"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "invalid-checkpoint-negative",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "failed",
+              "freshness": "current",
+              "capture": "unavailable",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "failed",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 2,
+                "dtypeDifferences": -1,
+                "registeredOnly": 0,
+                "checkpointOnly": 0,
+                "unknownPresence": 0
+              }
+            },
+            "executionId": "execution:one",
+            "capture": null,
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null,
+        "checkpoint": {
+          "runId": "run:one",
+          "offset": 0,
+          "count": 2,
+          "nextOffset": 1,
+          "text": "Actual load: failed\nleft.weight: model [2,3]; checkpoint [2,4]"
+        }
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "invalid-checkpoint-too_many",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "failed",
+              "freshness": "current",
+              "capture": "unavailable",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "failed",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 3,
+                "dtypeDifferences": 0,
+                "registeredOnly": 0,
+                "checkpointOnly": 0,
+                "unknownPresence": 0
+              }
+            },
+            "executionId": "execution:one",
+            "capture": null,
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null,
+        "checkpoint": {
+          "runId": "run:one",
+          "offset": 0,
+          "count": 2,
+          "nextOffset": 1,
+          "text": "Actual load: failed\nleft.weight: model [2,3]; checkpoint [2,4]"
+        }
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "invalid-checkpoint-impossible_presence",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "failed",
+              "freshness": "current",
+              "capture": "unavailable",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "failed",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 2,
+                "dtypeDifferences": 0,
+                "registeredOnly": 1,
+                "checkpointOnly": 0,
+                "unknownPresence": 0
+              }
+            },
+            "executionId": "execution:one",
+            "capture": null,
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null,
+        "checkpoint": {
+          "runId": "run:one",
+          "offset": 0,
+          "count": 2,
+          "nextOffset": 1,
+          "text": "Actual load: failed\nleft.weight: model [2,3]; checkpoint [2,4]"
+        }
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "invalid-checkpoint-false_complete",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "failed",
+              "freshness": "current",
+              "capture": "unavailable",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "failed",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 0,
+                "dtypeDifferences": 0,
+                "registeredOnly": 0,
+                "checkpointOnly": 0,
+                "unknownPresence": 1
+              }
+            },
+            "executionId": "execution:one",
+            "capture": null,
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null,
+        "checkpoint": {
+          "runId": "run:one",
+          "offset": 0,
+          "count": 2,
+          "nextOffset": 1,
+          "text": "Actual load: failed\nleft.weight: model [2,3]; checkpoint [2,4]"
+        }
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "invalid-checkpoint-runtime",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "succeeded",
+              "freshness": "current",
+              "capture": "unavailable",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "failed",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 2,
+                "dtypeDifferences": 0,
+                "registeredOnly": 0,
+                "checkpointOnly": 0,
+                "unknownPresence": 0
+              }
+            },
+            "executionId": "execution:one",
+            "capture": null,
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null,
+        "checkpoint": {
+          "runId": "run:one",
+          "offset": 0,
+          "count": 2,
+          "nextOffset": 1,
+          "text": "Actual load: failed\nleft.weight: model [2,3]; checkpoint [2,4]"
+        }
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "invalid-checkpoint-capture",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "failed",
+              "freshness": "current",
+              "capture": "complete",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "failed",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 2,
+                "dtypeDifferences": 0,
+                "registeredOnly": 0,
+                "checkpointOnly": 0,
+                "unknownPresence": 0
+              }
+            },
+            "executionId": "execution:one",
+            "capture": null,
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null,
+        "checkpoint": {
+          "runId": "run:one",
+          "offset": 0,
+          "count": 2,
+          "nextOffset": 1,
+          "text": "Actual load: failed\nleft.weight: model [2,3]; checkpoint [2,4]"
+        }
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "invalid-checkpoint-extra",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "failed",
+              "freshness": "current",
+              "capture": "unavailable",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "failed",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 2,
+                "dtypeDifferences": 0,
+                "registeredOnly": 0,
+                "checkpointOnly": 0,
+                "unknownPresence": 0,
+                "current": true
+              }
+            },
+            "executionId": "execution:one",
+            "capture": null,
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null,
+        "checkpoint": {
+          "runId": "run:one",
+          "offset": 0,
+          "count": 2,
+          "nextOffset": 1,
+          "text": "Actual load: failed\nleft.weight: model [2,3]; checkpoint [2,4]"
+        }
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "invalid-checkpoint-wrong_run",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "failed",
+              "freshness": "current",
+              "capture": "unavailable",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "failed",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 2,
+                "dtypeDifferences": 0,
+                "registeredOnly": 0,
+                "checkpointOnly": 0,
+                "unknownPresence": 0
+              }
+            },
+            "executionId": "execution:one",
+            "capture": null,
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null,
+        "checkpoint": {
+          "runId": "other",
+          "offset": 0,
+          "count": 2,
+          "nextOffset": 1,
+          "text": "Actual load: failed\nleft.weight: model [2,3]; checkpoint [2,4]"
+        }
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "invalid-checkpoint-wrong_count",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "failed",
+              "freshness": "current",
+              "capture": "unavailable",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "failed",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 2,
+                "dtypeDifferences": 0,
+                "registeredOnly": 0,
+                "checkpointOnly": 0,
+                "unknownPresence": 0
+              }
+            },
+            "executionId": "execution:one",
+            "capture": null,
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null,
+        "checkpoint": {
+          "runId": "run:one",
+          "offset": 0,
+          "count": 3,
+          "nextOffset": 1,
+          "text": "Actual load: failed\nleft.weight: model [2,3]; checkpoint [2,4]"
+        }
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "invalid-checkpoint-offset",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "failed",
+              "freshness": "current",
+              "capture": "unavailable",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "failed",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 2,
+                "dtypeDifferences": 0,
+                "registeredOnly": 0,
+                "checkpointOnly": 0,
+                "unknownPresence": 0
+              }
+            },
+            "executionId": "execution:one",
+            "capture": null,
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null,
+        "checkpoint": {
+          "runId": "run:one",
+          "offset": 0,
+          "count": 2,
+          "nextOffset": 0,
+          "text": "Actual load: failed\nleft.weight: model [2,3]; checkpoint [2,4]"
+        }
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "invalid-checkpoint-request-offset",
+      "type": "candidateRequest",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "viewId": "view-1",
+      "proposalId": "proposal-1",
+      "action": {
+        "kind": "checkpoint",
+        "runId": "run:one",
+        "offset": -1,
+        "limit": 1
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "invalid-checkpoint-request-limit",
+      "type": "candidateRequest",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "viewId": "view-1",
+      "proposalId": "proposal-1",
+      "action": {
+        "kind": "checkpoint",
+        "runId": "run:one",
+        "offset": 0,
+        "limit": 201
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "invalid-checkpoint-borrowed-capture",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "requestId": "candidate-request",
+      "type": "candidateResult",
+      "viewId": "51",
+      "proposalId": "source-request",
+      "result": {
+        "candidates": [
+          {
+            "runId": "run:one",
+            "startedAt": 100,
+            "finishedAt": 101,
+            "review": "historical",
+            "summary": {
+              "staticCheck": "passed",
+              "runtime": "failed",
+              "freshness": "current",
+              "capture": "unavailable",
+              "inputs": "unavailable",
+              "state": "unavailable",
+              "semanticPostconditions": "not_checked",
+              "cleanup": "complete",
+              "diagnostics": [
+                "invalid_shape"
+              ],
+              "runId": "run:one",
+              "checkpoint": {
+                "loadStatus": "failed",
+                "complete": true,
+                "entries": 2,
+                "shapeDifferences": 2,
+                "dtypeDifferences": 0,
+                "registeredOnly": 0,
+                "checkpointOnly": 0,
+                "unknownPresence": 0
+              }
+            },
+            "executionId": "execution:one",
+            "capture": {
+              "captureId": "other",
+              "sourceId": "other"
+            },
+            "unavailable": "not_captured"
+          }
+        ],
+        "page": null,
+        "checkpoint": {
+          "runId": "run:one",
+          "offset": 0,
+          "count": 2,
+          "nextOffset": 1,
+          "text": "Actual load: failed\nleft.weight: model [2,3]; checkpoint [2,4]"
+        }
+      },
+      "detail": "Historical candidate evidence."
+    },
+    {
+      "type": "analyticsReceipt",
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "messageId": "analytics-1",
+      "viewId": "view-1",
+      "view": "static",
+      "key": "local-only-digest",
+      "action": "render"
     }
   ]
 }

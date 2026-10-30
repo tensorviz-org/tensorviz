@@ -33,6 +33,7 @@ import { automaticFixture } from '../../../../tests/fixtures/semantic.cjs';
 import type { ProfileLookupOptions } from '@tensorviz/graph-host/profileValidation';
 import {
   Uri,
+  commands,
   documentChanges,
   editorState,
   openStubEditor,
@@ -169,7 +170,8 @@ function makeSync(opts: {
   summaries?: ValidationSummaryStore;
   profiles?: ProfileLookupOptions;
   debounceMs?: number;
-  trace?: { trusted?: boolean; onSave?: boolean; fail?: boolean; deferFirstRun?: boolean; outcome?: TraceOutcome };
+  trace?: { trusted?: boolean; onSave?: boolean; fail?: boolean; deferFirstRun?: boolean; outcome?: TraceOutcome;
+    tier?: 'real' | 'fake'; respond?: (request: TraceRequest) => TraceOutcome };
   deferFirstParse?: boolean;
   rejectProject?: boolean;
   diskSources?: Record<string, string>;
@@ -294,12 +296,13 @@ function makeSync(opts: {
           if (plan.fail) {
             return { ok: false, reason: 'no interpreter', detail: 'select one' };
           }
+          if (plan.respond) return plan.respond(request);
           return plan.outcome ?? { ok: true, envelope: ENVELOPE, exitCode: 0 };
         },
         cancel(): void {},
       },
       trusted: async () => plan.trusted !== false,
-      settings: () => ({ onSave: plan.onSave !== false, tier: 'real' as const }),
+      settings: () => ({ onSave: plan.onSave !== false, tier: plan.tier ?? 'real' }),
       onEnvelope: (_envelope, target, run) => {
         envelopes.push(run?.reused ? { ...target, reused: true } : target);
       },
@@ -631,19 +634,15 @@ suite('LocalBrowserSync', () => {
       undefined, undefined, undefined, undefined, execution, undefined, undefined, undefined, undefined, undefined, 'allow');
     assert.equal(result.status, 'passed', result.detail);
     assert.deepEqual(result.reused, { capturedAt });
-    assert.match(result.detail, /^Reused identical result from [^(]*:02[^(]* \(no Python ran\)\. Validation passed/);
+    assert.match(result.detail, /^Reused identical result from [^(]*:02[^(]* \(model not run again\)\. Validation passed/);
     assert.equal(rig.runs[0].reuse, 'allow');
     assert.ok(rig.fetches.some(fetch => fetch.body.trace_result !== undefined), 'the reused envelope is projected');
     assert.equal(rig.sync.snapshotState()?.traced, true);
     assert.deepEqual(rig.envelopes.map(entry => entry.reused), [true], 'the runs list is told this was not a new run');
-    // Run fresh reaches the worker as bypass; a diagnostic job is not opted into reuse.
+    // Run fresh reaches the worker as bypass.
     await rig.sync.validate(rig.sync.currentTarget()!, new AbortController().signal,
       undefined, undefined, undefined, undefined, execution, undefined, undefined, undefined, undefined, undefined, 'bypass');
     assert.equal(rig.runs[1].reuse, 'bypass');
-    await rig.sync.validate(rig.sync.currentTarget()!, new AbortController().signal,
-      undefined, undefined, undefined, undefined, execution, { kind: 'profile', warmup: 1, iterations: 1, profileIterations: 1 } as never,
-      undefined, undefined, undefined, undefined, 'allow');
-    assert.equal(rig.runs[2].reuse, undefined);
   });
 
   test('a bounded profile can finish with measured evidence after both former outer deadlines', async () => {
@@ -715,6 +714,8 @@ suite('LocalBrowserSync', () => {
     assert.equal((await rig.sync.validate(rig.sync.currentTarget()!, new AbortController().signal)).status, 'passed');
     assert.equal(rig.sync.snapshotState()?.traced, true);
     assert.equal(await rig.sync.sourcesCurrent(), true, 'unchanged captures remain reusable');
+    assert.equal(rig.sync.sourceEditContext(rig.sync.currentTarget()!)?.dependencies.get(UNRELATED_REL),
+      createHash('sha256').update(BLOCK_SOURCE).digest('hex'), 'verified runtime imports must be available to agent source reads and coordinated proposals');
     diskSources[UNRELATED_REL] = BLOCK_EDITED;
     assert.equal(await rig.sync.sourcesCurrent(), false, 'external edits cannot hide behind an unchanged editor buffer');
     diskSources[UNRELATED_REL] = BLOCK_SOURCE;
@@ -722,6 +723,8 @@ suite('LocalBrowserSync', () => {
     editFile(UNRELATED, BLOCK_EDITED); await settle();
     assert.equal(rig.fetches.length, calls + 1, 'runtime imports must participate in source synchronization');
     assert.equal(rig.sync.snapshotState()?.traced, false, 'previous measurements cannot validate a changed imported layer');
+    assert.equal(rig.sync.sourceEditContext(rig.sync.currentTarget()!)?.dependencies.has(UNRELATED_REL), false,
+      'a new source-only projection cannot carry forward old runtime source authority');
     assert.equal(rig.runs.length, 1, 'typing does not execute the model');
     assert.equal(await rig.sync.sourcesCurrent(), false, 'a new AST projection cannot make the old capture current');
   });
@@ -1665,6 +1668,21 @@ suite('LocalBrowserSync', () => {
       selections: [modelEditor().selection],
     });
     assert.deepEqual(focusPublishes(rig), []);
+  });
+
+  test('a reveal first makes room beside a Canvas that fills the window', async () => {
+    const rig = makeSync({ spans: SPANS });
+    rig.sync.setTarget(modelUri(), anchor());
+    await settle();
+    // Where the cursor was when the side bar was restored: before the reveal moved it.
+    const restored: number[] = [];
+    const registration = commands.registerCommand('workbench.action.restoreAuxiliaryBar',
+      () => { restored.push(modelEditor().selection.active.line); });
+    try {
+      assert.deepEqual(await rig.sync.revealNode(liveTarget(rig), 'fwd'), { ok: true });
+    } finally { registration.dispose(); }
+    assert.deepEqual(restored, [0]);
+    assert.equal(modelEditor().selection.active.line, 4);
   });
 
   test('dependency navigation opens the real file and shared definitions focus every instance', async () => {

@@ -10,7 +10,6 @@ import { reportNodeClick } from '../../ide/projection';
 import type { GraphReviewState, ProjectionPayload } from '../../ide/protocol.generated';
 import type { ModelNodeData } from '../../types';
 
-jest.mock('../../canvas/graphQueryState', () => ({ graphOverlayScale: { get: () => ({ values: new Map() }) } }));
 jest.mock('tldraw', () => ({
   BaseBoxShapeUtil: class {}, HTMLContainer: ({ children }: any) => <div>{children}</div>,
   T: { number: {}, any: {} }, track: (component: any) => component,

@@ -71,7 +71,7 @@ export class McpValidationRuns {
     selection: CaptureSelection = { path: [] }): Record<string, unknown> {
     const run = this.require(owner, runId);
     return clone({ ...this.snapshot(run), format: run.evidence?.capture ? 'semantic-v1' : run.evidence?.execution ? 'legacy' : 'unavailable',
-      ...inspectEvidence(run.graph, run.evidence, section, offset, limit, selection),
+      ...inspectEvidence({ ...run.graph, execution: run.execution, job: run.job }, run.evidence, section, offset, limit, selection),
       immutable: !active(run), evidenceAvailable: !!run.evidence, evidenceUnavailable: run.evidenceUnavailable ?? null });
   }
   compare(owner: string, baselineRunId: string, candidateRunId: string, section = 'summary', offset = 0, limit = 50,
@@ -145,7 +145,8 @@ export class McpValidationRuns {
           run.captureReceived = true;
           const id = run.attempt?.snapshot().captureIds[0];
           const retained = id ? this.summaries?.ledger.capture(id) : undefined;
-          const evidence = captureRunEvidence(captured, run.target.workspaceFolder, retained);
+          const evidence = captureRunEvidence(captured, run.target.workspaceFolder, retained,
+            { sourceDigest: run.target.sourceDigest, checkpoint: run.execution?.checkpoint });
           if (bytes(evidence) + bytes(run.graph) <= MAX_RUN_BYTES) run.evidence = evidence;
           else run.evidenceUnavailable = 'Worker evidence exceeded the 16 MiB per-run retention limit.';
           run.retainedBytes = bytes(run.evidence ?? {}) + bytes(run.graph);
@@ -188,7 +189,7 @@ export function registerMcpValidationTools(server: McpServer, graph: McpGraphSer
   }, args => graphToolResult(() => ({ ...runs.get(owner, args.runId), ...options.progress?.() })));
   server.registerTool('inspect_run', {
     description: 'Inspect immutable evidence from your run after the live graph or retained capture slots change. Canonical operations/modules return JSON-tree pages; section capture accepts entity and path for exact ordered arguments, values, effects and coverage using the same reader as the browser. Failure follows recorded value producers. Legacy runs label missing semantics. Never executes Python. Runs expire after 30 minutes and remain bounded by window retention.',
-    inputSchema: { runId: z.string().uuid(), section: z.enum(['summary', 'graph', 'setup', 'capture', 'failure', 'operations', 'modules']).default('summary'),
+    inputSchema: { runId: z.string().uuid(), section: z.enum(['summary', 'graph', 'setup', 'outputs', 'checkpoint', 'capture', 'failure', 'operations', 'modules']).default('summary'),
       entity: captureQuerySchema.shape.entity, path: captureQuerySchema.shape.path,
       offset: captureQuerySchema.shape.offset, limit: captureQuerySchema.shape.limit },
     annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },

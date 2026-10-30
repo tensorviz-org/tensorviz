@@ -79,6 +79,17 @@ suite('native graph review authority', () => {
     assert.deepEqual(state.errorMessages, []); assert.equal(review.active, false); assert.equal(diffs.length, 0);
     assert.equal(publications.some(message => message.state), false);
   });
+  test('an edit through a directory alias marks the immutable review stale', async () => {
+    const alias = `${root}-alias`;
+    await fs.symlink(root, alias, 'dir');
+    try {
+      await review.open({ before: 'HEAD', after: 'WORKTREE' });
+      assert.equal(latest()!.stale, false);
+      documentChanges.fire({ document: { uri: vscode.Uri.file(path.join(alias, 'model.py')) } } as any);
+      assert.equal(latest()!.stale, true);
+      assert.equal(provider.provideTextDocumentContent(diffs[0].right), 'width = 64\n');
+    } finally { await fs.unlink(alias); }
+  });
   test('bad projection identity is refused and never opens a misleading code diff', async () => {
     patch(globalThis, 'fetch', async () => new Response(JSON.stringify({ cls: 'Other', source_digest: 'wrong', traced: false })));
     await review.open({ before: 'HEAD', after: 'WORKTREE' });
@@ -145,6 +156,53 @@ suite('native graph review authority', () => {
     patch(globalThis, 'fetch', async (...args: any[]) => { controller.abort(); return (discover as any)(...args); });
     assert.equal(await review.openSession({ ...session, preferredClass: 'Encoder' }, undefined, controller.signal), undefined);
     assert.equal(latest()?.id, result?.id, 'cancellation during discovery must preserve the visible comparison');
+  });
+  const indexNet = () => {
+    const fetch = globalThis.fetch;
+    patch(globalThis, 'fetch', async (url: string, options: any) => {
+      if (url.endsWith('/review/index')) return new Response(JSON.stringify({ models: [{
+        file: 'model.py', cls: 'Net', line: 1, endLine: 1, fingerprint: 'Net', dependencies: ['model.py'] }], notes: [] }));
+      return fetch(url, options);
+    });
+  };
+  test('the live model of the root project, also through a directory alias, is the context of its Git review', async () => {
+    indexNet();
+    const session: ReviewSession = { title: 'Local changes', folder: root, before: await gitSnapshot(root, 'HEAD'), after: await workingSnapshot(root),
+      preferredFile: 'model.py', preferredClass: 'Net', refresh: async () => session };
+    await review.openSession(session);
+    assert.deepEqual(latest()!.liveContext, { workspaceFolder: root, file: 'model.py', cls: 'Net' });
+    const select = () => review.handle({ type: 'graphReviewRequest', action: 'selectModel', reviewId: latest()!.id, modelId: latest()!.selectedModel } as any);
+    const alias = `${root}-alias`;
+    await fs.symlink(root, alias, 'dir');
+    try {
+      target = { ...target, workspaceFolder: alias };
+      await select();
+      assert.deepEqual(latest()!.liveContext, { workspaceFolder: alias, file: 'model.py', cls: 'Net' });
+    } finally { await fs.unlink(alias); }
+    target = { ...target, workspaceFolder: path.join(root, 'model.py', 'not-a-directory') };
+    await select();
+    assert.deepEqual(state.errorMessages, [], 'an unresolvable live path only leaves the review without context');
+    assert.equal(latest()!.liveContext, undefined);
+  });
+  test('a nested project traced from its own root is the context of its Git review, and the same class elsewhere is not', async () => {
+    await fs.mkdir(path.join(root, 'my-proj'));
+    await fs.writeFile(path.join(root, 'my-proj', 'model.py'), 'width = 32\n');
+    await reviewGit(root, ['add', '.']);
+    await reviewGit(root, ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'nested']);
+    editorState.documents.set(path.join(root, 'my-proj', 'model.py'), 'width = 64\n');
+    indexNet();
+    // modelProjectRoot stops at a folder that is not a Python identifier.
+    target = { ...target, workspaceFolder: path.join(root, 'my-proj') };
+    const session: ReviewSession = { title: 'Local changes', folder: root, before: await gitSnapshot(root, 'HEAD'), after: await workingSnapshot(root),
+      preferredFile: 'my-proj/model.py', preferredClass: 'Net', refresh: async () => session };
+    await review.openSession(session);
+    assert.deepEqual(state.errorMessages, []);
+    assert.equal(latest()!.after.file, 'my-proj/model.py');
+    assert.deepEqual(latest()!.liveContext, { workspaceFolder: path.join(root, 'my-proj'), file: 'model.py', cls: 'Net' });
+    const other = latest()!.models!.find(model => model.file === 'model.py')!;
+    await review.handle({ type: 'graphReviewRequest', action: 'selectModel', reviewId: latest()!.id, modelId: other.id } as any);
+    assert.equal(latest()!.after.file, 'model.py');
+    assert.equal(latest()!.liveContext, undefined, 'the same class in another file is another model');
   });
 
 });

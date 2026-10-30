@@ -7,7 +7,7 @@ const tick = () => new Promise<void>(resolve => setImmediate(resolve));
 const before = 'class Net(Base): pass\n', after = 'class Net(Base):\n    fc2 = Linear(4, 4)\n';
 const input = (id = 'proposal-1'): SourceDraftInput => ({ id,
   target: { workspaceFolder: '/project', file: 'model.py', cls: 'Net', sourceDigest: sha256(before), documentVersion: 1, backendRevision: 1 },
-  artifact: { path: 'model.py', before, after, before_digest: sha256(before), after_digest: sha256(after), edits: [] },
+  artifacts: [{ path: 'model.py', before, after, before_digest: sha256(before), after_digest: sha256(after), edits: [] }],
   sources: { entries: [{ file: 'model.py', source: before, digest: sha256(before) }, { file: 'base.py', source: '# frozen', digest: sha256('# frozen') }], truncated: false },
 });
 
@@ -81,6 +81,19 @@ suite('pending source draft authority', () => {
     assert.equal(latest()?.id, 'proposal-2', 'old completion/cleanup cannot overwrite a newer draft');
   });
 
+  test('a multi-file draft projects every exact replacement and exposes the complete change list', async () => {
+    const batch = input();
+    batch.artifacts.push({ path: 'base.py', before: '# frozen', after: 'WIDTH = 16\n',
+      before_digest: sha256('# frozen'), after_digest: sha256('WIDTH = 16\n') });
+    const handle = drafts.start(batch, new AbortController().signal, () => true);
+    handle.show(async () => {}, () => {}); await tick();
+    assert.deepEqual(requests[0].body.sources.map((item: any) => item.source), [before, '# frozen']);
+    assert.deepEqual(requests[1].body.sources.map((item: any) => item.source), [after, 'WIDTH = 16\n']);
+    assert.deepEqual(latest()?.changedFiles, ['model.py', 'base.py']);
+    assert.equal(latest()?.proposal?.id, batch.id);
+    handle.dispose();
+  });
+
   test('projection failures are explicit and a prepared graph appears only after the native diff opens', async () => {
     failed = true;
     const handle = drafts.start(input(), new AbortController().signal, () => current);
@@ -88,5 +101,14 @@ suite('pending source draft authority', () => {
     handle.show(async () => {}, () => {});
     assert.equal(latest()?.proposal?.unavailable, true);
     handle.dispose(); assert.equal(latest(), null);
+  });
+
+  test('typed drafts publish their revision boundary with the same native decisions', async () => {
+    const decisions: boolean[] = [];
+    const handle = drafts.start({ ...input(), canRevise: false }, new AbortController().signal, () => true);
+    handle.show(async () => {}, accepted => decisions.push(accepted)); await tick();
+    assert.equal(latest()?.proposal?.canRevise, false);
+    drafts.handle({ action: 'discardDraft', reviewId: 'proposal-1' } as any);
+    assert.deepEqual(decisions, [false]);
   });
 });

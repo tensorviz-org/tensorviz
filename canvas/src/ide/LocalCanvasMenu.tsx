@@ -4,7 +4,6 @@ import type { LucideIcon } from 'lucide-react';
 import type { ModelNode } from '../types';
 import { PassThroughToggle } from '../components/PassThroughToggle';
 import { dispatchBuilderCommand } from '../components/ui2/builderCommand';
-import { GraphOverlayControls } from '../canvas/GraphQueryPanel';
 import CanvasPopover from './CanvasPopover';
 import CanvasTooltip from '../components/CanvasTooltip';
 import { CanvasThemePreference, setCanvasThemePreference, useCanvasThemePreference } from '../styles/canvasTheme';
@@ -21,7 +20,7 @@ export default function LocalCanvasMenu({ actions, nodes, viewMode, svgOverview,
 }) {
   const [display, setDisplay] = React.useState(false);
   const themePreference = useCanvasThemePreference();
-  return <CanvasPopover help="Arrange the graph, adjust display overlays, focus a selection, or export the canvas." label="More tools" title={display ? 'Display settings' : 'Canvas'} role={display ? 'dialog' : 'menu'}
+  return <CanvasPopover help="Arrange the graph, change its appearance, focus a selection, or export the canvas." label="More tools" title={display ? 'Display settings' : 'Canvas'} role={display ? 'dialog' : 'menu'}
     trigger={<MoreHorizontal size={15} />} testId="ui2-action-more">
     {close => {
       const item = (id: string) => {
@@ -46,7 +45,6 @@ export default function LocalCanvasMenu({ actions, nodes, viewMode, svgOverview,
             <option value="dark">Dark · Ink</option>
           </select>
         </label>
-        <GraphOverlayControls />
       </section> : <>
         <section className="local-canvas-menu-section" role="group" aria-label="View">
           <h3>View</h3>

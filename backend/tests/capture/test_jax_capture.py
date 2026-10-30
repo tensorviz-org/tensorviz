@@ -361,6 +361,30 @@ def test_static_discovery_never_loads_optional_frameworks(monkeypatch):
     assert {item['name'] for item in scan_source('import jax.numpy as jnp\ndef net(x): return jnp.sin(x)\n')} == {'net'}
 
 
+@pytest.mark.parametrize('head', ['import jax\n', 'import jax\n\x0c\n'])
+def test_jax_source_anchor_ends_at_the_utf16_line_length(tmp_path, head):
+    # Anchors count UTF-16 code units, as VS Code does; a byte count put the
+    # shape hint past the line's end. Frame lines count only \r\n, \r and \n,
+    # so a form feed must not shift the line that is read.
+    from types import SimpleNamespace
+    from services.jax_support.capture import JaxprCapture
+    source = head + 'def f(x):\n    return x * 2  # échelle 😀\n'
+    (tmp_path / 'model.py').write_text(source, encoding='utf-8')
+    line_number = source.count('\n')  # the return statement, as Python numbers it
+    capture = JaxprCapture.__new__(JaxprCapture)  # __init__ imports JAX; source() does not
+    capture.workspace, capture.source_lines, capture.bindings = tmp_path.resolve(), {}, set()
+    capture.source_files = {'model.py': hashlib.sha256(source.encode()).hexdigest()}
+    capture.plan = SimpleNamespace(source=SimpleNamespace(id='source:0'))
+    capture.data = dict(sourceBindings=[])
+    frame = SimpleNamespace(file_name=str(tmp_path / 'model.py'), line_num=line_number, function_name='f')
+    equation = SimpleNamespace(source_info=SimpleNamespace(traceback=SimpleNamespace(frames=[frame])))
+    assert capture.source(equation) == [f'jax-source:model.py:{line_number}']
+    anchor = capture.data['sourceBindings'][0]['anchors'][0]
+    line = source.split('\n')[line_number - 1]
+    assert (anchor['startColumn'], anchor['endColumn']) == (0, len(line.encode('utf-16-le')) // 2)
+    assert anchor['tokenDigest'] == hashlib.sha256(line.encode()).hexdigest()
+
+
 def test_workspace_path_alias_reaches_the_same_saved_model(tmp_path):
     value = tensor()
     value['generator'] = dict(kind='normal', mean=0, std=1, seed=0)

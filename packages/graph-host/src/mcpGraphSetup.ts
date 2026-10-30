@@ -17,9 +17,11 @@ export function registerMcpGraphSetup(server: McpServer, opening: GraphOpeningCo
   }, () => graphToolResult(async () => {
     const state = requireState();
     if (['saving', 'capturing', 'resolving'].includes(state.phase)) return { opening: state };
-    const discovered = await setup.discover(state.target, new AbortController().signal);
-    if (opening.state?.id !== state.id) throw new GraphToolError('STALE_TARGET', 'The model changed. Read graph setup again.');
-    return { opening: state, ...discovered };
+    const discovered = await setup.discover(state.target, new AbortController().signal, state.draft);
+    if (opening.state !== state) throw new GraphToolError('STALE_TARGET', 'The opening or draft changed. Read graph setup again.');
+    const draft = state.draft?.configObject ? state.draft : discovered.restoredDraft ?? state.draft
+      ?? discovered.draft ?? discovered.discovery.resolution?.draft;
+    return { opening: state, ...discovered, ...(draft ? { draft } : {}) };
   }));
   server.registerTool('suggest_graph_inputs', {
     description: 'Package the pending setup for an LLM: the model file/class, required constructor and input fields with their annotations, defaults, examples, constraints, the unresolved values, the exact draft skeleton to fill, and `inputContract` (the full tensor/generator/dtype grammar). Reads source only; it neither executes Python nor saves files. Fill the draft, then call configure_graph_setup.',
@@ -27,10 +29,11 @@ export function registerMcpGraphSetup(server: McpServer, opening: GraphOpeningCo
   }, () => graphToolResult(async () => {
     const state = requireState();
     if (['saving', 'capturing', 'resolving'].includes(state.phase)) return { opening: state };
-    const prepared = await setup.discover(state.target, new AbortController().signal);
-    if (opening.state?.id !== state.id) throw new GraphToolError('STALE_TARGET', 'The model changed. Read graph setup again.');
+    const prepared = await setup.discover(state.target, new AbortController().signal, state.draft);
+    if (opening.state !== state) throw new GraphToolError('STALE_TARGET', 'The opening or draft changed. Read graph setup again.');
     const { discovery } = prepared;
-    const draft = discovery.resolution?.draft ?? state.draft ?? null;
+    const draft = state.draft?.configObject ? state.draft : prepared.restoredDraft ?? state.draft
+      ?? prepared.draft ?? discovery.resolution?.draft ?? null;
     return { opening: opening.state,
       model: { file: state.target.file, cls: state.target.cls, module: discovery.model },
       resolution: discovery.resolution ? { status: discovery.resolution.status, unresolved: discovery.resolution.unresolved } : null,
@@ -39,7 +42,7 @@ export function registerMcpGraphSetup(server: McpServer, opening: GraphOpeningCo
       factories: discovery.factories, configs: discovery.configs, draft,
       inputContract: INPUT_CONTRACT,
       ...(prepared.requirements?.length ? { requirements: prepared.requirements } : {}),
-      guidance: `Read the ${state.target.cls}.forward (including inherited or imported definitions) to choose each input name, shape and dtype. Fill draft.profile (init, inputs.args, inputs.kwargs, device, mode) using inputContract for the exact tensor grammar; no tensorViz source is needed. Then call configure_graph_setup with this openingId and sourceDigest. Use examples and constraints as evidence; leave a field unchanged only when source already resolved it.` };
+      guidance: `Read the ${state.target.cls}.forward (including inherited or imported definitions) to choose each missing input name, shape and dtype. Preserve the returned draft's configured values and profileName; source resolution describes discovery, not a replacement for this selected invocation. Fill missing draft.profile values (init, inputs.args, inputs.kwargs, device, mode) using inputContract for the exact tensor grammar; no tensorViz source is needed. Then call configure_graph_setup with this openingId and sourceDigest. Use examples and constraints as evidence; change configured values only when the requested correction requires it.` };
   }));
   server.registerTool('configure_graph_setup', {
     description: 'Save explicit model setup in tensorviz.toml and continue the opening, which captures the saved call once on its saved device. No shape search. Poll get_graph_setup for progress until the opening is ready, failed or cancelled; awaiting_execution means the user chooses Run in Canvas. Saving alone is not a captured graph. Requires the current opening id and source digest.',

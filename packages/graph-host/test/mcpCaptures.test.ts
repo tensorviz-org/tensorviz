@@ -1,4 +1,5 @@
 import * as assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -14,9 +15,11 @@ import { canonicalFixture, automaticFixture } from '../../../tests/fixtures/sema
 
 const target = { workspaceFolder: '/ws', file: 'model.py', cls: 'Net',
   documentVersion: 1, sourceDigest: 'a'.repeat(64), backendRevision: 1 };
-function retain(ledger: AttemptLedger, id = 'attempt:0', partial = false) {
+function retain(ledger: AttemptLedger, id = 'attempt:0', partial = false, prepare?: (capture: CaptureSnapshot) => void) {
   const { capture, plan } = canonicalFixture(id);
   capture.id = `capture:${id}`;
+  prepare?.(capture);
+  plan.source = structuredClone(capture.source);
   if (partial) { capture.status = 'partial'; capture.coverage.omissions = ['operation_limit']; }
   const handle = ledger.begin(id, target, 'manual', null);
   handle.resolved({ plan, applicabilityDigest: capture.planDigest });
@@ -52,6 +55,31 @@ suite('canonical capture inspection', () => {
     assert.equal(plan.id, 'base'); plan.source.files[0].digest = '0'.repeat(64);
     assert.notEqual(inspector.retainedPlan(target, capture.id, capture.source.id)?.source.files[0].digest, '0'.repeat(64));
     assert.throws(() => inspector.retainedPlan({ ...target, cls: 'other' }, capture.id, capture.source.id), /retained/);
+  });
+
+  test('candidate baseline observations keep exact retained ownership and cannot borrow newer setup', () => {
+    const ledger = new AttemptLedger(), inspector = new CaptureInspector(ledger);
+    const { capture, plan } = canonicalFixture('baseline-observation');
+    const handle = ledger.begin(plan.id, target, 'manual', null);
+    handle.resolved({ plan, applicabilityDigest: capture.planDigest });
+    const outcome: TraceOutcome = { ok: true, exitCode: 0, envelope: { protocol_version: 1,
+      result: { diagnostics: { semantic_capture: capture, execution: { version: 1, resolvedPlan: plan,
+        sourceDigest: plan.source.files.find(file => file.path === plan.source.modelFile)!.digest,
+        planDigest: capture.planDigest, inputs: { digest: capture.inputDigest }, state: { digest: capture.stateDigest } },
+        run_evidence: { version: 1, outputs: { digest: 'a'.repeat(64) } } } },
+      spans: {}, error: null, worker: { planId: plan.id, planDigest: capture.planDigest } } };
+    handle.captured(outcome); handle.finish('passed'); ledger.projected(target, outcome.envelope);
+    const newer = canonicalFixture('newer');
+    ledger.begin('newer', target, 'manual', null).resolved({ plan: newer.plan, applicabilityDigest: newer.capture.planDigest });
+    const read = () => inspector.retainedObservations(target, capture.id, capture.source.id)!;
+    assert.equal(read().plan.id, plan.id); read().setup.sourceDigest = 'poison';
+    assert.equal(read().setup.sourceDigest, target.sourceDigest);
+    assert.throws(() => inspector.retainedObservations({ ...target, cls: 'Other' }, capture.id, capture.source.id), /retained/);
+    assert.throws(() => inspector.retainedObservations(target, capture.id, 'wrong-source'), /exact capture source/);
+    const replacement = retain(ledger, 'replacement');
+    assert.equal(inspector.retainedObservations(target, replacement.id, replacement.source.id), undefined,
+      'a new capture lacking execution observations cannot borrow the old ones');
+    assert.throws(read, /retained/);
   });
 
   test('automatic preparation is never relabelled as a replayable resolved plan', () => {
@@ -152,6 +180,64 @@ suite('MCP retained canonical capture transport', () => {
   async function call(name: string, args: object = {}) {
     return (await client.callTool({ name, arguments: { modelId: graph.reference(model).modelId, ...args } })).structuredContent as any;
   }
+  test('name discovery returns exact anchors through MCP with historical and retention guards', async () => {
+    const args = { captureId: capture.id, sourceId: capture.source.id, text: 'add', limit: 1 };
+    const first = await call('find_computation', args);
+    assert.equal(first.total, 2); assert.equal(first.nextOffset, 1);
+    const second = await call('find_computation', { ...args, offset: first.nextOffset });
+    assert.equal(second.nextOffset, null);
+    const exact = await call('inspect_capture', second.items[0].inspect);
+    assert.equal(exact.items.find((item: any) => item.key === 'id').value, second.items[0].ref.id);
+    const query = await call('query_computation', { captureId: capture.id, sourceId: capture.source.id,
+      anchors: [second.items[0].ref], direction: 'upstream' });
+    assert.ok(query.items.some((item: any) => item.kind === 'entity' && item.ref.id === 'h'));
+    assert.equal((await call('find_computation', { ...args, sourceId: 'foreign' })).error.code, 'SOURCE_MISMATCH');
+    const tools = await client.listTools();
+    assert.equal(tools.tools.find(tool => tool.name === 'find_computation')?.annotations?.readOnlyHint, true);
+    model.current = false; model.target.documentVersion++;
+    const historical = await call('find_computation', args);
+    assert.equal(historical.current, false); assert.deepEqual(historical.items, first.items);
+    assert.equal(historical.evidence.appliesToCurrentRuntime, 'not_established');
+    retain(ledger, 'newer');
+    assert.equal((await call('find_computation', args)).error.code, 'UNKNOWN_CAPTURE');
+  });
+  test('computation queries trace exact repeated operands without depending on Canvas display edges', async () => {
+    const result = await call('query_computation', { captureId: capture.id, sourceId: capture.source.id,
+      anchors: [{ kind: 'operation', id: 'add2' }], direction: 'upstream', depth: 4 });
+    assert.ok(result, 'The agent needs a computation query rather than manually paging the whole capture');
+    assert.equal(result.evidence.scope, 'executed_path');
+    assert.equal(result.evidence.appliesToCurrentRuntime, 'not_established');
+    assert.deepEqual(result.items.filter((item: any) => item.kind === 'entity').map((item: any) => item.ref.id).sort(),
+      ['a', 'add1', 'add2', 'h']);
+    const uses = result.items.filter((item: any) => item.kind === 'edge' && item.target.id === 'add2');
+    assert.deepEqual(uses.map((item: any) => item.path), [['args', 0], ['args', 1]]);
+    assert.equal(result.nextOffset, null);
+  });
+  test('named state queries use exact retained associations through MCP and preserve historical ownership', async () => {
+    const name = 'nested.'.repeat(25) + 'weight';
+    capture = retain(ledger, 'state', false, value => {
+      value.values[0].origin = 'state';
+      value.values[0].state = [{ kind: 'parameter', name }, { kind: 'parameter', name: 'shared.weight' }];
+    });
+    const args = { captureId: capture.id, sourceId: capture.source.id,
+      anchors: [{ kind: 'parameter', id: name }], direction: 'downstream', depth: 20 };
+    const result = await call('query_computation', args);
+    assert.ok(result?.items, 'Registered state must be queryable without paging the entire capture');
+    assert.deepEqual(result.items.filter((item: any) => item.kind === 'entity').map((item: any) => item.ref.id),
+      ['h', 'add1', 'a', 'add2', 'b']);
+    const anchor = result.items.find((item: any) => item.kind === 'anchor');
+    const exact = await call('inspect_capture', anchor.inspect);
+    assert.equal(exact.items.find((item: any) => item.key === 'name').value, name);
+    assert.equal((await call('query_computation', { ...args, anchors: [{ kind: 'buffer', id: name }] })).error.code,
+      'STATE_NOT_OBSERVED');
+    assert.equal((await call('query_computation', { ...args, sourceId: 'foreign' })).error.code, 'SOURCE_MISMATCH');
+    model.current = false;
+    const historical = await call('query_computation', args);
+    assert.equal(historical.current, false);
+    assert.equal(historical.evidence.appliesToCurrentRuntime, 'not_established');
+    retain(ledger, 'newer');
+    assert.equal((await call('query_computation', args)).error.code, 'UNKNOWN_CAPTURE');
+  });
   test('manual and failed latest attempts remain separate; exact retained records survive a stale source graph', async () => {
     ledger.begin('timeout', target, 'mcp', null).finish('failed');
     model.current = false; model.target.documentVersion++;
@@ -163,11 +249,95 @@ suite('MCP retained canonical capture transport', () => {
     assert.deepEqual(result.items.map((item: any) => [item.key, item.value]), [['kind', 'int'], ['value', '1']]);
     assert.equal((await call('get_graph', graph.reference(model))).error.code, 'STALE_TARGET', 'live topology/focus gates remain strict');
   });
+  test('shape-change analysis derives conditional consequences without rewriting observed shapes', async () => {
+    const args = { captureId: capture.id, sourceId: capture.source.id,
+      changes: [{ valueId: 'h', shape: [2, 8] }], depth: 20, limit: 100 };
+    const result = await call('analyze_computation_change', args);
+    assert.ok(result?.analysis, 'The agent needs deterministic change checks with explicit hypothetical scope');
+    assert.equal(result.analysis.kind, 'hypothetical_shape_change');
+    assert.equal(result.analysis.summary.compatible, 2);
+    assert.deepEqual(result.analysis.values.find((value: any) => value.id === 'b').derivedShape, [2, 8]);
+    assert.deepEqual(result.items.find((item: any) => item.kind === 'entity' && item.ref.id === 'b').record.shape, [2, 4]);
+    assert.equal(result.evidence.appliesToCurrentRuntime, 'not_established');
+    assert.equal((await call('analyze_computation_change', { ...args, sourceId: 'other' })).error.code, 'SOURCE_MISMATCH');
+    model.current = false;
+    assert.equal((await call('analyze_computation_change', args)).current, false);
+    retain(ledger, 'replacement');
+    assert.equal((await call('analyze_computation_change', args)).error.code, 'UNKNOWN_CAPTURE');
+  });
   test('cross-model requests and foreign source references are refused through actual MCP', async () => {
     assert.equal((await call('list_captures', { modelId: 'other' })).error.code, 'STALE_TARGET');
     assert.equal((await call('inspect_capture', { ...query(capture), sourceId: 'other' })).error.code, 'SOURCE_MISMATCH');
     model.target.cls = 'Other';
     assert.equal((await call('list_captures')).captures.length, 0);
     assert.equal((await call('inspect_capture', query(capture))).error.code, 'UNKNOWN_CAPTURE');
+  });
+  test('computation reads retain ownership and historical scope after edits, failures and eviction', async () => {
+    const args = { captureId: capture.id, sourceId: capture.source.id, anchors: [{ kind: 'value', id: 'h' }] };
+    model.current = false; model.target.documentVersion++;
+    ledger.begin('failed-later', model.target, 'manual', null).finish('failed');
+    const historical = await call('query_computation', args);
+    assert.equal(historical.current, false);
+    assert.equal(historical.evidence.appliesToCurrentRuntime, 'not_established');
+    assert.equal((await call('query_computation', { ...args, sourceId: 'foreign' })).error.code, 'SOURCE_MISMATCH');
+    assert.equal((await call('query_computation', { ...args, modelId: 'other' })).error.code, 'STALE_TARGET');
+    retain(ledger, 'replacement');
+    assert.equal((await call('query_computation', args)).error.code, 'UNKNOWN_CAPTURE');
+  });
+});
+
+suite('MCP computation source context', () => {
+  test('a computation query can attach exact source without a second agent source-reading turn', async () => {
+    const source = 'class Net:\n    def forward(self, x):\n        return x + x\n';
+    const digest = createHash('sha256').update(source).digest('hex');
+    const ledger = new AttemptLedger();
+    const capture = retain(ledger, 'source', false, value => {
+      value.source.files[0].digest = digest;
+      value.sourceBindings = [{ id: 'source:call', snapshotId: value.source.id, kind: 'call', quality: 'exact', anchors: [
+        { file: 'model.py', digest, startLine: 3, startColumn: 15, endLine: 3, endColumn: 20,
+          scope: 'Net.forward', tokenDigest: 'c'.repeat(64) },
+      ] }];
+      value.operations[1].sourceBindingIds = ['source:call'];
+    });
+    const model = { target: { ...target }, current: true, projection: { document: { semantic: { nodes: [], edges: [] } },
+      spanmap: {}, traced: true } as unknown as ProjectionPayload };
+    const graph = new McpGraphService('source-host', () => model);
+    const server = new McpServer({ name: 'source-context', version: '1' });
+    const reads: string[] = [];
+    let onRead = () => {};
+    registerMcpCaptureTools(server, graph, new CaptureInspector(ledger), async (_ref, file) => {
+      reads.push(file); onRead(); return { file, source, digest };
+    });
+    const client = new Client({ name: 'context-reader', version: '1' });
+    const [a, b] = InMemoryTransport.createLinkedPair(); await server.connect(a); await client.connect(b);
+    try {
+      const result = await client.callTool({ name: 'query_computation', arguments: {
+        modelId: graph.reference(model).modelId, captureId: capture.id, sourceId: capture.source.id,
+        anchors: [{ kind: 'operation', id: 'add2' }], includeSource: true,
+      } });
+      const page = result.structuredContent as any;
+      assert.ok(page?.sourceContext, 'Exact source context must travel with the computation result when requested');
+      assert.deepEqual(reads, ['model.py']);
+      assert.equal(page.sourceContext.entries[0].status, 'matched');
+      assert.match(page.sourceContext.entries[0].source, /return x \+ x/);
+      assert.equal(page.sourceContext.entries[0].digest, digest);
+      assert.equal(page.evidence.appliesToCurrentRuntime, 'not_established');
+      const arguments_ = { modelId: graph.reference(model).modelId, captureId: capture.id, sourceId: capture.source.id,
+        anchors: [{ kind: 'operation', id: 'add2' }], includeSource: true };
+      reads.length = 0;
+      await client.callTool({ name: 'query_computation', arguments: { ...arguments_, includeSource: false } });
+      assert.deepEqual(reads, [], 'source work is explicitly requested');
+      model.current = false;
+      const stale = (await client.callTool({ name: 'query_computation', arguments: arguments_ })).structuredContent as any;
+      assert.equal(stale.sourceContext.reason, 'graph_stale'); assert.deepEqual(reads, []);
+      model.current = true;
+      onRead = () => { model.target.documentVersion++; };
+      const changed = (await client.callTool({ name: 'query_computation', arguments: arguments_ })).structuredContent as any;
+      assert.equal(changed.sourceContext.reason, 'stale_target');
+      assert.deepEqual(changed.sourceContext.entries, []);
+      onRead = () => { retain(ledger, 'replacement'); };
+      const evicted = (await client.callTool({ name: 'query_computation', arguments: arguments_ })).structuredContent as any;
+      assert.equal(evicted.error.code, 'UNKNOWN_CAPTURE');
+    } finally { await client.close(); await server.close(); }
   });
 });

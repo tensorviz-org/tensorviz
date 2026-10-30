@@ -1,6 +1,8 @@
 /** Per-review candidate state. It never updates the live graph or attempt ledger. */
 import { EventEmitter } from 'vscode';
+import type { ExecutionObservation } from '@tensorviz/graph-host/executionObservation';
 import type { CandidateRunResult } from '@tensorviz/graph-host/candidateExecution';
+import { checkpointEvidenceText, checkpointReviewSummary } from '@tensorviz/graph-host/checkpointEvidence';
 import type { CaptureSnapshot } from '@tensorviz/graph-host/semanticCapture';
 import type { CandidateHistory } from './candidateHistory';
 import { candidatePostconditionsText, type CandidateReviewSnapshot } from '@tensorviz/contracts/protocol';
@@ -18,6 +20,7 @@ export class CandidateReview {
   private pending?: Promise<CandidateReviewSnapshot>;
   private controller?: AbortController;
   private result?: CandidateRunResult;
+  private checkpointText = '';
   private closed = false;
   private readonly abort = () => this.cancel();
   private readonly inputDigest: string | null;
@@ -26,7 +29,7 @@ export class CandidateReview {
   constructor(base: CaptureSnapshot, private readonly parent: AbortSignal,
     private readonly current: () => boolean,
     private readonly execute: (signal: AbortSignal) => Promise<CandidateRunResult>,
-    private readonly retention?: { history: CandidateHistory; requestId: string }) {
+    private readonly retention?: { history: CandidateHistory; requestId: string; baseline?: ExecutionObservation }) {
     this.inputDigest = base.inputDigest; this.stateDigest = base.stateDigest;
     parent.addEventListener('abort', this.abort, { once: true });
   }
@@ -48,6 +51,7 @@ export class CandidateReview {
     if (this.pending) return this.pending;
     if (!this.available) return Promise.resolve(this.snapshot());
     this.result = undefined;
+    this.checkpointText = '';
     this.value = { ...initial(), runtime: 'running', cleanup: 'pending' };
     const runId = this.retention?.history.begin(this.retention.requestId, this.value);
     if (runId) this.value.runId = runId;
@@ -63,12 +67,14 @@ export class CandidateReview {
         else {
           this.result = result;
           const { outcome, evidence } = result, capture = evidence?.capture;
+          this.checkpointText = evidence?.execution.plan?.execution?.checkpoint !== undefined ? checkpointEvidenceText(evidence.checkpoint) : '';
           this.value = { ...initial(), cleanup: 'complete',
             runtime: !outcome.ok && outcome.cancelled ? 'cancelled' : !outcome.ok && outcome.timedOut ? 'timed_out'
               : !evidence ? 'refused' : outcome.ok ? 'succeeded' : 'failed',
             freshness: evidence ? outcome.executionCurrent === true && this.current() ? 'current' : 'stale' : 'unverified',
             capture: capture?.status ?? 'unavailable', inputs: identity(this.inputDigest, capture?.inputDigest),
             state: identity(this.stateDigest, capture?.stateDigest),
+            ...(evidence?.checkpoint ? { checkpoint: checkpointReviewSummary(evidence.checkpoint) } : {}),
             ...(evidence?.postconditions ? { postconditions: structuredClone(evidence.postconditions),
               semanticPostconditions: evidence.postconditions.status } : {}),
             diagnostics: [...new Set(capture?.diagnostics.map(item => item.code).filter(code => /^[a-z_]{1,80}(?![\s\S])/.test(code)))].slice(0, 16),
@@ -76,12 +82,13 @@ export class CandidateReview {
         }
       } catch {
         this.result = undefined;
+        this.checkpointText = '';
         this.value = { ...initial(), cleanup: 'unavailable', runtime: controller.signal.aborted ? 'cancelled' : 'refused' };
       }
       finally {
         if (runId) {
           this.value.runId = runId;
-          this.retention?.history.complete(this.retention.requestId, runId, this.snapshot(), this.result?.evidence);
+          this.retention?.history.complete(this.retention.requestId, runId, this.snapshot(), this.result?.evidence, this.retention.baseline);
         }
         terminal = this.snapshot();
         this.pending = undefined; this.controller = undefined;
@@ -94,6 +101,10 @@ export class CandidateReview {
   }
 
   cancel(): void { this.controller?.abort(); }
+
+  resultText(): string {
+    return candidateReviewText(this.snapshot()) + this.checkpointText;
+  }
 
   async refresh(): Promise<CandidateReviewSnapshot> {
     const result = this.result;
@@ -112,6 +123,7 @@ export class CandidateReview {
     await this.pending;
     this.parent.removeEventListener('abort', this.abort);
     this.result = undefined;
+    this.checkpointText = '';
     this.snapshot();
     this.retention?.history.close(this.retention.requestId);
     this.changes.dispose();

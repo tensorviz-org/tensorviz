@@ -26,7 +26,7 @@ async function expectReachable(control: Locator) {
   await control.scrollIntoViewIfNeeded();
   await expect(control).toBeVisible();
   // Visibility alone passes for the old overlapping panels. Check the actual
-  // pointer target, including after results/legends change the panel heights.
+  // pointer target, including after results change the panel heights.
   expect(await control.evaluate(element => {
     const rect = element.getBoundingClientRect();
     const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
@@ -50,17 +50,9 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }, { width: 740, height: 640 }, { width: 430, height: 680 }]) {
-  test(`navigation, searches and measured legends remain reachable at ${viewport.width}px`, async ({ page }) => {
+  test(`navigation and searches remain reachable at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport);
-    const metric = page.getByRole('button', { name: 'Output tensor bytes', exact: true });
-    await expectReachable(metric);
-    await metric.click();
-    await expect(metric).toHaveAttribute('aria-pressed', 'true');
-    const legend = page.locator('.graph-query-legend');
-    await expect(legend).toContainText('640 B');
-    await expect(legend).toContainText('1.3 KB');
-    await expect(legend).toContainText('not peak memory');
-
+    await expect(page.getByRole('button', { name: 'Output tensor bytes', exact: true })).toHaveCount(0);
     const search = page.getByRole('searchbox', { name: 'Search the graph' });
     await expectReachable(search);
     await search.fill('type=linear');
@@ -76,13 +68,6 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
       await expect.poll(() => stack.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
     }
     await expectReachable(search);
-    await expectReachable(metric);
-    const parameters = page.getByRole('button', { name: 'Parameters', exact: true });
-    await expectReachable(parameters);
-    await parameters.click();
-    await expect(parameters).toHaveAttribute('aria-pressed', 'true');
-    await expect(legend).toContainText('20');
-    await expect(legend).not.toContainText('No current');
     await expectReachable(page.getByText('Connection guide', { exact: true }));
     for (const name of ['Fit', 'Zoom in', 'Zoom out', 'Blocks', 'Expand all']) {
       await expectReachable(page.getByRole('button', { name, exact: true }));
@@ -107,7 +92,7 @@ test('search keeps its two navigation semantics and saved views/discussions keep
   await page.getByRole('button', { name: 'Saved views', exact: true }).click();
   await page.getByRole('button', { name: 'Share this view', exact: true }).click();
   await expect(page.getByLabel('Current saved view')).toContainText('This view opens first');
-  await expectReachable(page.getByRole('button', { name: 'Output tensor bytes', exact: true }));
+  await expectReachable(page.getByRole('searchbox', { name: 'Search the graph' }));
   await page.getByRole('button', { name: 'Blocks', exact: true }).click();
   await expect(page.locator('[data-node-id="block"]')).toHaveClass(/collapsed/);
   await page.getByRole('button', { name: 'Show saved view', exact: true }).click();
@@ -118,7 +103,7 @@ test('search keeps its two navigation semantics and saved views/discussions keep
   await page.getByRole('button', { name: 'Start discussion' }).click();
   await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Measured layer retained.');
   await page.getByRole('button', { name: 'Add message' }).click();
-  await expectReachable(page.getByRole('button', { name: 'Output tensor bytes', exact: true }));
+  await expectReachable(page.getByRole('searchbox', { name: 'Search the graph' }));
 
   const downloaded = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download graph file', exact: true }).click();

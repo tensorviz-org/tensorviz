@@ -312,7 +312,7 @@ export class McpOpenGraph {
 
 export function registerMcpOpenGraph(server: McpServer, service: McpOpenGraph, owner: string): void {
   server.registerTool('get_execution_environment', {
-    description: 'Read the exact Python environment TensorViz resolves for capture and dependency installation: interpreter, source (managed/project/setting/Python extension), prefix, Python, Torch and pip versions, platform and architecture. Available before a graph exists. Optional absolute file chooses its resource settings; otherwise uses the current graph or editor. Never installs, changes environment or opens a picker. Use install_dependencies through open_graph to repair this environment; do not infer it from your shell.',
+    description: 'Inspect the selected capture and dependency-install environment: interpreter, source, prefix, Python, Torch and pip versions, platform and architecture. Before selection, returns resolution: selection_required with metadata candidates and an open_graph nextAction; candidates are not install targets. Available before a graph exists. Optional absolute file chooses its resource settings; otherwise uses the current graph or editor. Never installs, selects Python or opens a picker. Use install_dependencies through open_graph after selection; do not infer Python from your shell.',
     inputSchema: { file: z.string().min(1).max(4096).optional() },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, (args, extra) => graphToolResult(() => service.inspectEnvironment(args.file, extra.signal)));

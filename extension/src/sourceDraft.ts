@@ -5,7 +5,8 @@ import type { LocalBrowserHostPublish } from '@tensorviz/graph-host/localBrowser
 import type { CodeArtifact } from './sourceChanges';
 
 export interface SourceDraftInput {
-  id: string; target: LocalBrowserTargetIdentity; artifact: CodeArtifact; sources: SourceSet;
+  id: string; target: LocalBrowserTargetIdentity; artifacts: CodeArtifact[]; sources: SourceSet;
+  canRevise?: boolean;
 }
 export interface SourceDraftHandle { show(reveal: () => Promise<void>, decide: (approved: boolean) => void): void; dispose(): void }
 
@@ -58,8 +59,11 @@ export class SourceDrafts {
       return response.json();
     };
     const target = { file: input.target.file, cls: input.target.cls, project: '' };
-    const after = { ...input.sources, entries: input.sources.entries.map(source => source.file === input.artifact.path
-      ? { ...source, source: input.artifact.after, digest: input.artifact.after_digest } : source) };
+    const replacements = new Map(input.artifacts.map(artifact => [artifact.path, artifact]));
+    const after = { ...input.sources, entries: input.sources.entries.map(source => {
+      const replacement = replacements.get(source.file);
+      return replacement ? { ...source, source: replacement.after, digest: replacement.after_digest } : source;
+    }) };
     // Start alongside the native diff. Late replies can never resurrect a closed proposal.
     void Promise.all([projectReviewSnapshot(target, input.sources, request), projectReviewSnapshot(target, after, request)])
       .then(([before, after]) => ({ before, after, unavailable: false }))
@@ -67,9 +71,10 @@ export class SourceDrafts {
       .then(result => {
         clearTimeout(timeout);
         if (this.pending !== entry || signal.aborted) return;
-        entry.state = { id: input.id, proposal: { id: input.id, ...(result.unavailable ? { unavailable: true } : {}) },
+        entry.state = { id: input.id, proposal: { id: input.id, ...(input.canRevise === false ? { canRevise: false } : {}),
+          ...(result.unavailable ? { unavailable: true } : {}) },
           beforeLabel: 'Current code', afterLabel: 'Proposed code', before: result.before, after: result.after,
-          changedFiles: [input.artifact.path], stale: !current(), title: input.target.cls,
+          changedFiles: [...replacements.keys()], stale: !current(), title: input.target.cls,
           liveContext: { workspaceFolder: input.target.workspaceFolder, file: input.target.file, cls: input.target.cls } };
         this.replay();
       });

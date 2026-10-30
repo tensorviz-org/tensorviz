@@ -1,7 +1,9 @@
+import { agentGraphContext } from './canvasAgentContext';
 import { McpForwarding } from './mcpForwarding';
 import { disposeSnapshotHelpers } from '@tensorviz/graph-host/hostSnapshot';
 import { openHuggingFace } from './huggingFacePanel';
 import { CanvasAgentRuntime, agentExecutable } from './canvasAgentRuntime';
+import { CanvasAgentRecording } from './canvasAgentRecording';
 import { homedir } from 'node:os';
 import { unsupportedRemote } from './remoteSupport';
 import { clientOrigin, forwardShellTarget } from './remoteForwarding';
@@ -10,6 +12,7 @@ import { registerMcpViewTools } from '@tensorviz/graph-host/mcpViews';
 import { McpGraphView, registerMcpGraphView } from '@tensorviz/graph-host/mcpGraphView';
 import { registerMcpValidationTools } from '@tensorviz/graph-host/mcpValidation';
 import { registerMcpCaptureTools } from '@tensorviz/graph-host/mcpCaptures';
+import { registerMcpSourceContextTool } from '@tensorviz/graph-host/mcpSourceContext';
 import { registerCanvasCodeTools, registerMcpProposalTools } from './mcpProposals';
 import { registerMcpGraphDiffTool } from './mcpGraphDiff';
 import { closeMcpConnection, showMcpConnection, updateMcpConnectionStatus } from './mcpConnectionPanel';
@@ -54,7 +57,7 @@ import { ShapeInlayHints } from './inlayHints';
 import { TOKEN_HEADER } from './projection';
 import { CatalogEntry, fetchCatalog, stemFor, templateFor } from './catalog';
 import { ManagedRuntime, managedRuntimeFor } from './runtime';
-import { ENVIRONMENT_KEY, rememberEnvironment, resolveCaptureEnvironment, selectProjectEnvironment, selectedExecutionEnvironment, runEnvironmentHelper } from './projectEnvironment';
+import { ENVIRONMENT_KEY, rememberEnvironment, resolveCaptureEnvironment, selectProjectEnvironment, selectedExecutionEnvironment, inspectExecutionEnvironment, runEnvironmentHelper } from './projectEnvironment';
 import { checkCanvasHomeSetup } from './canvasHomeSetup';
 import { checkOpeningEnvironment, recoverOpeningEnvironment } from './openingEnvironment';
 import { hasValidationConfig, readValidationSnapshot } from './validationHost';
@@ -76,7 +79,7 @@ import {
 } from './activation';
 import { registerTracebackLinks } from './tracebackLinks';
 import { registerWebsiteCommands } from './websiteCommands';
-import { TraceWorker, workspaceTrusted } from './worker';
+import { TraceWorker, windowTraceWorker, workspaceTrusted } from './worker';
 import {
   FIRST_RUN_KEY,
   qualifiedWalkthroughId,
@@ -302,16 +305,13 @@ function windowOpening(): McpOpenGraph {
       const target = browserGraph?.opening?.state?.target;
       const resource = file ? vscode.Uri.file(file) : target ? vscode.Uri.file(path.join(target.workspaceFolder, target.file))
         : vscode.window.activeTextEditor?.document.uri ?? vscode.workspace.workspaceFolders?.[0]?.uri ?? context.globalStorageUri;
-      const selected = await executionEnvironment(context, resource);
       const resolved = resolveBackendDir(context);
-      if (!selected.interpreter || !resolved.ok || !vscode.workspace.isTrusted || signal.aborted) {
-        return { ok: false, environment: selected, detail: !vscode.workspace.isTrusted
-          ? 'Workspace Trust is required to inspect Python. No environment was changed.'
-          : 'The selected TensorViz interpreter or bundled backend is unavailable. No environment was changed.' };
-      }
-      const result = await runEnvironmentHelper(selected.interpreter, resolved.backendDir, ['inspect-runtime'], () => signal.aborted);
-      return { ...result, environment: { ...result.environment, ...selected },
-        usage: 'This is the capture and dependency-install target. Use open_graph action: install_dependencies; the agent shell may use a different Python.' };
+      if (!resolved.ok) return { ok: false, detail: 'The bundled TensorViz backend is unavailable. No environment was changed.' };
+      return inspectExecutionEnvironment(context, resolved.backendDir, { resource, signal, managerPython: backend?.interpreter,
+        readyManaged: async () => {
+          const managed = await managedBackendRuntime(context).check();
+          return managed.state === 'ready' ? managed.interpreter : undefined;
+        } });
     },
     open: async (args, signal) => {
       const active = vscode.window.activeTextEditor?.document;
@@ -425,7 +425,10 @@ function windowTools(owner: string, canvasCode = false): HostToolset {
     registerMcpGraphView(server, mcpGraphView ??= new McpGraphView(graph, () => browserGraph), owner);
     if (surface?.opening && surface.setupHost) registerMcpGraphSetup(server, surface.opening, surface.setupHost);
     if (!surface) return;
-    registerMcpCaptureTools(server, graph, surface.captureInspector);
+    registerMcpCaptureTools(server, graph, surface.captureInspector,
+      (ref, file) => surface.mcpProposals.readSource(graph, ref, owner, file));
+    registerMcpSourceContextTool(server, graph, surface.captureInspector,
+      (ref, query) => surface.mcpProposals.querySourceContext(graph, ref, query));
     registerMcpViewTools(server, graph, surface.mcpViews, owner);
     registerMcpValidationTools(server, graph, surface.mcpRuns, owner);
     registerMcpProposalTools(server, graph, surface.mcpProposals, owner);
@@ -554,7 +557,8 @@ export function activate(context: vscode.ExtensionContext): { __test: TestApi } 
     },
   });
   const helpContext = async (opening?: GraphOpeningState) => {
-    if (!isGraphOpeningState(opening) || opening.phase !== 'failed' && !(opening.environment && opening.environment.reason !== 'ready')) return undefined;
+    if (!isGraphOpeningState(opening) || opening.phase !== 'failed' && opening.phase !== 'needs_setup'
+      && !(opening.environment && opening.environment.reason !== 'ready')) return undefined;
     const snapshot = JSON.parse(JSON.stringify(opening)) as GraphOpeningState;
     const resource = vscode.Uri.file(path.join(snapshot.target.workspaceFolder, snapshot.target.file));
     const selected = await selectedExecutionEnvironment(context, resource, async () => {
@@ -658,11 +662,10 @@ export function activate(context: vscode.ExtensionContext): { __test: TestApi } 
   const browserBackend = resolveBackendDir(context);
   const browserInterpreter = (resource: vscode.Uri) => executionInterpreter(context, resource);
   const browserWorker = browserBackend.ok
-    ? new TraceWorker(browserBackend.backendDir, channel, { interpreter: browserInterpreter })
+    ? windowTraceWorker(context, browserBackend.backendDir, channel, { interpreter: browserInterpreter })
     : undefined;
   const candidateWorker = browserBackend.ok
-    ? new TraceWorker(browserBackend.backendDir, channel, { interpreter: browserInterpreter }) : undefined;
-  if (candidateWorker) context.subscriptions.push(candidateWorker);
+    ? windowTraceWorker(context, browserBackend.backendDir, channel, { interpreter: browserInterpreter }) : undefined;
   // Execution cache (`tensorviz.executionCache.mode`): stored results live in these two
   // workers' memory only, so clearing them is the whole cache for this window.
   context.subscriptions.push(vscode.commands.registerCommand('tensorviz.clearExecutionCache', () => {
@@ -719,13 +722,45 @@ export function activate(context: vscode.ExtensionContext): { __test: TestApi } 
       readyManaged: async () => { const result = await managedBackendRuntime(context).check(); return result.state === 'ready' ? result.interpreter : undefined; },
     };
   };
-  const canvasAgent = new CanvasAgentRuntime({ tools: owner => windowTools(owner, true), release: releaseMcpOwner,
+  let agentRecording: CanvasAgentRecording | undefined;
+  const recordingDirectory = process.env.TENSORVIZ_AGENT_RECORDING_DIR?.trim();
+  if (recordingDirectory) {
+    try {
+      agentRecording = new CanvasAgentRecording(recordingDirectory, { extensionVersion: context.extension.packageJSON.version,
+        extensionBundleSha256: createHash('sha256').update(fs.readFileSync(path.join(context.extensionPath, 'out', 'extension.js'))).digest('hex'),
+        platform: process.platform, architecture: process.arch, timingScope: 'local_host_observation',
+        modelIdentity: 'requested_settings_only', qualityJudgment: 'ungraded' }, message => channel.appendLine(message));
+      context.subscriptions.push(agentRecording);
+      channel.appendLine(`Local agent test recording: ${agentRecording.file}`);
+    } catch (error) { channel.appendLine(`Agent recording could not start: ${String(error)}`); }
+  }
+  const observeAgent = agentRecording ? (event: Record<string, unknown>) => agentRecording!.record(event) : undefined;
+  const canvasAgent = new CanvasAgentRuntime({ tools: owner => windowTools(owner, true), release: releaseMcpOwner, observe: observeAgent,
+    pipeline: () => vscode.workspace.getConfiguration('tensorviz').inspect<'native' | 'acp'>('agent.pipeline')?.globalValue ?? 'native',
+    acpAdapter: async provider => {
+      const configured = vscode.workspace.getConfiguration('tensorviz').inspect<string>(`agent.${provider}AcpPath`)?.globalValue;
+      if (!configured) throw new Error('Set the ACP adapter executable path in TensorViz settings.');
+      return agentExecutable(provider, configured);
+    },
     executable: provider => agentExecutable(provider, vscode.workspace.getConfiguration('tensorviz').get<string>(`agent.${provider}Path`, '')) });
+  context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(event => {
+    if (['agent.codexPath', 'agent.claudePath', 'agent.pipeline', 'agent.codexAcpPath', 'agent.claudeAcpPath']
+      .some(setting => event.affectsConfiguration(`tensorviz.${setting}`))) canvasAgent.invalidate();
+  }));
   browserGraph = new LocalBrowserGraph({
-    agent: { run: (input, emit, signal) => canvasAgent.run(input, emit, signal), clear: () => canvasAgent.clear(),
+    observeAgent,
+    agent: { run: (input, emit, signal) => canvasAgent.run(input, emit, signal), clear: preserveEvidence => canvasAgent.clear(preserveEvidence),
+      reference: model => windowGraph().reference(model),
+      selection: (reference, nodeIds) => windowGraph().inspectNodes(reference, nodeIds),
+      graph: reference => agentGraphContext(windowGraph(), reference),
       inspect: (provider, refresh, signal) => {
         if (!vscode.workspace.isTrusted) return Promise.resolve({ status: 'error' as const, detail: 'Trust this workspace in VS Code before connecting a coding agent.', models: [] });
         return canvasAgent.inspect(provider, browserGraph?.target?.workspaceFolder ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? homedir(), refresh, signal);
+      },
+      warm: (provider, settings, signal, intent, prepared) => {
+        if (!vscode.workspace.isTrusted) return Promise.reject(new Error('Trust this workspace in VS Code before connecting a coding agent.'));
+        return canvasAgent.warm({ provider, settings, intent, ...(prepared ? { preparation: { context: prepared.context } } : {}),
+          cwd: prepared?.cwd ?? browserGraph?.target?.workspaceFolder ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? homedir() }, signal);
       },
       preferences: context.workspaceState.get('tensorviz.canvasAgentPreferences'),
       remember: preferences => { void context.workspaceState.update('tensorviz.canvasAgentPreferences', preferences); },
@@ -797,7 +832,7 @@ export function activate(context: vscode.ExtensionContext): { __test: TestApi } 
       ? {
           worker: browserWorker,
           trusted: async () => workspaceTrusted(),
-          settings: () => browserTraceSettings(section => vscode.workspace.getConfiguration('tensorviz').get(section)),
+          settings: resource => browserTraceSettings(section => vscode.workspace.getConfiguration('tensorviz', resource).get(section)),
         }
       : undefined,
   });
@@ -1603,7 +1638,7 @@ function registerShell(context: vscode.ExtensionContext, lenses: WorkspaceClassI
     vscode.window.registerTreeDataProvider(TEMPLATES_VIEW, new TemplatesTree()),
   );
 
-  // Sign in to tensorViz and Add to tensorViz (the Canvas's model menu).
+  // Sign in to tensorViz and Add to tensorViz (the Canvas's Publish button).
   registerWebsiteCommands(context, channel);
 
   context.subscriptions.push(

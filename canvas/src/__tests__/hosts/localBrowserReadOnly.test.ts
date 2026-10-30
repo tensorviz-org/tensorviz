@@ -42,11 +42,10 @@ describe('the external extension page is read-only', () => {
     expect(page).toContain('onRenameModel={readOnlyLocalBrowser ? undefined');
   });
 
-  it('uses a temporary source form and keeps the chat rail out of local mode', () => {
+  it('keeps node source editing and the chat rail out of local mode', () => {
     const builder = readSource('components', 'ModelBuilder.tsx');
     expect(builder).not.toContain('LocalBrowserAskRail');
-    expect(builder).toContain('readOnlyLocalBrowser && localContext?.canProposeSourceEdits');
-    expect(builder).toContain('<InlineSourceEditor');
+    expect(builder).not.toContain('SourceEdit');
     expect(builder).toContain('sidePanelOpen={false}');
   });
 
@@ -173,10 +172,6 @@ describe('the external extension page is read-only', () => {
     expect(app).toContain('ref={warningToggleRef}');
     expect(app).toContain("if (event.key !== 'Escape') return;");
     expect(app).toContain('warningToggleRef.current?.focus();');
-
-    const session = readSource('ide', 'SourceEditSession.tsx');
-    expect(session).not.toContain('showModal');
-    expect(session).toContain("if (event.key === 'Escape') onClose();");
 
     const page = readSource('components', 'ui2', 'BuilderPageV2.tsx');
     expect(page).toContain('if (!moreOpen && !paletteOpen && logsCollapsed) return;');

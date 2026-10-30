@@ -50,51 +50,11 @@ creating a patch, preserving existing declarations.
 
 ## Using source proposals from the local page
 
-At inspection zoom, choose a node's top-right **Edit** control to open its inline
-form. Closing the form restores the node card. Escape closes the form
-without clearing the layer selection or triggering canvas shortcuts. The form
-supports literal parameter changes,
-adding a supported layer after the selection, deleting a layer, and grouping a
-Shift-selected consecutive chain. Added layers use the existing catalog fields
-for Linear, Conv2d, ReLU, GELU, Dropout, BatchNorm2d and LayerNorm.
+Select the relevant nodes and describe the change in Canvas chat. Mapped file:line links still open the source directly. Nodes no longer expand into inline editing forms. Deterministic MCP `propose_edit` recipes remain available, and the Canvas-owned agent can prepare a complete source proposal across up to 16 existing, graph-recorded workspace Python files.
 
-Choose **Review in VS Code** to open a native, read-only before/after Python diff.
-The diff's editor toolbar has persistent **Apply source change** and **Discard
-proposal** actions. Closing the diff, cancelling in the browser, retargeting or
-disconnecting discards a pending proposal. Apply uses one `WorkspaceEdit` in the
-open buffer; it does not save the file. The graph refreshes from that buffer, and
-one native VS Code Undo restores the original source.
+The agent reads current source and exact digests before proposing replacements. A draft can be revised without losing earlier pending files; removing one pending change must be explicit. **Discard** removes the entire draft. Native VS Code diffs show every proposed file. Accept/Apply makes one undoable editor edit, saves only the accepted files, and opens the model with its current saved setup. A failed save or intervening edit stops execution. Preparing or revising a draft neither writes source nor runs the model.
 
-Apply confirms the source edit; projection refresh is a separate operation. If
-refresh fails, the page marks the retained graph **Stale** and disables Validate
-and source proposals. Before any graph has loaded, it shows **Graph unavailable**.
-The explanation survives browser reload. Syntax failures identify the source
-line to fix in VS Code. For network, server, malformed-response or timeout errors,
-check tensorViz Output and run **tensorViz: Open as Graph** again. The projection
-request has a 10-second deadline, including source collection and response decoding.
-A successful refresh restores the controls and the source/traced label.
-
-Nested selections resolve to their owning Python class and file. Editing a shared
-class changes every instance of that definition, including instances outside the
-visible graph. The form states this and the native review counts other projected
-instances that share the selected declaration. Grouping also discloses changes to
-parameter paths and checkpoint keys.
-
-The deterministic parameter editor refuses expression-valued arguments such as
-`nn.Linear(width, classes)` instead of silently replacing the author's variables.
-Unsupported constructs return a specific refusal and no partial source change.
-This workflow performs static source edits; it does not validate runtime tensor
-shapes or execute the model.
-
-For a dotted custom constructor such as `blocks.ScaleBlock(width=4)`, parameter
-edits preserve the dotted call, comments and all unrelated Python. Literal
-positional arguments whose custom signature is unknown are displayed as `arg_0`,
-`arg_1`, etc.; these address their existing source positions. Expression-valued
-arguments and positional edits across starred expansions are refused. A named edit cannot
-guess a positional slot from a torch class with the same name (`blocks.Linear`
-is not `nn.Linear`); use an existing keyword or a literal `arg_i`, or edit the
-source directly. Selecting an expanded child targets its defining file and
-class. Import/re-export dependencies must remain current through final Apply.
+Captured source facts, proposed shape effects, and actual candidate results stay separate. A failed refresh marks retained graph evidence stale. Shared-class changes affect every instance of that definition; changes to parameter names or grouping can also change checkpoint keys. Inspect the full Python diff before Apply.
 
 ## Authority and transport
 
@@ -135,14 +95,12 @@ asks the user to inspect the VS Code buffer before retrying.
 
 ## Validate after editing
 
-Save the model and any changed dependencies in VS Code, then choose **Refresh graph**
-in the Canvas header. The selected Python environment runs the model in a
+Save the model and any changed dependencies in VS Code. Validation runs automatically by default; **Refresh graph** also requests a run. The selected Python environment runs the model in a
 trusted workspace; progress and the result appear beside the graph. **Cancel**
 stops the check. A source change invalidates the result, so validate again after
 editing. This checks one traced input and branch, not all inputs or training.
 
-Opening and Refresh graph capture with trace-on-save disabled. Typing only
-refreshes the source projection; **Inspect source only** also runs no model code. A missing environment, constructor arguments,
+Set `tensorviz.traceOnSave` to `false` to require a manual run after saves. Typing only refreshes the source projection; **Inspect source only** also runs no model code. A missing environment, constructor arguments,
 execution failure or stale source produces an explanation instead of a pass.
 
 A matching saved model profile uses its `limits.timeout_ms`, including values
@@ -169,9 +127,9 @@ revision/cancellation guard before applying one undoable workspace edit.
 
 Project `node`, `edge` and `experiment` declarations use the same native full
 Python diff, toolbar Apply/Discard, `SourceWriter` and review reservation as layer
-forms and MCP proposals. A declaration cannot start while another proposal is
+recipes and MCP proposals. A declaration cannot start while another proposal is
 preparing or under review, and it cannot replace another review's toolbar commands.
-Apply submits one unsaved `WorkspaceEdit`; native Undo restores that edit. Discard
+Apply submits one undoable `WorkspaceEdit`; native Undo restores that edit. Discard
 writes nothing. After Apply, the host automatically re-indexes the current buffers
 and publishes the updated project index and graph, retaining the focused experiment
 and expansion set when still present. No save or reopen is required.
@@ -198,7 +156,7 @@ editor write tells the user to inspect the buffer before retrying.
 The wire contract enables declaration traffic through both transports and
 the authenticated broker. The existing shared review guard remains the sole write
 path. Host regressions drive the real transport, review toolbar and writer with
-VS Code primitives stubbed, including the unsaved-buffer refresh after Apply.
+VS Code primitives stubbed, including refresh after Apply.
 The same review guard is the only path that writes Python.
 
 ## Host proposal API
@@ -213,14 +171,13 @@ Source-import errors direct users to valid `nn.Module` Python source; there is n
 
 ## Captured numeric literals
 
-Select a captured operation and choose **Edit**.
+Ask Canvas chat to change the selected captured operation, or use a listed `propose_edit` capability.
 A proven `tensor + number`, subtraction, multiplication or division can
-offer **New literal** with an explicit integer/float type. The form explains that
+offer **New literal** with an explicit integer/float type. The proposal explains that
 the edit changes every execution of the authored expression, including unobserved
 uses; it cannot specialize one loop iteration or one shared class instance.
 
-**Review in VS Code** opens the complete native Python diff. Apply updates one
-unsaved buffer, Discard writes nothing, and native Undo restores the edit. A no-op
+**Review in VS Code** opens the complete native Python diff. Apply updates and saves the accepted source, Discard writes nothing, and native Undo restores the edit. A no-op
 preserves exact source spelling. Preparing the diff does not execute Python.
 When its displayed capture has a retained resolved setup, the native diff offers
 **Run reviewed candidate** for an explicit check of the copied proposal. Save and
@@ -228,16 +185,16 @@ use Validate to check the live source. Computed expressions, ambiguous
 source locations and unsupported derived operations remain inspection-only. Legacy
 parameter/add/delete/group intents cannot bypass this capability boundary.
 
-For a proven functional activation, the same form offers **New activation** with
+A proven functional activation supports replacement with
 ReLU, GELU, SiLU, sigmoid and tanh. It changes only the callee, preserving the input
 expression. Current support requires a proven functional namespace or direct import,
 one positional or keyword input and compatible literal options; shadowed/rebound names and unsupported
 calls explain their limitation instead of dropping arguments. Shared scope and
 native review are the same as for captured literals.
 
-For a captured module activation, the selector replaces its verified
+For a captured module activation, the recipe replaces its verified
 constructor (for example, `nn.ReLU()` becomes `nn.GELU()`). Attribute names and
-forward calls stay unchanged. The form discloses shared instances and calls;
+forward calls stay unchanged. The proposal discloses shared instances and calls;
 compatible options remain intact. Explicit `inplace` restricts replacement to
 ReLU/SiLU, preserving proven mutation when true; explicit GELU approximation
 permits only a no-op. Modified forward/hooks, ambiguous sites and incomplete
@@ -246,7 +203,7 @@ recording refuse the recipe.
 Directly imported functions/classes keep their shared import and other uses.
 When no usable namespace exists, the review adds a uniquely named Torch namespace
 import together with the selected callee change. Both changes apply in one
-WorkspaceEdit; a no-op adds nothing. The form discloses the required import.
+WorkspaceEdit; a no-op adds nothing. The proposal discloses the required import.
 
 Additional supported recipes are described below. Native Undo remains the
 source-edit mechanism; structural Undo and Redo are not a separate review action.
@@ -256,13 +213,12 @@ source-edit mechanism; structural Undo and Redo are not a separate review action
 
 A captured module call can expose directly authored numeric arguments in a verified
 constructor, including a custom class when capture verified its actual class identity.
-Choose **Constructor argument**, enter the replacement number
-and select **Review in VS Code**. Positional fields use **Argument 1**, **Argument 2**,
-etc.; keywords retain their source names. The form shows the current source value,
+Request the constructor argument change through Canvas chat or its listed MCP capability. Positional fields use **Argument 1**, **Argument 2**,
+etc.; keywords retain their source names. The proposal shows the current source value,
 shared scope and shape/checkpoint implications. Variables, configuration references,
 computed expressions and general factory calls need separate supported recipes.
 
-Apply changes only the selected numeric token in one unsaved WorkspaceEdit. The
+Apply changes only the selected numeric token in one undoable WorkspaceEdit. The
 native diff preserves other arguments, comments and call sites. A failed forward
 can offer a constructor repair, and an eval Dropout call can expose `p` even when
 it records zero operations. These are syntax-checked proposals: they do not run
@@ -271,16 +227,14 @@ the model or fix downstream layers. Save and Validate to check the resulting mod
 ## Captured configuration definitions
 
 A captured module can offer **Edit** for a constructor argument backed by
-a unique same-file local/module numeric definition. The selector distinguishes
-`Argument 1 = width (4; edit definition)` from a direct literal. The form shows the
-definition location, known references, observed constructor sites and sharing.
+a unique same-file local/module numeric definition. The capability distinguishes
+`Argument 1 = width (4; edit definition)` from a direct literal. The proposal shows the definition location, known references, observed constructor sites and sharing.
 Choose a replacement and review the native diff: it changes `width = 4`, preserving
 `nn.Linear(width, ...)` and every other reference. It affects all references to
 that definition, including uses not captured in this run, and can change shapes
 or checkpoint compatibility. Other source is not repaired automatically.
 
-Switching fields resets the draft and its prior result. A pending review locks
-field selection; an Apply receipt remains visible if source refresh arrives first.
+An Apply receipt remains inspectable after source refresh.
 Parameters, imports, attributes, ambiguous writes and computed definitions are not
 supported by this recipe. Save and Validate to inspect the resulting execution;
 preparing source review does not execute it.
@@ -290,13 +244,11 @@ value at every observed direct constructor argument for that definition, includi
 retained instances that were never called. Its result lists the number of checked
 arguments and initializer entries. Computed or expanded constructor references
 remain unverified, as do other uses and later behavior. A successful value check
-does not certify the unsaved buffer after Apply.
+does not certify later edits to the applied source.
 
 ## Captured tensor reconnection
 
-Select a captured binary operation and open **Edit**. Choose **Reconnect
-operand 1** or **Reconnect operand 2** under **Captured edit**, then select an
-**Available tensor**. Each choice shows the variable's definition line. In
+Request a reconnection for a captured binary operation, identifying operand 1 or 2 and an available tensor from the listed capability. Each choice shows the variable's definition line. In
 `b = a + a`, changing only operand 2 to `h` proposes exactly `b = a + h`.
 The selected use is explicit even when both operands read the same tensor.
 
@@ -304,24 +256,21 @@ Choices come from verified source order in supported straight-line code. Later
 results and overwritten values are unavailable; mutation, control flow and
 ambiguous source refuse the recipe. Availability does not establish compatible
 dimensions. Review shows the exact name change and its effect on every execution
-of the source expression. Apply changes the unsaved source; save and Validate to
+of the source expression. Apply saves the accepted source and opens the model; inspect the run to
 inspect the new computation. No other layer is repaired automatically.
 
-The selectors reset drafts when switching operands and lock during review. A
-source refresh does not hide an outstanding Apply receipt. The limits are the
+A source refresh does not hide an outstanding Apply receipt. The limits are the
 straight-line rules in this section: later results, overwritten values, mutation,
 control flow, and ambiguous source are refused, and availability does not prove
 compatible dimensions.
 
 ## Insert or remove a captured functional activation
 
-Under **Captured edit**, choose **Insert activation on operand 1/2**, then an
-activation. This wraps only that named operand: selecting operand 2 in `a + a`
-can propose `a + F.gelu(a)`. The form discloses any new Torch import included in
+Request an activation on operand 1 or 2 through Canvas chat or the matching MCP capability. This wraps only that named operand: selecting operand 2 in `a + a`
+can propose `a + F.gelu(a)`. The proposal discloses any new Torch import included in
 the native review. Other uses of the tensor stay unchanged.
 
-For a supported functional activation, choose **Remove activation**. The form
-shows its original input, and review replaces only the call with that input.
+For a supported functional activation, request its removal. The proposal shows its original input, and review replaces only the call with that input.
 For example, `h = F.gelu(input=h)` becomes `h = h`; assignments and later tensor
 uses remain in place. Removal cannot choose a different tensor.
 
@@ -349,8 +298,7 @@ missing or incomplete evidence remains unverified. Only fixed diagnostic codes a
 here, not arbitrary printed exceptions.
 
 **Cancel candidate run** stops this execution and leaves review open. Apply or
-Discard also cancels a pending run and waits for cleanup. Apply still needs exact
-source/dependency freshness and makes one unsaved WorkspaceEdit. A failed forward
+Discard also cancels a pending run and waits for cleanup. Apply still needs exact source/dependency freshness and makes one undoable editor edit before saving the accepted files. A failed forward
 does not prevent ordinary source editing; the outcome states that the copied
 candidate failed. A cleanup failure refuses Apply and warns that temporary files
 may remain. Native Undo remains the source-edit mechanism.

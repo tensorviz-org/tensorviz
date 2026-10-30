@@ -4,8 +4,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { ENVIRONMENT_KEY, ENVIRONMENTS_KEY, savedEnvironment, rememberEnvironment, EnvironmentChoice, EnvironmentRunner, environmentExecutable,
-  discoverEnvironments, resolveCaptureEnvironment, selectProjectEnvironment, selectedExecutionInterpreter, selectedExecutionEnvironment } from '../../projectEnvironment';
+  discoverEnvironments, resolveCaptureEnvironment, selectProjectEnvironment, selectedExecutionInterpreter, selectedExecutionEnvironment, inspectExecutionEnvironment } from '../../projectEnvironment';
 import { ManagedRuntime } from '../../runtime';
+import { graphMcpHelpRequest } from '@tensorviz/contracts/graphHelpRequest';
 import { reset, state, setInfoResponder, infoMessages } from '../vscodeStub';
 
 suite('project environment selection and consent', () => {
@@ -131,6 +132,50 @@ suite('project environment selection and consent', () => {
     assert.equal(infoMessages.length, 0, 'Inspection must not ask the user to choose again');
   });
 
+  test('inspection distinguishes an available managed fallback from an explicitly selected one', async () => {
+    const resource = vscode.Uri.file('/project/model.py');
+    const options = { resource, signal: new AbortController().signal, readyManaged: async () => '/managed/python', runner };
+    const unresolved = await inspectExecutionEnvironment(context, '/backend', options);
+    assert.equal(unresolved.resolution, 'selection_required'); assert.equal(unresolved.ok, false);
+    assert.equal(unresolved.environment, undefined, 'an available fallback is not yet the capture/install target');
+    assert.equal(unresolved.candidates?.[0].managed, true);
+    assert.deepEqual(unresolved.nextAction, { tool: 'open_graph', arguments: { file: resource.fsPath } });
+    assert.deepEqual(calls, ['inspect-capture']); assert.equal(memory.size, 0);
+    memory.set(ENVIRONMENT_KEY, { kind: 'managed' }); calls.length = 0;
+    const selected = await inspectExecutionEnvironment(context, '/backend', options);
+    assert.equal(selected.resolution, 'selected'); assert.equal(selected.environment?.interpreter, '/managed/python');
+    assert.deepEqual(calls, ['inspect-runtime']); assert.equal(infoMessages.length, 0);
+  });
+
+  test('inspection preserves broken explicit choices and never probes another environment', async () => {
+    memory.set(ENVIRONMENT_KEY, choice);
+    const inspected: string[] = [];
+    const result = await inspectExecutionEnvironment(context, '/backend', { resource: vscode.Uri.file('/project/model.py'),
+      signal: new AbortController().signal, readyManaged: async () => { throw new Error('must not substitute managed'); },
+      runner: async python => { inspected.push(python); return { ok: false, message: 'missing interpreter' }; } });
+    assert.equal(result.ok, false); assert.equal(result.resolution, 'selected');
+    assert.equal(result.environment?.interpreter, choice.interpreter); assert.deepEqual(inspected, [choice.interpreter]);
+    memory.clear(); state.configuration.set('tensorviz.pythonPath', path.join(directory, 'missing-python'));
+    const configured = await inspectExecutionEnvironment(context, '/backend', { resource: vscode.Uri.file('/project/model.py'),
+      signal: new AbortController().signal, readyManaged: async () => { throw new Error('must not substitute managed'); }, runner });
+    assert.equal(configured.ok, false); assert.equal(configured.resolution, 'selected');
+    assert.equal(configured.environment?.source, 'setting'); assert.deepEqual(calls, []);
+  });
+
+  test('inspection uses the owning folder choice and refuses untrusted or cancelled reads before probing', async () => {
+    const resource = vscode.Uri.file('/other/model.py'); state.workspaceFolders!.push({ uri: vscode.Uri.file('/other') });
+    memory.set(ENVIRONMENTS_KEY, { '/project': { kind: 'managed' }, '/other': choice });
+    const controller = new AbortController();
+    const options = { resource, signal: controller.signal, readyManaged: async () => { throw new Error('wrong folder'); }, runner };
+    const selected = await inspectExecutionEnvironment(context, '/backend', options);
+    assert.equal(selected.environment?.interpreter, choice.interpreter); calls.length = 0;
+    state.isTrusted = false;
+    assert.equal((await inspectExecutionEnvironment(context, '/backend', options)).ok, false);
+    controller.abort();
+    await assert.rejects(inspectExecutionEnvironment(context, '/backend', options), /abort/i);
+    assert.deepEqual(calls, []);
+  });
+
   test('explicit unavailable Python never becomes an automatic managed run', async () => {
     state.configuration.set('tensorviz.pythonPath', path.join(directory, 'missing-python'));
     assert.equal(await selectedExecutionInterpreter(context, vscode.Uri.file('/project/model.py'),
@@ -145,17 +190,27 @@ suite('project environment selection and consent', () => {
       async () => { throw new Error('must not check fallback'); }), executable);
   });
 
-  test('unselected execution uses the resource-scoped Python API then a ready fallback', async () => {
+  for (const suggestion of ['python-extension', 'managed']) test(`unselected execution and agent help do not promote a ${suggestion} suggestion`, async () => {
     const resource = vscode.Uri.file('/project/model.py');
-    state.extensions.set('ms-python.python', { activate: async () => ({ environments: {
+    let managedChecks = 0;
+    if (suggestion === 'python-extension') state.extensions.set('ms-python.python', { activate: async () => ({ environments: {
       getActiveEnvironmentPath: (actual: vscode.Uri) => { assert.equal(actual, resource); return { path: '/python-api' }; },
       resolveEnvironment: async () => ({ executable: { uri: vscode.Uri.file('/python-api/bin/python') } }),
     } }) });
-    assert.equal(await selectedExecutionInterpreter(context, resource,
-      async () => { throw new Error('must not check fallback'); }), '/python-api/bin/python');
-    state.extensions.clear();
-    assert.equal(await selectedExecutionInterpreter(context, resource, async () => '/managed/python'), '/managed/python');
-    assert.equal(await selectedExecutionInterpreter(context, resource, async () => undefined), undefined);
+    const readyManaged = async () => { managedChecks++; return '/managed/python'; };
+    const environment = await selectedExecutionEnvironment(context, resource, readyManaged);
+    assert.deepEqual(environment, { source: 'selection_required' }, 'inspection must not report a suggestion as the capture target');
+    assert.equal(await selectedExecutionInterpreter(context, resource, readyManaged), undefined);
+    const help = graphMcpHelpRequest({ interpreter: environment.interpreter, environmentSource: environment.source,
+      opening: { id: 'unselected', target: { workspaceFolder: '/project', file: 'model.py', cls: 'Net',
+        documentVersion: 1, sourceDigest: 'a'.repeat(64), backendRevision: 0 },
+      phase: 'needs_setup', hasCapture: false, detail: 'Choose Python.',
+      environment: { reason: 'selection_required', candidates: [], detail: 'Choose Python.' } } });
+    assert.match(help, /selection_required/);
+    assert.doesNotMatch(help, /reportedEnvironment|selectedEnvironment|\/python-api|\/managed\/python/);
+    assert.equal(managedChecks, 0, 'unselected reads must not check or provision the managed runtime');
+    assert.equal(infoMessages.length, 0, 'execution and inspection must not open a chooser');
+    assert.equal(savedEnvironment(context, resource), undefined);
   });
 
   test('compatible selected environment never checks/downloads the managed runtime', async () => {

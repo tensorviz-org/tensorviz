@@ -2,6 +2,10 @@
 
 Start with a model open in TensorViz. The Canvas lets you explore its structure without rerunning it every time you change the view.
 
+![Annotated Canvas showing the model layers and the fit control](images/explore-graph.png)
+
+**1 — Layers:** follow the connections through the model. **2 — Input:** the example shape comes from the source. **3 — Fit:** bring the graph back into view. This example is a source preview; shapes are recorded only by a capture.
+
 ## Start with these controls
 
 | To… | Use… |

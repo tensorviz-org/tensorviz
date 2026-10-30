@@ -1,4 +1,4 @@
-// Copy repository docs into VitePress, adapt links, and render the install-first home.
+// Copy repository docs into VitePress, adapt links, and export agent-readable Markdown.
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -66,6 +66,10 @@ fs.rmSync(path.join(OUT, '.vitepress/dist'), { recursive: true, force: true })
 fs.rmSync(path.join(OUT, '.vitepress/cache'), { recursive: true, force: true })
 fs.rmSync(path.join(OUT, 'public/raw'), { recursive: true, force: true })
 fs.mkdirSync(path.join(OUT, 'public/raw'), { recursive: true })
+fs.rmSync(path.join(OUT, 'public/markdown'), { recursive: true, force: true })
+fs.mkdirSync(path.join(OUT, 'public/markdown'), { recursive: true })
+fs.mkdirSync(path.join(OUT, 'public/docs'), { recursive: true })
+fs.cpSync(path.join(SRC, 'docs/images'), path.join(OUT, 'public/docs/images'), { recursive: true })
 
 function walk(dir, pred, acc = []) {
   if (!fs.existsSync(dir)) return acc
@@ -109,6 +113,7 @@ const rewriteTarget = (fromPath, target) => {
   const rel = m[1], tail = m[2]
   const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(fromPath), rel))
   if (fileSet.has(resolved)) return route(resolved) + tail
+  if (resolved.startsWith('docs/images/') && fs.existsSync(path.join(SRC, resolved))) return `/${resolved}${tail}`
   // not a doc in the site: point at the repository
   if (resolved.startsWith('..')) return target
   const kind = rel.endsWith('/') ? 'tree' : 'blob'
@@ -116,7 +121,7 @@ const rewriteTarget = (fromPath, target) => {
 }
 
 const CALLOUT = { note: 'NOTE', tip: 'TIP', important: 'IMPORTANT', warning: 'WARNING', caution: 'CAUTION' }
-const transformMd = (p, text) => {
+const transformMd = (p, text, interactive = true) => {
   let inFence = false
   const lines = text.split('\n').map((line) => {
     if (/^\s*(```|~~~)/.test(line)) { inFence = !inFence; return line }
@@ -126,7 +131,19 @@ const transformMd = (p, text) => {
     if (c) return `> [!${CALLOUT[c[1].toLowerCase()]}]\n> ${c[2]}`
     return line.replace(/\]\(([^)\s]+)((?:\s+"[^"]*")?)\)/g, (m0, t, title) => `](${rewriteTarget(p, t)}${title})`)
   })
-  return lines.join('\n').replace(/<!-- install-options:start -->[\s\S]*?<!-- install-options:end -->/g, '<InstallOptions />')
+  const markdown = lines.join('\n')
+  return interactive ? markdown.replace(/<!-- install-options:start -->[\s\S]*?<!-- install-options:end -->/g, '<InstallOptions />') : markdown
+}
+
+function exportMarkdown(source, output, content) {
+  const markdown = transformMd(source, content, false)
+    .replace(/<InstallOptions\b[^>]*\/>/g, `[Install TensorViz](${withBase('/docs/install.html')})`)
+    .replace(/<\/?div\b[^>]*>/g, '')
+    .replace(/<p\b[^>]*>(.*?)<\/p>/gs, '$1\n')
+    .replace(/\]\((\/[^)]*)\)/g, (_, url) => `](${withBase(url)})`)
+  const dest = path.join(OUT, 'public/markdown', output)
+  fs.mkdirSync(path.dirname(dest), { recursive: true })
+  fs.writeFileSync(dest, markdown)
 }
 
 for (const f of files) {
@@ -137,6 +154,7 @@ for (const f of files) {
   const dest = path.join(OUT, o)
   fs.mkdirSync(path.dirname(dest), { recursive: true })
   fs.writeFileSync(dest, md)
+  exportMarkdown(f, o, fs.readFileSync(path.join(SRC, f), 'utf8'))
   sources[o] = f
 }
 
@@ -166,6 +184,8 @@ outline: false
 <p class="embed-note">This page embeds <code>docs/getting-started.html</code> from the repository, unchanged. <a href="${rawPage}" target="_blank" rel="noopener">Open the raw HTML</a>.</p>
 `)
   sources['docs/getting-started.md'] = 'docs/getting-started.html'
+  fs.writeFileSync(path.join(OUT, 'public/markdown/docs/getting-started.md'),
+    `# Small example\n\n[Read the model example](${withBase('/raw/getting-started.html#example')}).\n`)
 }
 
 // 3. Dedicated homepage content; contributor README changes cannot break it.
@@ -173,5 +193,17 @@ const home = transformMd('docs-site/home.md', fs.readFileSync(path.join(here, 'h
 const tagline = 'Install TensorViz, open a model, and explore its graph.'
 sources['index.md'] = 'docs-site/home.md'
 fs.writeFileSync(path.join(OUT, 'index.md'), home)
+exportMarkdown('docs-site/home.md', 'index.md', fs.readFileSync(path.join(here, 'home.md'), 'utf8'))
+const agentPages = [
+  ['Quickstart', 'docs/quickstart.md', 'Create a small PyTorch model and open its first graph.'],
+  ['Installation', 'docs/install.md', 'Published clients, compatibility, and source builds.'],
+  ['Explore the graph', 'docs/canvas.md', 'Layers, connections, recorded shapes, and navigation.'],
+  ['Follow the code', 'docs/code-focus.md', 'Find a selected layer in Python.'],
+  ['Review changes', 'docs/graph-diff-review/README.md', 'Compare source revisions without executing them.'],
+  ['Execution cache', 'docs/execution-cache.md', 'Reuse a compatible result or run fresh.'],
+  ['Python environments', 'docs/environment-recovery.md', 'Choose an environment and resolve missing libraries.'],
+  ['Model inputs', 'docs/graph-setup.md', 'Configure constructor arguments and example inputs.'],
+]
+fs.writeFileSync(path.join(OUT, 'public/llms.txt'), `# TensorViz\n\n> Local model visualization for editors and coding agents.\n\nCapture executes model code. Source previews and graph reviews do not establish runtime shapes or behavioral equivalence. See Installation for client-specific platform support.\n\n## Guides\n\n${agentPages.map(([title, file, description]) => `- [${title}](${withBase(`/markdown/${outPath(file)}`)}): ${description}`).join('\n')}\n`)
 fs.writeFileSync(path.join(OUT, '.vitepress/generated.json'), JSON.stringify({ sha: commit, ref: REF, base, sources, tagline }, null, 2))
 console.log(`prepared ${Object.keys(sources).length} pages @ ${REF} (${commit.slice(0, 7)})`)

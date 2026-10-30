@@ -2,6 +2,10 @@
 
 Compare Python changes on the graph, with the code diff beside it.
 
+![Annotated graph review comparing a ReLU MLP with a GELU and LayerNorm revision](../images/review-changes.png)
+
+**1 — Before / Diff / After:** choose which revision to inspect. **2 — Changed layers:** the review shows a wider projection, a new activation, and an added normalization layer. This is a source comparison; neither revision is executed by the review.
+
 ## Compare local changes
 
 1. Open a Git-tracked model, edit its Python, and save.

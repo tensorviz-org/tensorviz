@@ -96,6 +96,28 @@ def reached(params: Dict[str, Any]) -> bool:
     return params.get("_shape_provenance") == "observed"
 
 
+def test_disabled_statistics_do_not_install_hooks_on_script_modules(tmp_path: Path):
+    """An ordinary forward must not require optional activation/gradient hooks."""
+    asset = tmp_path / "operation.pt"
+    subprocess.run([WORKER_PYTHON, "-c",
+                    "import torch,sys; torch.jit.trace(torch.nn.ReLU(), torch.ones(2,4)).save(sys.argv[1])",
+                    str(asset)], check=True, capture_output=True, timeout=30)
+    source = tmp_path / "model.py"
+    source.write_text("from pathlib import Path\nimport torch\n"
+                      "class Model(torch.nn.Module):\n"
+                      "    def __init__(self):\n"
+                      "        super().__init__()\n"
+                      "        self.operation = torch.jit.load(str(Path(__file__).with_name('operation.pt')))\n"
+                      "    def forward(self, x):\n"
+                      "        return self.operation(x)\n")
+    code, envelope, _ = run_worker("--file", str(source), "--cls", "Model", "--workspace", str(tmp_path),
+                                   "--execution", json.dumps({"inputs": {"args": [
+                                       {"shape": [2, 4], "dtype": "float32", "fill": "ones"}]}}))
+    assert code == 0, envelope.get("error")
+    assert envelope["result"] is not None and envelope.get("error") is None
+    assert not envelope["result"]["diagnostics"].get("capture", {}).get("activations")
+
+
 @pytest.fixture()
 def raising_module(tmp_path: Path) -> Tuple[Path, int]:
     """A net whose second layer raises, and the line number of the ``raise``.

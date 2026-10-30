@@ -750,6 +750,8 @@ def _install_capture(model: nn.Module, capture: Capture) -> List[Any]:
     capture.reset()
     handles: List[Any] = []
     spec = capture.spec
+    if not spec.activations and not spec.grads:
+        return handles
 
     def make_hook(name: str):
         def _hook(mod, args, kwargs, output):

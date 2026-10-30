@@ -86,3 +86,7 @@ Torch/CUDA fixed. One native review approves the resolved versions; the model mu
 import successfully before that environment is selected and graph opening resumes.
 See [guided environment recovery](environment-recovery.md).
 
+
+## Loaded ScriptModules
+
+An ordinary forward capture does not install optional activation or gradient-statistics hooks when those statistics are disabled. This permits a model to call a loaded TorchScript module without failing on unsupported forward-hook registration. It does not enable training diagnostics or add capture coverage for opaque compiled operations.

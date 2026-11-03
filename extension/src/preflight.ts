@@ -66,12 +66,12 @@ interface BackendSource {
  *   1. the bundle — a tensorViz IDE build stages the backend beside the built-in extension
  *   2. the backend staged inside the vsix, for a stock VS Code / Cursor install
  *   3. the `tensorviz.repoPath` setting — a DEVELOPER OVERRIDE, hard fail if set and wrong
- *   4. an open workspace folder that happens to be a canvas checkout
+ *   4. an open workspace folder that happens to be a TensorViz checkout
  *
  * Rows 1 and 2 are what make "open any folder and it works" true: neither depends on the
  * user's workspace at all, so there is nothing to configure and no checkout to clone. Row 3
  * exists because the Electron suites and the owner run from a checkout; no user is told about
- * it, and its setting description says so. Row 4 keeps the plain "open the canvas repo in
+ * it, and its setting description says so. Row 4 keeps the plain "open the TensorViz repo in
  * VS Code" flow working without a setting.
  *
  * Row 3 must not fall through: if the user typed a path and it is wrong, starting a backend
@@ -129,7 +129,7 @@ export function resolveBackendDir(context: vscode.ExtensionContext): BackendReso
         ok: false,
         offerPicker: false,
         message:
-          '"tensorviz.repoPath" does not point at a canvas checkout, so tensorViz will not guess a different one.',
+          '"tensorviz.repoPath" does not point at a TensorViz checkout, so tensorViz will not guess a different one.',
         detail: block([
           `tensorviz.repoPath = ${configured}`,
           '',
@@ -174,7 +174,7 @@ export async function pickRepoPath(context: vscode.ExtensionContext): Promise<st
     canSelectFolders: true,
     canSelectMany: false,
     openLabel: 'Use this checkout',
-    title: 'Select your canvas checkout',
+    title: 'Select your TensorViz checkout',
   });
   const dir = picked?.[0]?.fsPath;
   if (!dir) {
@@ -183,7 +183,7 @@ export async function pickRepoPath(context: vscode.ExtensionContext): Promise<st
   const missing = missingMarker(path.join(dir, 'backend'));
   if (missing) {
     void vscode.window.showErrorMessage(
-      `${dir} is not a canvas checkout (missing ${path.join('backend', missing)}).`,
+      `${dir} is not a TensorViz checkout (missing ${path.join('backend', missing)}).`,
     );
     return undefined;
   }

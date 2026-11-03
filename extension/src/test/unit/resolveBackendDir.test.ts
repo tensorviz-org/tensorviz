@@ -41,7 +41,7 @@ function makeBackend(parent: string, name = 'backend'): string {
   return dir;
 }
 
-/** A canvas checkout, as `tensorviz.repoPath` and a workspace folder are read. */
+/** A TensorViz checkout, as `tensorviz.repoPath` and a workspace folder are read. */
 function makeCheckout(complete = true): string {
   const dir = tempDir('tensorviz-repo-');
   if (complete) {
@@ -187,7 +187,7 @@ suite('preflight.resolveBackendDir', () => {
   });
 
   test('an open checkout still works with no setting at all', () => {
-    // The plain "open the canvas repo in VS Code" flow, which must not need a
+    // The plain "open the TensorViz repo in VS Code" flow, which must not need a
     // setting to keep working.
     const extensionPath = tempDir('tensorviz-ext-');
     const folder = makeCheckout();

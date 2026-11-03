@@ -155,7 +155,7 @@ export interface ManagedRuntimeOptions {
   /** The directory the staged backend lives in right now — the requirements the runtime is
    *  provisioned from and the cwd its verification probe imports with. A thunk, because it is
    *  resolveBackendDir's answer and that can change while a window is open ("tensorviz.repoPath"
-   *  edits, a newly opened canvas checkout). */
+   *  edits, a newly opened TensorViz checkout). */
   backendDir?: () => string | undefined;
   /** Test seam: the download transport. Production makes real HTTPS requests; the unit suite
    *  must be able to run a stock-install provision with fabricated bytes. */

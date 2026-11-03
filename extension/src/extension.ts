@@ -1456,7 +1456,7 @@ function executionEnvironment(context: vscode.ExtensionContext, resource: vscode
 /** The managed runtime for the BACKEND role, bound to resolveBackendDir's current answer.
  *
  * The binding is a thunk because the answer genuinely changes inside one window — a
- * "tensorviz.repoPath" edit, a canvas checkout opened mid-session — and the runtime must
+ * "tensorviz.repoPath" edit, a TensorViz checkout opened mid-session — and the runtime must
  * provision against the backend that will actually run, not the one that resolved at
  * activation. It is wired here because runtime.ts must not import preflight (preflight
  * already imports runtime), and the thunk belongs to exactly one place in the app. */

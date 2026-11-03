@@ -531,7 +531,7 @@
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "**Developer override.** Absolute path to a canvas checkout, used as the backend source instead of the one tensorViz ships with. You do not need this: the backend is bundled with the app and packaged inside the extension, and is found first. It exists for running against a checkout. When set, it is used as-is — tensorViz will not fall back to guessing if it does not validate."
+          "markdownDescription": "**Developer override.** Absolute path to a TensorViz checkout, used as the backend source instead of the one tensorViz ships with. You do not need this: the backend is bundled with the app and packaged inside the extension, and is found first. It exists for running against a checkout. When set, it is used as-is — tensorViz will not fall back to guessing if it does not validate."
         },
         "tensorviz.pythonPath": {
           "type": "string",

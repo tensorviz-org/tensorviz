@@ -17,7 +17,7 @@ export const HOST = '127.0.0.1';
 /** A directory is a usable BACKEND directory iff this exists as a file inside it.
  *
  *  It used to be two markers relative to a repository root — `backend/server_v2.py`
- *  AND `canvas/package.json` — which made a canvas checkout a hard requirement
+ *  AND `canvas/package.json` — which made a TensorViz checkout a hard requirement
  *  for opening any folder (task.md P0). The React build has shipped inside the vsix since
  *  Stage A, so the frontend marker was checking for something the extension no longer
  *  needs, and the backend marker is now resolved against a backend directory that may be

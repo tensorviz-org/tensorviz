@@ -4,12 +4,12 @@ The documentation website is built locally with VitePress from the repository Ma
 
 ## Reading paths
 
-- **Overview** shows the product beside a compact installation picker.
+- **Overview** introduces TensorViz and offers a compact installation picker without a product screenshot.
 - **Quickstart** provides the complete `MlpTiny` example, opening steps, and expected capture shapes.
 - **Installation options** covers clients, compatibility, package identities, and source builds.
 - Task guides show a focused annotated image, short instructions, and links to the detailed reference.
 
-The updated TensorViz logo, neutral colors, and Geist fonts are shared across these pages. Article columns retain their reading width; the overview has a wider layout that stacks on small screens.
+The updated TensorViz logo, neutral colors, and Geist fonts are shared across these pages. Article columns retain their reading width; the overview has a wider layout with a single installation column and task guides that stack on small screens.
 
 ## Give a page to a coding agent
 

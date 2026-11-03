@@ -8,7 +8,7 @@ Pushes to `main` that change the docs or this directory, and matching pull reque
 
 - Edit `home.md` for the landing page; it is independent of the repository README.
 - `site/.vitepress/theme/InstallOptions.vue` owns the interactive install picker. Verify public package identifiers and download URLs when updating it; published packages and this source checkout have separate versions.
-- `home.md` uses the compact install picker beside a real Canvas source-preview image. Article columns stay narrow; only the overview uses the wider layout.
+- `home.md` uses a compact install picker without a product screenshot. Article columns stay narrow; only the overview uses the wider layout.
 - `docs/quickstart.md` is a complete first-graph tutorial. Keep its model, expected shapes, and source-preview caption consistent.
 - `prepare.mjs` preserves readable installation fallbacks inside any `install-options` comment markers and uses the interactive picker for the website.
 - `docs/images/` contains annotated renderer screenshots. Preparation copies these assets into the site, so the same Markdown image links work on GitHub and in the website. Provenance is recorded in [the docs guide](../docs/documentation-site.md).

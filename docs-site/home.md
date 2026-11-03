@@ -23,16 +23,6 @@ docActions: false
 
 <InstallOptions compact />
 
-<div class="home-product">
-
-![TensorViz Canvas showing the layers and connections of a small MLP](../docs/images/explore-graph.png)
-
-<p class="home-image-caption">1 Layers · 2 Example input · 3 Fit the graph. This is a source preview; a capture adds recorded tensor shapes.</p>
-
-[View the graph image](../docs/images/explore-graph.png)
-
-</div>
-
 </div>
 
 ## From your first graph to the details

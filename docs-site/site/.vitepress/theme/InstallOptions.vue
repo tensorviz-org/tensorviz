@@ -2,11 +2,12 @@
 import { computed, ref, useId, watch } from 'vue'
 import { withBase } from 'vitepress'
 
+defineProps<{ compact?: boolean }>()
 const id = useId()
 const routes = [
-  { id: 'plugin', label: 'Coding-agent plugin' },
-  { id: 'extension', label: 'Editor extension' },
-  { id: 'source', label: 'Build from source' },
+  { id: 'plugin', label: 'Coding-agent plugin', shortLabel: 'Agent plugin' },
+  { id: 'extension', label: 'Editor extension', shortLabel: 'Editor' },
+  { id: 'source', label: 'Build from source', shortLabel: 'Source' },
 ] as const
 const active = ref('plugin')
 const client = ref('Codex')
@@ -48,13 +49,13 @@ function moveTab(event: KeyboardEvent, index: number) {
 </script>
 
 <template>
-  <section class="install-options" aria-label="Install TensorViz">
+  <section class="install-options" :class="{ 'install-compact': compact }" aria-label="Install TensorViz">
     <div class="install-tabs" role="tablist" aria-label="Choose how to install">
       <button v-for="(option, index) in routes" :key="option.id"
         :id="`${id}-tab-${option.id}`" role="tab" type="button"
         :aria-selected="active === option.id" :aria-controls="active === option.id ? `${id}-panel-${option.id}` : undefined"
         :tabindex="active === option.id ? 0 : -1" @click="active = option.id"
-        @keydown="moveTab($event, index)">{{ option.label }}</button>
+        @keydown="moveTab($event, index)">{{ compact ? option.shortLabel : option.label }}</button>
     </div>
     <div :id="`${id}-panel-${active}`" class="install-panel" role="tabpanel"
       :aria-labelledby="`${id}-tab-${active}`" tabindex="0">
@@ -78,7 +79,7 @@ function moveTab(event: KeyboardEvent, index: number) {
       </template>
       <template v-else>
         <h2>Build this repository locally.</h2>
-        <p>For contributors and anyone who wants the source-built version. The repository is public.</p>
+        <p>For contributors and anyone who wants the source-built version.</p>
       </template>
 
       <div v-if="command" class="install-command">

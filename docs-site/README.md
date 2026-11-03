@@ -8,7 +8,11 @@ Pushes to `main` that change the docs or this directory, and matching pull reque
 
 - Edit `home.md` for the landing page; it is independent of the repository README.
 - `site/.vitepress/theme/InstallOptions.vue` owns the interactive install picker. Verify public package identifiers and download URLs when updating it; published packages and this source checkout have separate versions.
-- In `docs/quickstart.md`, the `install-options` comment markers enclose readable GitHub instructions. The site replaces that block with the install picker. Keep the fallback commands aligned with it.
+- `home.md` uses a compact install picker without a product screenshot. Article columns stay narrow; only the overview uses the wider layout.
+- `docs/quickstart.md` is a complete first-graph tutorial. Keep its model, expected shapes, and source-preview caption consistent.
+- `prepare.mjs` preserves readable installation fallbacks inside any `install-options` comment markers and uses the interactive picker for the website.
+- `docs/images/` contains annotated renderer screenshots. Preparation copies these assets into the site, so the same Markdown image links work on GitHub and in the website. Provenance is recorded in [the docs guide](../docs/documentation-site.md).
+- Article pages expose **Copy page** and **View Markdown** through `PageActions.vue`. The build writes Markdown to `/markdown/` and a curated guide index to `/llms.txt`; both respect `DOCS_BASE`.
 - Keep task guides short. Detailed behavior lives in `docs/reference/`, linked from the guides and the collapsed Reference navigation.
 - Release-document templates in `docs/public-plugin/` and `docs/standalone-*` stubs are excluded from the user site. They remain available to packaging tools.
 

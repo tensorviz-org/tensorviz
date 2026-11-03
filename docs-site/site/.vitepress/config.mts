@@ -15,7 +15,7 @@ const item = (text: string, p: string) => ({ text, link: r(p) })
 
 const sidebar = [
   { text: 'Start here', items: [
-    { text: 'Get TensorViz', link: '/' }, item('Quickstart', 'docs/quickstart.md'),
+    { text: 'Overview', link: '/' }, item('Quickstart', 'docs/quickstart.md'),
     item('Installation options', 'docs/install.md')] },
   { text: 'Use TensorViz', items: [
     item('Open a model', 'docs/graph-opening.md'), item('Explore the graph', 'docs/canvas.md'),
@@ -51,7 +51,7 @@ export default async () => {
     appearance: true,
     // Pages does not map /page to /page.html. Links keep the .html suffix.
     cleanUrls: false,
-    srcExclude: ['**/node_modules/**'],
+    srcExclude: ['**/node_modules/**', 'public/**'],
     head: [
       ['link', { rel: 'icon', type: 'image/svg+xml', href: asset('/logo.svg') }],
       ['meta', { name: 'theme-color', content: '#ffffff', media: '(prefers-color-scheme: light)' }],

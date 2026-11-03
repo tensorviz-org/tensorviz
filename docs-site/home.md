@@ -3,32 +3,66 @@ title: TensorViz documentation
 titleTemplate: false
 outline: false
 editLink: false
+pageClass: docs-overview
+docActions: false
 ---
 
-# See your model. Understand the flow.
+# TensorViz documentation
 
-Explore layers, follow tensor shapes, and find the matching Python. Start in your coding agent or editor.
+<p class="home-lede">Explore layers, follow tensor shapes, and find the matching Python. Open your model in your coding agent or editor.</p>
 
-<InstallOptions />
+<div class="home-actions">
 
-## Your first graph
+[Open your first graph →](../docs/quickstart.md)
 
-Open your model’s folder, choose a model, and let TensorViz guide you through Python and inputs.
-
-[Open your first model →](../docs/quickstart.md)
-
-## What would you like to do?
-
-<div class="guide-links">
-
-[Explore a graph](../docs/canvas.md) — Expand layers, inspect shapes, and search.
-
-[Follow the code](../docs/code-focus.md) — Move between a layer and its Python.
-
-[Review a change](../docs/graph-diff-review/README.md) — Compare code revisions on the graph.
-
-[Reuse a capture](../docs/execution-cache.md) — Choose when to reuse a result or run fresh.
+[Explore the guides](../docs/README.md)
 
 </div>
 
-[All guides](../docs/README.md) · [Troubleshooting](../docs/environment-recovery.md)
+<div class="home-workspace">
+
+<InstallOptions compact />
+
+</div>
+
+## From your first graph to the details
+
+<div class="home-guide-grid">
+
+<div>
+
+### Explore the graph
+
+Expand modules, find a layer, and follow the connections. Inspect the shapes recorded by a capture.
+
+[Find your way around →](../docs/canvas.md)
+
+</div>
+
+<div>
+
+### Follow the code
+
+Select a layer to find its Python. Keep the architecture and its implementation in view.
+
+[Connect graph and source →](../docs/code-focus.md)
+
+</div>
+
+<div>
+
+### Review a change
+
+See which layers and connections changed between Python revisions, with the code diff beside the graph.
+
+[Read a graph diff →](../docs/graph-diff-review/README.md)
+
+</div>
+
+</div>
+
+<div class="home-help">
+
+**Need a hand opening a model?** [Python environments](../docs/environment-recovery.md) · [Model inputs](../docs/graph-setup.md) · [Installation options](../docs/install.md)
+
+</div>

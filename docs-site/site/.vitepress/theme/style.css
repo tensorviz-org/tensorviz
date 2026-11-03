@@ -315,3 +315,48 @@ body { font-size: 15px; line-height: 1.6; }
   .vp-doc .install-panel h2 { font-size: 21px; }
   .install-actions { align-items: flex-start; }
 }
+
+/* Overview: a compact installation picker and task guides. */
+.docs-overview .VPDoc .content-container { max-width: 1120px !important; }
+.docs-overview .VPDoc .content { padding: 0; }
+.docs-overview .VPDoc .container > .content { width: 100%; min-width: 0; flex: 1; }
+.docs-overview .VPDoc .aside { display: none; }
+.docs-overview .VPDoc .container { max-width: 1120px; }
+.docs-overview .vp-doc .home-lede { max-width: 690px; font-size: 17px; line-height: 1.65; color: var(--tv-fg-2); }
+.home-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 24px; margin: 24px 0 32px; }
+.vp-doc .home-actions p { margin: 0; }
+.vp-doc .home-actions a { font-size: 13px; text-decoration: none; }
+.vp-doc .home-actions p:first-child a { display: inline-block; padding: 10px 16px; border: 1px solid var(--tv-fg); border-radius: 7px; background: var(--tv-fg); color: var(--vp-c-bg); }
+.vp-doc .home-actions p:last-child a:hover { text-decoration: underline; }
+.home-workspace { max-width: 784px; margin: 28px 0 52px; }
+.install-compact { margin: 0; border-radius: 10px; }
+.install-compact .install-tabs button { padding: 13px 8px; font-size: 12px; }
+.install-compact .install-panel { padding: 20px; }
+.vp-doc .install-compact .install-panel h2 { font-size: 20px; }
+.vp-doc .install-compact .install-panel > p:first-of-type { display: none; }
+.install-compact .install-choices { margin-top: 16px; }
+.vp-doc .install-compact .install-panel .install-next { font-size: 12px; margin: 12px 0; }
+.install-compact .install-panel > a:last-child { font-size: 12px; }
+.install-compact .install-command pre { padding: 12px; }
+.install-compact .install-command pre code { font-size: 11px; line-height: 1.8; }
+.home-guide-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; margin: 24px 0 40px; }
+.home-guide-grid > div { border-top: 1px solid var(--tv-line-strong); padding-top: 18px; }
+.vp-doc .home-guide-grid h3 { font-size: 16px; margin: 0 0 10px; }
+.vp-doc .home-guide-grid p { font-size: 14px; color: var(--tv-fg-2); margin: 0 0 14px; }
+.vp-doc .home-guide-grid a { font-size: 13px; }
+.home-help { border-top: 1px solid var(--tv-line); padding-top: 12px; }
+.vp-doc .home-help p { font-size: 13px; color: var(--tv-fg-2); }
+.page-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin: 0 0 20px; font-size: 12px; color: var(--tv-fg-2); }
+.page-actions button, .page-actions a { padding: 5px 0; }
+.page-actions a:hover, .page-actions button:hover { color: var(--tv-fg); text-decoration: underline; }
+.page-actions button:disabled { opacity: .6; cursor: wait; }
+.page-actions button:focus-visible, .page-actions a:focus-visible, .home-actions a:focus-visible { outline: 2px solid var(--tv-fg); outline-offset: 4px; }
+.page-actions [role="status"] { font-size: 12px; }
+@media (min-width: 1280px) {
+  .docs-overview .VPDoc { padding-right: 32px; padding-left: 40px; }
+}
+@media (max-width: 767px) {
+  .home-workspace { margin-bottom: 36px; }
+  .home-guide-grid { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .docs-overview .vp-doc .home-lede { font-size: 16px; }
+}

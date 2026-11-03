@@ -2,6 +2,10 @@
 
 Select a layer in the graph to find the Python that defines it.
 
+![Annotated Canvas showing the Code focus control and a layer's source reference](images/follow-code.png)
+
+**1 — Code focus:** enable the header control. **2 — Layer:** select a mapped layer to follow its Python. The screenshot uses the small MLP source example; source navigation opens in your connected editor.
+
 ## Jump to source
 
 Switch **Code focus** on in the Canvas header. Selecting a node reveals its mapped source beside the graph; double-click or press **Enter** to navigate to it.

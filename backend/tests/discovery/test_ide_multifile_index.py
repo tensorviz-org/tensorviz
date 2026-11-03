@@ -203,6 +203,15 @@ def test_local_wildcard_resolves_declared_public_exports_without_execution() -> 
     _diagnostic(index, "w", "_Private", multifile.UNRESOLVED_IMPORT, "warning")
 
 
+def test_a_module_level_expression_too_deep_to_recurse_still_has_its_exports_read() -> None:
+    # Valid Python (a generated table, say) that is deeper than the recursion limit
+    # once parsed. Reading its exports must not raise, and must not lose the names.
+    deep = "TABLE = " + "+".join(["1"] * 5_000) + "\nclass Block: ...\n"
+    index = ModuleIndex.build({"consts.py": deep, "user.py": "from consts import *\n"})
+    assert index.modules["consts"].bound_names == ("Block", "TABLE")
+    assert index.resolve("user", "Block").definition.key == "consts::Block"
+
+
 def test_literal_all_and_wildcard_reexports_preserve_canonical_identity_and_dependencies():
     index = ModuleIndex.build({
         "pkg/__init__.py": "from .bridge import *\n__all__ = ['_Hidden']\n",

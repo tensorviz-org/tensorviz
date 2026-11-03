@@ -348,25 +348,28 @@ class ModuleIndex:
         do not change module exports. Control-flow bindings and namespace mutation do.
         A literal __all__ is supported only when it has one untouched assignment.
         """
-        def scope_nodes(node):
-            yield node
-            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
-                # Defaults, bases and decorators are evaluated in the enclosing
-                # scope, unlike the body. They can mutate an export declaration.
-                evaluated = list(getattr(node, "decorator_list", ()))
-                if isinstance(node, ast.ClassDef):
-                    evaluated += list(node.bases) + [keyword.value for keyword in node.keywords]
+        def scope_nodes(root):
+            # Pre-order with an explicit stack: a module-level expression of a few
+            # thousand chained terms is valid Python, and must not exhaust the stack.
+            stack = [root]
+            while stack:
+                node = stack.pop()
+                yield node
+                if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                    # Defaults, bases and decorators are evaluated in the enclosing
+                    # scope, unlike the body. They can mutate an export declaration.
+                    children = list(getattr(node, "decorator_list", ()))
+                    if isinstance(node, ast.ClassDef):
+                        children += list(node.bases) + [keyword.value for keyword in node.keywords]
+                    else:
+                        children += list(node.args.defaults) + [item for item in node.args.kw_defaults if item is not None]
+                        children += [arg.annotation for arg in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
+                                     if arg.annotation is not None]
+                        if getattr(node, "returns", None) is not None:
+                            children.append(node.returns)
                 else:
-                    evaluated += list(node.args.defaults) + [item for item in node.args.kw_defaults if item is not None]
-                    evaluated += [arg.annotation for arg in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
-                                  if arg.annotation is not None]
-                    if getattr(node, "returns", None) is not None:
-                        evaluated.append(node.returns)
-                for child in evaluated:
-                    yield from scope_nodes(child)
-                return
-            for child in ast.iter_child_nodes(node):
-                yield from scope_nodes(child)
+                    children = list(ast.iter_child_nodes(node))
+                stack.extend(reversed(children))
 
         def bound(node):
             if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):

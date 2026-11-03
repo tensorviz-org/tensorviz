@@ -13,7 +13,8 @@ import type { CanvasAgentAction, CanvasAgentState } from '@tensorviz/contracts/p
 suite('Persistent Canvas agent connections', function () {
   this.timeout(8000);
   let directory: string, executable: string, runtime: CanvasAgentRuntime, released: string[];
-  const requests = async (): Promise<any[]> => (await readFile(path.join(directory, 'requests.jsonl'), 'utf8').catch(() => '')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+  const requests = async (): Promise<any[]> => // The fake agent appends while a test polls; a line without its newline is still being written.
+    (await readFile(path.join(directory, 'requests.jsonl'), 'utf8').catch(() => '')).split('\n').slice(0, -1).filter(Boolean).map(line => JSON.parse(line));
   const launches = async () => (await requests()).filter(message => message.args);
   const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
   async function until(check: () => boolean | Promise<boolean>): Promise<void> {

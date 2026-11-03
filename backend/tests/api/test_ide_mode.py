@@ -115,13 +115,13 @@ def test_ide_mode_disables_inprocess_ingest(ide_client: TestClient):
     assert model.json()["detail"]["code"] == "ide_mode_uses_worker"
 
 
-def test_scan_is_not_refused(ide_client: TestClient):
+def test_scan_is_not_refused(ide_client: TestClient, tmp_path):
     """Only the two routes that instantiate are closed. /api/ingest/repo/scan reads
     source without importing it, so refusing it would be theatre — it answers on
-    its own terms (a 4xx for a path that is not a repository)."""
+    its own terms. A private folder keeps the answer independent of what /tmp holds."""
     response = ide_client.post(
         "/api/ingest/repo/scan",
-        json={"repo": "/tmp"},
+        json={"repo": str(tmp_path)},
         headers={"X-tensorViz-Token": TOKEN},
     )
     assert response.status_code != 403

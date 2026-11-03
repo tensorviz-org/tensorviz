@@ -1119,7 +1119,7 @@ describe('LocalBrowserApp', () => {
         expect(events.mock.calls.filter(([event]) => (event as CustomEvent).detail?.command === 'validation-complete')).toHaveLength(0);
         expect((rig.transport.send as jest.Mock).mock.calls.filter(([m]) => m.type === 'validateRequest')).toHaveLength(1);
       } finally { events.mockRestore(); }
-    });
+    }, 30_000);   // each case starts a real Python snapshot
   }
 
   it('keeps the host run action in the header and the result in the footer', async () => {

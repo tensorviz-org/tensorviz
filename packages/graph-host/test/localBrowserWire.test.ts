@@ -3,7 +3,8 @@ import { gzipSync } from 'node:zlib';
 import { decodeLocalBrowserMessage as decode, encodeLocalBrowserMessage as encode,
   MAX_DECODED_BYTES, MAX_WIRE_BYTES } from '@tensorviz/graph-host/localBrowserWire';
 
-suite('bounded local-browser wire encoding', () => {
+suite('bounded local-browser wire encoding', function () {
+  this.timeout(15_000);   // multi-megabyte graphs are compressed and checked byte by byte
   test('decodes the Python-produced cross-language fixture', () => {
     const fixture = require('../../../tests/fixtures/contracts/local-browser-wire.json');
     assert.deepEqual(decode(fixture.wire), fixture.message);

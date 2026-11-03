@@ -91,13 +91,17 @@ def _comments(source):
     Cached because the drawing and the project graph ask about every class of one file
     in turn, and tokenizing a large file once per class cost more than drawing it.
     """
-    tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
-    declarations = tuple((match.group(1).strip(), token.start[0]) for token in tokens
-                         if token.type == tokenize.COMMENT
-                         and (match := re.fullmatch(r'#\s*tensorviz:\s*input\s*=(.*)', token.string)))
-    columns = {token.start[0]: token.start[1] for token in tokens
-               if token.type == tokenize.COMMENT and not token.line[:token.start[1]].strip()}
-    return declarations, columns
+    # One pass that keeps only comments. Python 3.12.0-3.12.3 give every token its own
+    # copy of its line, so holding all tokens of a long generated line ran out of memory.
+    declarations, columns = [], {}
+    for token in tokenize.generate_tokens(io.StringIO(source).readline):
+        if token.type != tokenize.COMMENT:
+            continue
+        if match := re.fullmatch(r'#\s*tensorviz:\s*input\s*=(.*)', token.string):
+            declarations.append((match.group(1).strip(), token.start[0]))
+        if not token.line[:token.start[1]].strip():
+            columns[token.start[0]] = token.start[1]
+    return tuple(declarations), columns
 
 
 def _file_modules(tree):

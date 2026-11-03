@@ -11,7 +11,17 @@ suite('Canvas ACP wire and lifecycle', function () {
   this.timeout(10_000);
   let directory: string, executable: string;
   let sessions: CanvasAcpSession[], runtimes: CanvasAgentRuntime[];
-  const journal = async (): Promise<any[]> => (await readFile(path.join(directory, 'wire.jsonl'), 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+  // The fake agent appends while a test reads; a line without its newline is still being written.
+  const journal = async (): Promise<any[]> => (await readFile(path.join(directory, 'wire.jsonl'), 'utf8')).split('\n').slice(0, -1).filter(Boolean).map(line => JSON.parse(line));
+  /** The client's reply to an agent request. The agent can end its turn before that reply arrives. */
+  const replyTo = async (id: number): Promise<any> => {
+    for (let i = 0; i < 200; i++) {
+      const reply = (await journal()).find(m => m.id === id && !m.method);
+      if (reply) return reply;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    assert.fail(`No reply to agent request ${id}`);
+  };
   setup(async () => {
     sessions = []; runtimes = [];
     directory = await mkdtemp(path.join(tmpdir(), 'canvas-acp-test-')); executable = path.join(directory, 'agent');
@@ -167,7 +177,7 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
     }, 'the sole authenticated host owns source review and execution, as in the native bridge');
     assert.deepEqual(wire.find(m => m.method === 'session/new').params.mcpServers, [],
       'codex-acp replaces MCP configs supplied here and drops their tool approval policy');
-    assert.ok(wire.some(m => m.id === 900 && m.result?.outcome.outcome === 'cancelled'),
+    assert.deepEqual((await replyTo(900)).result, { outcome: { outcome: 'cancelled' } },
       'allowing the host tools must not grant direct filesystem or sandbox escalation');
   });
 

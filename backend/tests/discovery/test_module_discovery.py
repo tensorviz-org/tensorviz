@@ -236,3 +236,9 @@ def test_nested_definitions_do_not_hide_or_become_top_level_targets(tmp_path):
     (tmp_path / 'model.py').write_text(source)
     scan = scan_repo(str(tmp_path))
     assert [(c['name'], c['line']) for c in scan.class_occurrences if c['is_module']] == [('Model', 2)]
+
+
+def test_one_deeply_nested_file_does_not_fail_the_repository_scan(tmp_path):
+    (tmp_path / 'model.py').write_text('import torch.nn as nn\nclass Model(nn.Module): pass\n')
+    (tmp_path / 'consts.py').write_text('X = ' + '+'.join(['1'] * 5_000) + '\n')
+    assert scan_repo(str(tmp_path)).module_classes == {'Model'}

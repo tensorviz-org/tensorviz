@@ -4,7 +4,7 @@ The documentation website is built locally with VitePress from the repository Ma
 
 ## Reading paths
 
-- **Overview** introduces TensorViz and offers a compact installation picker without a product screenshot.
+- **Overview** uses the plain “TensorViz documentation” heading at the standard article title size and offers a compact installation picker without a product screenshot.
 - **Quickstart** provides the complete `MlpTiny` example, opening steps, and expected capture shapes.
 - **Installation options** covers clients, compatibility, package identities, and source builds.
 - Task guides show a focused annotated image, short instructions, and links to the detailed reference.

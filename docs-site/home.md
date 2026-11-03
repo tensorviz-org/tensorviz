@@ -7,7 +7,7 @@ pageClass: docs-overview
 docActions: false
 ---
 
-# See your model. Understand the flow.
+# TensorViz documentation
 
 <p class="home-lede">Explore layers, follow tensor shapes, and find the matching Python. Open your model in your coding agent or editor.</p>
 

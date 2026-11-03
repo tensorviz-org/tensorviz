@@ -59,3 +59,25 @@ See [service bind](local-setup.md#service-bind).
 ## Capture-role tests
 
 `npm run test:capture --prefix plugin` first checks explicit interpreter fixtures, then builds the host, browser and panel. Set all five variables to existing absolute Python paths: `TENSORVIZ_TEST_PYTHON`, `TENSORVIZ_TEST_SERVICE_PYTHON`, `TENSORVIZ_TEST_CAPTURE_PYTHON`, `TENSORVIZ_TEST_OTHER_PYTHON`, and `TENSORVIZ_TEST_MISSING_PYTHON`. Service Python needs the backend dependencies. The final three must be distinct disposable, pipless Torch/Pydantic environments without FastAPI, Uvicorn or libcst. The missing-library fixture also starts without scipy, torchmetrics or OpenCV; the repair test installs its missing packages. Tests run sequentially so environment mutations do not race. These integration checks are separate from plugin unit checks.
+
+## Claude Code acceptance
+
+After building the host, browser and panel, run:
+
+```sh
+TENSORVIZ_TEST_PYTHON=/absolute/path/to/python npm run test:claude --prefix plugin
+```
+
+The interpreter needs the backend dependencies. The test installs the local plugin
+into a disposable Claude Code profile, discovers 27 tools and the model-workflow
+skill, and checks that `find_computation`, `query_computation` and
+`analyze_computation_change` return `NO_MODEL` for an unopened model without
+starting capture or creating permission state. It then captures a synthetic CPU
+model with one saved test permission, inspects its measured shapes, and uninstalls.
+No model turn or provider key is used. This test does not establish compiled
+runtime download, other client, rendering or GPU acceptance.
+
+Verified locally on 3 November 2026 with Claude Code 2.1.308, Node.js 26.5.0,
+CPython 3.12.13 and Torch 2.14.1 on macOS arm64: all 72 plugin unit tests and
+the Claude acceptance test passed without skips. The host, browser and panel
+built successfully, and links resolved across all 83 documentation files.

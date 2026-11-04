@@ -34,7 +34,7 @@ claude plugin install tensorviz@tensorviz-standalone --scope user
 
 ### Cursor
 
-Follow [Install in Cursor](https://github.com/tensorviz-org/tensorviz-plugins#install-in-cursor). The current Cursor preview package is [tensorviz-cursor-0.3.60.zip](https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.3.60/tensorviz-cursor-0.3.60.zip).
+Follow [Install in Cursor](https://github.com/tensorviz-org/tensorviz-plugins#install-in-cursor). The current Cursor preview package is [tensorviz-cursor-0.3.61.zip](https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.3.61/tensorviz-cursor-0.3.61.zip).
 
 ### T3 Code
 
@@ -69,10 +69,10 @@ codium --install-extension tensorviz.tensorviz-vscode
 
 :::
 
-To install a downloaded file instead, download the [0.1.35 VSIX](https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.35/file/tensorviz.tensorviz-vscode-0.1.35.vsix), then run:
+To install a downloaded file instead, download the [0.1.36 VSIX](https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.36/file/tensorviz.tensorviz-vscode-0.1.36.vsix), then run:
 
 ```sh
-code --install-extension ./tensorviz.tensorviz-vscode-0.1.35.vsix
+code --install-extension ./tensorviz.tensorviz-vscode-0.1.36.vsix
 ```
 
 Or run **Extensions: Install from VSIX…** in the editor and choose the file.

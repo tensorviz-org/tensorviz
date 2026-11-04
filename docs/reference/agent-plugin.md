@@ -15,8 +15,8 @@ For the short walkthrough, see [the user guide](../agent-plugin.md). This page c
 
 The plugin lets Claude Code, Codex, or Cursor open a local PyTorch model, capture
 one forward pass, and read the graph. It is the same product as the VS Code
-extension, in a different host. Current versions: extension **0.1.18**, plugin
-host **0.3.20**.
+extension, in a different host. Current versions: extension **0.1.36**, plugin
+host **0.3.61**.
 
 | Package | Source | What you install |
 | --- | --- | --- |

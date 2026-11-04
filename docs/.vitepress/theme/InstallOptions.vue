@@ -90,7 +90,7 @@ function moveTab(event: KeyboardEvent, index: number) {
 
       <template v-if="active === 'plugin'">
         <template v-if="client === 'Cursor'">
-          <a class="install-primary" href="https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.3.60/tensorviz-cursor-0.3.60.zip">Download Cursor plugin</a>
+          <a class="install-primary" href="https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.3.61/tensorviz-cursor-0.3.61.zip">Download Cursor plugin</a>
           <p>Import the Cursor ZIP using the <a href="https://github.com/tensorviz-org/tensorviz-plugins#install-in-cursor">Cursor setup steps</a>.</p>
         </template>
         <p v-else class="install-next">Run both commands in a terminal with {{ client }} installed. Open your model project and start a <strong>new chat</strong>.</p>
@@ -100,7 +100,7 @@ function moveTab(event: KeyboardEvent, index: number) {
         <div class="install-actions">
           <a class="install-primary" href="https://marketplace.visualstudio.com/items?itemName=tensorviz.tensorviz-vscode">VS Code Marketplace</a>
           <a href="https://open-vsx.org/extension/tensorviz/tensorviz-vscode">Open VSX</a>
-          <a href="https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.35/file/tensorviz.tensorviz-vscode-0.1.35.vsix">Download VSIX</a>
+          <a href="https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.36/file/tensorviz.tensorviz-vscode-0.1.36.vsix">Download VSIX</a>
         </div>
         <p class="install-next">For a downloaded file, run <strong>Extensions: Install from VSIX…</strong> in your editor.</p>
         <a :href="withBase('/docs/install.html#editor-extension')">More installation options →</a>

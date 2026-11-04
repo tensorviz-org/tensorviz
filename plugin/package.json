@@ -38,8 +38,7 @@
     "build:native:host": "npm run build && node scripts/build-native-host.mjs",
     "test:native:installer": "node --test test/native/installer.cjs",
     "package:source-development": "npm run check && npm run build && npm run build:browser && npm run build:panel && node scripts/package.mjs --allow-source-development",
-    "test:source-package": "node --test test/package/*.cjs",
-    "pretest:capture": "node test/check-capture-fixtures.cjs && npm run check && npm run build && npm run build:browser && npm run build:panel"
+    "test:source-package": "node --test test/package/*.cjs"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "1.7.5",

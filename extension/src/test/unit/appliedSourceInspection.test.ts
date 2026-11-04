@@ -208,7 +208,10 @@ suite('applied-source editor and dependency guards', () => {
     editorState.documents.set(join(root, 'model.py'), '# before\n'); assert.equal((await inspect()).source, 'reverted');
     for (const file of files) editorState.documents.set(join(root, file.file), '# after\n');
     observed = await inspect(); assert.equal(observed.source, 'reviewed_saved');
-    await fs.writeFile(join(root, 'config.py'), '# other\n'); assert.equal(observed.current(), false);
+    // Same-size rewrite: move mtime forward so the check does not depend on filesystem timestamp granularity.
+    await fs.writeFile(join(root, 'config.py'), '# other\n');
+    const later = new Date(Date.now() + 10_000); await fs.utimes(join(root, 'config.py'), later, later);
+    assert.equal(observed.current(), false);
     await assert.rejects(inspect(), /tracked resource/);
   });
 });

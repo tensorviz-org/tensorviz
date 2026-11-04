@@ -8,7 +8,6 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyRendererLicense } from '../plugin/scripts/renderer-license.mjs';
-import { packageVersion } from './release/prepare-extension.mjs';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const QA_CHECKS = ['workflow', 'shared-and-contracts', 'extension-compile', 'extension-units',
@@ -22,6 +21,17 @@ const save = (file, value) => { mkdirSync(dirname(file), { recursive: true }); w
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const digest = file => sha256(readFileSync(file));
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+
+// Committed extension version. package.json and both package-lock.json version fields must agree.
+function packageVersion(repoRoot, ref = 'HEAD') {
+  const show = file => JSON.parse(execFileSync('git', ['show', `${ref}:${file}`], { cwd: repoRoot, encoding: 'utf8' }));
+  const manifest = show('extension/package.json'), lock = show('extension/package-lock.json');
+  if (!/^\d+\.\d+\.\d+$/.test(manifest.version || '') || lock.name !== manifest.name
+    || lock.version !== manifest.version || lock.packages?.['']?.version !== manifest.version) {
+    throw new Error('Extension package.json and both package-lock.json versions must match.');
+  }
+  return manifest.version;
+}
 
 export function temporaryEditorRoot(kind) {
   // macOS Unix sockets have a 103-character path limit. Worktree and TMPDIR

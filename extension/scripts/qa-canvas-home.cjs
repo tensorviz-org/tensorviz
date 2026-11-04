@@ -18,7 +18,7 @@ async function until(read) {
 exports.run = async () => {
   const root = process.env.TV_QA_ROOT;
   assert.equal(process.env.TENSORVIZ_TEST_PRESEED_MANAGED, '0');
-  const extension = vscode.extensions.getExtension('tensorviz.tensorviz');
+  const extension = vscode.extensions.getExtension('tensorviz.tensorviz-vscode');
   assert.ok(extension.extensionPath.startsWith(path.join(root, 'extensions') + path.sep));
   const manifest = JSON.parse(fs.readFileSync(path.join(extension.extensionPath, 'package.json'), 'utf8'));
   assert.equal(manifest.contributes.views['tensorviz-canvas'][0].when, undefined);

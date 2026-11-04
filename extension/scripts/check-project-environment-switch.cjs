@@ -21,7 +21,7 @@ exports.run = async function () {
   let initial = true;
   let cancel = true;
   let picks = 0;
-  const extension = vscode.extensions.getExtension('tensorviz.tensorviz');
+  const extension = vscode.extensions.getExtension('tensorviz.tensorviz-vscode');
   assert.ok(extension);
   const api = (await extension.activate()).__test;
   try {

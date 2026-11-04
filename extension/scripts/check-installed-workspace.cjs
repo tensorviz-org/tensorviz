@@ -15,7 +15,7 @@ exports.run = async () => {
   const fixture = path.join(root, 'fixture');
   assert.equal(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath, fixture);
   const before = JSON.parse(fs.readFileSync(path.join(root, 'evidence/fixture-before.json'), 'utf8'));
-  const extension = vscode.extensions.getExtension('tensorviz.tensorviz');
+  const extension = vscode.extensions.getExtension('tensorviz.tensorviz-vscode');
   assert.ok(extension);
   const api = (await extension.activate()).__test;
   const document = await vscode.workspace.openTextDocument(path.join(fixture, 'models/net.py'));

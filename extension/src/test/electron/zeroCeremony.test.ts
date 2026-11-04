@@ -8,7 +8,7 @@ import { WorkspaceClass } from '../../workspaceClassIndex';
 import { OPEN_AS_GRAPH } from '../../commandIds';
 import { ModelsNode, ModelsTree } from '../../views';
 
-const EXTENSION_ID = 'tensorviz.tensorviz';
+const EXTENSION_ID = 'tensorviz.tensorviz-vscode';
 
 /** The checkout, three directories up from out/test/electron. */
 const REPO = path.resolve(__dirname, '..', '..', '..', '..');

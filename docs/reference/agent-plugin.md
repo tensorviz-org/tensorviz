@@ -24,7 +24,7 @@ host **0.3.61**.
 | VS Code extension | `extension/` | A VSIX. See the [quickstart](../quickstart.md) |
 
 Both display as **tensorViz**. The plugin id used by the Codex installer is
-`tensorviz@tensorviz-standalone`. The extension id is `tensorviz.tensorviz`.
+`tensorviz@tensorviz-standalone`. The extension id is `tensorviz.tensorviz-vscode`.
 Those ids are stable. Renaming one would install a second copy.
 
 Use one TensorViz host per agent. The plugin has its own stdio MCP server. The

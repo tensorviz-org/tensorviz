@@ -18,7 +18,7 @@ exports.run = async () => {
   const before = inventory();
   assert.match(before.torch, /^2\.14\.1/);
   assert.ok(!before.pip && !before.pydantic && !before.fastapi);
-  const extension = vscode.extensions.getExtension('tensorviz.tensorviz');
+  const extension = vscode.extensions.getExtension('tensorviz.tensorviz-vscode');
   assert.ok(extension);
   // Recent VS Code versions give an external test driver a separate API object.
   vscode = require('node:module').createRequire(path.join(extension.extensionPath, 'package.json'))('vscode');

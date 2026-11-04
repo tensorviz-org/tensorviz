@@ -23,7 +23,7 @@ exports.run = async () => {
   assert.ok(root && process.env.TV_QA_DEBUG_PORT, 'Use qa-host with a disposable root and debug port.');
   const fixture = path.join(root, 'fixture');
   assert.equal(vscode.workspace.workspaceFolders[0].uri.fsPath, fixture);
-  const extension = vscode.extensions.getExtension('tensorviz.tensorviz');
+  const extension = vscode.extensions.getExtension('tensorviz.tensorviz-vscode');
   assert.ok(extension);
   assert.ok(extension.extensionPath.startsWith(path.join(root, 'extensions') + path.sep), 'Load the installed package, not the checkout.');
   assert.deepEqual(fs.readdirSync(path.join(extension.extensionPath, 'out')), ['extension.js']);

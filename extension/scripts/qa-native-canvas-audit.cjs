@@ -15,7 +15,7 @@ exports.run = async () => {
   assert.ok(root && process.env.TV_QA_DEBUG_PORT, 'Use the disposable QA host with a debug port');
   const mark = text => { console.log(`Native audit: ${text}`); fs.appendFileSync(path.join(root, 'evidence/native-progress.txt'), text + '\n'); };
   mark('activating extension');
-  const api = (await vscode.extensions.getExtension('tensorviz.tensorviz').activate()).__test;
+  const api = (await vscode.extensions.getExtension('tensorviz.tensorviz-vscode').activate()).__test;
   mark('connecting to VS Code CDP');
   const browser = await chromium.connectOverCDP(`http://127.0.0.1:${process.env.TV_QA_DEBUG_PORT}`);
   mark('CDP connected');

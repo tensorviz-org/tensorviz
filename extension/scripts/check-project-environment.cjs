@@ -10,7 +10,7 @@ exports.run = async function () {
   const root = process.env.TV_QA_ROOT;
   const python = process.env.TV_QA_PYTHON;
   assert.ok(root && python && python.startsWith(path.join(root, 'project-env') + path.sep), 'Refusing a non-disposable Python');
-  const extension = vscode.extensions.getExtension('tensorviz.tensorviz');
+  const extension = vscode.extensions.getExtension('tensorviz.tensorviz-vscode');
   assert.ok(extension);
   const api = (await extension.activate()).__test;
   const inventory = () => JSON.parse(execFileSync(python, ['-c',

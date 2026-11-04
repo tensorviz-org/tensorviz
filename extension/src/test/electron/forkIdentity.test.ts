@@ -4,7 +4,7 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
-const EXTENSION_ID = 'tensorviz.tensorviz';
+const EXTENSION_ID = 'tensorviz.tensorviz-vscode';
 
 /** The identity a bundle must have to be ours. Every value here is the `tensorviz` side of an
  *  entry in `ide/expected-product.json`; `ide/scripts/verify-product.py` asserts the same values

@@ -23,7 +23,7 @@ suite('graphReview', () => {
     this.timeout(240_000);
     assert.ok(process.env.TENSORVIZ_TEST_PYTHON);
     process.env.BACKEND_PYTHON = process.env.TENSORVIZ_TEST_PYTHON;
-    api = (await vscode.extensions.getExtension('tensorviz.tensorviz')!.activate()).__test;
+    api = (await vscode.extensions.getExtension('tensorviz.tensorviz-vscode')!.activate()).__test;
     await vscode.workspace.getConfiguration('tensorviz').update('repoPath', REPO, vscode.ConfigurationTarget.Global);
     root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-direct-review-')));
     await reviewGit(root, ['init', '-q']);

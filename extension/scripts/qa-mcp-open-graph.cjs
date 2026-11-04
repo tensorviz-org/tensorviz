@@ -18,7 +18,7 @@ exports.run = async () => {
   assert.ok(root && root.startsWith('/private/tmp/tensorviz-mcp-'), 'Use a task-owned disposable QA root');
   const fixture = path.join(root, 'fixture');
   assert.equal(vscode.workspace.workspaceFolders[0].uri.fsPath, fixture);
-  const extension = vscode.extensions.getExtension('tensorviz.tensorviz');
+  const extension = vscode.extensions.getExtension('tensorviz.tensorviz-vscode');
   assert.deepEqual(await fs.readdir(path.join(extension.extensionPath, 'out')), ['extension.js'],
     'Exercise the installed bundle without loose compiled modules masking missing imports');
   const api = (await extension.activate()).__test;

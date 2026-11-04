@@ -18,10 +18,12 @@ export async function syncOpenVsxRelease({ version, source, repository, token = 
   const run = (tool, args, options = {}) => command(tool, args, { maxBuffer: 100 * 1024 * 1024,
     timeout: 120_000, stdio: ['pipe', 'pipe', 'pipe'], ...options });
   const api = endpoint => JSON.parse(run('gh', ['api', `repos/${repository}/${endpoint}`]));
-  if (!version) {
+  if (source || !version) {
     if (!/^[a-f0-9]{40}$/.test(source ?? '')) throw new Error('A release version or full source commit is required.');
     const manifest = api(`contents/extension/package.json?ref=${source}`);
-    version = JSON.parse(Buffer.from(manifest.content, 'base64')).version;
+    const preparedVersion = JSON.parse(Buffer.from(manifest.content, 'base64')).version;
+    if (version && version !== preparedVersion) throw new Error('Prepared source and release version disagree.');
+    version = preparedVersion;
   }
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)) throw new Error('Expected a stable extension version.');
   const get = url => request(url, { signal: AbortSignal.timeout(30_000) });
@@ -41,6 +43,7 @@ export async function syncOpenVsxRelease({ version, source, repository, token = 
       throw new Error('Marketplace package identity does not match the requested release.');
     }
     const release = api(`releases/tags/v${version}`);
+    if (source && api(`commits/v${version}`).sha !== source) throw new Error('Numbered release does not identify the prepared source.');
     const hosted = release.assets.find(item => item.name === asset);
     if (release.draft || release.prerelease || !hosted) throw new Error('A published numbered GitHub VSIX is required.');
     const github = run('gh', ['api', `repos/${repository}/releases/assets/${hosted.id}`, '-H', 'Accept: application/octet-stream']);

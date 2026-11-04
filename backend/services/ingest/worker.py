@@ -856,7 +856,7 @@ def main(argv: Optional[List[str]] = None, *, envelope: Optional[_Envelope] = No
             from pathlib import Path
             if (args.kind != "model" or args.execution is not None or args.diagnostic_job is not None
                     or args.input is not None or args.tensor_inputs is not None or args.overrides
-                    or args.tier != "real" or args.capture or args.loss is not None or not args.workspace):
+                    or args.tier not in ("real", "fake") or args.capture or args.loss is not None or not args.workspace):
                 raise ValueError("competing automatic capture arguments")
             capture_preparation, preparation_digest = consume_preparation_file()
             if (capture_preparation.source.className != args.cls
@@ -975,6 +975,11 @@ def main(argv: Optional[List[str]] = None, *, envelope: Optional[_Envelope] = No
         # unknown keys (it does) would eat it on the way through.
         series: Optional[List[Dict[str, Any]]] = None
         from .execution_sources import workspace_imports
+        if args.tier == "fake":
+            # FakeTensorMode() imports torch._dynamo (~1,200 modules, ~0.6 s) the first
+            # time it is built. Import it here, before the workspace import hook, which
+            # would otherwise resolve a path for every one of those modules.
+            import torch._dynamo  # noqa: F401
         imported_sources = []
         # Execution cache: which files the user's import, construction and forward read
         # (resolved-plan model runs the host asked about only, so a run with the cache off
@@ -1057,6 +1062,8 @@ def main(argv: Optional[List[str]] = None, *, envelope: Optional[_Envelope] = No
             if execution is not None or capture_preparation is not None:
                 envelope.worker["importedSources"] = imported_sources
             _fail(envelope, exc)
+            if args.tier == "fake" and capture_preparation is not None:
+                _fake_limitation(envelope, trace_module.fake_tensor_limitation(exc), "construction", trace_module)
             envelope.worker["elapsed_ms"] = round((time.perf_counter() - started) * 1000, 1)
             return envelope.emit(EXIT_CONSTRUCT_FAILED)
 
@@ -1135,8 +1142,23 @@ def main(argv: Optional[List[str]] = None, *, envelope: Optional[_Envelope] = No
         if result.diagnostics.failure_diagnostic is not None:
             from ..semantic.contracts import Diagnostic
             envelope.error["diagnostic"] = Diagnostic.model_validate(result.diagnostics.failure_diagnostic).model_dump(mode="json")
+        if result.diagnostics.fake_tensor is not None:
+            envelope.error["fakeTensor"] = dict(result.diagnostics.fake_tensor["limitation"], phase="forward")
         return envelope.emit(EXIT_TRACE_FAILED)
     return envelope.emit(EXIT_OK)
+
+
+def _fake_limitation(envelope: _Envelope, limitation: Optional[Dict[str, str]], phase: str, trace_module: Any) -> None:
+    """Mark a canonical fake-tier failure that is a fake-tensor limitation.
+
+    ``error.fakeTensor`` is what the host keys its single real re-run on; the message is
+    replaced by one that says the model needs real tensor values. Failures that are not
+    a fake-tensor limitation keep the envelope exactly as ``_fail`` wrote it.
+    """
+    if limitation is None or envelope.error is None:
+        return
+    envelope.error["message"] = trace_module.fake_limitation_message(limitation)
+    envelope.error["fakeTensor"] = dict(limitation, phase=phase)
 
 
 def _failure_node(result: Any, site: dict) -> Optional[str]:

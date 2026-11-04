@@ -9,6 +9,7 @@ suite('saved model validation', () => {
 
   test('the trace tier remains an explicit choice', () => {
     assert.equal(browserTraceSettings(section => section === 'traceTier' ? 'fake' : true).tier, 'fake');
-    assert.equal(browserTraceSettings(() => 'auto').tier, 'real');
+    assert.equal(browserTraceSettings(() => 'auto').tier, 'auto');
+    assert.equal(browserTraceSettings(() => 'unknown').tier, 'real');
   });
 });

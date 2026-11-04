@@ -584,11 +584,17 @@
           "type": "string",
           "enum": [
             "real",
-            "fake"
+            "fake",
+            "auto"
+          ],
+          "enumDescriptions": [
+            "Real tensors for every model.",
+            "Fake (shape-only) tensors for every model.",
+            "Real tensors, except models already seen with at least 150M parameters (about 600 MB in float32), which use fake tensors."
           ],
           "default": "real",
           "scope": "resource",
-          "markdownDescription": "How the trace worker runs your model. `real` uses real tensors, so data-dependent control flow (`if x.sum() > 0`) takes a branch instead of failing. `fake` runs under `FakeTensorMode` and allocates nothing, at the cost of refusing those models."
+          "markdownDescription": "How the trace worker runs your model when it captures a graph without a saved profile. `real` (default) uses real tensors, so data-dependent control flow (`if x.sum() > 0`) takes a branch. `fake` (experimental) builds the model, its inputs and the forward under `FakeTensorMode`: no weights are allocated and the same graph is drawn, with shapes but no tensor values. A model that needs values (`.item()`, `nonzero`, `unique`, a lazy module) is re-run once with real tensors. `auto` (experimental) runs a model with real tensors the first time, and with fake tensors from then on if that run counted at least 150M parameters (below that, fake tensors measured slower); a large model that needed the real re-run stays real. Fake tensors are faster for large models and slower (about 0.6 s) for small ones. Saved profiles, validation and candidates always use real tensors."
         },
         "tensorviz.executionCache.mode": {
           "type": "string",

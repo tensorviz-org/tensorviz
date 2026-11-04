@@ -16,6 +16,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { withPackagedAnalytics } from './package-analytics.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const extensionDir = resolve(here, '..');
@@ -86,7 +87,8 @@ if (skipCompile) {
 // stage:backend -> vsce package -> verify-package. verify-package is the one
 // that fails if the backend never got staged or a runtime artifact leaked in.
 step('Packaging (package)');
-run(extensionDir, ['run', 'package']);
+withPackagedAnalytics(join(extensionDir, 'telemetry.config.json'), process.env,
+  () => run(extensionDir, ['run', 'package']));
 
 const { name, version } = JSON.parse(readFileSync(join(extensionDir, 'package.json'), 'utf8'));
 const vsix = join(extensionDir, `${name}-${version}.vsix`);

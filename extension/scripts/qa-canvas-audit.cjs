@@ -122,7 +122,6 @@ async function run() {
     await host({ type: 'activeTarget', target: denseTarget });
     await host({ type: 'projection', target: denseTarget, projection: dense, traced: false, greyed: false });
     await host({ type: 'syncState', target: denseTarget, state: 'source-only' });
-    await frame.getByRole('button', { name: 'Expand toolbar' }).click();
     const find = frame.getByRole('button', { name: 'Find a layer', exact: true });
     await find.click();
     const search = frame.getByRole('dialog', { name: 'Find a layer', exact: true });

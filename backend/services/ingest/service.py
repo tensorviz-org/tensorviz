@@ -559,6 +559,23 @@ def _config_builder(cls: str):
     return resolve
 
 
+def _construction_fake_mode(tier: str, execution: Optional[Dict[str, Any]]) -> Optional[FakeTensorMode]:
+    """The one ``FakeTensorMode`` a fake-tier run builds its model, inputs and forward in.
+
+    Only the fake tier without an explicit execution has one: building the model inside
+    the mode allocates no parameter storage at all (``llama_1b`` would otherwise
+    materialise 3.4 GB of weights only to trace their shapes). The real tier, explicit
+    execution (which is real-only) and a caller that is already inside a fake mode (the
+    library and repository importers) get None and run exactly as before.
+    """
+    if tier != "fake" or execution is not None:
+        return None
+    from .trace import fake_mode_active
+    if fake_mode_active():
+        return None
+    return FakeTensorMode(allow_non_fake_inputs=True)
+
+
 def ingest_source(
     ref: ModelRef,
     *,
@@ -600,6 +617,7 @@ def ingest_source(
     started = time.perf_counter()
     path_before = list(sys.path)
     capture_sources = None
+    fake_mode = _construction_fake_mode(tier, execution)
 
     scan = repo.RepoScan(search_roots[0])
     # sys.path is prepended by the repository importer and never unwound there, which
@@ -608,7 +626,7 @@ def ingest_source(
     # the same process as 1600 others.
     try:
         source_setup = resolved_plan if resolved_plan is not None else capture_preparation
-        if tier == "real" and workspace and source_setup is not None:
+        if (tier == "real" or tier == "fake" and capture_preparation is not None) and workspace and source_setup is not None:
             from ..semantic.source_bindings import CapturedSourceEvidence
             capture_sources = CapturedSourceEvidence(source_setup.source, workspace)
         if execution is not None:
@@ -642,7 +660,7 @@ def ingest_source(
                     else:
                         model, stubbed = repo.instantiate(
                             scan, ref.cls, "class", ref.cls, overrides, file=file,
-                            resolve=_config_builder(ref.cls),
+                            resolve=_config_builder(ref.cls), construction_mode=fake_mode,
                         )
             except repo.StubbedDependencyError:
                 raise
@@ -665,46 +683,50 @@ def ingest_source(
                 ) from exc
             timings["build_ms"] = round((time.perf_counter() - started) * 1000, 1)
 
-            recipe = (prepared.args, prepared.kwargs) if prepared else None
-            recipe_provenance = "explicit" if prepared else None
-            if tensor_inputs is not None:
-                from .tensor_inputs import make_tensor_inputs
+            # The fake tier's inputs and forward run under the SAME mode the model was
+            # built in, so its parameters, its inputs and every intermediate are fake
+            # tensors of one mode. Nothing to enter for the real tier.
+            with fake_mode if fake_mode is not None else nullcontext():
+                recipe = (prepared.args, prepared.kwargs) if prepared else None
+                recipe_provenance = "explicit" if prepared else None
+                if tensor_inputs is not None:
+                    from .tensor_inputs import make_tensor_inputs
 
-                recipe = make_tensor_inputs(tensor_inputs)
-                recipe_provenance = "explicit"
-            elif example_input:
-                recipe = parse_input_spec(example_input)
-                recipe_provenance = "explicit"
-            if recipe is None:
-                recipe = _input_from_comment(file, ref.cls)
-                recipe_provenance = "declared" if recipe is not None else None
+                    recipe = make_tensor_inputs(tensor_inputs)
+                    recipe_provenance = "explicit"
+                elif example_input:
+                    recipe = parse_input_spec(example_input)
+                    recipe_provenance = "explicit"
+                if recipe is None:
+                    recipe = _input_from_comment(file, ref.cls)
+                    recipe_provenance = "declared" if recipe is not None else None
 
-            name = ref.name or ref.cls
-            semantic_context = None
-            if resolved_plan is not None and prepared is not None:
-                from ..semantic.recorder import CaptureContext
-                from ..semantic.execution_plan import applicability_digest
-                semantic_context = CaptureContext(resolved_plan.source, applicability_digest(resolved_plan),
-                    resolved_plan.id, resolved_plan.captureLimits,
-                    prepared.evidence['inputs']['digest'], prepared.evidence['state']['digest'], source_evidence=capture_sources)
-            graph, diagnostics, trace_error = _introspect_and_trace(
-                name,
-                model,
-                ref.depth,
-                recipe,
-                timings,
-                tier=tier,
-                frame_roots=tuple(search_roots) if capture_frames else (),
-                workspace_roots=tuple(search_roots),
-                strict_recipe=True,
-                seed_inputs=True,
-                recipe_provenance=recipe_provenance,
-                preserve_mode=prepared is not None,
-                grad_enabled=execution['gradEnabled'] if execution is not None else False,
-                semantic_context=semantic_context,
-                capture_preparation=capture_preparation,
-                capture_sources=capture_sources,
-            )
+                name = ref.name or ref.cls
+                semantic_context = None
+                if resolved_plan is not None and prepared is not None:
+                    from ..semantic.recorder import CaptureContext
+                    from ..semantic.execution_plan import applicability_digest
+                    semantic_context = CaptureContext(resolved_plan.source, applicability_digest(resolved_plan),
+                        resolved_plan.id, resolved_plan.captureLimits,
+                        prepared.evidence['inputs']['digest'], prepared.evidence['state']['digest'], source_evidence=capture_sources)
+                graph, diagnostics, trace_error = _introspect_and_trace(
+                    name,
+                    model,
+                    ref.depth,
+                    recipe,
+                    timings,
+                    tier=tier,
+                    frame_roots=tuple(search_roots) if capture_frames else (),
+                    workspace_roots=tuple(search_roots),
+                    strict_recipe=True,
+                    seed_inputs=True,
+                    recipe_provenance=recipe_provenance,
+                    preserve_mode=prepared is not None,
+                    grad_enabled=execution['gradEnabled'] if execution is not None else False,
+                    semantic_context=semantic_context,
+                    capture_preparation=capture_preparation,
+                    capture_sources=capture_sources,
+                )
             if prepared is not None:
                 diagnostics.execution = prepared.evidence
 
@@ -763,7 +785,11 @@ def _introspect_and_trace(
     ``workspace_roots`` is separate from ``frame_roots`` on purpose: which classes are
     the USER's is a fact about the workspace, and it must not change because the caller
     turned per-op frame capture off (task.md M6)."""
-    canonical = tier == "real" and (semantic_context is not None or capture_preparation is not None)
+    # Canonical whenever the caller prepared a canonical capture. The real tier always
+    # could; the fake tier only reaches here with a capture preparation since the
+    # worker started accepting one for it (fake-tier slice 2). The legacy fake run
+    # (no preparation) still draws the folded graph below.
+    canonical = semantic_context is not None or capture_preparation is not None
     intro = None if canonical else build_tree(model, depth)
 
     traced = None
@@ -811,6 +837,11 @@ def _introspect_and_trace(
                 traced, args, kwargs = attempt, attempt_args, {}
                 provenance = _searched(tried, seeded)
                 break
+            if attempt.fake_limitation is not None:
+                # The model needs tensor values; no other input shape changes that.
+                traced, args, kwargs = attempt, attempt_args, {}
+                provenance = "failed-candidate"
+                break
             # A partial trace from a data-dependent failure is still the best result for
             # that input, so keep the deepest one we saw.
             if traced is None or len(attempt.io) > len(traced.io):
@@ -836,6 +867,10 @@ def _introspect_and_trace(
             semantic_capture_error=traced.semantic_error if traced is not None else "recorder_error",
             failure_diagnostic=Diagnostic.model_validate(traced.diagnostic) if traced is not None and traced.diagnostic else None,
         )
+        if traced is not None and traced.fake_limitation is not None:
+            diagnostics.fake_tensor = dict(limitation=traced.fake_limitation)
+        if traced is not None and traced.block_templates is not None:
+            diagnostics.block_templates = traced.block_templates
         return {"nodes": [], "edges": []}, diagnostics, traced.error if traced is not None else None
 
     if traced is not None and traced.call_counts:

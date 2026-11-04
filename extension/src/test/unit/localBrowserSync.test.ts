@@ -171,7 +171,7 @@ function makeSync(opts: {
   profiles?: ProfileLookupOptions;
   debounceMs?: number;
   trace?: { trusted?: boolean; onSave?: boolean; fail?: boolean; deferFirstRun?: boolean; outcome?: TraceOutcome;
-    tier?: 'real' | 'fake'; respond?: (request: TraceRequest) => TraceOutcome };
+    tier?: 'real' | 'fake' | 'auto'; respond?: (request: TraceRequest) => TraceOutcome };
   deferFirstParse?: boolean;
   rejectProject?: boolean;
   diskSources?: Record<string, string>;
@@ -620,6 +620,31 @@ suite('LocalBrowserSync', () => {
     assert.equal(rig.envelopes.length, 1);
     assert.equal(rig.sync.snapshotState()?.traced, true);
     assert.equal(editorState.appliedEdits.length, 0, 'validation never writes source');
+  });
+
+  test('traceTier auto: first run real, a large model then runs fake, a fake-tensor fallback returns it to real', async () => {
+    const withParameters = (parameterCount: number, extra: Partial<TraceOutcome> = {}): TraceOutcome => ({ ok: true, exitCode: 0, ...extra,
+      envelope: { ...ENVELOPE, result: { ...(ENVELOPE.result as object), diagnostics: { semantic_capture: { rootInvocationId: 'invocation:0',
+        invocations: [{ id: 'invocation:0', parameterCount }] } } } } } as TraceOutcome);
+    let respond = (_request: TraceRequest) => withParameters(300_000_000);
+    const rig = makeSync({ trace: { onSave: false, tier: 'auto', respond: request => respond(request) } });
+    rig.sync.setTarget(modelUri(), anchor());
+    await settle();
+    const validate = () => rig.sync.validate(rig.sync.currentTarget()!, new AbortController().signal);
+    await validate();
+    await validate();
+    respond = () => withParameters(300_000_000, { fakeTensorFallback: { reason: 'data_dependent', errorType: 'E', operation: '', phase: 'forward' } });
+    await validate();
+    await validate();
+    // 1: unknown size -> real. 2: learned 300M parameters -> fake. 3: fake again; it falls back to
+    // real (the worker re-runs it). 4: remembered as needing values -> real directly.
+    assert.deepEqual(rig.runs.map(run => run.tier), ['real', 'fake', 'fake', 'real']);
+    const small = makeSync({ trace: { onSave: false, tier: 'auto', respond: () => withParameters(1_000) } });
+    small.sync.setTarget(modelUri(), anchor());
+    await settle();
+    await small.sync.validate(small.sync.currentTarget()!, new AbortController().signal);
+    await small.sync.validate(small.sync.currentTarget()!, new AbortController().signal);
+    assert.deepEqual(small.runs.map(run => run.tier), ['real', 'real'], 'a small model stays real');
   });
 
   test('a reused identical result is projected like a fresh run and labelled; no worker run is recorded', async () => {

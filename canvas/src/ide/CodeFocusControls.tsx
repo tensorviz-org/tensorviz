@@ -31,11 +31,10 @@ export default function CodeFocusControls({ compact }: { compact?: boolean }) {
           onChange={event => change({ ...options, scope: event.target.value as CodeFocusOptions['scope'] })}>
           <option value="class">Model / class</option><option value="function">Function</option><option value="node">Node / expression</option>
         </select></label>
-        <label>Parameter source<select aria-label="Parameter source" value={options.references} disabled={disabled || !focus.parameter}
+        {focus.parameter && <label>Parameter source<select aria-label="Parameter source" value={options.references} disabled={disabled}
           onChange={event => change({ ...options, references: event.target.value as CodeFocusOptions['references'] })}>
           <option value="declaration">Declaration</option><option value="uses">Uses</option><option value="both">Both</option>
-        </select></label>
-        {!focus.parameter && <p>References apply when the selected node is a parameter. Scope still follows the current selection.</p>}
+        </select></label>}
         <label>Surrounding code opacity <span>{options.opacity}%</span><input type="range" min="10" max="60" step="5"
           aria-label="Surrounding code opacity" value={options.opacity} disabled={disabled}
           onChange={event => change({ ...options, opacity: Number(event.target.value) })} /></label>

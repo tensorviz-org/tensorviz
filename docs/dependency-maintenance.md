@@ -8,32 +8,33 @@ configuration does not enable them. Check those settings before public launch.
 
 ## October 2026 consolidation
 
-The batch incorporates these existing PRs:
+The batch incorporates these Dependabot PRs. The numbers refer to PRs from before the
+public snapshot and are not linked, because those PRs are not in this repository.
 
-- Requests 2.34.2 ([#7](https://github.com/tensorviz-org/tensorviz/pull/7)),
-  MarkupSafe 3.0.4 ([#10](https://github.com/tensorviz-org/tensorviz/pull/10)), and
-  python-dotenv 1.2.4 ([#13](https://github.com/tensorviz-org/tensorviz/pull/13)):
+- Requests 2.34.2 (#7),
+  MarkupSafe 3.0.4 (#10), and
+  python-dotenv 1.2.4 (#13):
   maintained backend fixes, including dotenv parsing of empty values, BOMs, and
   Windows backslashes. The project and standalone minimums include the dotenv fix.
 - Mocha 12.0.3 in both hosts
-  ([#12](https://github.com/tensorviz-org/tensorviz/pull/12),
-  [#22](https://github.com/tensorviz-org/tensorviz/pull/22)) and
+  (#12,
+  #22) and
   openapi-typescript 7.13.0
-  ([#14](https://github.com/tensorviz-org/tensorviz/pull/14)):
+  (#14):
   remove vulnerable development dependency chains reported by npm audit.
   Both OpenAPI generator installations stay aligned. The generator now prints
   the returned TypeScript AST and preserves Python's required/optional fields
   with `defaultNonNullable: false`. Generated type files are regenerated; the
   wire schemas and runtime validation policy are unchanged.
-- VSCE 4.0.0 ([#15](https://github.com/tensorviz-org/tensorviz/pull/15)) and
+- VSCE 4.0.0 (#15) and
   the native plugin packager 6.24.0
-  ([#20](https://github.com/tensorviz-org/tensorviz/pull/20)):
+  (#20):
   refresh packaging dependencies while retaining the documented Node 22 runtime.
 - MCP extensions 0.2.1
-  ([#25](https://github.com/tensorviz-org/tensorviz/pull/25)):
+  (#25):
   current plugin extension SDK fixes. The separate MCP Apps protocol remains on
   its existing version in both Canvas and plugin.
-- YAML 2.9.1 ([#27](https://github.com/tensorviz-org/tensorviz/pull/27)):
+- YAML 2.9.1 (#27):
   fixes recursive merge-alias handling. Its lockfile retains the existing Canvas
   overrides and clean-install dependency tree.
 

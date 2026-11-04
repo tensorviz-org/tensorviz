@@ -7,6 +7,7 @@ import {
   BACKEND_PROBE,
   MIN_BACKEND_PYTHON,
   managedInterpreter,
+  runtimeInstallApprovalPending,
   ProbeOutcome,
   ProbeRunner,
   resolveBackendInterpreter,
@@ -295,6 +296,23 @@ suite('preflight.managedInterpreter first-install consent', () => {
   teardown(() => {
     fs.rmSync(temp, { recursive: true, force: true });
     setInfoResponder(undefined);
+  });
+
+  test('the runtime approval remains observable while the native modal is unanswered', async () => {
+    const vscode = require('../vscodeStub'), original = vscode.window.showInformationMessage;
+    const fixture = stockDownloadFixture(temp);
+    let answer!: (value: string | undefined) => void;
+    vscode.window.showInformationMessage = () => new Promise<string | undefined>(resolve => { answer = resolve; });
+    let pending: ReturnType<typeof managedInterpreter> | undefined;
+    try {
+      pending = managedInterpreter({ runtime: fixture.runtime });
+      while (!answer) await new Promise<void>(resolve => setImmediate(resolve));
+      assert.equal(runtimeInstallApprovalPending(), true);
+      assert.equal(fixture.transportCalls.length, 0);
+      answer(undefined);
+      assert.equal((await pending).cancelled, true);
+      assert.equal(runtimeInstallApprovalPending(), false);
+    } finally { answer?.(undefined); await pending; vscode.window.showInformationMessage = original; }
   });
 
   test('declining installs nothing: no download, no interpreter, no stamp', async function () {

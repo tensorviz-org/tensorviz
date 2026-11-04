@@ -43,8 +43,7 @@ test('scope, dimming and opacity are independent preferences accessible in a com
   fireEvent.change(screen.getByRole('combobox', { name: 'Code focus scope' }), { target: { value: 'class' } });
   fireEvent.change(screen.getByRole('slider'), { target: { value: '40' } });
   expect(change).toHaveBeenLastCalledWith({ enabled: true, scope: 'class', references: 'both', opacity: 40 });
-  expect(screen.getByRole('combobox', { name: 'Parameter source' })).toBeDisabled();
-  expect(screen.getByText(/References apply when the selected node is a parameter/)).toBeVisible();
+  expect(screen.queryByRole('combobox', { name: 'Parameter source' })).toBeNull();
   expect(screen.getByRole('status')).toHaveTextContent('Direct references only.');
   fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
   expect(screen.queryByRole('dialog')).toBeNull();

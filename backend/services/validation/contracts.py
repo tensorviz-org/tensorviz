@@ -120,7 +120,7 @@ class TensorValue(Contract):
     kind: Literal["tensor"]
     shape: Annotated[list[Annotated[StrictInt, Field(ge=0, le=2**31 - 1)]], Field(max_length=32)]
     dtype: Dtype
-    requires_grad: StrictBool
+    requires_grad: StrictBool = False
     generator: Generator
 
     @model_validator(mode="after")

@@ -15,6 +15,10 @@ _MISSING = object()
 _MAX_CHOICES = 64
 
 
+class UnsupportedModelClass(ValueError):
+    """A source-proven unsupported class, safe to explain at the API boundary."""
+
+
 def argument(value: Any) -> Any:
     """Literal Python values expressed in the existing profile binding grammar."""
     if value is None:
@@ -141,6 +145,31 @@ class Discovery:
             return []
         parent = self.resolve(file, base)
         return self.method(parent.file, parent.name, name, (*seen, key)) if parent else None
+
+    def module_subclass(self, file, cls, seen=()):
+        """Prove local inheritance where possible; external/dynamic bases stay unknown."""
+        key = (file, cls)
+        definition = self.definition(file, cls)
+        if (key in seen or len(seen) >= 16 or definition is None
+                or definition.decorator_list or definition.keywords):
+            return None
+        from services.ingest.module_discovery import TORCH_MODULE_BASES, EXTERNAL_MODULE_BASES
+        record = self.index.modules[module_of_file(file)]
+        bases = []
+        for base in definition.bases:
+            parent = self.resolve(file, base)
+            if parent:
+                bases.append(self.module_subclass(parent.file, parent.name, (*seen, key)))
+            elif (isinstance(base, ast.Name) and base.id == 'object'
+                  and 'object' not in record.bound_names and not record.unresolved_wildcard):
+                bases.append(False)
+            elif self.torch_symbol(file, base) in TORCH_MODULE_BASES | EXTERNAL_MODULE_BASES:
+                bases.append(True)
+            else:
+                bases.append(None)
+        if any(base is True for base in bases):
+            return True
+        return None if None in bases else False
 
     def decorators_supported(self, file, definition, owner=None):
         tree = self.trees[file]
@@ -398,7 +427,7 @@ class Discovery:
         return result[:_MAX_CHOICES]
 
 
-def discover(request: MultifileProjectionRequest, *, resolve_inputs=True) -> dict:
+def discover(request: MultifileProjectionRequest, *, resolve_inputs=True, reject_unsupported=False) -> dict:
     if request.protocol_version != 1:
         raise ValueError("Unsupported source discovery version.")
     entries = validate_sources(request.sources)
@@ -412,6 +441,19 @@ def discover(request: MultifileProjectionRequest, *, resolve_inputs=True) -> dic
     definition = reader.definition(root.file, root.cls)
     if definition is None:
         raise ValueError("The selected class needs valid, unambiguous Python source.")
+    if reader.module_subclass(root.file, root.cls) is False:
+        reason = (f"{root.cls} is not a torch.nn.Module subclass; "
+                  "tensorViz captures PyTorch nn.Module (and Flax) models.")
+        if reject_unsupported:
+            raise UnsupportedModelClass(reason)
+        model = f"{module_of_file(root.file)}:{root.cls}"
+        profile = dict(kind='model', model=model, mode='eval', device='cpu', seed=0,
+                       grad_enabled=False, init=dict(args=[], kwargs={}), inputs=dict(args=[], kwargs={}))
+        # Use the normal setup response so hosts display this requirement even
+        # when they replace HTTP error bodies with a generic transport message.
+        return dict(model=model, init=None, inputs=None, examples=[], factories=[], configs=[], parents=[],
+                    constraints=[], truncated=request.truncated, sourceDigest=root.source_digest,
+                    resolution=dict(status='partial', draft=dict(profile=profile), evidence=[], unresolved=[reason]))
     init = reader.method(root.file, root.cls, "__init__")
     inputs = reader.method(root.file, root.cls, "forward")
     examples, factories, parents = reader.examples(root.file, root.cls) if resolve_inputs else ([], [], [])

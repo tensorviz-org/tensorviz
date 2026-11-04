@@ -2,6 +2,8 @@
 
 Use this guide to develop TensorViz or build your own package. To use a published package, see [Install TensorViz](install.md).
 
+The repository is currently private. Cloning requires read access until it is made public.
+
 Clone the repository first:
 
 ```sh
@@ -19,8 +21,8 @@ These are the versions in this source checkout. Published packages have their ow
 | --- | --- |
 | Development Node.js | 22. CI uses Node.js 22. The plugin host requires Node.js 22 or newer. |
 | Development Python | 3.12. CI uses Python 3.12. |
-| Extension | 0.1.19 (`extension/package.json`) |
-| Plugin host | 0.3.20 (`plugin/package.json`) |
+| Extension | 0.1.36 (`extension/package.json`) |
+| Plugin host | 0.3.61 (`plugin/package.json`) |
 | VS Code | 1.106 or newer (`engines.vscode` is `^1.106.0`). Cursor and VSCodium can install the same VSIX. |
 | Backend service | Python 3.11 or newer (`MIN_BACKEND_PYTHON` in `extension/src/runtime.ts`, `backend/extension_environment.py`) |
 | Capture interpreter | Python 3.10 or newer (`backend/capture_environment.py`). Expression-level source positions are not recorded on Python 3.10. |
@@ -57,9 +59,11 @@ npm run protocol:check
 npm run dev:build --prefix extension
 ```
 
+`dev:build` builds the webview before staging the backend, so it also works when `extension/media/app` does not exist yet. The VSIX build uses the same order.
+
 Open this folder in VS Code, choose **Run tensorViz extension (examples/tensorviz-test)**, and press F5. That launch config opens `examples/tensorviz-test`.
 
-`.vscode/launch.json` also defines **Run tensorViz extension (repository root)**, **Run tensorViz extension (nanoGPT)**, and **Run tensorViz extension (Whisper, hot reload)**. The nanoGPT and Whisper configs expect clones under `~/tensorviz-validation/nanoGPT` and `~/tensorviz-validation/whisper`.
+`.vscode/launch.json` also defines **Run tensorViz extension (repository root)** for checks that need the whole checkout.
 
 Point **tensorViz: Select Python Environment** at `venv/bin/python` when the picker does not find it. Open a model with **Open as Graph**.
 
@@ -107,6 +111,10 @@ npm run vsix --prefix extension
 JAX and Flax capture tests skip unless `jax` and `flax` are installed in that environment. `backend/requirements-cpu.txt` does not install them.
 
 Contract checks need the backend's Python dependencies (`pydantic`, and the rest of `backend/requirements.txt` if a contract import asks for them). `npm run semantic:check` runs the semantic contract check.
+
+`make plugin-capture` requires the explicit service and pipless capture interpreters
+listed in [capture-role tests](plugin-build.md#capture-role-tests). The template
+sweep in `make gate` enables the supported inter-template adapters.
 
 ## Release checks
 

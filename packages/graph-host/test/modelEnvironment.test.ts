@@ -89,7 +89,8 @@ suite('chosen model environment readiness', () => {
       ? { ok: true, incompatible: ['torch 2.7.1 (needs ==2.0.0)'], incompatibleRequirements: ['torch==2.0.0'] } : { ok: true };
     const offered = await inspectModelEnvironment(candidate, { ...options(runner), offerPins: true });
     assert.equal(offered.reason, 'incompatible'); assert.deepEqual(offered.declaredPins, ['torch==2.0.0']);
-    // Hosts that cannot act on pins (the plugin, MCP) never receive them.
+    assert.match(offered.detail, /open_graph action: use_installed_versions/);
+    // Hosts that cannot act on pins never receive them.
     assert.equal((await inspectModelEnvironment(candidate, options(runner))).declaredPins, undefined);
     const other = await inspectModelEnvironment(candidate, { ...options(runner), offerPins: true, acceptedPins: ['torch==1.13.0'] });
     assert.equal(other.reason, 'incompatible');
@@ -100,6 +101,10 @@ suite('chosen model environment readiness', () => {
     const capture = await inspectModelEnvironment({ ...candidate, incompatible: ['pydantic 1.0 (needs >=2.12)'] },
       { ...options(runner), offerPins: true, acceptedPins: ['torch==2.0.0'] });
     assert.equal(capture.reason, 'incompatible'); assert.equal(capture.declaredPins, undefined);
+    const worker = await inspectModelEnvironment(candidate, { ...options(async (...args) => args[2][2] === 'probe-capture'
+      ? { ok: false, message: 'legacy module call dispatcher unsupported' } : runner(...args)),
+      offerPins: true, acceptedPins: ['torch==2.0.0'] });
+    assert.equal(worker.reason, 'worker_failed'); assert.match(worker.detail, /legacy module call dispatcher/);
     // A failed import with accepted pins brings the choice back.
     const failed = await inspectModelEnvironment(candidate, { ...options(runner), offerPins: true, acceptedPins: ['torch==2.0.0'], importFailure: true });
     assert.equal(failed.reason, 'incompatible'); assert.deepEqual(failed.declaredPins, ['torch==2.0.0']);

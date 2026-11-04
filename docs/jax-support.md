@@ -121,6 +121,11 @@ parameter PyTrees, typed PRNG keys, or loading JAX-specific fixtures. See
   input dimensions are requested rather than guessed. Failed tracing publishes
   a failure, never a successful empty graph.
 
+NNX modules, bound methods and partial callables clone their state wrappers inside
+the JAX trace context, allowing `nnx.jit` to update temporary state without crossing
+trace levels. Underlying arrays are shared rather than duplicated. Arbitrary Python
+closures still follow JAX/NNX trace rules.
+
 The capture records `backend = "jaxpr"`, its JAX version and
 `coverage.scope = "traced_program"`. It cannot carry runtime timings or claim
 PyTorch execution coverage. Shared graph projection, paginated inspection and

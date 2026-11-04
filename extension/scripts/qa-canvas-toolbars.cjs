@@ -79,15 +79,16 @@ async function run() {
     await page.setViewportSize({ width: 360, height: 800 });
     await frame.getByRole('switch', { name: 'Dark canvas appearance' }).click();
     await shot('toolbar-active-light');
-    await frame.getByRole('button', { name: 'Expand toolbar' }).click();
+    await page.setViewportSize({ width: 1800, height: 800 });
     await frame.getByRole('button', { name: 'More tools' }).waitFor(); await reachable();
-    await shot('toolbar-expanded-light');
-    await frame.getByRole('button', { name: 'Model and file actions' }).click();
+    await shot('toolbar-wide-light');
     await frame.getByRole('button', { name: 'Export graph' }).waitFor();
+    await frame.getByRole('button', { name: 'Model and file actions' }).click();
+    await frame.getByRole('group', { name: 'Model actions' }).waitFor();
     await frame.getByRole('button', { name: 'Model and file actions' }).press('Escape');
     assert.equal(await frame.getByRole('button', { name: 'Model and file actions' }).evaluate(node => document.activeElement === node), true);
     await frame.getByTestId('local-browser-strip').getByRole('button', { name: 'Change inputs' }).click(); await request('graphSetupRequest', 'change_inputs');
-    await frame.getByRole('button', { name: 'Collapse toolbar' }).click();
+    await page.setViewportSize({ width: 360, height: 800 });
     const execution = { id: 'scroll-review', phase: 'review', kind: 'capture', device: 'cpu', configuredDevice: 'cpu',
       detail: 'Review', interpreter: '/qa/.venv/bin/python', inputs: JSON.stringify({ binding: { kwargs: { x: { shape: [1, 8], dtype: 'float32' } } } }),
       profileName: 'cpu_example', mode: 'eval', gradients: false,

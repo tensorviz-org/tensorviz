@@ -23,6 +23,7 @@ bundle (``res_hidden_states_tuple``) that a positional-only hook cannot see.
 
 from __future__ import annotations
 
+import gc
 import os
 import sys
 import threading
@@ -38,6 +39,7 @@ import torch.nn as nn
 from torch._subclasses.fake_tensor import FakeTensorMode
 from torch.utils._python_dispatch import TorchDispatchMode
 from ..semantic.identity import weak_identity
+from . import block_templates
 
 # aten calls that carry no dataflow meaning. ``prim.device`` alone accounted for 736 of
 # 1621 ops on gpt2, so filtering is a real reduction, not a micro-optimisation.
@@ -60,6 +62,62 @@ try:  # pragma: no cover - availability differs across torch builds
     DATA_DEPENDENT = (DataDependentOutputException, DynamicOutputShapeException)
 except Exception:  # pragma: no cover
     DATA_DEPENDENT = ()
+
+#: What each fake-tensor limitation is called in ``fake_tensor_limitation``.
+_FAKE_LIMITATIONS = (
+    ("DataDependentOutputException", "data_dependent"),
+    ("DynamicOutputShapeException", "dynamic_output_shape"),
+    ("UnsupportedOperatorException", "unsupported_operator"),
+    ("UnsupportedFakeTensorException", "unsupported_fake_tensor"),
+)
+_FAKE_LIMITATION_TEXT = {
+    "data_dependent": "reads a tensor value (for example .item(), .tolist(), bool() or a value-dependent branch)",
+    "dynamic_output_shape": "produces an output whose shape depends on tensor values (for example nonzero, unique or a boolean mask)",
+    "unsupported_operator": "calls an operation that has no fake-tensor implementation",
+    "unsupported_fake_tensor": "uses a tensor that cannot be converted to a fake tensor",
+    "tensor_subclass": "creates a tensor subclass (for example an nn.LazyLinear UninitializedParameter)",
+}
+#: PyTorch raises a plain RuntimeError when a tensor subclass is created while FakeTensorMode is
+#: active (c10 `PyInterpreter` check). Matched by the start of that message, plus the subclass
+#: name, so an unrelated RuntimeError is never classified.
+_FAKE_SUBCLASS_ERROR = "Creating a new Tensor subclass "
+_FAKE_SUBCLASS_OWNER = "python object of type FakeTensor"
+
+
+def fake_tensor_limitation(error: BaseException) -> Optional[Dict[str, str]]:
+    """Why a fake-tensor (shape-only) run could not run this model, or None.
+
+    Only failures that are a property of running WITHOUT values are classified: a value
+    read, a value-dependent output shape, an operation or tensor fake mode cannot
+    represent. Anything else (a shape mismatch, a user exception) is the model's own
+    failure and would fail the same way with real tensors, so it is not one. The
+    exception chain is followed because construction errors are re-raised wrapped.
+    """
+    from torch._subclasses import fake_tensor
+    seen = set()
+    current: Optional[BaseException] = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        for name, reason in _FAKE_LIMITATIONS:
+            kind = getattr(fake_tensor, name, None)
+            if kind is not None and isinstance(current, kind):
+                operation = getattr(current, "func", None) or (current.args[0] if current.args else None)
+                return dict(reason=reason, errorType=type(current).__name__,
+                            operation=str(operation)[:200] if operation is not None else "")
+        text = str(current) if isinstance(current, RuntimeError) else ""
+        if text.startswith(_FAKE_SUBCLASS_ERROR) and _FAKE_SUBCLASS_OWNER in text:
+            subclass = text[len(_FAKE_SUBCLASS_ERROR):].split(" ", 1)[0]
+            return dict(reason="tensor_subclass", errorType=type(current).__name__, operation=subclass[:200])
+        current = current.__cause__ or current.__context__
+    return None
+
+
+def fake_limitation_message(limitation: Dict[str, str]) -> str:
+    """The user-facing reason a fake-tensor run stopped, naming the way out."""
+    operation = f" ({limitation['operation']})" if limitation.get("operation") else ""
+    return (f"FakeTensorLimitation: the model {_FAKE_LIMITATION_TEXT.get(limitation['reason'], 'needs tensor values')}"
+            f"{operation}, which a fake-tensor (shape-only) run cannot do. Run it with real tensors "
+            f"(setting tensorviz.traceTier = real).")
 
 
 def _tensors(value: Any, acc: Optional[List[torch.Tensor]] = None) -> List[torch.Tensor]:
@@ -142,6 +200,9 @@ class _Provenance(TorchDispatchMode):
         self._own_directory = os.path.realpath(os.path.dirname(__file__)) + os.sep
         self.evidence: Any = None
         self.semantic: Any = None
+        # Within-run block templates (block_templates.py); None unless the flag is on
+        # and this is a canonical fake-tier capture.
+        self.templates: Any = None
         self.failed_operation: Optional[Tuple[BaseException, Dict[str, Any]]] = None
         # Where the ROOT module's forward began and ended, as indices into `ops`.
         # Only a traced call that does more than a forward needs them (task.md M9's
@@ -189,6 +250,12 @@ class _Provenance(TorchDispatchMode):
         semantic = self.semantic
         if func is _PRIM_DEVICE:
             return func(*args, **(kwargs or {}))
+        templates = self.templates
+        if templates is not None:
+            if templates.suppress:  # template bookkeeping and fabricated outputs are not the model's ops
+                return func(*args, **(kwargs or {}))
+            if templates.active:
+                templates.on_dispatch(func, args, kwargs or {})
         record = semantic.guard(semantic.begin, func, args, kwargs or {})
         # Bounded diagnostic digests are instrumentation, not user tensor accesses.
         # Canonical runs must not also accumulate the unbounded legacy op stream.
@@ -202,6 +269,8 @@ class _Provenance(TorchDispatchMode):
         finally:
             semantic.busy = prior
         semantic.guard(semantic.succeeded, record, func, args, kwargs or {}, output)
+        if templates is not None and templates.active:
+            templates.on_result(func, args, kwargs or {}, output)
         return output
 
     def _execute_observed(self, func, args, kwargs):
@@ -283,6 +352,9 @@ class _Provenance(TorchDispatchMode):
             key = filename if absolute else (filename, os.getcwd())
             resolved = files.get(key)
             if resolved is None:
+                # Generated code (exec's and dataclasses' '<string>', fx's '<eval_with_key>')
+                # names no file; resolving it would stat '<cwd>/<string>', which the reuse
+                # audit sees as an untracked check.
                 resolved = "" if filename.startswith("<") else os.path.realpath(
                     filename if absolute else os.path.abspath(filename))
                 if not resolved.startswith(self.frame_roots) or resolved.startswith(self._own_directory):
@@ -315,6 +387,13 @@ class TraceResult:
         self.diagnostic: Optional[Dict[str, Any]] = None
         self.semantic_capture: Optional[Dict[str, Any]] = None
         self.semantic_error: Optional[str] = None
+        # Canonical fake-tier runs only: why the forward could not run without values.
+        self.fake_limitation: Optional[Dict[str, str]] = None
+        # Block-template counters; only when TENSORVIZ_BLOCK_TEMPLATES is on.
+        self.block_templates: Optional[Dict[str, Any]] = None
+
+
+_NOT_STAMPED = block_templates._NO_STAMP
 
 
 def _install_hooks(model: nn.Module, prov: _Provenance, result: TraceResult) -> List[Any]:
@@ -351,9 +430,37 @@ def _install_hooks(model: nn.Module, prov: _Provenance, result: TraceResult) -> 
                 rec["in"] = _first_shape(args) or _first_shape(kwargs)
             if prov.semantic is not None:
                 prov.semantic.guard(prov.semantic.enter, mod, args, kwargs)
+            templates = prov.templates
+            plan = shadow = None
+            if templates is not None and not templates.paused:
+                if templates.active:
+                    templates.log_enter(mod, _first_shape(args) or _first_shape(kwargs))
+                try:
+                    plan = templates.plan(name, mod, args, kwargs, sys._getframe())
+                except Exception as bug:  # never let the optional cache fail a forward
+                    templates.stats["internal_error:plan:" + type(bug).__name__] += 1
+                    plan = None
             try:
-                output = original(*args, **kwargs)
+                output = _NOT_STAMPED
+                if plan is not None and plan[0] == "hit":
+                    if templates.shadow:
+                        shadow = templates.shadow_stamp(plan[1], name, mod, plan[2], sys._getframe())
+                    else:
+                        output = templates.stamp(plan[1], name, mod, plan[2], sys._getframe())
+                if output is _NOT_STAMPED:
+                    if shadow is not None:
+                        templates.paused = True
+                        try:
+                            output = original(*args, **kwargs)
+                        finally:
+                            templates.paused = False
+                    else:
+                        output = original(*args, **kwargs)
             except BaseException as error:
+                if templates is not None:
+                    templates.fail_all("exception")
+                    if plan is not None and plan[0] == "rec":
+                        templates.abort(plan[1], "exception")
                 if prov.semantic is not None:
                     prov.semantic.guard(prov.semantic.leave, None, error, prov.failed_operation)
                 if prov.evidence is not None:
@@ -361,8 +468,14 @@ def _install_hooks(model: nn.Module, prov: _Provenance, result: TraceResult) -> 
                         prov.evidence.leave(name, None, error=error)
                 raise
             else:
+                if plan is not None and plan[0] == "rec":
+                    templates.end(plan[1], output)
                 if prov.semantic is not None:
                     prov.semantic.guard(prov.semantic.leave, output)
+                if shadow is not None:
+                    templates.shadow_check(shadow, output)
+                if templates is not None and templates.active and not templates.paused:
+                    templates.log_exit(mod, _first_shape(output), output)
                 if prov.evidence is not None:
                     with prov.semantic.mute() if prov.semantic is not None else nullcontext():
                         prov.evidence.leave(name, output)
@@ -403,6 +516,8 @@ def _install_hooks(model: nn.Module, prov: _Provenance, result: TraceResult) -> 
             if threading.get_ident() != prov.semantic.thread:
                 prov.semantic.omit("unsupported_type")
                 return original_class_call(mod, *args, **kwargs)
+            if prov.templates is not None and prov.templates.active:
+                prov.templates.fail_all("dynamic_module")
             prov.semantic.guard(prov.semantic.enter, mod, args, kwargs)
             try:
                 output = original_class_call(mod, *args, **kwargs)
@@ -859,7 +974,9 @@ def trace_model(
     result = TraceResult()
     result.tier = tier
     prov = _Provenance(frame_roots)
-    if semantic_context is not None and tier == "real":
+    # The canonical recorder runs on both tiers. A fake-tier capture records FakeTensors
+    # (shapes, dtypes, storage identity, never values: CaptureSnapshot.valuesUnavailable).
+    if semantic_context is not None and tier in ("real", "fake"):
         from ..semantic.recorder import SemanticRecorder
         prov.semantic = SemanticRecorder(model, semantic_context)
     if prov.semantic is None:
@@ -867,6 +984,8 @@ def trace_model(
     if record_evidence and tier == "real":
         from .execution_evidence import ExecutionEvidence
         prov.evidence = ExecutionEvidence(model, args, kwargs or {})
+    if (block_templates.ENABLED and tier == "fake" and prov.semantic is not None and prov.evidence is None):
+        prov.templates = block_templates.TemplateCache(prov, result, model)
     handles = _install_hooks(model, prov, result)
     # Real tier only (task.md M8): statistics about fake tensors are statistics
     # about nothing, and a backward under FakeTensorMode allocates no gradients.
@@ -895,9 +1014,11 @@ def trace_model(
     started = time.perf_counter()
     output: Any = None
     forward_error: BaseException | None = None
+    gc_prior = block_templates.raise_gc_threshold() if prov.templates is not None else None
     try:
         if tier == "fake" and not fake_mode_active():
-            with _AttentionFastPathOff(), torch.no_grad(), FakeTensorMode(allow_non_fake_inputs=True), prov:
+            with _AttentionFastPathOff(), torch.no_grad(), FakeTensorMode(allow_non_fake_inputs=True), \
+                    prov.semantic.functions() if prov.semantic is not None else nullcontext(), prov:
                 output = call()
         elif step is not None or (capture is not None and capture.spec.grads):
             # The one path that does not run under no_grad: a backward needs the
@@ -917,10 +1038,16 @@ def trace_model(
         result.error = f"{type(exc).__name__}: {str(exc)[:200]}"
         result.error_frames = _frames_of(exc)
     finally:
+        if gc_prior is not None:
+            gc.set_threshold(*gc_prior)
         if step is None and was_training and not preserve_mode:
             model.train()
         for handle in handles:
             handle.remove()
+        if prov.templates is not None:
+            result.block_templates = prov.templates.diagnostics()
+            prov.templates.close()
+            prov.templates = None
         result.elapsed_ms = (time.perf_counter() - started) * 1000
         if step is None:
             result.ops = prov.ops
@@ -951,6 +1078,12 @@ def trace_model(
         if forward_error is not None:
             from ..semantic.diagnostics import forward_diagnostic
             result.diagnostic = forward_diagnostic(forward_error, prov.failed_operation)
+            if tier == "fake" and prov.semantic is not None:
+                # A canonical fake-tier run: say plainly that the forward needs values,
+                # instead of a private fake-tensor exception name.
+                result.fake_limitation = fake_tensor_limitation(forward_error)
+                if result.fake_limitation is not None:
+                    result.error = fake_limitation_message(result.fake_limitation)
         prov.failed_operation = None
         if prov.semantic is not None:
             result.semantic_capture = prov.semantic.guard(prov.semantic.snapshot)

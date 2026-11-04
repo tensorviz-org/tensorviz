@@ -760,6 +760,7 @@ def instantiate(
     scan: RepoScan, name: str, kind: str, expr: Any, kwargs: Dict[str, Any],
     file: Optional[str] = None,
     resolve: Optional[Callable[[str, Any, Any], Any]] = None,
+    construction_mode: Any = None,
 ) -> Tuple[Any, List[str]]:
     """Import the defining module and construct the model. Executes repository code.
 
@@ -773,6 +774,12 @@ def instantiate(
     been imported, and importing it here a second time would run its module scope
     twice. This function stays ignorant of what the values mean; the caller that
     wrote the grammar decides.
+
+    ``construction_mode`` (a context manager, e.g. a ``FakeTensorMode``) is entered
+    around the construction only, never around the import: module-level code runs
+    exactly as it does without it, so module constants stay real tensors and a later
+    real run in the same process sees the module it would have seen anyway. None
+    (the default) constructs exactly as before.
     """
     if file is not None:
         module_path = module_path_for(scan.root, file)
@@ -810,7 +817,11 @@ def instantiate(
         return target(**values)
 
     try:
-        model = construct()
+        if construction_mode is None:
+            model = construct()
+        else:
+            with construction_mode:
+                model = construct()
     except Exception as exc:
         if stubbed:
             raise StubbedDependencyError(stubbed, exc) from exc

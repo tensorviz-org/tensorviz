@@ -18,7 +18,7 @@
 /** Must match `contributes.walkthroughs[0].id` in package.json. */
 export const WALKTHROUGH_ID = 'tensorviz.firstRun';
 /** `<publisher>.<name>` from package.json — how VS Code addresses a walkthrough. */
-export const EXTENSION_ID = 'tensorviz.tensorviz';
+export const EXTENSION_ID = 'tensorviz.tensorviz-vscode';
 /** globalState key. Global, not workspace: "get started" is per person, not per repository. */
 export const FIRST_RUN_KEY = 'tensorviz.firstRunShown';
 

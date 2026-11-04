@@ -410,12 +410,16 @@ export interface BackendInterpreterOptions {
   probeRunner?: ProbeRunner;
 }
 
+let pendingRuntimeInstalls = 0;
+export const runtimeInstallApprovalPending = () => pendingRuntimeInstalls > 0;
+
 /** Native modal dismissal provides Cancel; only Install authorizes setup. */
 async function firstInstallConsent(
   source: DownloadRuntimeSource,
 ): Promise<string | undefined> {
   const mb = Math.round(source.manifest.maxDownloadBytes / 1024 / 1024);
-  return vscode.window.showInformationMessage(
+  pendingRuntimeInstalls++;
+  try { return await vscode.window.showInformationMessage(
     'Install tensorViz’s runtime to open graphs?',
     { modal: true, detail:
       'Setup may take a few minutes. Your project environment is never touched.\n\n' +
@@ -423,7 +427,7 @@ async function firstInstallConsent(
       'Estimated disk use: about 850 MB in VS Code’s extension storage. ' +
       `Python ${source.python} is pinned and checksum-verified.` },
     'Install',
-  );
+  ); } finally { pendingRuntimeInstalls--; }
 }
 
 /** Bring the managed runtime to a usable state, or explain in one line why there is none.

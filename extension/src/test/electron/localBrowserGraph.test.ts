@@ -42,7 +42,7 @@ import {
   LOCAL_BROWSER_WEBSOCKET_PATH,
 } from '@tensorviz/contracts/protocol';
 
-const EXTENSION_ID = 'tensorviz.tensorviz';
+const EXTENSION_ID = 'tensorviz.tensorviz-vscode';
 
 /** The checkout, three directories up from out/test/electron. */
 const REPO = path.resolve(__dirname, '..', '..', '..', '..');

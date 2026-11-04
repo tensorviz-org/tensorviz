@@ -15,8 +15,7 @@ mode and timeout. Source discovery does not import the project. Missing setup is
 collected in the browser, saved by VS Code, then captured automatically.
 
 Model profiles may set `framework = "jax"` for plain JAX functions and Flax
-modules. Omitting it retains PyTorch behavior. JAX traces infer shapes on CPU and
-do not time the run; see [JAX and Flax graphs](jax-support.md) for setup,
+modules. Omitting it retains PyTorch behavior. JAX traces infer shapes on the saved CPU or CUDA device; see [JAX and Flax graphs](jax-support.md) for setup,
 factories and the supported evidence.
 
 Execution setup failures identify their stage and, when available, missing or
@@ -33,13 +32,35 @@ Assertions and unsupported operators remain generic failures; exception text is
 never used to invent an expected shape. A partial graph is evidence from that input,
 not a successful validation or proof about other branches.
 
-Without a matching saved profile, opening asks for explicit setup. Repository
-examples can fill the form only after selection. Dimensions are not searched.
+Without a matching saved profile, opening resolves one deterministic example from
+an explicit numeric input declaration, an unambiguous repository call or supported
+source/constructed-model constraints. Complete setup is saved before capture;
+unresolved or conflicting choices open the form. Dimensions are not searched.
 One matching profile runs directly. Multiple matches use the native picker once;
 subsequent openings reuse the remembered choice. A removed choice, invalid profile
 or cancelled picker never substitutes another invocation. Change inputs edits the
 selected setup. Generated profile sections can be updated; hand-written sections
 are preserved and form edits create a new profile.
+
+### Numeric input declarations
+
+For initial setup, a Python comment such as `# tensorviz: input=5,8` supplies
+positional float32 tensors with normal values and seed 0.
+`# tensorviz: input=2,8;2,8` supplies two tensors in that order. Dimensions must
+be positive, with at most 32 dimensions per tensor, 64 tensors and 4,194,304 elements.
+
+Place the comment inside the model class or directly above its decorators/class
+line, with no blank line or code between. It belongs only to that class. A comment
+elsewhere applies only when the file has one model class; in a file with several
+models, move it beside the intended class or use Inputs/TOML. Generated templates
+place it directly above the model. Source previews and capture use the same class
+ownership rules. Declaration text inside a string is ignored. Carriage-return line
+endings and UTF-8 files with a byte order mark retain their declarations.
+
+Conflicting declarations, unsupported expressions and incompatible argument counts
+require explicit setup. Comment expressions are not evaluated. Use Inputs/TOML
+for other dtypes, keyword arguments and nested data. A saved profile remains
+authoritative; editing the comment does not replace its invocation.
 
 ## Example: two inputs for one model
 
@@ -108,8 +129,8 @@ evidence do not. The capture profile in `backend/requirements-capture.txt`
 includes Torch, Pydantic, packaging, and NumPy, and conditional `tomli` where
 the interpreter has no `tomllib`. It does not include the web-server libraries.
 
-Saved-profile lookup, browser/MCP capture, candidate execution and local recipe
-commands use the same read-only interpreter resolver. A remembered project or
+Saved-profile lookup, browser/MCP capture and candidate execution use the same
+read-only interpreter resolver. A remembered project or
 managed choice wins over automatic discovery. A selected managed runtime must
 already be ready; these reads never download or install it. With no remembered
 choice, an explicit `tensorviz.pythonPath` takes precedence over the Python

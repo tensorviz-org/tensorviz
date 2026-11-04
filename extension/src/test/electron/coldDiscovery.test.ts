@@ -11,7 +11,7 @@ suite('coldDiscovery', () => {
   test('imported bases acquire CodeLenses without opening Canvas, then survive save and reopen', async function () {
     this.timeout(120_000);
     assert.ok(process.env.TENSORVIZ_TEST_PYTHON, 'TENSORVIZ_TEST_PYTHON is required');
-    const extension = vscode.extensions.getExtension('tensorviz.tensorviz');
+    const extension = vscode.extensions.getExtension('tensorviz.tensorviz-vscode');
     assert.ok(extension);
     const api = (await extension.activate()).__test;
     assert.equal(api.backendOrigin(), undefined, 'a warm backend would mask the startup bug');

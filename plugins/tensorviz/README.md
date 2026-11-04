@@ -6,9 +6,9 @@ and lets the agent read that graph. The VS Code extension is a separate install.
 
 ## Requirements
 
-- Node.js and Python for the tool service, as listed in the [versions table](../../docs/local-setup.md#versions).
-  Capture uses a project environment that can import the model.
-- A local model project. No TensorViz account is required.
+- Source development uses Node.js and Python from the [versions table](../../docs/local-setup.md#versions). The compiled preview bundles Node.js.
+- The compiled preview requires CPython 3.12 on macOS Apple Silicon with compatible PyTorch and model dependencies. Its native modules require that exact Python ABI; the extension’s broader Python support does not apply to this build.
+- A local PyTorch model project. No TensorViz account or provider API key is required; your coding client’s own account and permissions still apply.
 
 This directory is the plugin manifest and installer scripts. It is not a
 compiled runtime. `scripts/install.sh` refuses to run until the host has been

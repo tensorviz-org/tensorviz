@@ -23,6 +23,19 @@ suite('Graph diff from the active editor', () => {
   });
   teardown(async () => { vscode.workspace.openTextDocument = openDocument; resetEditors(); state.workspaceFolders = undefined; await fs.rm(root, { recursive: true, force: true }); });
   const noGitHub = async (): Promise<any> => { throw new Error('A local diff must not use GitHub.'); };
+  test('SCM and editor comparisons resolve a nested repository below the workspace', async () => {
+    state.workspaceFolders = [{ uri: vscode.Uri.file(path.dirname(root)) }];
+    const file = path.join(root, 'model.py');
+    await fs.writeFile(file, 'changed\n');
+    for (const kind of ['head', 'staged', 'working'] as const) {
+      const session = await reviewFileChanges(uri('file', file) as any, kind);
+      assert.equal(session.folder, root);
+      assert.equal(session.preferredFile, 'model.py');
+    }
+    const input = { original: uri('git', file, 'HEAD'), modified: uri('file', file) } as any;
+    vscode.workspace.openTextDocument = async (item: any) => ({ getText: () => item.scheme === 'git' ? 'base\n' : 'changed\n' });
+    assert.equal((await reviewEditorDiff(input, noGitHub, '/unused')).folder, root);
+  });
   test('an aliased repository keeps unsaved source and editor locations in the Git comparison', async () => {
     const alias = `${root}-alias`;
     await fs.symlink(root, alias, 'dir');

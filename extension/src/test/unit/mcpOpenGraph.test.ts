@@ -80,6 +80,25 @@ suite('MCP unified opening', () => {
     assert.equal(r.opens, 1); assert.equal(r.actions, 2); assert.equal(r.installs, 0, 'the opening controller owns inline native review and resume');
   });
 
+  test('MCP exposes the native installed-version recovery only for reported project pins', async () => {
+    const r = rig({ missing: false }), tools = captureTools(sink => registerMcpOpenGraph(sink, r.service, 'one'));
+    assert.ok(tools.get('open_graph')!.config.inputSchema.action.safeParse('use_installed_versions').success);
+    const started = r.service.invoke('one', {}); await tick();
+    const identity = { requestId: started.requestId as string, openingId: r.state!.id, sourceDigest: r.state!.target.sourceDigest };
+    r.state = { ...r.state!, environment: { reason: 'incompatible', detail: 'torch 2.15.0 (needs ==2.0.0)',
+      candidates: [{ id: 'project', interpreter: '/w/.venv/bin/python', source: 'Project', status: 'libraries_present', selected: true }],
+      selectedId: 'project', declaredPins: ['torch==2.0.0'] } };
+    const recovery = r.service.invoke('one', { requestId: identity.requestId });
+    assert.equal(next(recovery).kind, 'use_installed_versions');
+    assert.match(recovery.next as string, /without installing or downgrading/);
+    r.service.invoke('one', next(recovery).arguments); await tick();
+    assert.equal(r.actions, 1); assert.equal(r.installs, 0); assert.equal(r.opens, 1);
+    r.state = { ...r.state!, environment: { ...r.state!.environment!, declaredPins: undefined } };
+    assert.throws(() => r.service.invoke('one', { ...identity, action: 'use_installed_versions' }), /project pin mismatches/);
+    assert.equal(r.actions, 1);
+    assert.throws(() => r.service.invoke('one', { ...identity, sourceDigest: 'b'.repeat(64), action: 'use_installed_versions' }), /source changed/);
+  });
+
   test('permission recovery retains the requested model and waits for a user decision', async () => {
     const r = rig();
     let allowed = false, decisions = 0, opens = 0;

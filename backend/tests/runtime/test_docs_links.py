@@ -5,7 +5,7 @@ passages still pointed at it. Nothing caught that for two days, because nothing
 read the docs for link validity — so the one place the project kept its honest
 warnings answered 404 to every reader the docs sent there.
 
-The implementation lives in docs/check_links.py so it is also runnable by hand
+The implementation lives in tooling/docs/check_links.py so it is also runnable by hand
 (`make docs-links`) and from a docs-only CI job; this is the wrapper that puts it
 in the suite developers already run.
 """
@@ -14,7 +14,7 @@ import os
 import sys
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", ".."))
-sys.path.insert(0, os.path.join(REPO_ROOT, "docs"))
+sys.path.insert(0, os.path.join(REPO_ROOT, "tooling", "docs"))
 
 from check_links import check  # noqa: E402
 

@@ -28,7 +28,7 @@ import * as vscode from 'vscode';
 import { archive, gz } from '../../../../tests/fixtures/tar.cjs';
 import { SCRIPTED_PYTHON } from '../unit/stockRuntimeFixture';
 
-const EXTENSION_ID = 'tensorviz.tensorviz';
+const EXTENSION_ID = 'tensorviz.tensorviz-vscode';
 /** The checkout, four directories up from out/test/electron. */
 const REPO = path.resolve(__dirname, '..', '..', '..', '..');
 const CONSENT_SUBSTRING = 'Install tensorViz’s runtime';

@@ -648,8 +648,11 @@ export interface components {
              * @enum {string}
              */
             kind: "tensor";
-            /** Requires Grad */
-            requires_grad: boolean;
+            /**
+             * Requires Grad
+             * @default false
+             */
+            requires_grad?: boolean;
             /** Shape */
             shape: number[];
         };

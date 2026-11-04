@@ -8,7 +8,7 @@ import { WEBSITE, WebsiteAccount, type AccountHost, type Cancellation, type Webs
 export const firebaseToken = (claims: Record<string, unknown>) => `e30.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.signature`;
 export const google = { user_id: 'uid-1', name: 'Ada Lovelace', email: 'ada@example.com', picture: 'https://example.com/ada.png',
   firebase: { sign_in_provider: 'google.com' } };
-export const CALLBACK = 'vscode://tensorviz.tensorviz/auth';
+export const CALLBACK = 'vscode://tensorviz.tensorviz-vscode/auth';
 // The website's connect.js accepts only states of this shape.
 export const WEBSITE_STATE = /^[A-Za-z0-9_-]{16,128}$/;
 export const SECRET = `tensorviz.website.session.${WEBSITE.projectId}`;

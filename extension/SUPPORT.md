@@ -10,5 +10,7 @@ Remove credentials, private code, and paths from logs before you post them.
 Security reports: [SECURITY.md](../SECURITY.md).
 Development setup: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-The source is this repository. You do not need a separate private checkout to
-build or to ask a question.
+The source is this repository, which is currently private and requires read access
+to clone. You do not need source access to use a published package or ask a question.
+See the public [setup and troubleshooting guide](https://tensorviz.dev/install.html#support)
+and [compatibility guide](https://tensorviz.dev/install.html#compatibility).

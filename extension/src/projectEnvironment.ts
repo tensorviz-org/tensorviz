@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { BackendInterpreterOptions, BackendInterpreterResult, managedInterpreter } from './preflight';
 import { userInterpreter } from './worker';
+import { modelProjectRoot } from './modelProjectRoot';
 import { environmentExecutable, createEnvironmentRunner, inspectEnvironmentCandidates, type EnvironmentHint, type EnvironmentRunner } from '@tensorviz/graph-host/projectEnvironmentCore';
 import type { GraphEnvironmentCandidate } from '@tensorviz/contracts/protocol';
 export { environmentExecutable, type EnvironmentRunner } from '@tensorviz/graph-host/projectEnvironmentCore';
@@ -73,9 +74,19 @@ export function environmentFolder(resource?: vscode.Uri): vscode.WorkspaceFolder
     ?? folders.find(folder => folder.uri.fsPath === resource.fsPath) : folders[0];
 }
 
+export function environmentScope(resource?: vscode.Uri): string | undefined {
+  const folder = environmentFolder(resource)?.uri.fsPath;
+  return folder && resource && /\.pyw?$/i.test(resource.fsPath) ? modelProjectRoot(resource.fsPath, folder) : folder;
+}
+
+export function savedEnvironmentLabel(resource?: vscode.Uri): string {
+  const scope = environmentScope(resource);
+  return scope ? `Saved for project: ${scope.length > 230 ? `…${scope.slice(-230)}` : scope}` : 'Saved for this project';
+}
+
 /** The old picker belonged to the first folder. Never migrate its answer into another root. */
 export function savedEnvironment(context: Pick<Context, 'workspaceState'>, resource?: vscode.Uri): EnvironmentChoice | undefined {
-  const scope = environmentFolder(resource)?.uri.fsPath;
+  const scope = environmentScope(resource);
   if (!scope) return undefined;
   const choices = context.workspaceState.get<Record<string, EnvironmentChoice>>(ENVIRONMENTS_KEY);
   if (choices) return choices[scope];
@@ -83,9 +94,9 @@ export function savedEnvironment(context: Pick<Context, 'workspaceState'>, resou
     ? context.workspaceState.get<EnvironmentChoice>(ENVIRONMENT_KEY) : undefined;
 }
 
-/** Selections name host-local runtimes and belong only to the model's owning folder. */
+/** Selections name host-local runtimes and belong only to the model's project. */
 export async function rememberEnvironment(context: Context, choice: EnvironmentChoice, resource?: vscode.Uri): Promise<void> {
-  const scope = environmentFolder(resource)?.uri.fsPath;
+  const scope = environmentScope(resource);
   if (!scope) throw new Error('Select a model in a workspace folder before choosing its Python environment.');
   const choices = { ...context.workspaceState.get<Record<string, EnvironmentChoice>>(ENVIRONMENTS_KEY) };
   const legacy = context.workspaceState.get<EnvironmentChoice>(ENVIRONMENT_KEY);
@@ -175,10 +186,10 @@ export async function discoverEnvironments(context: Context, backendDir: string,
     const interpreter = environmentExecutable(value) ?? (explicit && path.isAbsolute(value) ? value : undefined);
     if (interpreter) hints.push({ interpreter, source, ...flags });
   };
-  if (saved?.kind === 'project') add(saved.interpreter, 'Saved for this folder', true, { selected: true });
+  if (saved?.kind === 'project') add(saved.interpreter, savedEnvironmentLabel(resource), true, { selected: true });
   add(configured, 'tensorViz Python setting', true, !saved ? { selected: true } : {});
   add(active, 'Selected in VS Code', true, { pythonSelected: true });
-  const projectRoot = options.workspaceRoot ?? root?.fsPath;
+  const projectRoot = options.workspaceRoot ?? environmentScope(resource);
   if (projectRoot) for (const name of ['.venv', 'venv', 'env']) add(path.join(projectRoot, name), 'Model’s project folder');
   if (root && root.fsPath !== projectRoot) for (const name of ['.venv', 'venv', 'env']) add(path.join(root.fsPath, name), 'Owning workspace folder');
   for (const folder of (vscode.workspace.workspaceFolders ?? []).slice(0, 16)) {

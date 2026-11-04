@@ -1,3 +1,4 @@
+import { AutoTraceTier, type TraceTierSetting } from '@tensorviz/graph-host/traceTierAuto';
 import { sameTargetIdentity } from '@tensorviz/graph-host/graphIdentity';
 export { sameTargetIdentity } from '@tensorviz/graph-host/graphIdentity';
 /** Source synchronization and explicit capture for the local graph page.
@@ -95,7 +96,7 @@ interface ProjectResponse {
 export interface LocalBrowserTraceSupport {
   worker: { run(request: TraceRequest): Promise<TraceOutcome>; cancel(): void; checkCapturedSetup?: TraceWorker['checkCapturedSetup'] };
   trusted(): Promise<boolean>;
-  settings(resource?: vscode.Uri): { onSave: boolean; tier: 'real' | 'fake' };
+  settings(resource?: vscode.Uri): { onSave: boolean; tier: TraceTierSetting };
   /** Every envelope a trace produced, so it can be written down as a run —
    *  for the browser session the run lives under the TARGET's folder. */
   onEnvelope?: (
@@ -323,6 +324,7 @@ export function constructionRefusal(envelope: WorkerEnvelope | undefined, cls: s
 export class LocalBrowserSync implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
   /** `traceTier = auto`: which models are large enough to draw with fake tensors. */
+  private readonly autoTier = new AutoTraceTier();
   private active: BrowserActive | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -379,8 +381,8 @@ export class LocalBrowserSync implements vscode.Disposable {
           return;
         }
         const rel = relativeInside(active.folder, document.uri.fsPath);
-        // A dependency save is a model change too. scheduleTrace runs only when
-        // the host still opts in. The deprecated traceOnSave setting never does.
+        // A dependency save is a model change too: traceOnSave covers the graph
+        // as a whole, including known Python dependencies.
         if (rel && (rel === active.rel || active.dependencies.has(rel) || active.capturedSources.has(rel))) {
           this.scheduleTrace();
         }
@@ -563,7 +565,8 @@ export class LocalBrowserSync implements vscode.Disposable {
       // With an explicit execution there is nothing left to guess, and nothing may be
       // allowed to creep back in: no remembered input, and no `# tensorviz: init=`
       // override — the profile's own `init` travels inside `execution`.
-      const tier = execution ? 'real' : support.settings(active.uri).tier;
+      const autoModel = { workspace: active.folder, file: active.uri.fsPath, cls: active.cls };
+      const tier = execution ? 'real' : this.autoTier.tier(support.settings(active.uri).tier, autoModel);
       const outcome = await support.worker.run({ tensorInputs: execution ? undefined : tensorInputs,
         execution, job, workspace: active.folder,
         expectedInterpreter: guard?.spec.interpreter.executable,
@@ -584,6 +587,7 @@ export class LocalBrowserSync implements vscode.Disposable {
         ...(execution ? {} : { overrides: overridesArgument(declaredInit(source, active.cls)) }),
         ...(reuse && execution && !job ? { reuse } : {}),
         input: undefined });
+      if (!execution) this.autoTier.record(autoModel, tier, outcome);
       attempt?.captured(outcome);
       captured?.(outcome);
       if (!current()) return cancelled();

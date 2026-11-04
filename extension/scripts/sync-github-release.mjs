@@ -107,7 +107,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     process.exit(1);
   }
   const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url)));
-  const result = syncGithubRelease({ repository: process.env.GITHUB_REPOSITORY, source: process.env.GITHUB_SHA,
+  const result = syncGithubRelease({ repository: process.env.GITHUB_REPOSITORY, source: process.env.RELEASE_SOURCE || process.env.GITHUB_SHA,
     vsix: resolve(process.argv[2] || `extension/${manifest.name}-${manifest.version}.vsix`) });
   console.log(`GitHub and Marketplace match: ${result.version}, SHA-256 ${result.sha256}\n${result.url}`);
 }

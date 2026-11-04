@@ -18,6 +18,29 @@ def test_checked_in_schema_matches_current_python_contracts():
     assert (FIXTURES / "validation.schema.json").read_text() == expected
 
 
+@pytest.mark.parametrize('dtype', ['int64', 'float32'])
+def test_tensor_grad_default_is_false_in_runtime_and_exported_schema(dtype):
+    tensor = contracts.TensorValue.model_validate(dict(kind='tensor', shape=[2], dtype=dtype,
+        generator=dict(kind='full', value=1)))
+    assert tensor.requires_grad is False
+    schema = schema_document()['definitions']['TensorValue']
+    assert 'requires_grad' not in schema['required']
+    assert schema['properties']['requires_grad']['default'] is False
+
+
+def test_explicit_floating_tensor_gradients_remain_supported():
+    tensor = contracts.TensorValue.model_validate(dict(kind='tensor', shape=[2], dtype='float32',
+        requires_grad=True, generator=dict(kind='full', value=1)))
+    assert tensor.requires_grad is True
+
+
+@pytest.mark.parametrize('requires_grad', [True, 0, 'false', None])
+def test_integer_tensors_still_reject_gradients_and_non_boolean_values(requires_grad):
+    with pytest.raises(ValidationError):
+        contracts.TensorValue.model_validate(dict(kind='tensor', shape=[2], dtype='int64',
+            requires_grad=requires_grad, generator=dict(kind='full', value=1)))
+
+
 @pytest.mark.parametrize("fixture", CORPUS["structural"] + CORPUS["relational"],
                          ids=lambda fixture: fixture["name"])
 def test_shared_contract_corpus_matches_python_policy(fixture):

@@ -1,6 +1,6 @@
 ### Choose your Python environment
 
-Open as Graph and **Refresh graph** run in the Python you choose, not a bundled one.
+Open as Graph and validation run in the Python you choose, not a bundled one.
 tensorViz offers your existing Conda or virtual environments and checks them before
 using one. A capture environment needs Python 3.10 or newer and the capture
 libraries. Expression-level source positions are not recorded on Python 3.10. The

@@ -11,6 +11,11 @@ Ask for a Python change in Canvas chat, review the proposed files, and decide wh
 
 Apply makes one undoable editor change, saves only the accepted files, and opens the model with its current saved setup. Preparing or revising a proposal does not save files or run the model. A failed save or intervening edit stops execution.
 
+Canvas chat keeps the agent connection across replies and minimizing. Stop or a
+reconnect retains bounded graph evidence at its original revision; **New chat**
+clears it. Supported models default to medium effort, preserving your saved choice.
+Background preparation can use your agent’s provider before Send.
+
 ## What to check
 
 - Shared definitions can affect more than one instance.
@@ -18,6 +23,14 @@ Apply makes one undoable editor change, saves only the accepted files, and opens
 - A source review does not prove that the changed model will run with your inputs.
 
 A stale proposal must be reviewed again after its source or dependencies change. TensorViz does not silently apply an old proposal.
+
+## Source positions and review limits
+
+Navigation and edits account for non-ASCII text and emoji, including a final line without a newline. Form feeds and Unicode line separators above a class no longer shift edits by a line. Edits preserve CRLF line endings. A verified edit to a Sequential child targets that child.
+
+Every replacement names its file and current digest. The complete review inventory, including unchanged dependencies, is limited to 256 files and 8,000,000 bytes; oversized reviews are refused without truncation. All proposed files share one review decision and one undoable edit.
+
+When available, **Run reviewed candidate** uses the retained capture setup. Apply uses the current saved setup. Candidate checkpoint or input overrides do not update the saved profile. A checkpoint-load result is separate evidence from a successful forward.
 
 ## In the local browser
 

@@ -134,6 +134,48 @@ suite('workspace graph setup adapter', () => {
     assert.deepEqual(result.missingModules, ['transformers']);
     assert.equal(result.draft, undefined);
   });
+  for (const names of [['input_ids', 'attention_mask'], ['sample', 'timestep', 'encoder_hidden_states']]) {
+    test(`unstructured inference failure names ${names.join(', ')} and preserves worker details`, async () => {
+      response = () => ({ ...discovery(), inputs: names.map(name => ({ name, kind: 'keyword', required: false })),
+        resolution: { status: 'partial', runtimeInputs: true, draft: runtimeDraft, evidence: [],
+          unresolved: names.map(name => `inputs.${name}: provide a value.`) } });
+      await host.discover(target, new AbortController().signal);
+      const trace = probe();
+      trace.worker.run = async () => ({ ok: false, reason: 'No example binding.', detail: 'Forward signature needs explicit tensors.',
+        envelope: { error: { message: 'Could not infer tensor dimensions.' } } });
+      const result = await host.inferInputs(target, runtimeDraft, new AbortController().signal, trace);
+      assert.equal(result.draft, undefined);
+      assert.match(result.detail, /Automatic input inference could not resolve the forward inputs/);
+      for (const name of names) assert.ok(result.detail.includes(name));
+      assert.match(result.detail, /setup form.*suggest_graph_inputs \/ configure_graph_setup/);
+      assert.match(result.detail, /Could not infer tensor dimensions/);
+      assert.match(result.detail, /Forward signature needs explicit tensors/);
+    });
+  }
+  test('an inference failure with no worker details still gives the input recovery path', async () => {
+    await prepareRuntime();
+    const trace = probe(); trace.worker.run = async () => ({ ok: false });
+    const result = await host.inferInputs(target, runtimeDraft, new AbortController().signal, trace);
+    assert.match(result.detail, /forward inputs: x/);
+    assert.match(result.detail, /configure_graph_setup/);
+    assert.equal(result.missingModules, undefined);
+  });
+  test('unresolved inherited input names survive when no forward signature was discovered', async () => {
+    response = () => ({ ...discovery(), inputs: null, resolution: { status: 'partial', runtimeInputs: true,
+      draft: runtimeDraft, evidence: [], unresolved: ['inputs.encoder_hidden_states: provide a tensor.'] } });
+    await host.discover(target, new AbortController().signal);
+    const trace = probe(); trace.worker.run = async () => ({ ok: false });
+    assert.match((await host.inferInputs(target, runtimeDraft, new AbortController().signal, trace)).detail,
+      /forward inputs: encoder_hidden_states/);
+  });
+  test('long worker errors stay within the opening requirement budget and retain the recovery instructions', async () => {
+    await prepareRuntime();
+    const trace = probe(); trace.worker.run = async () => ({ ok: false, reason: 'worker error '.repeat(200) });
+    const result = await host.inferInputs(target, runtimeDraft, new AbortController().signal, trace);
+    assert.ok(result.detail.length <= 1024);
+    assert.match(result.detail, /configure_graph_setup/);
+    assert.match(result.detail, /worker error/);
+  });
   test('runtime proposal changes only inputs and requires current private worker evidence', async () => {
     await prepareRuntime();
     const result = await host.inferInputs(target, runtimeDraft, new AbortController().signal, probe());

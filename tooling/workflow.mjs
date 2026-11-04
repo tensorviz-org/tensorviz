@@ -22,6 +22,17 @@ export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const digest = file => sha256(readFileSync(file));
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
 
+// Committed extension version. package.json and both package-lock.json version fields must agree.
+function packageVersion(repoRoot, ref = 'HEAD') {
+  const show = file => JSON.parse(execFileSync('git', ['show', `${ref}:${file}`], { cwd: repoRoot, encoding: 'utf8' }));
+  const manifest = show('extension/package.json'), lock = show('extension/package-lock.json');
+  if (!/^\d+\.\d+\.\d+$/.test(manifest.version || '') || lock.name !== manifest.name
+    || lock.version !== manifest.version || lock.packages?.['']?.version !== manifest.version) {
+    throw new Error('Extension package.json and both package-lock.json versions must match.');
+  }
+  return manifest.version;
+}
+
 export function temporaryEditorRoot(kind) {
   // macOS Unix sockets have a 103-character path limit. Worktree and TMPDIR
   // paths can exceed it before VS Code even appends its main-process socket.
@@ -178,10 +189,11 @@ async function dev(fresh) {
   await stopped;
 }
 
-export function assertReleaseReceipt(receipt, { commit, source, clean, artifactHash, platform = process.platform, arch = process.arch }) {
+export function assertReleaseReceipt(receipt, { commit, source, clean, artifactHash, version, platform = process.platform, arch = process.arch }) {
   if (receipt.schema !== 1 || receipt.status !== 'passed' || !QA_CHECKS.every(check => receipt.checks?.includes(check))) throw new Error('A successful package QA receipt is required.');
   if (!clean || !receipt.clean || receipt.commit !== commit || receipt.source !== source) throw new Error('Source changed or was dirty at QA. Commit the intended changes and rerun npm run qa.');
   if (receipt.sha256 !== artifactHash) throw new Error('The QA artifact changed. Refusing to publish untested bytes.');
+  if (!version || receipt.version !== version) throw new Error('The QA package version must match the committed package.json and lockfile. Prepare the version before QA.');
   if (receipt.platform !== platform || receipt.arch !== arch) throw new Error('Use the machine/platform that produced this QA receipt.');
   if (!receipt.renderer || !Number.isFinite(Date.parse(receipt.renderer.expires)) || Date.parse(receipt.renderer.expires) <= Date.now()) throw new Error('QA needs a current production renderer license. Set TLDRAW_LICENSE_KEY and rerun npm run qa.');
 }
@@ -245,7 +257,7 @@ async function release(args) {
   const file = join(state, 'qa.json');
   if (!existsSync(file)) throw new Error('Run npm run qa successfully before release.');
   const receipt = json(file);
-  assertReleaseReceipt(receipt, { commit: git('rev-parse', 'HEAD'), source: sourceFingerprint(), clean: !git('status', '--porcelain'), artifactHash: digest(receipt.artifact) });
+  assertReleaseReceipt(receipt, { commit: git('rev-parse', 'HEAD'), source: sourceFingerprint(), clean: !git('status', '--porcelain'), artifactHash: digest(receipt.artifact), version: packageVersion(root) });
   console.log(`Verified ${receipt.version} from ${receipt.commit}: ${receipt.sha256}`);
   if (!maintainerPublication(args)) {
     console.log('Local release checks passed. Nothing published. Maintainer publication is npm run release:publish, which requires VSCE_PAT and GH_TOKEN.');

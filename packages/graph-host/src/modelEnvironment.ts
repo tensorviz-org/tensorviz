@@ -72,7 +72,9 @@ export async function inspectModelEnvironment(candidate: GraphEnvironmentCandida
   const accepted = pins.length > 0 && !options.importFailure && pins.every(pin => options.acceptedPins?.includes(pin));
   const conflicts = [...(candidate.incompatible ?? []), ...(accepted ? [] : model.incompatible ?? [])];
   if (conflicts.length || options.importFailure && model.compatibilityPackages?.length) return { ...base, reason: 'incompatible',
-    detail: (conflicts.length ? `Installed libraries do not match this model: ${conflicts.join(', ')}. Choose a compatible environment.`
+    detail: (conflicts.length ? `Installed libraries do not match this model: ${conflicts.join(', ')}. ${pins.length
+      ? 'Use “Try with installed versions” or open_graph action: use_installed_versions to continue without changing packages. Capture-worker checks still apply.'
+      : 'Choose a compatible environment.'}`
       : 'An installed model library failed to import. A reviewed compatibility copy may resolve this; the original environment is preserved.').slice(0, 1024),
     ...(model.compatibilityPackages?.length && !candidate.incompatible?.length ? { compatibilityPackages: model.compatibilityPackages.slice(0, 32) } : {}),
     ...(pins.length ? { declaredPins: pins.slice(0, 32) } : {}) };

@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { assertReleaseReceipt, dependencyFingerprint, editorPaths, maintainerPublication, sha256, QA_CHECKS, temporaryEditorRoot } from '../workflow.mjs';
 
-const context = { commit: 'abc', source: 'source', clean: true, artifactHash: sha256('tested package') };
+const context = { commit: 'abc', source: 'source', clean: true, artifactHash: sha256('tested package'), version: '0.1.19' };
 const candidate = () => ({ schema: 1, status: 'passed', checks: [...QA_CHECKS],
-  commit: context.commit, source: context.source, clean: true, sha256: context.artifactHash,
+  commit: context.commit, source: context.source, clean: true, sha256: context.artifactHash, version: context.version,
   platform: process.platform, arch: process.arch, renderer: { expires: '2099-01-01T00:00:00Z' } });
 
 test('editor profiles leave room for the macOS main-process Unix socket', () => {
@@ -31,6 +31,11 @@ test('release accepts the exact clean, tested, licensed candidate', () => {
 
 test('changed package bytes cannot inherit an earlier QA pass', () => {
   assert.throws(() => assertReleaseReceipt(candidate(), { ...context, artifactHash: sha256('rebuilt package') }), /untested bytes/);
+});
+
+test('local publication refuses a package whose version differs from the committed metadata', () => {
+  assert.throws(() => assertReleaseReceipt(candidate(), { ...context, version: '0.1.20' }), /package version must match/);
+  assert.throws(() => assertReleaseReceipt(candidate(), { ...context, version: undefined }), /package version must match/);
 });
 
 test('dirty QA, later commits and later source changes all require another QA run', () => {

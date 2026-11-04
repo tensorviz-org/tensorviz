@@ -12,11 +12,12 @@ from pydantic import ValidationError
 
 from services.validation.contracts import ModelProfile, ValidationConfig
 from services.validation.signatures import check_bindings
-from .graph_setup import argument, discover
+from .graph_setup import UnsupportedModelClass, argument, discover
 from .module_index import module_of_file
 from .multifile import MultifileProjectionRequest
 
 _NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}\Z")
+_MAX_REQUIREMENTS = 5
 
 
 def _toml(value):
@@ -203,10 +204,65 @@ def declared_config_factory(discovery, profile):
         'factory': dict(file=file, callable='make_model', kwargs={})}
 
 
+def _draft_requirements(error: ValidationError, profile: dict):
+    """Project union locations onto draft fields, hiding nonmatching alternatives."""
+    requirements = {}
+    scalar_branches = {'bool', 'int', 'float', 'str', 'constrained-int', 'constrained-float', 'constrained-str'}
+    for item in error.errors(include_input=False, include_url=False, include_context=False):
+        value, path, tagged = profile, [], False
+        for part in item['loc']:
+            if path == ['inputs'] and part in ('Binding', 'InputFactory'):
+                selected = 'InputFactory' if isinstance(value, dict) and 'factory' in value else 'Binding'
+                if part != selected:
+                    break
+                continue
+            if isinstance(part, str) and part.startswith('tagged-union['):
+                if not isinstance(value, dict):
+                    break
+                tagged = True
+                continue
+            if (isinstance(value, dict) and part == value.get('kind')
+                    and (tagged or path[-1:] == ['generator'])):
+                tagged = False
+                continue
+            if part in scalar_branches and not (isinstance(value, dict) and part in value):
+                # A tagged object cannot be one of Argument's scalar alternatives.
+                if isinstance(value, dict):
+                    break
+                continue
+            path.append(part)
+            tagged = False
+            value = (value.get(part) if isinstance(value, dict) else
+                     value[part] if isinstance(value, list) and isinstance(part, int) and 0 <= part < len(value) else None)
+        else:
+            reason = item['msg'].removeprefix('Value error, ')
+            if item['type'] in ('missing', 'union_tag_not_found'):
+                reason = 'field required'
+            if item['type'] in ('union_tag_invalid', 'union_tag_not_found'):
+                path.append('kind')
+                if item['type'] == 'union_tag_invalid':
+                    reason = 'unknown kind; choose one of ' + item['msg'].split('expected tags: ')[-1]
+            # The host joins field segments with dots. Binding containers and
+            # union implementation names do not help someone editing an input.
+            if len(path) > 2 and path[0] in ('init', 'inputs') and path[1] in ('args', 'kwargs'):
+                path.pop(1)
+            key = tuple(path)
+            previous = requirements.get(key)
+            # Numeric unions can emit both a type mismatch and a useful bound
+            # violation; keep the latter at the same logical field.
+            if previous is None or previous[1].endswith('_type') and not item['type'].endswith('_type'):
+                requirements[key] = (dict(field=path or ['setup'], reason=reason[:240]), item['type'])
+    return [entry for entry, _ in requirements.values()][:_MAX_REQUIREMENTS] or [
+        dict(field=['setup'], reason='Invalid setup value.')]
+
+
 def prepare_profile(request: MultifileProjectionRequest, config: str, profile: dict,
                     profile_name: str | None = None, config_object: dict | None = None, *, config_defaults: bool = False):
     """Return complete replacement bytes or actionable requirements; never write files."""
-    discovery = discover(request, resolve_inputs=config_defaults)
+    try:
+        discovery = discover(request, resolve_inputs=config_defaults, reject_unsupported=True)
+    except UnsupportedModelClass as error:
+        return dict(ok=False, requirements=[dict(field=['model'], reason=str(error))])
     if config_defaults and (config_object is not None or profile.get('factory')
             or profile.get('init') != dict(args=[], kwargs={}) or discovery['init'] is not None
             or not discovery.get('resolution', {}).get('runtimeInputs')
@@ -223,14 +279,14 @@ def prepare_profile(request: MultifileProjectionRequest, config: str, profile: d
     try:
         model = ModelProfile.model_validate(binding_profile)
     except ValidationError as error:
-        return dict(ok=False, requirements=[dict(field=list(item["loc"]), reason=item["msg"])
-                                           for item in error.errors(include_input=False, include_context=False)][:64])
+        return dict(ok=False, requirements=_draft_requirements(error, binding_profile))
     source = next(entry.source for entry in request.sources if entry.file == request.root.file)
     from ..validation.contracts import Binding
     requirements = check_bindings(source.encode(), request.root.cls, profile_name or "model", model.init,
                                   model.inputs if isinstance(model.inputs, Binding) else None, framework=model.framework)
     if requirements:
-        return dict(ok=False, requirements=[dict(field=item.field[2:], reason=item.reason) for item in requirements])
+        return dict(ok=False, requirements=[dict(field=item.field[2:], reason=item.reason)
+                                           for item in requirements[:_MAX_REQUIREMENTS]])
     if config_object is not None:
         factory, profile = config_factory(discovery, profile, config_object)
         model = ModelProfile.model_validate(profile)

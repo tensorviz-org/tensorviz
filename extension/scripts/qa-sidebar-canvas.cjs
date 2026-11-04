@@ -20,7 +20,7 @@ exports.run = async () => {
     await test(); results.push(name); console.log(`PASS sidebar: ${name}`);
     fs.writeFileSync(path.join(root, 'evidence/sidebar-results.json'), JSON.stringify({ host: vscode.version, platform: process.platform, arch: process.arch, passed: results }, null, 2));
   };
-  const extension = vscode.extensions.getExtension('tensorviz.tensorviz');
+  const extension = vscode.extensions.getExtension('tensorviz.tensorviz-vscode');
   const api = (await extension.activate()).__test;
   const browser = await chromium.connectOverCDP(`http://127.0.0.1:${process.env.TV_QA_DEBUG_PORT}`);
   let client;

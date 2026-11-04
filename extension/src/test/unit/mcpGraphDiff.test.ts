@@ -79,6 +79,39 @@ suite('MCP visual graph diff', () => {
     assert.equal(await reviewGit(root, ['show', ':model.py']), index);
     assert.equal(editorState.appliedEdits.length, 0);
   });
+  test('a repository below a non-Git workspace opens from the model directory', async () => {
+    state.workspaceFolders = [{ uri: Uri.file(path.dirname(root)) }];
+    const result = await call({ file: path.join(root, 'model.py') });
+    assert.equal(result.error, undefined);
+    assert.equal(sessions[0].folder, root);
+    assert.equal(await sessions[0].before.read('model.py'), source('ReLU'));
+  });
+  test('an ignored nested clone uses its own HEAD rather than the workspace repository', async () => {
+    const nested = path.join(root, 'nanoGPT');
+    await fs.mkdir(nested);
+    await fs.writeFile(path.join(root, '.gitignore'), 'nanoGPT/\n');
+    await reviewGit(nested, ['init', '-q']);
+    await fs.writeFile(path.join(nested, 'model.py'), source('SiLU'));
+    await reviewGit(nested, ['add', '.']);
+    await reviewGit(nested, ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'nested']);
+    await fs.writeFile(path.join(nested, 'model.py'), source('GELU'));
+    const result = await call({ file: path.join(nested, 'model.py') });
+    assert.equal(result.error, undefined);
+    assert.equal(sessions[0].folder, nested);
+    assert.equal(await sessions[0].before.read('model.py'), source('SiLU'));
+  });
+  test('Git errors preserve the actual cause for an agent', async () => {
+    await reviewGit(root, ['checkout', '--orphan', 'no-history']);
+    assert.match((await call({ file: path.join(root, 'model.py') })).data.error.message, /no readable HEAD commit/);
+    await fs.rm(path.join(root, '.git'), { recursive: true });
+    assert.match((await call({ file: path.join(root, 'model.py') })).data.error.message, /not a git repository/i);
+    const previous = process.env.PATH;
+    try {
+      process.env.PATH = '';
+      assert.match((await call({ file: path.join(root, 'model.py') })).data.error.message, /git.*ENOENT/);
+    } finally { process.env.PATH = previous; }
+    assert.equal(shows, 0);
+  });
   test('the retained model wins over an unrelated editor without retargeting it', async () => {
     live = { workspaceFolder: root, file: 'model.py', cls: 'Net', documentVersion: 1, sourceDigest: 'a'.repeat(64), backendRevision: 1 };
     openStubEditor(path.join(root, 'unrelated.py'), '');

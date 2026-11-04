@@ -36,7 +36,7 @@ code --install-extension tensorviz.tensorviz-vscode
 
 All options, VSIX files, and platform limits are on the [Install](docs/install.md) page. Then open your first graph with the [quickstart](docs/quickstart.md).
 
-Published packages are maintained separately from this source tree. To build from source, see [local setup](docs/local-setup.md) and [plugin build](docs/plugin-build.md).
+Published packages are maintained separately from this source tree. To build from source, see [local setup](docs/local-setup.md) and [plugin build](docs/plugin-build.md). This repository is currently private, so GitHub links to it (source files, issues, releases) need read access until it is made public.
 
 ## Docs
 
@@ -69,4 +69,4 @@ Published packages are maintained separately from this source tree. To build fro
 
 TensorViz code is [MIT](LICENSE). tldraw, which renders the canvas, is not covered by that license. Read [NOTICE](NOTICE) and [docs/licensing.md](docs/licensing.md) before you give a build to other people.
 
-The hosted website application is not in this repository. **Add to tensorViz** and **tensorViz: Sign in to tensorViz** stay in the extension. See [share a graph](docs/share-to-website.md).
+The hosted website application is not in this repository. **Publish** and **tensorViz: Sign in to tensorViz** stay in the extension. See [share a graph](docs/share-to-website.md).

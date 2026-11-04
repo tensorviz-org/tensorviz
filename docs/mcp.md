@@ -15,6 +15,7 @@ Tool arguments are in [MCP tools](mcp-tools.md). Loopback, SSH, and the browser 
 - [Port](#port)
 - [Show the graph in a browser](#show-the-graph-in-a-browser)
 - [Fill missing inputs](#fill-missing-inputs)
+- [Read compact model context](#read-compact-model-context)
 
 ## Connect
 
@@ -46,6 +47,12 @@ One window owns the listener. Other windows share its URL. Another enabled windo
 
 Every local window is discoverable before it has a graph. Setup, execution, focus, and reviewed proposals route to the owning window and keep the originating session's ownership. Tools accept an optional `hostId`. An ambiguous file or active editor requires it. See [open a graph](mcp-tools.md#open-a-graph).
 
+On a fresh installation, `open_graph` can return `awaiting_runtime_install` with an `approve_runtime_install` next action. The user must approve **Install tensorViz’s runtime** in VS Code; **tensorViz: Repair runtime** also opens runtime setup. Poll the returned `requestId` after the user responds. Polling does not approve installation or start another opening.
+
+For project pin mismatches, the extension can return `use_installed_versions`. Send `open_graph` with `action: "use_installed_versions"` and the returned `requestId`, `openingId`, and `sourceDigest`. This is the Canvas **Try with installed versions** action: it changes no packages and still requires a compatible capture worker. It is available only when `opening.environment.declaredPins` is present. See [Python environments](environment-recovery.md).
+
+At session capacity, the endpoint replaces the least recently used session with no active request. Requests in progress remain protected. If all sessions are busy, close unused sessions or run **tensorViz: Disconnect coding agents (MCP)**, then **tensorViz: Connect coding agent (MCP)**.
+
 ## Port
 
 The endpoint binds `127.0.0.1`. `tensorviz.mcpPort` defaults to `0`: an available port, remembered and reused while it stays free. If another application takes that port, TensorViz binds a new one. It does not probe or stop the other application. Copy the URL from **Copy MCP URL** or **Connect coding agent (MCP)** after a change, then approve the update and reconnect.
@@ -69,3 +76,7 @@ When **Open as Graph** needs an example input, the Canvas shows **Choose a setup
 The agent calls `suggest_graph_inputs`, reads `forward` (including inherited definitions), fills `draft.profile` using the returned `inputContract`, then calls `configure_graph_setup` with the same opening id and source digest. Poll `get_graph_setup` until the capture finishes or a field is still missing.
 
 `suggest_graph_inputs` does not run Python. Only `configure_graph_setup` saves `tensorviz.toml` and starts the one forward capture, under the same checks as the form. The grammar, dtypes, and size limits are in [MCP tools](mcp-tools.md#fill-missing-inputs-with-your-agent).
+
+## Read compact model context
+
+Call `get_model_context` with the current model id and revision to read module aliases, registered parameter counts, complete retained call lists and ordered tensor shapes. Exact `focus` narrows the result; `maxBytes` accepts 2,000–100,000 bytes and defaults to 4,000. Unknowns and omitted records stay explicit. Stale evidence cannot supply current measurements. Native and ACP Canvas chat attach the same facts automatically when available. Inspection does not run the model or change source-review permissions. See [compact model context](model-context.md).

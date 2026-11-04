@@ -18,7 +18,7 @@ exports.run = async () => {
   assert.ok(root && process.env.TV_QA_DEBUG_PORT && process.env.TENSORVIZ_TEST_PYTHON);
   assert.equal(process.env.TENSORVIZ_TEST_PRESEED_MANAGED, '0');
   assert.ok(!process.env.BACKEND_PYTHON && !process.env.TENSORVIZ_TEST_RUNTIME_ARCHIVE && !process.env.TENSORVIZ_TEST_RUNTIME_MANIFEST);
-  const extension = vscode.extensions.getExtension('tensorviz.tensorviz');
+  const extension = vscode.extensions.getExtension('tensorviz.tensorviz-vscode');
   assert.ok(extension.extensionPath.startsWith(path.join(root, 'extensions') + path.sep));
   // VS Code scopes its API objects by extension path. Intercept the installed
   // extension's API, not the external driver's unrelated API object.

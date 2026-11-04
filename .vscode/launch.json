@@ -38,6 +38,6 @@
         "${workspaceFolder}"
       ],
       "outFiles": ["${workspaceFolder}/extension/out/**/*.js"]
-    },
+    }
   ]
 }

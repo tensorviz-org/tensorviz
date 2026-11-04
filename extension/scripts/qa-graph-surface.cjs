@@ -42,7 +42,7 @@ function webviewTabs() {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 exports.run = async function () {
-  const ext = vscode.extensions.getExtension('tensorviz.tensorviz');
+  const ext = vscode.extensions.getExtension('tensorviz.tensorviz-vscode');
   if (!ext) throw new Error('tensorViz extension missing');
   const api = (await ext.activate()).__test;
 

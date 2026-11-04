@@ -168,6 +168,22 @@ def _diag(
     }
 
 
+# Deeper ASTs (long generated operator chains) exceed the recursion limit of
+# ast.NodeVisitor-based passes. Hand-written model code is far below this.
+_MAX_AST_DEPTH = 200
+
+
+def _deepest_line_beyond(tree: ast.AST, limit: int) -> Optional[int]:
+    """Line of the first node nested deeper than ``limit``, else None. Iterative."""
+    stack = [(tree, 0)]
+    while stack:
+        node, depth = stack.pop()
+        if depth > limit:
+            return getattr(node, "lineno", 1) or 1
+        stack.extend((child, depth + 1) for child in ast.iter_child_nodes(node))
+    return None
+
+
 class ModuleIndex:
     """Built once per projection request over the validated source set."""
 
@@ -226,7 +242,14 @@ class ModuleIndex:
         package = package_of_file(path)
         try:
             tree = ast.parse(source, filename=path)
-        except SyntaxError as error:
+            too_deep = _deepest_line_beyond(tree, _MAX_AST_DEPTH)
+            if too_deep is not None:
+                # Recursive AST visitors downstream would hit Python's recursion
+                # limit and fail the whole scan; isolate this file like a parse error.
+                raise SyntaxError("nesting is too deep to analyze statically", (path, too_deep, 1, None))
+        except (SyntaxError, RecursionError, MemoryError) as error:
+            if not isinstance(error, SyntaxError):
+                error = SyntaxError("nesting is too deep to analyze statically", (path, 1, 1, None))
             # Isolate, never erase: the module index entry exists so the resolver
             # can say exactly WHICH dependency is broken while the rest stay live.
             return ModuleRecord(
@@ -348,25 +371,28 @@ class ModuleIndex:
         do not change module exports. Control-flow bindings and namespace mutation do.
         A literal __all__ is supported only when it has one untouched assignment.
         """
-        def scope_nodes(node):
-            yield node
-            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
-                # Defaults, bases and decorators are evaluated in the enclosing
-                # scope, unlike the body. They can mutate an export declaration.
-                evaluated = list(getattr(node, "decorator_list", ()))
-                if isinstance(node, ast.ClassDef):
-                    evaluated += list(node.bases) + [keyword.value for keyword in node.keywords]
-                else:
-                    evaluated += list(node.args.defaults) + [item for item in node.args.kw_defaults if item is not None]
-                    evaluated += [arg.annotation for arg in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
-                                  if arg.annotation is not None]
-                    if getattr(node, "returns", None) is not None:
-                        evaluated.append(node.returns)
-                for child in evaluated:
-                    yield from scope_nodes(child)
-                return
-            for child in ast.iter_child_nodes(node):
-                yield from scope_nodes(child)
+        def scope_nodes(root):
+            # Iterative pre-order walk: deeply nested expressions (long operator
+            # chains, generated code) must not hit Python's recursion limit.
+            stack = [root]
+            while stack:
+                node = stack.pop()
+                yield node
+                if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                    # Defaults, bases and decorators are evaluated in the enclosing
+                    # scope, unlike the body. They can mutate an export declaration.
+                    evaluated = list(getattr(node, "decorator_list", ()))
+                    if isinstance(node, ast.ClassDef):
+                        evaluated += list(node.bases) + [keyword.value for keyword in node.keywords]
+                    else:
+                        evaluated += list(node.args.defaults) + [item for item in node.args.kw_defaults if item is not None]
+                        evaluated += [arg.annotation for arg in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
+                                      if arg.annotation is not None]
+                        if getattr(node, "returns", None) is not None:
+                            evaluated.append(node.returns)
+                    stack.extend(reversed(evaluated))
+                    continue
+                stack.extend(reversed(list(ast.iter_child_nodes(node))))
 
         def bound(node):
             if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):

@@ -2,7 +2,7 @@ import * as assert from 'node:assert/strict';
 
 import * as vscode from 'vscode';
 
-const EXTENSION_ID = 'tensorviz.tensorviz';
+const EXTENSION_ID = 'tensorviz.tensorviz-vscode';
 
 /** The one thing only a real extension host can answer: does this manifest, compiled and
  *  loaded by VS Code itself, actually produce the command the palette offers?

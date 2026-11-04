@@ -139,6 +139,17 @@ export interface WorkerError {
   cause_types?: string[];
   missing_module?: string;
   diagnostic?: SemanticComponents['schemas']['Diagnostic'];
+  /** Fake-tier automatic captures only: the run stopped because the model needs tensor
+   *  values (`services/ingest/trace.py::fake_tensor_limitation`). */
+  fakeTensor?: FakeTensorLimitation;
+}
+
+/** Why a fake-tensor (shape-only) run could not run the model. */
+export interface FakeTensorLimitation {
+  reason: 'data_dependent' | 'dynamic_output_shape' | 'unsupported_operator' | 'unsupported_fake_tensor' | 'tensor_subclass';
+  errorType: string;
+  operation: string;
+  phase: 'construction' | 'forward';
 }
 
 /** The §6.3 envelope. `result` and `spans` are opaque here: the extension relays
@@ -162,7 +173,10 @@ export type TraceOutcome = (
    *  failure — a partial graph after a forward error is the useful half. */
   | { ok: false; reason: string; detail: string; envelope?: WorkerEnvelope; exitCode?: number; timedOut?: boolean; cancelled?: boolean; executionCurrent?: boolean }
 ) & { /** Host-only saved-setup recheck after asynchronous graph projection. */
-  recheckExecution?: (signal: AbortSignal) => Promise<boolean> };
+  recheckExecution?: (signal: AbortSignal) => Promise<boolean>;
+  /** Set when a fake-tier automatic capture stopped on a fake-tensor limitation and this
+   *  outcome is the single real-tensor re-run that replaced it. */
+  fakeTensorFallback?: FakeTensorLimitation };
 
 /** Parse and validate the worker's stdout.
  *
@@ -409,6 +423,16 @@ export function standbyEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return result;
 }
 
+/** The fake-tensor limitation a finished fake-tier run stopped on, or undefined. A
+ *  cancelled or timed-out run, and any other failure, is not one. */
+export function fakeTensorLimitation(outcome: TraceOutcome): FakeTensorLimitation | undefined {
+  if (outcome.ok || outcome.cancelled || outcome.timedOut) return undefined;
+  const limitation = outcome.envelope?.error?.fakeTensor;
+  const reasons = ['data_dependent', 'dynamic_output_shape', 'unsupported_operator', 'unsupported_fake_tensor', 'tensor_subclass'];
+  return limitation && typeof limitation === 'object' && reasons.includes(limitation.reason)
+    && (limitation.phase === 'construction' || limitation.phase === 'forward') ? limitation : undefined;
+}
+
 /** Command-line arguments for one request (task.md §6.3). */
 export function workerArgs(request: TraceRequest, transport: 'inline' | 'plan' | 'preparation' | 'candidate' = 'inline'): string[] {
   if (request.prepareConfigDefaults && !request.prepareInputs) throw new Error('Config defaults require private input preparation.');
@@ -446,8 +470,10 @@ export function workerArgs(request: TraceRequest, transport: 'inline' | 'plan' |
   }
   if (request.job && !request.execution) throw new Error('Diagnostic jobs require an explicit execution setup.');
   if (transport === 'preparation') {
-    if (request.execution || !request.workspace || request.tier === 'fake' || request.kind && request.kind !== 'model') {
-      throw new Error('Automatic preparation requires a real model and its workspace.');
+    // Both tiers: a fake-tier automatic capture is the same canonical capture, recorded
+    // on fake tensors (no values). Explicit execution and candidates stay real-only.
+    if (request.execution || !request.workspace || request.kind && request.kind !== 'model') {
+      throw new Error('Automatic preparation requires a model and its workspace.');
     }
     args.push('--capture-preparation', '--workspace', request.workspace);
   }
@@ -743,10 +769,29 @@ export class TraceWorkerCore {
     killTree(standby.child);
   }
 
-  /** Trace `request`, or explain why not. Never throws. */
+  /** Trace `request`, or explain why not. Never throws.
+   *
+   *  A fake-tier automatic capture that stops on a fake-tensor limitation (the model
+   *  reads a value: `.item()`, `nonzero`, `unique`, ...) is re-run ONCE with real
+   *  tensors and the same capture preparation, and that real outcome is returned with
+   *  `fakeTensorFallback` set. Nothing else is retried, and the real tier never is. */
   async run(request: TraceRequest): Promise<TraceOutcome> {
+    let preparation: PreparationSnapshot | undefined;
+    const fake = request.tier === 'fake' && !request.execution;
+    // runInternal cancels (bumps the generation) synchronously before its first await.
+    const generation = this.runGeneration + 1;
+    const outcome = await this.runOnce(request, fake ? { prepared: snapshot => { preparation = snapshot; } } : undefined);
+    const limitation = fake ? fakeTensorLimitation(outcome) : undefined;
+    if (!limitation || !preparation || generation !== this.runGeneration || this.disposed) return outcome;
+    this.channel.appendLine(`[worker] fake-tensor run stopped: ${limitation.reason}`
+      + `${limitation.operation ? ` (${limitation.operation})` : ''} during ${limitation.phase}; re-running once with real tensors`);
+    const real = await this.runOnce({ ...request, tier: 'real' }, { preparation });
+    return { ...real, fakeTensorFallback: limitation };
+  }
+
+  private async runOnce(request: TraceRequest, reuse?: Parameters<TraceWorkerCore['runInternal']>[3]): Promise<TraceOutcome> {
     let shadow: (() => void) | undefined;
-    const outcome = await this.runInternal(request, undefined, work => { shadow = work; });
+    const outcome = await this.runInternal(request, undefined, work => { shadow = work; }, reuse);
     // Shadow comparison after the caller has its result, never before it.
     if (shadow) {
       const work = shadow;
@@ -820,11 +865,16 @@ export class TraceWorkerCore {
   }
 
   private async runInternal(request: TraceRequest, candidate?: CandidateRequest,
-    deferShadow?: (work: () => void) => void): Promise<TraceOutcome & { candidate?: CandidateEvidence }> {
+    deferShadow?: (work: () => void) => void,
+    /** Fake-tier fallback only: `prepared` receives the automatic capture preparation;
+     *  `preparation` re-runs with that same preparation instead of preparing again, so
+     *  the re-run's capture belongs to the attempt's one preparation. */
+    reuse?: { prepared?: (snapshot: PreparationSnapshot) => void; preparation?: PreparationSnapshot },
+  ): Promise<TraceOutcome & { candidate?: CandidateEvidence }> {
     this.cancel();
     if (!this.options.trusted()) return { ok: false,
       reason: 'Model execution requires host authorization.', detail: 'Nothing was run.' };
-    const automatic = !candidate && !request.execution && !!request.workspace && (!request.kind || request.kind === 'model') && request.tier !== 'fake';
+    const automatic = !candidate && !request.execution && !!request.workspace && (!request.kind || request.kind === 'model');
     let args: string[];
     try { args = workerArgs(request, candidate ? 'candidate' : automatic ? 'preparation' : 'plan'); }
     catch { return { ok: false, reason: 'Invalid tensor input descriptions.', detail: 'Use bounded shape/dtype/fill descriptions for a model request.' }; }
@@ -898,9 +948,10 @@ export class TraceWorkerCore {
         bootstrap = await executionPlanFile(executionSnapshot);
         request.onResolvedPlan?.(executionSnapshot);
       } else if (automatic) {
-        captureSnapshot = await prepareCapture();
+        captureSnapshot = reuse?.preparation ?? await prepareCapture();
         timeoutMs = captureSnapshot.preparation.timeoutMs;
         bootstrap = await executionPlanFile(captureSnapshot);
+        reuse?.prepared?.(captureSnapshot);
         request.onCapturePrepared?.(captureSnapshot);
       }
       const compiled = nativeBackend(this.backendDir);

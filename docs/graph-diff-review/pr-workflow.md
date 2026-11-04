@@ -41,6 +41,12 @@ an absent model is not called added/deleted when the other inventory is incomple
 Tests cover pinned fork/merge-base loading, source corruption, path and size limits,
 cache reuse, dirty/index isolation, active-diff identity, and project boundaries.
 
+Models under nested project folders retain their declarations and captured context
+when review runs from the Git checkout root. Directory aliases use the same file
+identity for unsaved buffers, navigation and stale-review checks. Conflicting text
+in two open aliases must be resolved before comparison; source-file symlinks remain
+excluded. See [project boundaries](../graph-opening.md#models-inside-a-larger-workspace).
+
 ## Reviewer workflow
 
 - In VS Code's Python code diff, use **Graph diff** in the editor toolbar. The

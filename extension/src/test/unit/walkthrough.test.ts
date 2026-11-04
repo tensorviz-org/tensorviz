@@ -67,7 +67,7 @@ suite('showWalkthroughOnce', () => {
   });
 
   test('the qualified id is <publisher>.<name>#<walkthrough id>', () => {
-    assert.equal(qualifiedWalkthroughId(), 'tensorviz.tensorviz#tensorviz.firstRun');
+    assert.equal(qualifiedWalkthroughId(), 'tensorviz.tensorviz-vscode#tensorviz.firstRun');
   });
 });
 

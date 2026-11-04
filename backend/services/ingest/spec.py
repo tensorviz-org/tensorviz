@@ -188,6 +188,13 @@ class IngestDiagnostics(BaseModel):
     semantic_capture: Optional[Dict[str, Any]] = None
     semantic_capture_error: Optional[Literal["recorder_error", "byte_limit", "source_mismatch"]] = None
     automatic_capture: Optional[Dict[str, Any]] = None
+    # Canonical fake-tier runs that stopped because the model needs tensor values:
+    # ``{"limitation": {reason, errorType, operation}}`` (see trace.fake_tensor_limitation).
+    # Omitted, not null, everywhere else, so real-tier results serialise exactly as before.
+    fake_tensor: Optional[Dict[str, Any]] = Field(default=None, exclude_if=lambda value: value is None)
+    # Within-run block-template counters (TENSORVIZ_BLOCK_TEMPLATES=1|shadow, canonical fake
+    # tier only). Omitted, not null, whenever the flag is off.
+    block_templates: Optional[Dict[str, Any]] = Field(default=None, exclude_if=lambda value: value is None)
     # Execution-cache storability of a resolved-plan run (see ``ReuseReport``). None for
     # every other run. Declared because pydantic drops what it is not told about.
     reuse: Optional[ReuseReport] = None

@@ -50,6 +50,7 @@ import {
   reserveLoopbackPort,
   resolveBackendDir,
   resolveBackendInterpreter,
+  runtimeInstallApprovalPending,
   withoutTraceback,
 } from './preflight';
 import { registerCanvasCommands } from './graphSurface';
@@ -300,6 +301,8 @@ let mcpGraphView: McpGraphView | undefined;
 
 function windowOpening(): McpOpenGraph {
   return mcpOpening ??= new McpOpenGraph({
+    pending: () => runtimeInstallApprovalPending() ? { kind: 'runtime_install_approval',
+      detail: 'Approve the runtime installation in VS Code to continue opening. Run “tensorViz: Repair runtime” if the prompt is hidden.' } : undefined,
     inspectEnvironment: async (file, signal) => {
       const context = extensionContext!;
       if (file && !path.isAbsolute(file)) throw new GraphToolError('ABSOLUTE_PATH_REQUIRED', 'Supply an absolute model file path.');

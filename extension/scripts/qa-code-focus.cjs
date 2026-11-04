@@ -34,7 +34,7 @@ exports.run = async () => {
   await vscode.workspace.getConfiguration('extensions').update('autoCheckUpdates', false, vscode.ConfigurationTarget.Global);
   const file = path.join(root, 'fixture/focus.py');
   fs.writeFileSync(file, source);
-  const extension = vscode.extensions.getExtension('tensorviz.tensorviz');
+  const extension = vscode.extensions.getExtension('tensorviz.tensorviz-vscode');
   assert.ok(extension);
   const api = (await extension.activate()).__test;
   const document = await vscode.workspace.openTextDocument(file);

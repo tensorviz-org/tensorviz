@@ -40,7 +40,7 @@ suite('tensorViz website sign-in', () => {
 
   test('the connect link reaches the browser as the website expects it', () => {
     const state = 'Zq3_state-abcdefghij';
-    assert.equal(editorCallback('vscode', 'tensorviz.tensorviz'), CALLBACK);
+    assert.equal(editorCallback('vscode', 'tensorviz.tensorviz-vscode'), CALLBACK);
     const opened = new URL(openedByVsCode(connectUrl(WEBSITE, CALLBACK, state)));
     assert.equal(opened.searchParams.get('state'), state);
     assert.equal(opened.searchParams.get('callback'), CALLBACK);

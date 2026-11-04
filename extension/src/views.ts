@@ -317,7 +317,7 @@ export class ModelsTree implements vscode.TreeDataProvider<ModelsNode> {
     const roots = this.roots();
     const message = modelsMessage({
       markdown: markdownMessageGranted(
-        vscode.extensions.getExtension('tensorviz.tensorviz')?.packageJSON,
+        vscode.extensions.getExtension('tensorviz.tensorviz-vscode')?.packageJSON,
       ),
       hasWorkspace: roots.length > 0,
       indexed: roots.some((root) => this.index.classesFor(root) !== undefined),

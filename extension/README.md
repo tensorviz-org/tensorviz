@@ -16,7 +16,7 @@ Expand nested modules, inspect shapes from a captured forward pass, and jump
 from a layer to its source. Plain JAX functions and Flax modules also open as
 traced programs with inferred shapes.
 
-Extension **0.1.18**. Shapes describe the example input you capture.
+Extension **0.1.36**. Shapes describe the example input you capture.
 
 - **Understand a model:** explore one block at a time instead of reading the whole definition.
 - **Investigate a shape mismatch:** follow the shapes recorded for your example inputs.
@@ -89,10 +89,10 @@ The saved `tensorviz.toml` profile has `framework = "jax"`. Linen modules use
 the saved seed to initialize fresh parameters; use a Python setup factory to
 bind trained variables or construct NNX state.
 
-JAX support currently traces on CPU and labels shapes as **inferred**. Control
+JAX support traces on the saved CPU or CUDA device and labels shapes as **inferred**. Control
 flow primitives retain their boundary and report partial coverage; tracing does
-not claim a branch executed. Runtime timing and PyTorch source-edit forms are
-unavailable for these graphs. The shared capture worker still requires Torch.
+not claim a branch executed. PyTorch source edits are unavailable for these
+graphs. The shared capture worker still requires Torch.
 
 ## Explore and edit
 
@@ -101,18 +101,24 @@ node and click its file:line link at inspection zoom to open its source. Moving 
 into a mapped layer focuses it on the graph. Parse errors leave the last graph
 visibly stale until the source is fixed.
 
-Zoom into a layer and use its top-right **Edit** control for an inline source form.
-Supported forms include parameter/add/delete/group proposals.
-Choose **Review in VS Code**, then **Apply source change** or **Discard proposal**
-in the native diff's toolbar. Apply changes the unsaved buffer; native Undo
-restores it. Changed source or dependencies invalidate an old proposal.
+Turn on **Code focus** in the Canvas header to open each selected node's source
+beside the graph; double-click or Enter on a layer moves keyboard focus to it. The
+chevron beside it can dim unrelated code. With the Canvas maximized, showing source
+restores the split so the code appears beside it.
 
 To use your existing coding agent, run **tensorViz: Connect coding agent (MCP)**.
 A status-bar item shows Off, Ready or Connected. The connection panel can configure
 a supported agent after approval or provide the URL for a Streamable HTTP client.
 The agent's `open_graph` tool opens and captures a model, completes missing setup
 and requests dependency installation in TensorViz's reported capture environment.
-It also inspects graphs, focuses a view and proposes edits for the same native review.
+It also inspects graphs, focuses a view and proposes source edits. Each opens in
+VS Code's native diff: choose **Apply source change** or **Discard proposal** in its
+toolbar. Accept/Apply makes one undoable edit, saves the reviewed files and runs
+the model with its saved setup; native Undo restores the source edit. Changed source
+or dependencies invalidate an old proposal. Canvas chat can propose changes across
+existing graph-recorded Python files. Native and optional ACP connections reuse
+conversation context and attach [compact model facts](../docs/model-context.md);
+preparing chat can use the agent’s provider before Send.
 The MCP connection uses your existing coding agent. See
 [MCP setup](https://tensorviz.dev/install.html#agents).
 
@@ -122,7 +128,7 @@ Source review checks syntax and graph consistency, not runtime tensor correctnes
 
 ## Share a graph file
 
-Choose **Export graph** in the canvas to save a `.tensorviz.json` snapshot.
+In **Open Canvas in Browser**, choose **Export graph** to save a `.tensorviz.json` snapshot. The editor Canvas offers **Publish** to share through your website account.
 **Open graph file viewer** opens the independent viewer for pan, zoom, search,
 module expansion, saved views, walkthroughs and layer/connection discussions.
 Choose an opening view for recipients, or compare two files to review architecture
@@ -140,10 +146,19 @@ return the selected component from a pipeline. Modules can remain in their origi
 files. The factory must return the selected class. See
 [input setup guide](https://tensorviz.dev/install.html#first-graph).
 
-Saving refreshes the source projection and does not run the model.
-`tensorviz.traceOnSave` stays in settings and is ignored: a true value does not
-schedule a capture. Missing or ambiguous setup refuses execution. Typing refreshes
-the source projection without running it.
+Saving changed model code or a tracked Python dependency automatically validates
+the open model by default, using its saved inputs, device and environment. Set
+`tensorviz.traceOnSave` to `false` to run manually. Typing refreshes the source
+projection without running; unchanged saves do not run. Missing or ambiguous setup refuses execution.
+
+Execution caching is on by default for eligible identical CPU runs. A brief Python
+safety check still runs; the model does not run again. Use **Run fresh** to execute
+it again, or set `tensorviz.executionCache.mode` to `off`.
+
+`tensorviz.traceTier` defaults to `real`. Experimental `fake` uses shape-only
+tensors; `auto` uses them after a real run counts at least 150 million parameters.
+Models needing tensor values retry with real tensors. Saved profiles, validation
+and candidates always use real tensors.
 
 All 15 settings, including `tensorviz.traceTier`, `tensorviz.autoOpenCanvas`, `tensorviz.followEditor`, `tensorviz.showGraphPrompt`, `tensorviz.codeFocus`, `tensorviz.mcpPort`, and the deprecated `tensorviz.graphSurface`, are in the [settings reference](../docs/reference.md#extension-settings).
 

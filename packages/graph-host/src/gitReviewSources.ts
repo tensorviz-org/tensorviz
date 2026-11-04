@@ -6,17 +6,22 @@ import { realpath } from 'node:fs/promises';
 import { collectSourceSet, relativeInside, SourceIO, SourceSet } from './workspaceSourceCore';
 
 const execute = promisify(execFile);
-export async function reviewGit(folder: string, args: string[]): Promise<string> {
+export async function reviewGit(folder: string, args: string[], input?: string): Promise<string> {
   const env = { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' } as NodeJS.ProcessEnv;
   // Repository-local variables (git rev-parse --local-env-vars) can redirect -C,
   // notably when VS Code or a test is launched from another repository's hook.
   for (const key of ['GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_CONFIG', 'GIT_CONFIG_PARAMETERS', 'GIT_CONFIG_COUNT',
     'GIT_OBJECT_DIRECTORY', 'GIT_DIR', 'GIT_WORK_TREE', 'GIT_IMPLICIT_WORK_TREE', 'GIT_GRAFT_FILE', 'GIT_INDEX_FILE',
     'GIT_NO_REPLACE_OBJECTS', 'GIT_REPLACE_REF_BASE', 'GIT_PREFIX', 'GIT_SHALLOW_FILE', 'GIT_COMMON_DIR']) delete env[key];
-  const result = await execute('git', ['--no-pager', '-C', folder, ...args], {
+  const pending = execute('git', ['--no-pager', '-C', folder, ...args], {
     encoding: 'utf8', timeout: 15_000, maxBuffer: 10 * 1024 * 1024,
     env,
   });
+  if (input !== undefined) {
+    pending.child.stdin?.on('error', () => {});
+    pending.child.stdin?.end(input);
+  }
+  const result = await pending;
   return result.stdout;
 }
 

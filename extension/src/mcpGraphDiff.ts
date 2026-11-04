@@ -35,8 +35,8 @@ export async function openGraphDiff(args: { file?: string; cls?: string }, host:
   }
   let session: ReviewSession;
   try { session = await reviewFileChanges(uri, 'head'); }
-  catch {
-    throw new GraphToolError('GIT_COMPARISON_UNAVAILABLE', 'Could not read HEAD and the current Python files. This model needs a local Git repository with at least one commit; no GitHub push is required. Check the TensorViz output if Git is unavailable.');
+  catch (error) {
+    throw new GraphToolError('GIT_COMPARISON_UNAVAILABLE', `Could not compare HEAD with current files. ${error instanceof Error ? error.message : String(error)}`);
   }
   session.preferredClass = args.cls ?? (live && uri.fsPath === path.join(live.workspaceFolder, live.file) ? live.cls : undefined);
   cancelled();

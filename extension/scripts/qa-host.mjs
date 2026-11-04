@@ -210,7 +210,7 @@ async function main() {
     const [cli, ...cliArgs] = resolveCliArgsFromVSCodeExecutablePath(resolve(executable));
     execFileSync(cli, [...cliArgs, '--user-data-dir', join(root, 'profile'), '--extensions-dir', join(root, 'extensions'),
       '--install-extension', resolve(vsix), '--force'], { stdio: 'inherit' });
-    const installed = readdirSync(join(root, 'extensions')).filter(name => name.startsWith('tensorviz.tensorviz-'));
+    const installed = readdirSync(join(root, 'extensions')).filter(name => name.startsWith('tensorviz.tensorviz-vscode-'));
     if (installed.length !== 1) throw new Error('Expected one installed tensorViz VSIX in the disposable profile');
     launchExtension = join(root, 'extensions', installed[0]);
     writeFileSync(join(root, 'evidence', 'package.json'), JSON.stringify({

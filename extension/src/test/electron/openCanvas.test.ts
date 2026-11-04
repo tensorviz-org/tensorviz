@@ -5,7 +5,7 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
-const EXTENSION_ID = 'tensorviz.tensorviz';
+const EXTENSION_ID = 'tensorviz.tensorviz-vscode';
 
 /** The checkout this test drives the extension against: three directories up from
  *  out/test/electron. */

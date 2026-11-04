@@ -12,7 +12,9 @@ Compare Python changes on the graph, with the code diff beside it.
 2. In the Canvas toolbar, choose **Review model changes → Working changes** to compare with HEAD.
 3. Read the native code diff beside the graph. Use **Before / Diff / After** and the change arrows to inspect the result.
 
-You can also choose **Graph diff** from an open Python diff, or run **tensorViz: Review model changes** for working changes, branch changes, or two local revisions.
+You can also choose **Graph diff** from an open Python diff, or run **tensorViz: Review model changes** for working changes, branch changes, or two local revisions. In Source Control, **Changes** compares the index with working files, including unsaved buffers; **Staged Changes** compares HEAD with the index. **Graph diff against HEAD** compares HEAD with working files.
+
+File-based comparisons use the nearest Git repository containing the model, including nested clones under a workspace that is not a repository. Ignored files and their open buffers are excluded from added files; tracked files retain unsaved edits. MCP reports the Git failure reason when the repository, HEAD commit, or Git executable is unavailable.
 
 
 ## Review a pull request
@@ -28,11 +30,11 @@ Choose **Open PR** and provide a GitHub.com pull-request URL or select a reposit
 | Amber | Source or parameters modified |
 | Blue | Inputs or incoming connections changed |
 
-Use **Before / Diff / After** when a source comparison offers them. Previous and next move through changes. If code or the PR changes, use **Refresh graph diff** to update the review.
+Use **Before / Diff / After** when a source comparison offers them. Previous and next visit each affected captured call once and open its containing module. Moving the code cursor onto a line with one change focuses that change; ambiguous lines stay unselected. If code or the PR changes, use **Refresh graph diff** to update the review.
 
 ## What the comparison tells you
 
-Graph diff compares source and **does not execute either revision**. An existing capture can provide context, but its shapes are not new before-and-after measurements.
+Graph diff compares source and **does not execute either revision**. An existing capture can provide context, but its shapes are not new before-and-after measurements. Models in nested projects keep their captured context when review starts from the containing Git checkout, in the extension and standalone plugin. See [project boundaries](../graph-opening.md#models-inside-a-larger-workspace).
 
 Unmapped or ambiguous changes stay visible as unresolved. The review does not prove behavioral equivalence. Capture the changed model separately when you need runtime evidence.
 

@@ -31,7 +31,7 @@ const embeddedSummary = (drawn) => {
 
 exports.run = async function () {
   await require(path.join(__dirname, 'check-installed-workspace.cjs')).run();
-  const ext = vscode.extensions.getExtension('tensorviz.tensorviz');
+  const ext = vscode.extensions.getExtension('tensorviz.tensorviz-vscode');
   if (!ext) throw new Error('Installed tensorViz extension missing');
   const api = (await ext.activate()).__test;
   const uri = vscode.Uri.file(path.join(root, 'fixture/complex_models/network.py'));

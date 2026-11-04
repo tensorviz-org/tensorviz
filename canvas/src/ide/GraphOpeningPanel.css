@@ -146,7 +146,7 @@
 .graph-setup-method-label { display: block; }
 .graph-setup-methods > button small { display: block; font-size: 10px; line-height: 16px; font-weight: 400; }
 .graph-model-setup-panel .graph-setup-agent { background: var(--tv-accent-wash); border-color: var(--tv-accent); color: var(--tv-accent); }
-.graph-model-setup-panel .graph-setup-manual-choice { background: var(--tv-field); }
+.graph-model-setup-panel .graph-setup-manual-choice { margin-top: 8px; background: transparent; border-color: transparent; }
 .graph-model-setup-panel .graph-setup-methods > p { margin: 6px 0 0; font-size: 11px; line-height: 16px; padding: 0 1px; }
 .graph-setup-or { display: flex; align-items: center; gap: 10px; margin: 12px 0; color: var(--tv-text-3); font-size: 11px; line-height: 16px; }
 .graph-setup-or::before, .graph-setup-or::after { content: ''; height: 1px; flex: 1; background: var(--tv-hairline); }

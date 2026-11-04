@@ -1,5 +1,6 @@
 import React from 'react';
-import { Check, ChevronRight, FolderOpen, LoaderCircle, RotateCw, ShieldCheck, SquareTerminal, TriangleAlert, X } from 'lucide-react';
+import { GraphSetupProgress } from './GraphSetupProgress';
+import { ArrowLeft, ArrowUpRight, Check, ChevronRight, FolderOpen, LoaderCircle, RotateCw, ShieldCheck, Sparkles, SquareTerminal, TriangleAlert, X } from 'lucide-react';
 import type { GraphEnvironmentCandidate, GraphOpeningState, GraphSetupAction } from './protocol.generated';
 import { isModelEnvironmentName } from './protocol.generated';
 import './EnvironmentRecoveryPanel.css';
@@ -8,6 +9,7 @@ function pathText(value: string) {
   return value.split(/([/\\._-])/).map((part, index) => <React.Fragment key={index}>{part}{/^[/\\._-]$/.test(part) && <wbr />}</React.Fragment>);
 }
 function identityOf(candidate: GraphEnvironmentCandidate) {
+  if (candidate.managed) return 'TensorViz Python';
   const parts = (candidate.prefix || candidate.interpreter.replace(/[/\\][^/\\]+$/, '').replace(/[/\\](?:bin|Scripts)$/i, '')).split(/[/\\]/).filter(Boolean);
   return parts.at(-3) === 'model-environments' && /^model-/.test(parts.at(-2) ?? '')
     ? parts.at(-1)! : parts.slice(-2).join('/') || candidate.interpreter;
@@ -47,6 +49,8 @@ export function EnvironmentRecoveryPanel({ state, connected, standalone, onActio
     ?? environment.candidates.find(candidate => candidate.pythonSelected && candidate.status !== 'unavailable')?.id
     ?? environment.candidates.find(candidate => candidate.status !== 'unavailable')?.id ?? '';
   const [selected, setSelected] = React.useState(suggestion);
+  const [manualOpeningId, setManualOpeningId] = React.useState<string>();
+  const manual = standalone || manualOpeningId === state.id;
   const [query, setQuery] = React.useState('');
   React.useEffect(() => setQuery(''), [state.id]);
   // Model-checked alternatives stay visible even when the saved choice is recommended or explicit.
@@ -60,6 +64,13 @@ export function EnvironmentRecoveryPanel({ state, connected, standalone, onActio
   const onAction = (action: GraphSetupAction) => { if (action.kind !== 'create_environment') setCreatingName(undefined); sendAction(action); };
   const create = () => { setCreatingName(name); onAction({ kind: 'create_environment', name }); };
   const busy = ['resolving', 'saving', 'capturing'].includes(state.phase);
+  const showMethods = !manual && !busy;
+  const agentButtonRef = React.useRef<HTMLButtonElement>(null);
+  const manualHeadingRef = React.useRef<HTMLHeadingElement>(null);
+  React.useEffect(() => {
+    if (showMethods) agentButtonRef.current?.focus();
+    else if (manual && !standalone && !busy) manualHeadingRef.current?.focus();
+  }, [showMethods, manual, standalone, busy, state.id]);
   const bodyRef = React.useRef<HTMLDivElement>(null);
   React.useLayoutEffect(() => {
     // A result must be visible even after choosing an interpreter lower in the list.
@@ -116,25 +127,73 @@ export function EnvironmentRecoveryPanel({ state, connected, standalone, onActio
   const status = busy ? state.detail : failure ? state.detail.split('\n')[0] : stopped ? 'Setup stopped. You can retry when ready.'
     : !confirmed ? (candidate && modelFit(candidate)) ?? 'This Python has not been checked for your model.' : repair ? candidate?.status === 'libraries_present'
       ? 'Model libraries missing · capture tools are installed.' : 'Required libraries missing.' : 'Model check needs attention.';
+  const diagnosticSummary = failure || openingUpdate ? (failure ? state.detail : openingUpdate!).split('\n')[0]
+    : !canCreate || environment.reason === 'selection_required' ? environment.detail
+      : missing ? 'This Python needs libraries to run your model.' : incompatible ? 'This Python’s libraries do not match the model.' : 'Choose Python to continue.';
+  // Keep the summary once. The disclosure adds only diagnostic information that is not already visible.
+  const diagnosticDetails = Array.from(new Set([
+    ...(canCreate || failure || openingUpdate ? [environment.detail] : []),
+    ...(failure || openingUpdate ? [state.detail] : []),
+  ].map(detail => detail === diagnosticSummary ? '' : detail.startsWith(`${diagnosticSummary}\n`)
+    ? detail.slice(diagnosticSummary.length).trim() : detail).filter(Boolean)));
+  const methodIssue = failure ? state.detail.split('\n')[0] : undefined;
+  const methodDetails = Array.from(new Set([environment.detail, ...(failure ? [state.detail] : [])]
+    .map(detail => !methodIssue ? detail : detail === methodIssue ? '' : detail.startsWith(`${methodIssue}\n`)
+      ? detail.slice(methodIssue.length).trim() : detail).filter(Boolean)));
+  const modelContext = <div className="graph-environment-model" title={`${state.target.cls} · ${state.target.file}`}>
+    <span className={`graph-opening-indicator${busy ? ' running' : ''}${!connected ? ' disconnected' : ''}`} /><span>{state.target.cls}</span><code>{state.target.file}</code>
+    {onClose && <button type="button" className="graph-opening-close" aria-label="Close environment setup" onClick={onClose}><X aria-hidden="true" /></button>}
+  </div>;
+  if (showMethods) return <section className="graph-opening-panel graph-environment-panel graph-environment-methods-panel" aria-label="Python environment for model"
+    onKeyDown={event => { if (event.key === 'Escape' && onClose) { event.stopPropagation(); onClose(); } }}>
+    <header className="graph-environment-header">
+      {modelContext}
+      <h1>{failure ? 'Project setup needs attention' : stopped ? 'Project setup stopped' : 'Set up this project'}</h1>
+      <p id="environment-purpose">Python runs your model to record tensor shapes.</p>
+      <GraphSetupProgress state={state} />
+    </header>
+    <div className="graph-environment-body" ref={bodyRef}>
+      {(failure || stopped) && <p className="graph-environment-diagnostic graph-environment-opening-issue" role={failure ? 'alert' : 'status'}>{methodIssue ?? 'Setup stopped. Your model and saved choices are still here.'}</p>}
+      <section className="graph-setup-methods" aria-label="Choose a setup method">
+        <button ref={agentButtonRef} type="button" data-setup-agent className="graph-setup-agent" disabled={!connected}
+          aria-describedby="environment-purpose" onClick={() => onAction({ kind: 'agent_help' })}>
+          <Sparkles size={16} aria-hidden="true" /><span className="graph-setup-method-label">Set up project with agent</span><ArrowUpRight size={16} aria-hidden="true" />
+        </button>
+        {!connected && <p role="status">Reconnecting. Setup is available when the connection returns.</p>}
+        <button type="button" className="graph-environment-manual-choice" onClick={() => setManualOpeningId(state.id)}>Set up manually</button>
+      </section>
+      <details className="graph-environment-setup-details"><summary><ChevronRight aria-hidden="true" />Learn more</summary>
+        <p>Your agent checks the project, prepares Python and test inputs, then opens the graph. You review any dependency installation.</p>
+        {methodDetails.length > 0 && <>
+          <h2>Current setup</h2>
+          {methodDetails.map(detail => <p key={detail} className="graph-environment-diagnostic">{detail}</p>)}
+        </>}
+      </details>
+    </div>
+    <footer className="graph-environment-footer">
+      <div className="graph-environment-actions">
+        <button type="button" disabled={!connected} onClick={() => onAction({ kind: 'source_only' })}>Inspect source only</button>
+        <button className="graph-environment-cancel" type="button" disabled={!connected} onClick={() => onAction({ kind: 'cancel' })}>Cancel</button>
+      </div>
+    </footer>
+  </section>;
   return <section className="graph-opening-panel graph-environment-panel" aria-label="Python environment for model" aria-busy={busy}
     onKeyDown={event => { if (event.key === 'Escape' && onClose) { event.stopPropagation(); onClose(); } }}>
     <header className="graph-environment-header">
-      <div className="graph-environment-model" title={`${state.target.cls} · ${state.target.file}`}>
-        <span className={`graph-opening-indicator${busy ? ' running' : ''}${!connected ? ' disconnected' : ''}`} /><span>{state.target.cls}</span><code>{state.target.file}</code>
-        {onClose && <button type="button" className="graph-opening-close" aria-label="Close environment setup" onClick={onClose}><X aria-hidden="true" /></button>}
-      </div>
-      <h1>{title}</h1><p role="status" title={hint}>{hint}</p>
+      {modelContext}
+      {!standalone && !busy && <button type="button" className="graph-environment-back" onClick={() => setManualOpeningId(undefined)}><ArrowLeft aria-hidden="true" />Setup options</button>}
+      <h1 ref={manualHeadingRef} tabIndex={-1}>{title}</h1><p role="status" title={hint}>{hint}</p>
+      <GraphSetupProgress state={state} />
     </header>
     <div className="graph-environment-body" ref={bodyRef}>
       {busy ? <div className="graph-environment-slip"><h2>Preparing <code>{state.environmentName ?? creatingName ?? identity}</code></h2></div>
         : <div className={`graph-environment-slip ${failure ? 'error' : blocked ? 'warning' : 'neutral'}`} role={!canCreate && (blocked || openingUpdate) ? 'alert' : undefined}>
           <h2>{failure ? 'Could not finish setup' : (missing || incompatible) && savedCandidate ? <>Model check for <code>{identityOf(savedCandidate)}</code></> : 'Environment check'}</h2>
-          {failure || openingUpdate ? <p className="graph-environment-diagnostic">{(failure ? state.detail : openingUpdate!).split('\n')[0]}</p>
-            : <p>{!canCreate || environment.reason === 'selection_required' ? environment.detail : missing ? 'This Python needs libraries to run your model.' : incompatible ? 'This Python’s libraries do not match the model.' : 'Choose Python to continue.'}</p>}
-          <details><summary><ChevronRight aria-hidden="true" />Setup details</summary>{(canCreate || failure || openingUpdate) && <p className="graph-environment-diagnostic">{environment.detail}</p>}
-            {(failure || openingUpdate) && state.detail !== environment.detail && state.detail.includes('\n') && <p className="graph-environment-diagnostic">{state.detail}</p>}
+          <p className={failure || openingUpdate ? 'graph-environment-diagnostic' : undefined}>{diagnosticSummary}</p>
+          {(diagnosticDetails.length > 0 || (missing && savedCandidate?.status === 'libraries_present' && !failure)) && <details><summary><ChevronRight aria-hidden="true" />Setup details</summary>
+            {diagnosticDetails.map(detail => <p key={detail} className="graph-environment-diagnostic">{detail}</p>)}
             {missing && savedCandidate?.status === 'libraries_present' && !failure && <p>Capture libraries are installed; the missing libraries belong to this model.</p>}
-          </details>
+          </details>}
           {!selectable && <p>{canCreate ? 'tensorViz can create a separate environment and continue opening this model.' : standalone ? 'Create an environment for this project, then refresh.' : 'Browse for another interpreter, or create one and refresh.'}</p>}
         </div>}
       {canCreate && !busy && createPrimary && !ranked && nameForm}
@@ -167,7 +226,7 @@ export function EnvironmentRecoveryPanel({ state, connected, standalone, onActio
             {item.id === environment.selectedId && <small className="graph-environment-active"><Check aria-hidden="true" />Saved</small>}
             {item.id === environment.recommendedId && <small className="graph-environment-recommended">Recommended</small>}</span>
           <span className="graph-environment-version">{item.python && <span>py {item.python}</span>}{item.torch !== undefined && <span>{item.torch ? `torch ${item.torch}` : 'no torch'}</span>}</span>
-          <span className="graph-environment-source" title={item.source}>{item.source}{item.pythonSelected && ' · VS Code interpreter'}</span>
+          <span className="graph-environment-source" title={item.source}>{item.managed ? 'Provided by TensorViz · shared across models' : item.source}{item.pythonSelected && ' · VS Code interpreter'}</span>
           {selected !== item.id && (fit ? <span className={`graph-environment-status${fit === 'Ready for this model' ? ' ready' : ''}`}>{fit}</span>
             : <span className={item.status === 'libraries_present' ? 'graph-setup-sr-only' : 'graph-environment-status'}>{libraryStatus(item)}</span>)}
           {selected === item.id && <span className="graph-environment-facts"><span>Capture libraries</span><span>{libraryStatus(item)}</span>
@@ -185,10 +244,10 @@ export function EnvironmentRecoveryPanel({ state, connected, standalone, onActio
       {!busy && <div className="graph-environment-help">
         {needsProjectSetup && <>
           <button type="button" disabled={!connected || busy} onClick={() => onAction({ kind: 'source_only' })}>Inspect source only</button></>}
-        <details open={!canCreate && (failure || investigate)}><summary><ChevronRight aria-hidden="true" />{standalone ? 'Investigate with MCP' : 'Investigate with agent'}</summary>
-          <p>{standalone ? 'Let your coding agent inspect this environment and opening attempt directly over MCP.' : 'Your coding agent can inspect this environment and continue opening the graph here.'}</p>
-          {(!investigate || createPrimary) && <button type="button" disabled={!connected || busy} onClick={() => onAction({ kind: 'agent_help' })}><SquareTerminal aria-hidden="true" />{standalone ? 'Copy MCP investigation request' : 'Use Agent'}</button>}
-        </details>
+        {standalone && <details open={!canCreate && (failure || investigate)}><summary><ChevronRight aria-hidden="true" />Investigate with MCP</summary>
+          <p>Let your coding agent inspect this environment and opening attempt directly over MCP.</p>
+          {(!investigate || createPrimary) && <button type="button" disabled={!connected || busy} onClick={() => onAction({ kind: 'agent_help' })}><SquareTerminal aria-hidden="true" />Copy MCP investigation request</button>}
+        </details>}
       </div>}
     </div>
     <footer className="graph-environment-footer">

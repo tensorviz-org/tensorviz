@@ -7,6 +7,7 @@ For the short walkthrough, see [the user guide](../environment-recovery.md). Thi
 ## Contents
 
 - [Creating a model environment in VS Code](#creating-a-model-environment-in-vs-code)
+- [Agent diagnosis and reviewed commands](#agent-diagnosis-and-reviewed-commands)
 - [Plugin interpreter roles](#plugin-interpreter-roles)
 - [Canvas recovery](#canvas-recovery)
 - [Shared opening recovery state](#shared-opening-recovery-state)
@@ -19,15 +20,31 @@ For the short walkthrough, see [the user guide](../environment-recovery.md). Thi
 - [Environment selection redesign](#environment-selection-redesign)
   - [Automatic readiness on the extension home](#automatic-readiness-on-the-extension-home)
 
-When a model cannot run in the selected Python, tensorViz pauses the opening and offers a ranked list of detected environments, reviewed library installation, and a new model environment. Discovery does not import the model.
+When a model needs Python setup, native Canvas leads with **Set up project with
+agent** and explains that Python runs the model to record tensor shapes. The agent
+uses the retained project and model context to prepare an environment and test
+inputs, then continues the same opening. Active agent turns review environment
+creation, source builds and exact package installation in chat. Manual flows keep
+the native VS Code reviews. **Set up manually** reveals the ranked environments, library repair and
+environment creation controls. **Setup options** returns to the agent route while
+preserving local selections and the creation name; another opening starts with the
+agent route. Discovery does not import the model.
 
-The native Canvas can review all known missing model and capture libraries in an explicitly selected empty project Python, including PyTorch and pipless venvs. It resolves one additive plan, shows the exact PyPI wheel versions in the native approval dialog, and installs only after approval. The inline message calls out PyTorch's download size and directs models needing a specific Torch/CUDA build to a compatible environment. Hosts without that exact-wheel review keep the explicit Torch environment/build choice.
+The first screen has one short purpose sentence and one primary action. A single
+**Learn more** disclosure contains the longer agent explanation and current setup
+details. Failures, stopped setup and reconnecting messages stay visible. Manual diagnostic details add information instead of repeating
+the visible summary. Managed fallback rows are labelled **TensorViz Python**, with
+the complete path under **Interpreter details**; names wrap at sidebar widths.
+Standalone plugin pages keep their existing manual controls and MCP help because
+they use the surrounding coding agent rather than the integrated Canvas chat.
+
+The native Canvas can review all known missing model and capture libraries in an explicitly selected empty project Python, including PyTorch and pipless venvs. It resolves one additive plan, shows the exact PyPI wheel versions in the approval details, and installs only after approval. The inline message calls out PyTorch's download size and directs models needing a specific Torch/CUDA build to a compatible environment. Hosts without that exact-wheel review keep the explicit Torch environment/build choice.
 
 Folder-scoped selection and direct MCP failure help use the same opening.
 
 ## Creating a model environment in VS Code
 
-When a model is blocked by missing/incompatible libraries, expand **Change
+Choose **Set up manually** to use these controls. When a model is blocked by missing/incompatible libraries, expand **Change
 environment** for optional **Create model environment…**. Known missing-library
 repair in the saved Python leads with **Add libraries here…** in the fixed footer.
 Creation is also available when no existing Python is detected. It uses tensorViz's service Python to create a new venv under extension storage's
@@ -66,7 +83,7 @@ Cancelling or failing before selection removes only the new incomplete venv.
 Creation failure remains a failed opening with its sanitized unavailable-package
 diagnostic, rather than returning as a successful Prepare step. There is no
 automatic retry; the same request replay cannot start another build.
-The failure's default action is **Inspect source only**, which executes no model
+The manual failure view's default action is **Inspect source only**, which executes no model
 and supplies no new measurements. **Retry creation** is explicit; editing the name
 does not fix platform compatibility. Expand **Change environment** to select a
 different compatible interpreter. Exact diagnostics and optional agent help stay
@@ -90,7 +107,150 @@ and installs required model imports plus capture libraries, rather than every
 optional training dependency. Unknown import-to-distribution mappings, editable
 or local dependencies, unpinned Git sources, private Git authentication, different
 Python versions and project-specific CUDA builds still need a compatible project
-environment. No agent-harness permissions changed.
+environment. These limits apply to every chat permission mode.
+
+## Agent setup implementation
+
+The workflow is host state, not assistant prose. `GraphOpeningController` owns the
+opening, selected Python check, saved setup and capture result. Verified recovery
+is published immediately, before profile discovery or input preparation. Its
+result is carried into the next stage rather than leaving the previous missing
+Python state in place during a redundant check. A stale or cancelled recovery
+cannot publish into a replacement opening.
+
+`packages/contracts/src/graphSetupWorkflow.ts` declares the stage statuses and a
+discriminated `GraphSetupNextStep` union. The sidebar, progress list, reminder,
+MCP tools and agent all consume that projection. Browser copies are generated by
+`npm run protocol:sync`. A source file, edited draft or assistant claim cannot mark
+Python ready or attest a completed capture. A deleted TOML file needs saving
+again even when the previous captured result remains available.
+
+`CanvasAgent` owns the existing task and selected permission policy. If a provider
+reply ends while host setup is still busy, the task retains the original
+request/session/source and waits on bounded progress reads. A verified transition
+from Python to missing inputs can resume the same provider conversation with
+fresh context and a hidden host continuation note. The implementation bounds
+continuations; an unchanged input stage may represent a user question and does
+not cause automatic retries. Stop, refusal and source/opening changes prevent
+continuation. A newly retained failure can resume diagnosis in the same task;
+it does not automatically retry the failed operation. Explicit execution review remains a user decision.
+Ready means the host has a captured graph, not that capture has merely started.
+
+`extension/src/canvasAgentPrompts.ts` is the single prompt registry, with typed
+prompt IDs, versioned definitions and named sections for task/context, Python,
+inputs, configuration objects, saving/capture, source review and evidence.
+System instructions, conversation formatting, connection preparation and host
+continuation each have a dedicated builder. Current source and workflow snapshots
+stay attached user data. The Codex and Claude adapters in
+`canvasAgentRuntime.ts` use those builders and own provider transport only.
+Change prompt wording in the registry; change stage transitions in the workflow;
+change approval rules in the host broker. Tool descriptions remain local to their
+typed schemas and expose the workflow's next step.
+
+## Dynamic permission explanations
+
+`CanvasAgentPermissionRequest` is the host execution boundary; producers supply
+facts from their frozen operation plan instead of permission titles or button
+strings. The shared `CanvasAgentPermissionPresentation` is a separate bounded
+schema for generated text. The broker clones the request and rejects changes to
+facts, duplicate presentation, stale IDs, and approval before presentation.
+
+`extension/src/canvasAgentPermissionTools.ts` exposes `get_pending_permission`
+and `present_permission` only on the owning Canvas agent's tool endpoint. The
+first returns the current request; the second supplies wording for that receipt
+and never accepts a decision, executable arguments, policy or operation changes.
+All providers use the shared `permissions` prompt section in
+`canvasAgentPrompts.ts`. Exact host facts remain attached data, including when
+project metadata contains instruction-like text. Manual/native reviews remain
+available without an agent.
+
+The host starts supported environment operations in the background and reports
+pending permission data with setup progress, so the same provider can explain
+newly resolved package plans. The controller wakes on a new permission even when
+the opening snapshot has not changed. If a provider ends its response before
+explaining the request, a hidden same-conversation continuation asks for the
+missing presentation, at most twice per receipt. Repeated failure cancels that
+operation and reports the blocker; it never substitutes a canned permission
+explanation or leaves invisible consent pending. Ordinary chat setup uses the
+same lifecycle, including operations captured before their first async review.
+
+A new supported operation supplies its namespaced ID, actual facts, effects and
+scope to the broker; it does not add a UI template, a new generation prompt or a
+policy switch on its name. New execution authority still requires an implemented,
+guarded host tool. Machine commands require explicit approval under every setup mode.
+
+## Agent diagnosis and reviewed commands
+
+Model-import verification preserves a bounded structured diagnostic instead of
+reducing every failure to its exception type. It includes the actual exception
+message, cause chain, traceback file/function/line frames and observed platform,
+architecture, Python, Torch and device availability. Source lines, frame locals
+and environment dumps are omitted. Known credential patterns are redacted;
+truncation is reported. Device observations use Torch already loaded by the
+authorized import, and unavailable observations stay null. A macOS host or a CUDA
+dependency in a README alone does not prove the cause of a particular failure.
+
+The opening, MCP setup evidence and chat retain that diagnostic. If background
+setup fails after the provider's last read, a bounded continuation resumes the
+same request and provider conversation to investigate. It does not start another
+environment or repeat an unchanged failed installation. Completed command results
+likewise remain unread until the agent retrieves them, so an early provider reply
+does not turn permission or a command launch into a success claim. Stop, denied
+permission and stale task/source context retain their cancellation boundaries.
+
+`extension/src/canvasAgentProjectTools.ts` supplies the same host tools to the
+owning Canvas agent across its private MCP sessions:
+
+| Tool | Evidence and boundary |
+| --- | --- |
+| `get_machine_info` | Platform, architecture, OS release, CPU model/count and memory. No hostname, environment variables or inferred GPU claims. |
+| `read_project_file` | An explicit project-relative UTF-8 file, including README, requirements and scripts outside graph dependencies. At most 64 KiB; reports truncation and redaction. Refuses credential paths, binary files and escapes outside the canonical project root. Does not execute the file. |
+| `request_project_command` | An exact executable and argument array, project-relative working directory and bounded timeout. Returns a job ID before execution; a host-owned machine-scope request must be presented and explicitly approved. |
+| `get_project_command` | Actual job status, exit code/signal, bounded stdout/stderr tails and truncation. Only the same active task can read the job. |
+
+The command tool resolves the executable and canonical working directory before
+review and freezes the operation facts. **Every current permission mode asks for
+machine commands**, including Full setup access. The agent generates the same
+bounded presentation and action labels used for setup permissions; its wording
+cannot change the executable, arguments, directory, timeout or authority. Exact
+facts disclose filesystem/network access and the absence of a security sandbox.
+Provider-native direct shell execution remains disabled. Shell syntax requires
+an explicit shell executable and script arguments through this reviewed tool.
+Model edits continue through source proposals and their existing review.
+
+Commands use `shell: false`, closed stdin and a filtered environment that omits
+provider/service secrets and Python overrides. The default timeout is 30 seconds,
+with a 120-second maximum. Each stdout/stderr tail is bounded to 32 KiB; recognizable
+secrets are redacted before results reach the agent. One command can wait or run
+at a time, with at most eight retained jobs in memory. There is no terminal or
+durable command history. Stop, disposal, timeout or a changed task/source context
+terminates the process group; context is rechecked during execution.
+
+Typed project-tool and diagnosis sections in `canvasAgentPrompts.ts` ask the
+agent to preserve the specific missing module, symbol or native library, compare
+project requirements with observed runtime facts and obtain more evidence when
+the cause is unverified. The controller waits for pending approvals/commands and
+can resume result inspection within the same task, with bounded attempts. It
+does not retry a denied command or infer execution from an approval receipt.
+
+Chat shows active generation as four animated dots below the latest message,
+with distinct approval, stopped and error icons. The header has no idle circle or
+active-work spinner. Reduced-motion users get a static mark; hover/focus and
+accessible labels retain the activity detail. Provider connection readiness stays
+in agent settings. Its recheck icon immediately disables and spins on request;
+**Connection checked** requires observing the matching host check start and a
+ready completion. A later acknowledgement from another control does not lose a
+check already observed starting. Failure, provider/session changes, configuration
+changes and disconnect clear the completion state. Account and disabled-agent
+switch explanations remain available on demand. Failed setup keeps an error
+state; **Error details** discloses retained
+traceback and observed runtime instead of showing a successful ready state.
+
+The shared typed product-scope prompt guides both task workflows toward models,
+ML research and related project/software work. It keeps relevant theory and maths,
+handles greetings naturally and redirects unrelated work without soliciting its
+materials or invoking tools. This is instruction guidance rather than a keyword
+classifier or a substitute for host authorization.
 
 ## Plugin interpreter roles
 
@@ -119,16 +279,72 @@ before focus moves. A view attached after preparation starts receives that same
 message, without restart advice or a second service startup. Cancelling model
 discovery keeps Canvas and does not open the project instead.
 
+The setup sidebar shares a two-step progress list: Python and Model inputs.
+Checks mark host-confirmed completion; draft edits alone never mark a step done.
+A compact **Complete setup** reminder appears only while incomplete setup is
+closed and idle. It reopens the retained panel, or requests the existing input-edit
+flow for a source-only/finished graph, without starting a model run.
+
+Chat permissions are bound to one active turn, source, model and session. They
+carry an immutable host operation (`operation`, `scope`, `effects`, `facts`) and
+an agent-authored `presentation` (`title`, `summary`, `allowLabel`, `denyLabel`).
+Operations are namespaced identifiers, not a closed list of UI templates. The
+host validates typed effects and scope for policy; neither generated wording nor
+an operation's name grants authority. The expandable Details show the original
+structured host facts separately from generated copy.
+The host owns a chat-scoped permission mode. **Ask every time** requests each
+approval. **Auto setup** permits creation and package installation only for a
+host-classified new isolated environment; all source builds and changes to
+existing environments still ask. **Full setup access** permits all supported
+setup requests. Existing-target additive installs, version replacements and
+PyTorch replacements are classified as existing-environment changes, regardless
+of interpreter path. A model or renderer cannot classify its own request.
+
+The shield icon beside the composer opens the shared, themed Canvas popover with
+three radio-menu choices. It works while a turn is active. The checked row comes
+from host state; arrow keys inspect choices without changing policy, Enter/click
+requests a change, and Escape returns focus to the shield. A bounded footer shows
+the focused/hovered mode's explanation; account and policy details stay on demand.
+The menu portals outside the chat's clipping container, including fullscreen.
+The icon shows pending acknowledgement without adding a visible status paragraph.
+Only a synchronized connected view can change it; the host validates and
+acknowledges the selection. Upgrading the mode can settle a current eligible
+request after it has an explanation and passes turn/session/source checks. Downgrading governs later reviews;
+it does not revoke already granted work. Automatic receipts include the granting
+mode and say **Auto-approved**; explicit approvals say **Allowed**. The host
+rechecks all normal source/trust/plan guards for either route. Clear/new chat and
+cross-model conversation replacement reset to Ask. Modes are not persisted or
+read from project files. Manual operations retain their original reviews.
+
+Unpresented requests show **Preparing approval** without consent controls or
+attention focus. Presented requests reopen chat with **Needs approval** and neutral heading focus;
+minimizing keeps that status visible. A decision is single-use. Stop, Clear,
+source/model invalidation, turn end and disposal cancel pending requests. Offline
+buttons are disabled and reconnect never replays approval. Approved receipts mean
+permission was granted, not that installation succeeded. The history retains up
+to twenty receipts. Pending setup reads support an abortable bounded wait
+(`get_graph_setup` with `waitMs:10000`) so the agent can wait for human decisions
+without rapid polling. Machine commands use the separately reviewed host tool
+described above; source proposals retain their existing diff review.
+
+Environment creation and compatibility copies obtain permission before filesystem
+preparation, venv creation, resolution or downloads. Resolved package plans and
+source builds receive separate permissions under the selected mode; refusing any review stops that operation. A refusal or
+aborted agent permission never falls back to a native prompt. Creation failure
+rechecks discovery without silently selecting another Python.
+
 Opening checks the saved/configured project Python before importing the model.
-When no environment can run the model as it is, Canvas presents detected
-environments ranked by what the model still needs. It recommends the one needing
+When no environment can run the model as it is, Canvas offers agent setup first.
+The manual route presents detected environments ranked by what the model still needs. It recommends the one needing
 the fewest changes ([ranked environments](#ranked-environments-at-opening)).
 Choosing a row sends its host-owned ID; the host rechecks its fingerprint and
 remembers it, as the user's own choice, for the model's owning folder. A deleted
 saved choice remains visible and never silently becomes a fallback.
 
 Known missing capture/model libraries offer **Review and install missing libraries**.
-The native review and exact additive installer retain ownership of approval.
+The host permission broker and exact additive installer retain ownership of approval.
+An active agent turn uses an inline chat permission; without an active turn, manual
+setup uses the native review. No tool can approve its own request.
 Declining or failed repair rechecks the actual environment and retains a failed
 opening with the sanitized package diagnostic and a host-owned failure code.
 The additive installer reports resolving/downloads, approval, approved source
@@ -148,16 +364,17 @@ availability before asking to build source. `PACKAGE_UNAVAILABLE` retains the
 exact requirement and stops before build review. An available distribution still
 needs explicit source-build and frozen-install approval; availability is not proof
 that the requested version resolves or builds. Temporary plan directories are
-removed on every outcome. Native review dialogs use VS Code's built-in Cancel
+removed on every outcome. Manual native review dialogs use VS Code's built-in Cancel
 instead of adding a duplicate Cancel item.
 
 An explicit library retry after Stop starts a fresh operation in the retained
 opening. Changed source and replayed request IDs still refuse repair; late
 cancelled work cannot resume capture.
 
-For a missing model dependency with no supported install recipe, the saved
-environment's primary action is **Use Agent**, not another check of the unchanged
-Python. The standalone page offers **Copy MCP investigation request**. The screen
+For a missing model dependency with no supported install recipe, use **Setup
+options → Set up project with agent** to investigate the retained opening. Older
+manual states can also offer **Use Agent**. The standalone page offers **Copy MCP
+investigation request**. The manual screen
 labels capture libraries separately from the model check and offers explicit
 **Inspect source only**; selecting another row still requires **Use…** before the
 host changes Python. Unsupported declarations are recognized as already present
@@ -257,7 +474,7 @@ How the opening uses the ranking:
   or an observed import failure, stays visible instead of switching.
 - Every adoption still passes the full model check and worker probe.
 
-Model-checked environment lists open immediately, including from the header and
+After choosing **Set up manually**, model-checked environment lists open immediately, including from the header and
 when the saved choice is the user's own. When that choice is not explicit, the host
 names a `recommendedId`, preselected and marked **Recommended**, even if it is
 already saved. An explicit saved choice stays preselected. A search field filters

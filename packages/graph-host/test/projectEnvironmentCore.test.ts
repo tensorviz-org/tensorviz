@@ -1,5 +1,6 @@
 import * as assert from 'node:assert/strict';
-import { inspectEnvironmentCandidates, type EnvironmentHint, type HelperResult } from '@tensorviz/graph-host/projectEnvironmentCore';
+import { inspectEnvironmentCandidates, parseEnvironmentHelperResult, type EnvironmentHint, type HelperResult } from '@tensorviz/graph-host/projectEnvironmentCore';
+import type { ModelImportDiagnostic } from '@tensorviz/contracts/protocol';
 
 const hints: EnvironmentHint[] = [
   { interpreter: '/project/.venv/bin/python', source: 'Saved', selected: true },
@@ -10,6 +11,25 @@ const metadata = (prefix: string): HelperResult => ({ ok: true, python: '3.12.13
     implementation: 'cpython', abi: 'cpython-312-x86_64-linux-gnu', torch: '2.6.0+cu124', pip: null } });
 
 suite('bounded environment candidate metadata', () => {
+  test('retains checked import evidence from the final worker response, without logging progress output', () => {
+    const diagnostic: ModelImportDiagnostic = { exceptionType: 'ImportError', message: 'Native CUDA extension could not load.',
+      traceback: '  File "model.py", line 3, in <module>\nImportError: Native CUDA extension could not load.',
+      causes: [{ exceptionType: 'ImportError', message: 'Native CUDA extension could not load.' }],
+      runtime: { platform: 'darwin', architecture: 'arm64', python: '3.12.9', torch: '2.7.1', cuda: null, cudaAvailable: false, mpsAvailable: true }, truncated: false };
+    const result = { ok: false, code: 'MODEL_IMPORT_FAILED', message: diagnostic.message, diagnostic };
+    assert.deepEqual(parseEnvironmentHelperResult('PRIVATE_PROGRESS_OUTPUT\n' + JSON.stringify(result) + '\n'), result);
+  });
+
+  test('malformed or oversized diagnostic data is discarded before an agent or UI receives it', () => {
+    for (const diagnostic of [null, {}, { traceback: 'x'.repeat(12001) }, { exceptionType: 'ImportError', command: 'run anything' }]) {
+      assert.deepEqual(parseEnvironmentHelperResult(JSON.stringify({ ok: false, code: 'MODEL_IMPORT_FAILED', diagnostic })),
+        { ok: false, code: 'MODEL_IMPORT_FAILED' });
+    }
+    for (const output of ['not json', 'null', '{}', '{"ok":"false"}']) {
+      assert.deepEqual(parseEnvironmentHelperResult(output), { ok: false, message: 'The selected Python could not complete its compatibility check.' });
+    }
+  });
+
   test('checks the target through the manager without importing a model or requiring target pip', async () => {
     const rows = await inspectEnvironmentCandidates(hints, { backendDir: '/backend', managerPython: '/service/python',
       signal: new AbortController().signal, runner: async (python, backend, args, _cancelled, isolated, parentPipe) => {

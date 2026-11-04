@@ -1,23 +1,48 @@
 import * as vscode from 'vscode';
-import { installDependencies, replaceDependencies, replacementSummary, type DependencyInstallOptions } from '@tensorviz/graph-host/dependencyInstallCore';
+import { installDependencies, replaceDependencies, replacementSummary, type DependencyInstallOptions as CoreDependencyInstallOptions } from '@tensorviz/graph-host/dependencyInstallCore';
+import type { CanvasAgentPermissionRequest } from '@tensorviz/contracts/protocol';
 import { runEnvironmentHelper } from '@tensorviz/graph-host/projectEnvironmentCore';
 import { GraphToolError } from '@tensorviz/graph-host/mcpGraph';
 import { repairModelCompatibility } from './modelCompatibility';
-export type { DependencyInstallOptions } from '@tensorviz/graph-host/dependencyInstallCore';
+export interface DependencyInstallOptions extends CoreDependencyInstallOptions {
+  approve?(request: CanvasAgentPermissionRequest, signal: AbortSignal): Promise<boolean | undefined>;
+}
 
-/** Canvas and agent requests share native approval of the same frozen plan. */
+/** An active Canvas turn owns its permission UI. A denial never opens a second prompt. */
+async function review(options: DependencyInstallOptions, request: CanvasAgentPermissionRequest, native: () => PromiseLike<boolean>): Promise<boolean> {
+  options.signal.throwIfAborted();
+  if (options.approve) options.progress?.('Waiting for approval in chat…');
+  const approved = await options.approve?.(request, options.signal);
+  options.signal.throwIfAborted();
+  if (approved !== undefined) return approved;
+  if (options.approve) options.progress?.('Waiting for approval in VS Code…');
+  return native();
+}
+
+/** Canvas and agent requests review the same frozen plan in the originating surface. */
 export async function installMcpDependencies(options: DependencyInstallOptions): Promise<void> {
-  return installDependencies(options, {
+  // The shared installer names its native reviewer. Until routing is resolved, keep progress neutral.
+  const progress = options.approve && options.progress ? (detail: string) => options.progress!(detail.replace(' in VS Code', '')) : options.progress;
+  return installDependencies({ ...options, progress }, {
     trusted: () => vscode.workspace.isTrusted,
-    reviewSource: async () => await vscode.window.showWarningMessage('Build model dependencies from source?',
-      { modal: true, detail: `${options.python}\n\n${options.packages.join('\n')}\n\n` +
-        'Compatible wheels were not found. Resolving and building source distributions runs package-provided Python code, which can access your machine. pip uses separate build environments; this is not a security sandbox. You will review the resulting package versions before installation in the TensorViz capture environment.' },
-      'Build from source') === 'Build from source',
-    reviewInstall: async plan => await vscode.window.showInformationMessage('Install model dependencies for this graph?',
-      { modal: true, detail: `${options.python}\n\n${plan.packages!.map(item => `${item.name} ${item.version}`).join('\n')}\n\n` +
+    reviewSource: async () => {
+      const details = `${options.python}\n\n${options.packages.join('\n')}\n\n` +
+        'Compatible wheels were not found. Resolving and building source distributions runs package-provided Python code, which can access your machine. pip uses separate build environments; this is not a security sandbox. You will review the resulting package versions before installation in the TensorViz capture environment.';
+      return review(options, { operation: 'python.packages.build', scope: 'existing_environment', effects: ['execute_code'],
+        facts: { python: options.python, requestedPackages: options.packages, access: { filesystem: true, network: true } } },
+        async () => await vscode.window.showWarningMessage('Build model dependencies from source?',
+        { modal: true, detail: details }, 'Build from source') === 'Build from source');
+    },
+    reviewInstall: async plan => {
+      const details = `${options.python}\n\n${plan.packages!.map(item => `${item.name} ${item.version}`).join('\n')}\n\n` +
         (plan.builtFromSource?.length ? `Built from source: ${plan.builtFromSource.join(', ')}.\n\n` : '') +
-        'This installs the reviewed, hash-verified wheels in the TensorViz capture environment. Existing packages, including Torch/CUDA, will not be replaced. Cancellation may leave some new packages installed.' },
-      'Install dependencies') === 'Install dependencies',
+        'This installs the reviewed, hash-verified wheels in the TensorViz capture environment. Existing packages, including Torch/CUDA, will not be replaced. Cancellation may leave some new packages installed.';
+      return review(options, { operation: 'python.packages.install', scope: 'existing_environment', effects: ['install'],
+        facts: { python: options.python, planDigest: plan.digest!, packages: plan.packages!.map(({ name, version }) => ({ name, version })),
+          builtFromSource: plan.builtFromSource ?? [], preservesExistingPackages: true, preservesTorch: true,
+          cancellationMayLeaveChanges: true } }, async () => await vscode.window.showInformationMessage('Install model dependencies for this graph?',
+        { modal: true, detail: details }, 'Install dependencies') === 'Install dependencies');
+    },
   });
 }
 
@@ -25,14 +50,27 @@ export async function installMcpDependencies(options: DependencyInstallOptions):
 export async function replaceModelVersions(options: DependencyInstallOptions & { project: string }): Promise<void> {
   return replaceDependencies(options, {
     trusted: () => vscode.workspace.isTrusted,
-    reviewReplacement: async plan => await vscode.window.showWarningMessage('Replace library versions in this environment?',
-      { modal: true, detail: `${options.python}\n\n${replacementSummary(plan).join('\n')}\n\n` +
-        'These hash-verified wheels replace the installed versions in this environment, not in a copy. Other projects and models that use it get these versions too. tensorViz keeps no backup; reinstall the previous versions to undo.' },
-      'Replace versions', 'Cancel') === 'Replace versions',
-    confirmTorch: async plan => await vscode.window.showWarningMessage('Replace PyTorch in this environment?',
-      { modal: true, detail: `${options.python}\n\n${replacementSummary(plan).filter(line => /^\+? ?(?:torch|torchvision|torchaudio|triton|xformers|nvidia-)/.test(line)).join('\n')}\n\n` +
-        'This changes the PyTorch build, including any CUDA libraries, for everything that uses this environment. A different Torch can change device support and results.' },
-      'Replace PyTorch', 'Cancel') === 'Replace PyTorch',
+    reviewReplacement: async plan => {
+      const details = `${options.python}\n\n${replacementSummary(plan).join('\n')}\n\n` +
+        'These hash-verified wheels replace the installed versions in this environment, not in a copy. Other projects and models that use it get these versions too. tensorViz keeps no backup; reinstall the previous versions to undo.';
+      return review(options, { operation: 'python.packages.replace', scope: 'existing_environment', effects: ['install', 'replace'],
+        facts: { project: options.project, python: options.python, planDigest: plan.digest!,
+          packages: plan.packages!.map(({ name, version, previous }) => ({ name, version, ...(previous ? { previous } : {}) })),
+          replacesTorch: plan.replacesTorch ?? false, affectsSharedEnvironment: true, backupAvailable: false,
+          cancellationMayLeaveChanges: true } }, async () => await vscode.window.showWarningMessage('Replace library versions in this environment?',
+        { modal: true, detail: details }, 'Replace versions', 'Cancel') === 'Replace versions');
+    },
+    confirmTorch: async plan => {
+      const details = `${options.python}\n\n${replacementSummary(plan).filter(line => /^\+? ?(?:torch|torchvision|torchaudio|triton|xformers|nvidia-)/.test(line)).join('\n')}\n\n` +
+        'This changes the PyTorch build, including any CUDA libraries, for everything that uses this environment. A different Torch can change device support and results.';
+      return review(options, { operation: 'python.packages.replace_torch', scope: 'existing_environment', effects: ['install', 'replace'],
+        facts: { project: options.project, python: options.python, planDigest: plan.digest!,
+          packages: plan.packages!.filter(item => /^(?:torch|torchvision|torchaudio|triton|xformers|nvidia-)/.test(item.name))
+            .map(({ name, version, previous }) => ({ name, version, ...(previous ? { previous } : {}) })),
+          replacesTorch: true, affectsSharedEnvironment: true, backupAvailable: false, deviceSupportMayChange: true } },
+        async () => await vscode.window.showWarningMessage('Replace PyTorch in this environment?',
+        { modal: true, detail: details }, 'Replace PyTorch', 'Cancel') === 'Replace PyTorch');
+    },
   });
 }
 

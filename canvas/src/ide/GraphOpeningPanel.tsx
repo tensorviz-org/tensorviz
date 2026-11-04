@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, ArrowUpRight, SlidersHorizontal, Sparkles, X } f
 import type { GraphOpeningState, GraphSetupAction, GraphSetupDraft, GraphSetupField } from './protocol.generated';
 import './GraphOpeningPanel.css';
 import { EnvironmentRecoveryPanel } from './EnvironmentRecoveryPanel';
+import { GraphSetupProgress } from './GraphSetupProgress';
 
 type Binding = { args: any[]; kwargs: Record<string, any> };
 const emptyBinding = (): Binding => ({ args: [], kwargs: {} });
@@ -348,21 +349,20 @@ export default function GraphOpeningPanel({ state, connected, onAction, onClose,
       <button type="button" onClick={() => setManualSetup(false)}><ArrowLeft size={14} aria-hidden="true" /><span>Setup methods</span></button>
       <div><strong>Manual setup</strong><span>Required fields *</span></div>
     </div> : <section className="graph-setup-methods" aria-label="Choose a setup method">
-      {showForm && <h2>Choose a setup method</h2>}
       <button type="button" data-setup-agent className="graph-setup-agent" disabled={!connected}
-        aria-label={standalone ? 'Copy setup request' : 'Set up with agent'} aria-describedby={`${formId}-agent-help`}
+        aria-label={standalone ? 'Copy setup request' : 'Set up project with agent'} aria-describedby={`${formId}-setup-purpose`}
         onClick={() => onAction({ kind: 'agent_help', ...(showForm ? { draft } : {}) })}>
-        <Sparkles size={16} aria-hidden="true" /><span><span className="graph-setup-method-label">{standalone ? 'Copy setup request' : 'Set up with agent'}</span><small>Recommended</small></span><ArrowUpRight size={16} aria-hidden="true" />
+        <Sparkles size={16} aria-hidden="true" /><span className="graph-setup-method-label">{standalone ? 'Copy setup request' : 'Set up project with agent'}</span><ArrowUpRight size={16} aria-hidden="true" />
       </button>
-      <p id={`${formId}-agent-help`}>{standalone ? 'Copy your model context and edits to share with your coding agent.' : 'Opens chat to suggest settings and test inputs from your code.'}</p>
       {showForm && <>
-        <div className="graph-setup-or"><span>or</span></div>
         <button type="button" className="graph-setup-manual-choice" disabled={!connected}
-          aria-controls={formId} aria-describedby={`${formId}-manual-help`} onClick={() => setManualSetup(true)}>
+          aria-controls={formId} onClick={() => setManualSetup(true)}>
           <SlidersHorizontal size={16} aria-hidden="true" /><span>Set up manually</span><ArrowRight size={16} aria-hidden="true" />
         </button>
-        <p id={`${formId}-manual-help`}>Choose model settings and test inputs yourself.</p>
       </>}
+      <details className="graph-setup-options"><summary>Learn more</summary>
+        <p>{standalone ? 'Copy your model context and edits to share with your coding agent.' : 'Your agent reads the code, prepares example inputs, and saves tensorviz.toml before opening the graph. You can also enter the settings manually.'}</p>
+      </details>
     </section>)}
     <div className="graph-setup-environment">
       <div className="graph-setup-guidance-heading"><strong>Python environment</strong>
@@ -391,9 +391,11 @@ export default function GraphOpeningPanel({ state, connected, onAction, onClose,
     <div className="graph-opening-heading"><span className={busy ? 'graph-opening-indicator running' : 'graph-opening-indicator'} />
       <div><div className="graph-opening-model"><strong>{state.target.cls}</strong><code>{state.target.file}</code></div></div></div>
         <h1>{busy ? state.phase === 'capturing' ? profile.framework === 'jax' ? 'Tracing the saved call' : 'Capturing one forward call' : state.phase === 'saving' ? 'Saving this setup' : 'Preparing your graph'
-          : state.phase === 'needs_setup' ? 'Set up this model'
+          : state.phase === 'needs_setup' ? 'Set up this project'
             : state.phase === 'failed' ? 'Capture needs attention' : state.phase === 'ready' ? 'Waiting for the captured graph' : 'Opening cancelled'}</h1>
-        {state.phase !== 'needs_setup' && <p role="status">{state.detail}</p>}
+        {state.phase !== 'needs_setup' && <p id={`${formId}-setup-purpose`} role="status">{state.detail}</p>}
+        {state.phase === 'needs_setup' && <p id={`${formId}-setup-purpose`}>Example inputs let TensorViz capture tensor shapes.</p>}
+        <GraphSetupProgress state={state} />
     </header>
     <div className="graph-setup-body">
     {retained && <p className="graph-previous-capture" role="status">{state.phase === 'failed' && state.hasCapture

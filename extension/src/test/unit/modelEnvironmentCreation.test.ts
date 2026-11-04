@@ -3,12 +3,24 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { createModelEnvironment, type ModelEnvironmentCreationOptions } from '../../modelEnvironmentCreation';
+import { CanvasAgent } from '../../canvasAgent';
+import { GraphToolError } from '@tensorviz/graph-host/mcpGraph';
+import type { CanvasAgentState, LocalBrowserAgentRequest, LocalBrowserTargetIdentity, ModelImportDiagnostic } from '@tensorviz/contracts/protocol';
 import { infoMessageDetails, infoMessages, reset, setInfoResponder, state } from '../vscodeStub';
+
+const importMessage = "cannot import name 'ALL_ATTENTION_FUNCTIONS' from 'transformers.modeling_utils'";
+const importDiagnostic: ModelImportDiagnostic = {
+  exceptionType: 'ImportError', message: importMessage,
+  traceback: `Traceback (most recent call last):\n  File "/project/model.py", line 4, in <module>\nImportError: ${importMessage}`,
+  causes: [{ exceptionType: 'ImportError', message: importMessage, module: 'transformers.modeling_utils' }],
+  runtime: { platform: 'darwin', architecture: 'arm64', python: '3.12.13', torch: '2.6.0', cuda: null,
+    cudaAvailable: false, mpsAvailable: true }, truncated: false,
+};
 
 suite('native model environment creation', () => {
   let storage: string, calls: string[], progress: string[], selected: string | undefined, options: ModelEnvironmentCreationOptions;
   setup(() => {
-    reset(); storage = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'tensorviz-new-model-')));
+    reset(); infoMessages.length = 0; storage = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'tensorviz-new-model-')));
     calls = []; progress = []; selected = undefined;
     options = { managerPython: '/tool/python', backendDir: '/backend', storage, workspace: '/model', file: '/model/model.py',
       signal: new AbortController().signal, current: async () => true, progress: detail => progress.push(detail),
@@ -37,6 +49,105 @@ suite('native model environment creation', () => {
     assert.match(state.warningMessages[0], /Build model libraries/);
     assert.ok(fs.existsSync(path.dirname(path.dirname(selected!))));
   });
+  test('agent reviews creation before writes, then source builds and exact package versions in chat', async () => {
+    const requests: string[] = [];
+    options.approve = async (request, signal) => {
+      assert.equal(signal, options.signal); requests.push(request.operation);
+      assert.equal(request.scope, 'isolated_environment');
+      assert.deepEqual(Object.keys(request).sort(), ['effects', 'facts', 'operation', 'scope']);
+      if (request.operation === 'python.environment.create') {
+        assert.deepEqual(calls, []); assert.deepEqual(fs.readdirSync(storage), []);
+        assert.deepEqual(request.effects, ['create']);
+        assert.equal(request.facts.model, options.file); assert.equal(request.facts.workspace, options.workspace);
+        assert.equal(request.facts.destinationRoot, path.join(storage, 'model-environments'));
+      }
+      if (request.operation === 'python.packages.build') {
+        assert.deepEqual(request.effects, ['execute_code']);
+        assert.deepEqual(request.facts.access, { filesystem: true, network: true });
+        assert.deepEqual(request.facts.sourcePackages, ['helper @ git+https://example.org/helper.git@' + 'a'.repeat(40)]);
+      }
+      if (request.operation === 'python.packages.install') {
+        assert.deepEqual(request.effects, ['install']); assert.equal(request.facts.planDigest, 'reviewed');
+        assert.deepEqual(request.facts.packages, [{ name: 'torch', version: '2.10.0' }, { name: 'helper', version: '1' }]);
+      }
+      return true;
+    };
+    await createModelEnvironment(options);
+    assert.deepEqual(requests, ['python.environment.create', 'python.packages.build', 'python.packages.install']);
+    assert.deepEqual(state.warningMessages, []); assert.deepEqual(infoMessages, []);
+    assert.ok(selected); assert.ok(progress.some(detail => detail.includes('approval in chat')));
+  });
+  test('declining initial agent consent creates no directory, resolves nothing and never falls back to native review', async () => {
+    options.approve = async () => false;
+    await assert.rejects(createModelEnvironment(options), /Creating a model environment was not approved/);
+    assert.deepEqual(calls, []); assert.deepEqual(fs.readdirSync(storage), []);
+    assert.deepEqual(state.warningMessages, []); assert.deepEqual(infoMessages, []);
+  });
+  test('declining source or package consent in chat removes the incomplete environment without native prompts', async () => {
+    for (const declined of ['python.packages.build', 'python.packages.install']) {
+      calls.length = 0;
+      options.approve = async request => request.operation !== declined;
+      await assert.rejects(createModelEnvironment(options), /not approved/);
+      assert.ok(!calls.includes('install')); assert.equal(selected, undefined);
+      assert.deepEqual(fs.readdirSync(path.join(storage, 'model-environments')), []);
+      assert.deepEqual(state.warningMessages, []); assert.deepEqual(infoMessages, []);
+    }
+  });
+  test('stopping while initial agent permission is pending prevents all environment work', async () => {
+    const controller = new AbortController(); options.signal = controller.signal;
+    options.approve = async () => { controller.abort(); return true; };
+    await assert.rejects(createModelEnvironment(options), /abort/i);
+    assert.deepEqual(calls, []); assert.deepEqual(fs.readdirSync(storage), []);
+  });
+  test('stopping during package approval cleans up before installation or model execution', async () => {
+    const controller = new AbortController(); options.signal = controller.signal;
+    options.approve = async request => { if (request.operation === 'python.packages.install') controller.abort(); return true; };
+    await assert.rejects(createModelEnvironment(options), /abort/i);
+    assert.ok(!calls.includes('install')); assert.ok(!calls.includes('probe-model')); assert.equal(selected, undefined);
+    assert.deepEqual(fs.readdirSync(path.join(storage, 'model-environments')), []);
+  });
+  test('a callback without an active agent retains the existing native reviews', async () => {
+    options.approve = async () => undefined;
+    await createModelEnvironment(options);
+    assert.equal(state.warningMessages.length, 1); assert.equal(infoMessages.length, 1); assert.ok(selected);
+  });
+  test('a creation approved in chat cannot fall back to native review after its agent turn finishes', async () => {
+    const target: LocalBrowserTargetIdentity = { workspaceFolder: '/model', file: 'model.py', cls: 'Net',
+      documentVersion: 1, sourceDigest: 'a'.repeat(64), backendRevision: 1 };
+    let latest: CanvasAgentState | undefined, finish!: () => void;
+    const agent = new CanvasAgent({ prepare: async () => ({ cwd: '/model', context: 'The model being set up.' }),
+      run: async () => { await new Promise<void>(resolve => { finish = resolve; }); },
+      publish: (_view, snapshot) => { latest = snapshot; }, clear() {} });
+    const request = (action: Record<string, unknown>) => ({ type: 'agentRequest', protocolVersion: 1,
+      workspaceSessionId: 'workspace', messageId: 'message', viewId: 'view', ...action } as LocalBrowserAgentRequest);
+    let releaseCreate!: () => void, created!: () => void;
+    const createStarted = new Promise<void>(resolve => { created = resolve; });
+    const createGate = new Promise<void>(resolve => { releaseCreate = resolve; });
+    const original = options.runner!;
+    options.runner = async (...args) => {
+      const result = await original(...args);
+      if (args[2][0] === 'create-environment') { created(); await createGate; }
+      return result;
+    };
+    try {
+      agent.handle(request({ action: 'send', requestId: 'setup-turn', provider: 'codex', target, nodeIds: [], prompt: 'Set up this model.' }));
+      await new Promise<void>(resolve => setImmediate(resolve));
+      options.approve = agent.permissionRequester(target);
+      const pending = createModelEnvironment(options);
+      await new Promise<void>(resolve => setImmediate(resolve));
+      const id = latest!.permissions![0].id;
+      agent.presentPermission(id, { title: 'Prepare model Python?', summary: 'Create a separate Python for this model.',
+        allowLabel: 'Create model Python', denyLabel: 'Skip creation' });
+      agent.handle(request({ action: 'permission', permissionId: id, decision: 'allow' }));
+      await createStarted;
+      finish(); await new Promise<void>(resolve => setImmediate(resolve));
+      releaseCreate();
+      await assert.rejects(pending, /Source builds were not approved/);
+      assert.deepEqual(calls, ['create-environment', 'inspect-model-setup']);
+      assert.deepEqual(state.warningMessages, []); assert.deepEqual(infoMessages, []); assert.equal(selected, undefined);
+      assert.deepEqual(fs.readdirSync(path.join(storage, 'model-environments')), []);
+    } finally { agent.dispose(); finish?.(); releaseCreate(); }
+  });
   test('the chosen name is the actual venv directory and appears in progress and installation review', async () => {
     options.name = 'kimi-k3'; const run = options.runner!;
     options.runner = async (...args) => {
@@ -64,6 +175,22 @@ suite('native model environment creation', () => {
     options.runner = async (...args) => args[2][2] === 'probe-model' ? { ok: false, code: 'IMPORT_FAILED', message: 'Model import failed.' } : run(...args);
     await assert.rejects(createModelEnvironment(options), /Model import failed/); assert.equal(selected, undefined);
     assert.deepEqual(fs.readdirSync(path.join(storage, 'model-environments')), []);
+  });
+  test('an import failure retains its exact diagnostic after the unsuccessful environment is removed', async () => {
+    const run = options.runner!;
+    options.runner = async (...args) => args[2][2] === 'probe-model'
+      ? { ok: false, code: 'MODEL_IMPORT_FAILED', message: `Model import failed: ImportError: ${importMessage}`, diagnostic: importDiagnostic }
+      : run(...args);
+    await assert.rejects(createModelEnvironment(options), error => {
+      assert.ok(error instanceof GraphToolError);
+      assert.equal(error.code, 'MODEL_IMPORT_FAILED');
+      assert.match(error.message, /ALL_ATTENTION_FUNCTIONS/);
+      assert.deepEqual(error.diagnostic, importDiagnostic);
+      return true;
+    });
+    assert.equal(selected, undefined);
+    assert.deepEqual(fs.readdirSync(path.join(storage, 'model-environments')), []);
+    assert.deepEqual(calls, ['create-environment', 'inspect-model-setup', 'plan-model-environment-source', 'install', 'probe-capture']);
   });
   test('an unavailable distribution names the requirement and discards the unselected venv', async () => {
     const run = options.runner!;

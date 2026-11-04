@@ -4,10 +4,18 @@ Open a PyTorch model in your editor or coding agent. For JAX and Flax, use the [
 
 ## In your editor
 
+Start in the **tensorViz** panel beside chat. **tensorViz: Get Started** opens the
+same panel; the extension no longer opens a separate welcome guide. Its starting
+screen offers **Open Folder**, discovered models and runtime setup when needed.
+
 1. Open the folder containing your model.
 2. Click **Open as Graph** above the model class. You can also select it in **tensorViz → Models**, or run **tensorViz: Open as Graph**.
-3. Choose the Python environment that contains your model’s dependencies.
-4. Reuse the saved inputs, or complete the setup TensorViz asks for.
+3. If setup is needed, choose **Set up project with agent**. The agent checks the project’s Python environment and inputs, requests approval for required library installation, and continues opening the same model.
+4. Use **Set up manually** to choose Python and complete the inputs yourself. Existing saved setup is reused where compatible.
+
+Python and model inputs are steps in the same setup sidebar. Closing it leaves
+one **Complete setup** reminder; returning resumes the unfinished step. The
+completed Python selection and edited inputs are retained.
 
 A complete setup is saved in `tensorviz.toml`. TensorViz captures one forward call and opens the graph beside your code.
 

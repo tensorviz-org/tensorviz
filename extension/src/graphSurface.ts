@@ -30,6 +30,7 @@ export function registerCanvasCommands(
     if (await canvas.show()) await graph.openProject({ folder: target }, 'canvas');
   };
   return [
+    vscode.commands.registerCommand('tensorviz.getStarted', () => canvas.reveal()),
     vscode.commands.registerCommand('tensorviz.openCanvas', () => canvas.reveal()),
     vscode.commands.registerCommand(SHOW_SIDEBAR_CANVAS, async (argument?: { uri?: string; cls?: string }) => {
       if (argument?.uri && argument.cls) {

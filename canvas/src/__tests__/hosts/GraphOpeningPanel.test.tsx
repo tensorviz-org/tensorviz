@@ -1,6 +1,6 @@
 import React from 'react';
-import { fireEvent, render as renderPanel, screen } from '@testing-library/react';
-import GraphOpeningPanel from '../../ide/GraphOpeningPanel';
+import { fireEvent, render as renderPanel, screen, within } from '@testing-library/react';
+import GraphOpeningPanel, { initialGraphDraft } from '../../ide/GraphOpeningPanel';
 import type { GraphOpeningState } from '../../ide/protocol.generated';
 
 // Existing binding tests deliberately take the manual route; choice behavior is tested separately.
@@ -17,6 +17,26 @@ const state = (): GraphOpeningState => ({ id: 'opening', phase: 'needs_setup', h
     { name: 'bias', kind: 'keyword', required: false, defaultText: 'True', defaultValue: true }],
     inputs: [{ name: 'x', kind: 'keyword', required: true }, { name: 'mask', kind: 'keyword_only', required: true }],
     examples: [], factories: [], configs: [], parents: [], constraints: [], truncated: false } });
+
+test('the same setup moves from Python to model inputs and does not count a draft as completion', () => {
+  const opening = state(), onAction = jest.fn();
+  const view = renderPanel(<GraphOpeningPanel state={{ ...opening, environment: {
+    reason: 'selection_required', detail: 'Choose Python.', candidates: [], canCreate: true,
+  } }} connected onAction={onAction} />);
+  const step = (label: string) => within(screen.getByRole('list', { name: 'Project setup progress' })).getByText(label).closest('li');
+  expect(step('Python')).toHaveAttribute('aria-current', 'step');
+  expect(step('Model inputs')).toHaveTextContent('pending');
+  view.rerender(<GraphOpeningPanel state={{ ...opening, configFileExists: true,
+    environment: { reason: 'ready', detail: 'Ready.', candidates: [] },
+    draft: initialGraphDraft(opening),
+  }} connected onAction={onAction} />);
+  expect(step('Python')).toHaveTextContent('complete');
+  expect(step('Model inputs')).toHaveAttribute('aria-current', 'step');
+  expect(step('Model inputs')).not.toHaveTextContent('complete');
+  expect(screen.getByRole('button', { name: 'Set up project with agent' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Set up manually' })).toBeVisible();
+  expect(onAction).not.toHaveBeenCalled();
+});
 
 test('JAX setup preserves framework and identifies inferred shapes without offering unsupported run modes', () => {
   const opening = state();
@@ -52,12 +72,12 @@ test('the model setup form identifies the newly selected environment after creat
 test('manual and optional agent routes remain visible and preserve entered values without submitting', () => {
   const onAction = jest.fn(); render(<GraphOpeningPanel state={state()} connected onAction={onAction} />);
   fireEvent.click(screen.getByRole('button', { name: 'Setup methods' }));
-  expect(screen.getByText('Recommended').closest('button')).toHaveAccessibleName('Set up with agent');
+  expect(screen.getByRole('button', { name: 'Set up project with agent' })).toHaveAccessibleName('Set up project with agent');
   fireEvent.click(screen.getByRole('button', { name: 'Set up manually' }));
   fireEvent.change(screen.getByLabelText('width *'), { target: { value: '8' } });
   fireEvent.change(screen.getByLabelText('x shape'), { target: { value: '2, 8' } });
   fireEvent.click(screen.getByRole('button', { name: 'Setup methods' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Set up with agent' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Set up project with agent' }));
   expect(onAction).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'agent_help', draft: expect.objectContaining({ profile: expect.objectContaining({ init: { args: [], kwargs: { width: 8 } }, inputs: { args: [], kwargs: { x: expect.objectContaining({ shape: [2, 8] }) } } }) }) }));
   expect(screen.getByLabelText('width *')).toHaveValue('8');
   expect(screen.getByLabelText('x shape')).toHaveValue('2, 8');
@@ -72,7 +92,7 @@ test('model execution failure offers MCP investigation beside retry rather than 
   render(<GraphOpeningPanel state={{ ...state(), phase: 'failed', failure: { kind: 'execution' }, detail: 'The model raised an exception.' }} connected onAction={onAction} />);
   expect(screen.queryByLabelText('width *')).toBeNull();
   expect(screen.queryByText(/needs an example call/)).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Set up with agent' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Set up project with agent' }));
   expect(onAction).toHaveBeenCalledWith({ kind: 'agent_help' });
   expect(screen.getAllByRole('button', { name: 'Retry' })).toHaveLength(1);
 });
@@ -159,7 +179,7 @@ test('a selected factory keeps construction visible and only requires the missin
   opening.draft = { profile: { kind: 'model', model: 'model:Net', mode: 'eval', device: 'cpu', grad_enabled: false,
     factory: { file: 'setup_model.py', callable: 'make_model', kwargs: { variant: 'small' } }, inputs: { args: [], kwargs: {} } } };
   const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
-  expect(screen.getByRole('heading', { name: 'Set up this model' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Set up this project' })).toBeVisible();
   expect(screen.queryByLabelText('width *')).toBeNull();
   expect(screen.getByLabelText('Model builder file')).toBeVisible();
   expect(screen.getByLabelText('x shape')).toBeVisible();
@@ -375,7 +395,7 @@ test('an inherited saved call exposes editable tensor shapes without raw JSON or
   const inputs = { args: [], kwargs: { src: savedTensor([8, 1, 512]), tgt: savedTensor([4, 1, 512]) } };
   const opening = savedInputState(inputs), onAction = jest.fn();
   render(<GraphOpeningPanel state={opening} retained connected onAction={onAction} />);
-  expect(screen.getByRole('heading', { name: 'Set up this model' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Set up this project' })).toBeVisible();
   expect(screen.getByLabelText('src shape')).toBeVisible();
   expect(screen.getByLabelText('tgt shape')).toHaveValue('4, 1, 512');
   expect(screen.getByLabelText('Advanced profile')).not.toBeVisible();
@@ -562,7 +582,7 @@ test('agent and environment lead while manual focus is retained across typing an
   const opening = state();
   const { rerender, container } = renderPanel(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   const width = screen.getByLabelText('width *');
-  expect(screen.getByRole('button', { name: 'Set up with agent' })).toHaveFocus();
+  expect(screen.getByRole('button', { name: 'Set up project with agent' })).toHaveFocus();
   expect(screen.getByRole('region', { name: 'Setup help and environment' }).compareDocumentPosition(container.querySelector('form')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Set up manually' }));
   expect(width).toHaveFocus();
@@ -605,15 +625,15 @@ test('first setup offers two alternatives without a visible form or submit actio
   const onAction = jest.fn();
   renderPanel(<GraphOpeningPanel state={state()} connected onAction={onAction} />);
   expect(screen.getByRole('region', { name: 'Choose a setup method' })).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Set up with agent' })).toHaveFocus();
-  expect(screen.getByText('Recommended').closest('button')).toHaveAccessibleName('Set up with agent');
+  expect(screen.getByRole('button', { name: 'Set up project with agent' })).toHaveFocus();
+  expect(screen.getByRole('button', { name: 'Set up project with agent' })).toHaveAccessibleName('Set up project with agent');
   expect(screen.getByLabelText('width *')).not.toBeVisible();
   expect(screen.queryByRole('button', { name: 'Open graph' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Set up manually' }));
   expect(screen.getByLabelText('width *')).toBeVisible();
   expect(screen.getByLabelText('width *')).toHaveFocus();
   expect(screen.getByRole('button', { name: 'Open graph' })).toBeVisible();
-  expect(screen.queryByRole('button', { name: 'Set up with agent' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Set up project with agent' })).toBeNull();
   expect(onAction).not.toHaveBeenCalled();
 });
 
@@ -623,9 +643,9 @@ test('switching routes preserves incomplete text and gives the agent the edited 
   fireEvent.change(screen.getByLabelText('width *'), { target: { value: '64' } });
   fireEvent.change(screen.getByLabelText('x shape'), { target: { value: '2,' } });
   fireEvent.click(screen.getByRole('button', { name: 'Setup methods' }));
-  expect(screen.getByRole('button', { name: 'Set up with agent' })).toHaveFocus();
+  expect(screen.getByRole('button', { name: 'Set up project with agent' })).toHaveFocus();
   expect(screen.queryByRole('button', { name: 'Open graph' })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Set up with agent' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Set up project with agent' }));
   expect(onAction).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'agent_help', draft: expect.objectContaining({
     profile: expect.objectContaining({ init: { args: [], kwargs: { width: 64 } } }) }) }));
   fireEvent.click(screen.getByRole('button', { name: 'Set up manually' }));

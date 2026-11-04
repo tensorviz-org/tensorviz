@@ -14,6 +14,123 @@ import pytest
 from services.ide import environment_setup as setup
 
 
+def test_model_import_failure_retains_native_cause_and_observed_platform(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(setup, 'TARGET_PYTHON', None)
+    monkeypatch.setattr(setup.platform, 'machine', lambda: 'arm64')
+    monkeypatch.setattr(setup.sys, 'platform', 'darwin')
+    monkeypatch.setattr(setup.metadata, 'version', lambda name: '2.7.1')
+    monkeypatch.setitem(sys.modules, 'torch', SimpleNamespace(version=SimpleNamespace(cuda=None),
+        cuda=SimpleNamespace(is_available=lambda: False),
+        backends=SimpleNamespace(mps=SimpleNamespace(is_available=lambda: True))))
+    model = tmp_path / 'native_failure_fixture.py'
+    model.write_text('try:\n    raise OSError("dlopen: library libcudart.so was not found")\n'
+                     'except OSError as cause:\n    raise ImportError("flash_attn native extension could not load") from cause\n')
+    result = setup.probe_model_import(tmp_path, model)
+    assert result['ok'] is False
+    assert result['code'] == 'MODEL_IMPORT_FAILED'
+    assert 'libcudart.so' in result['message']
+    diagnostic = result['diagnostic']
+    assert diagnostic['exceptionType'] == 'OSError'
+    assert [item['exceptionType'] for item in diagnostic['causes']] == ['ExecutionRequirement', 'ImportError', 'OSError']
+    assert 'flash_attn native extension' in diagnostic['traceback']
+    assert str(model) in diagnostic['traceback']
+    assert diagnostic['runtime'] == dict(platform='darwin', architecture='arm64', python=sys.version.split()[0],
+        torch='2.7.1', cuda=None, cudaAvailable=False, mpsAvailable=True)
+    assert not diagnostic['truncated']
+
+
+def test_model_import_diagnostic_reports_missing_module_without_importing_torch(monkeypatch):
+    import builtins
+    original_import = builtins.__import__
+    monkeypatch.delitem(sys.modules, 'torch', raising=False)
+    def no_torch(name, *args, **kwargs):
+        assert name != 'torch', 'diagnostics must not start another import'
+        return original_import(name, *args, **kwargs)
+    monkeypatch.setattr(builtins, '__import__', no_torch)
+    monkeypatch.setattr(setup.metadata, 'version', lambda _: '2.7.1')
+    diagnostic = setup.model_import_diagnostic(ModuleNotFoundError("No module named 'flash_attn_2_cuda'", name='flash_attn_2_cuda'))
+    assert diagnostic['causes'][0]['module'] == 'flash_attn_2_cuda'
+    assert diagnostic['runtime']['cudaAvailable'] is None
+    assert diagnostic['runtime']['mpsAvailable'] is None
+    assert diagnostic['runtime']['torch'] == '2.7.1'
+
+
+def test_model_import_diagnostic_redacts_credentials_and_omits_source_and_locals(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(setup, 'TARGET_PYTHON', None)
+    monkeypatch.delitem(sys.modules, 'torch', raising=False)
+    model = tmp_path / 'private_failure_fixture.py'
+    model.write_text('private_literal = "DO_NOT_EXPOSE_LOCAL"\n'
+                     'raise ImportError("fetch failed: https://person:private_password@example.org/pkg?token=private_token&api_key=private_key")\n')
+    diagnostic = setup.probe_model_import(tmp_path, model)['diagnostic']
+    encoded = json.dumps(diagnostic)
+    for private in ['DO_NOT_EXPOSE_LOCAL', 'private_literal', 'private_password', 'private_token', 'private_key']:
+        assert private not in encoded
+    assert '[redacted]' in diagnostic['message']
+    assert 'example.org/pkg' in diagnostic['message']
+    assert 'line 2' in diagnostic['traceback']
+
+
+def test_model_import_diagnostic_bounds_messages_and_exception_cycles():
+    error = ValueError('x' * 20000)
+    error.__cause__ = error
+    diagnostic = setup.model_import_diagnostic(error)
+    assert diagnostic['truncated']
+    assert len(diagnostic['message']) == 2048
+    assert len(diagnostic['traceback']) <= 12000
+    assert len(diagnostic['causes']) == 1
+
+
+def test_model_import_diagnostic_bounds_unicode_for_the_browser_contract():
+    diagnostic = setup.model_import_diagnostic(ImportError('\U0001f642' * 2048))
+    assert len(diagnostic['message'].encode('utf-16-le')) == 4096
+    assert diagnostic['truncated']
+
+
+def test_model_import_diagnostic_bounds_escaped_json_for_the_helper_transport():
+    error = ImportError('\u4e2d' * 2048)
+    for _ in range(7):
+        outer = ImportError('\u4e2d' * 2048)
+        outer.__cause__ = error
+        error = outer
+    diagnostic = setup.model_import_diagnostic(error)
+    assert len(json.dumps(diagnostic)) <= 64000
+    assert len(diagnostic['causes']) == 8
+    assert diagnostic['message'] == diagnostic['causes'][-1]['message']
+    assert diagnostic['truncated']
+
+
+def test_model_import_diagnostic_bounds_traceback_frames_without_source_or_locals():
+    def nested(depth):
+        private_literal = 'DO_NOT_EXPOSE_LOCAL'
+        if depth:
+            return nested(depth - 1)
+        raise ImportError('Native extension unavailable.')
+    try:
+        nested(80)
+    except ImportError as error:
+        diagnostic = setup.model_import_diagnostic(error)
+    assert diagnostic['traceback'].count('  File ') == 64
+    assert diagnostic['truncated']
+    assert 'DO_NOT_EXPOSE_LOCAL' not in diagnostic['traceback']
+    assert 'private_literal' not in diagnostic['traceback']
+
+
+def test_target_model_probe_preserves_returned_diagnostic(tmp_path, monkeypatch):
+    result = dict(ok=False, code='MODEL_IMPORT_FAILED', message='Missing native module.',
+                  diagnostic=setup.model_import_diagnostic(ImportError('Native extension missing.')))
+    monkeypatch.setattr(setup, 'TARGET_PYTHON', '/target/python')
+    calls = []
+    def run(arguments, **kwargs):
+        calls.append((arguments, kwargs))
+        return SimpleNamespace(stdout='model progress output\n' + json.dumps(result) + '\n')
+    monkeypatch.setattr(setup.subprocess, 'run', run)
+    assert setup.probe_model_import(tmp_path, tmp_path / 'model.py') == result
+    assert calls[0][0][:3] == ['/target/python', '-I', '-B']
+    assert calls[0][1]['timeout'] == 90
+
+
 def test_fresh_model_recipe_preserves_pinned_git_and_skips_optional_imports(tmp_path, monkeypatch):
     revision = 'a' * 40
     (tmp_path / 'pyproject.toml').write_text('[project]\ndependencies = ["torch_remat @ git+https://github.com/example/remat.git@' + revision + '", "datasets>=3"]\n')

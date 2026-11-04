@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { isModelEnvironmentName } from '@tensorviz/contracts/protocol';
+import { isModelEnvironmentName, type CanvasAgentPermissionRequest } from '@tensorviz/contracts/protocol';
 import { GraphToolError } from '@tensorviz/graph-host/mcpGraph';
 import { ownedTemporaryDirectory } from '@tensorviz/graph-host/ownedTemporary';
 import { runEnvironmentHelper, type EnvironmentRunner } from '@tensorviz/graph-host/projectEnvironmentCore';
@@ -10,6 +10,7 @@ export interface ModelEnvironmentCreationOptions {
   managerPython: string; backendDir: string; storage: string; workspace: string; file: string;
   name?: string;
   signal: AbortSignal; current(): Promise<boolean>; progress(detail: string): void;
+  approve?(request: CanvasAgentPermissionRequest, signal: AbortSignal): Promise<boolean | undefined>;
   selectEnvironment(python: string): Promise<void>; runner?: EnvironmentRunner;
 }
 
@@ -24,6 +25,14 @@ export async function createModelEnvironment(options: ModelEnvironmentCreationOp
   await check();
   const name = options.name ?? 'environment';
   if (!isModelEnvironmentName(name)) throw new GraphToolError('INVALID_ENVIRONMENT_NAME', 'Use an environment name of 1–48 letters, numbers, hyphens or underscores.');
+  if (options.approve) {
+    options.progress('Waiting for environment approval in chat…');
+    const approved = await options.approve({ operation: 'python.environment.create', scope: 'isolated_environment', effects: ['create'],
+      facts: { workspace: options.workspace, model: options.file, name, destinationRoot: path.join(options.storage, 'model-environments'),
+        preservesExistingEnvironment: true } }, options.signal);
+    await check();
+    if (approved === false) throw new GraphToolError('ENVIRONMENT_CREATION_DECLINED', 'Creating a model environment was not approved. Nothing was created.');
+  }
   const storage = path.join(options.storage, 'model-environments');
   await fs.mkdir(storage, { recursive: true });
   const owned = await ownedTemporaryDirectory(await fs.realpath(storage), 'model-');
@@ -38,7 +47,7 @@ export async function createModelEnvironment(options: ModelEnvironmentCreationOp
     await check();
     if (!result.ok && result.code === 'NO_COMPATIBLE_WHEEL') unavailableWheel = result.requirement;
     if (!result.ok) throw new GraphToolError(result.code ?? 'MODEL_ENVIRONMENT_FAILED',
-      (result.requirement ? `${result.requirement}: ` : '') + (result.message ?? 'Model environment setup did not complete. Retry or choose another environment.'));
+      (result.requirement ? `${result.requirement}: ` : '') + (result.message ?? 'Model environment setup did not complete. Retry or choose another environment.'), result.diagnostic);
     return result;
   };
   try {
@@ -49,10 +58,17 @@ export async function createModelEnvironment(options: ModelEnvironmentCreationOp
     if (!recipe.manifestDigest) throw new GraphToolError('MODEL_ENVIRONMENT_FAILED', 'The project requirements could not be inspected. Retry environment setup.');
     const reviewSource = async () => {
       await check();
-      const approved = await vscode.window.showWarningMessage('Build model libraries from source?', { modal: true,
-        detail: `${recipe.sourcePackages?.length ? recipe.sourcePackages.join('\n') : unavailableWheel ?? 'Required model libraries'}\n\nBuild code can access files and the network. Libraries will be built for “${name}”; your current Python stays unchanged.` }, 'Build libraries');
+      const details = `${recipe.sourcePackages?.length ? recipe.sourcePackages.join('\n') : unavailableWheel ?? 'Required model libraries'}\n\nBuild code can access files and the network. Libraries will be built for “${name}”; your current Python stays unchanged.`;
+      if (options.approve) options.progress('Waiting for source-build approval in chat…');
+      const decision = await options.approve?.({ operation: 'python.packages.build', scope: 'isolated_environment', effects: ['execute_code'],
+        facts: { workspace: options.workspace, model: options.file, name, python,
+          sourcePackages: recipe.sourcePackages?.length ? recipe.sourcePackages : unavailableWheel ? [unavailableWheel] : [],
+          access: { filesystem: true, network: true }, preservesExistingEnvironment: true } }, options.signal);
       await check();
-      if (approved !== 'Build libraries') throw new GraphToolError('SOURCE_BUILD_DECLINED', 'Source builds were not approved. No model environment was selected.');
+      if (options.approve && decision === undefined) options.progress('Waiting for source-build approval in VS Code…');
+      const approved = decision ?? await vscode.window.showWarningMessage('Build model libraries from source?', { modal: true, detail: details }, 'Build libraries') === 'Build libraries';
+      await check();
+      if (!approved) throw new GraphToolError('SOURCE_BUILD_DECLINED', 'Source builds were not approved. No model environment was selected.');
     };
     let sourceApproved = !!recipe.sourcePackages?.length;
     if (sourceApproved) await reviewSource();
@@ -70,11 +86,17 @@ export async function createModelEnvironment(options: ModelEnvironmentCreationOp
       plan = await run(['plan-model-environment-source', owned.directory, options.workspace, options.file, recipe.manifestDigest, name]);
     }
     if (!plan.digest || !plan.packages?.length) throw new GraphToolError('MODEL_ENVIRONMENT_FAILED', 'No compatible model-library installation was resolved.');
-    options.progress('Ready to install. Review the package list in VS Code…');
-    const approved = await vscode.window.showInformationMessage(`Install ${plan.packages.length} libraries in “${name}”?`, { modal: true,
-      detail: `${plan.packages.map(item => `${item.name} ${item.version}`).join('\n')}\n\nIncludes PyTorch; downloads may be large. Your current Python stays unchanged. Installation continues opening this model.` }, 'Install and continue');
+    const details = `${plan.packages.map(item => `${item.name} ${item.version}`).join('\n')}\n\nIncludes PyTorch; downloads may be large. Your current Python stays unchanged. Installation continues opening this model.`;
+    options.progress(options.approve ? 'Waiting for package approval in chat…' : 'Ready to install. Review the package list in VS Code…');
+    const decision = await options.approve?.({ operation: 'python.packages.install', scope: 'isolated_environment', effects: ['install'],
+      facts: { workspace: options.workspace, model: options.file, name, python, planDigest: plan.digest,
+        packages: plan.packages.map(({ name, version }) => ({ name, version })), builtFromSource: plan.builtFromSource ?? [],
+        preservesExistingEnvironment: true, verification: ['capture_libraries', 'model_import'] } }, options.signal);
     await check();
-    if (approved !== 'Install and continue') throw new GraphToolError('INSTALL_DECLINED', 'Installation was not approved. No model environment was selected.');
+    if (options.approve && decision === undefined) options.progress('Ready to install. Review the package list in VS Code…');
+    const approved = decision ?? await vscode.window.showInformationMessage(`Install ${plan.packages.length} libraries in “${name}”?`, { modal: true, detail: details }, 'Install and continue') === 'Install and continue';
+    await check();
+    if (!approved) throw new GraphToolError('INSTALL_DECLINED', 'Installation was not approved. No model environment was selected.');
     options.progress('Downloading and installing the reviewed libraries…');
     await run(['install', owned.directory, plan.digest]);
     options.progress('Checking capture libraries and the model import…');

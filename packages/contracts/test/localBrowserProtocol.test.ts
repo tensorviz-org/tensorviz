@@ -10,6 +10,10 @@ import {
   isLocalBrowserMessage,
   isGraphEnvironmentRecovery,
   isGraphSetupAction,
+  isGraphFailure,
+  isModelImportDiagnostic,
+  isCanvasAgentState,
+  type ModelImportDiagnostic,
 } from '@tensorviz/contracts/protocol';
 
 const fixturePath = join(__dirname, '../../../tests/fixtures/contracts/local-browser-protocol.json');
@@ -20,6 +24,103 @@ const corpus = JSON.parse(readFileSync(fixturePath, 'utf8')) as {
 };
 
 suite('local browser protocol', () => {
+  const importMessage = "cannot import name 'ALL_ATTENTION_FUNCTIONS' from 'transformers.modeling_utils'";
+  const importDiagnostic: ModelImportDiagnostic = {
+    exceptionType: 'ImportError', message: importMessage,
+    traceback: `Traceback (most recent call last):\n  File "/project/model.py", line 4, in <module>\nImportError: ${importMessage}`,
+    causes: [{ exceptionType: 'ImportError', message: importMessage, module: 'transformers.modeling_utils' }],
+    runtime: { platform: 'darwin', architecture: 'arm64', python: '3.12.13', torch: null, cuda: null, cudaAvailable: null, mpsAvailable: null },
+    truncated: false,
+  };
+  const importFailure = { kind: 'environment', code: 'MODEL_IMPORT_FAILED', importFailure: true, diagnostic: importDiagnostic };
+  const failedAgent = { sessionId: 'chat', revision: 1, provider: 'codex', status: 'error', activity: importMessage, messages: [], failure: importFailure };
+  const agentWire = (state: unknown) => ({ type: 'agentState', protocolVersion: 1, workspaceSessionId: 'session', messageId: 'evidence', viewId: 'view', state });
+
+  test('retained import evidence survives the wire exactly, including unknown runtime observations', () => {
+    const received = JSON.parse(JSON.stringify(agentWire(failedAgent)));
+    assert.ok(isModelImportDiagnostic(received.state.failure.diagnostic));
+    assert.ok(isGraphFailure(received.state.failure)); assert.ok(isCanvasAgentState(received.state));
+    assert.ok(isLocalBrowserMessage(received)); assert.deepEqual(received, agentWire(failedAgent));
+    assert.equal(received.state.failure.diagnostic.message, importMessage);
+    assert.equal(received.state.failure.diagnostic.traceback, importDiagnostic.traceback);
+    assert.deepEqual(received.state.failure.diagnostic.runtime, importDiagnostic.runtime);
+    const observed = { ...importDiagnostic, runtime: { ...importDiagnostic.runtime, torch: '2.6.0', cuda: null, cudaAvailable: false, mpsAvailable: true } };
+    assert.ok(isModelImportDiagnostic(observed));
+    assert.ok(isLocalBrowserMessage(agentWire({ ...failedAgent, failure: { ...importFailure, diagnostic: observed } })));
+  });
+
+  test('import diagnostic text and cause bounds accept the limit and reject larger or malformed evidence', () => {
+    const maximum = { ...importDiagnostic, exceptionType: 'E'.repeat(128), message: 'm'.repeat(2048), traceback: 't'.repeat(12000),
+      causes: Array.from({ length: 8 }, () => ({ exceptionType: 'E'.repeat(128), message: 'm'.repeat(2048), module: 'p'.repeat(256) })) };
+    assert.ok(isModelImportDiagnostic(maximum));
+    const malformed: Array<[string, unknown]> = [
+      ['absent', undefined], ['null', null], ['array', []],
+      ['missing field', { ...importDiagnostic, traceback: undefined }], ['extra field', { ...importDiagnostic, explanation: 'unobserved' }],
+      ['empty exception', { ...importDiagnostic, exceptionType: '' }], ['long exception', { ...importDiagnostic, exceptionType: 'E'.repeat(129) }],
+      ['long message', { ...importDiagnostic, message: 'm'.repeat(2049) }], ['non-text message', { ...importDiagnostic, message: {} }],
+      ['long traceback', { ...importDiagnostic, traceback: 't'.repeat(12001) }], ['non-text traceback', { ...importDiagnostic, traceback: [] }],
+      ['non-boolean truncation', { ...importDiagnostic, truncated: 'false' }], ['too many causes', { ...maximum, causes: [...maximum.causes, maximum.causes[0]] }],
+      ['non-array causes', { ...importDiagnostic, causes: {} }], ['null cause', { ...importDiagnostic, causes: [null] }],
+      ['cause missing type', { ...importDiagnostic, causes: [{ message: importMessage }] }],
+      ['cause long type', { ...importDiagnostic, causes: [{ exceptionType: 'E'.repeat(129), message: '' }] }],
+      ['cause long message', { ...importDiagnostic, causes: [{ exceptionType: 'ImportError', message: 'm'.repeat(2049) }] }],
+      ['cause invalid module', { ...importDiagnostic, causes: [{ exceptionType: 'ImportError', message: '', module: 7 }] }],
+      ['cause long module', { ...importDiagnostic, causes: [{ exceptionType: 'ImportError', message: '', module: 'p'.repeat(257) }] }],
+      ['cause extra field', { ...importDiagnostic, causes: [{ exceptionType: 'ImportError', message: '', command: 'install something' }] }],
+    ];
+    for (const [name, diagnostic] of malformed) {
+      assert.equal(isModelImportDiagnostic(diagnostic), false, name);
+      // A malformed nested value must not be admitted through the enclosing wire message.
+      if (diagnostic !== undefined) assert.equal(isLocalBrowserMessage(agentWire({ ...failedAgent, failure: { ...importFailure, diagnostic } })), false, name);
+    }
+  });
+
+  test('runtime observations require the exact typed fields and retain explicit unknowns', () => {
+    const runtime = importDiagnostic.runtime;
+    assert.ok(isModelImportDiagnostic({ ...importDiagnostic, runtime: { platform: 'p'.repeat(128), architecture: 'a'.repeat(128), python: 'v'.repeat(128),
+      torch: 't'.repeat(128), cuda: 'c'.repeat(128), cudaAvailable: true, mpsAvailable: false } }));
+    const malformed = [null, [], { ...runtime, python: undefined }, { ...runtime, extra: 'unsupported inference' },
+      { ...runtime, platform: '' }, { ...runtime, architecture: 'a'.repeat(129) }, { ...runtime, python: 3.12 },
+      { ...runtime, torch: '' }, { ...runtime, torch: 't'.repeat(129) }, { ...runtime, cuda: 12 },
+      { ...runtime, cudaAvailable: 'false' }, { ...runtime, mpsAvailable: 0 }];
+    for (const observed of malformed) {
+      assert.equal(isModelImportDiagnostic({ ...importDiagnostic, runtime: observed }), false, JSON.stringify(observed));
+      assert.equal(isLocalBrowserMessage(agentWire({ ...failedAgent, failure: { ...importFailure,
+        diagnostic: { ...importDiagnostic, runtime: observed } } })), false, JSON.stringify(observed));
+    }
+  });
+
+  test('structured import diagnosis belongs only to environment failures', () => {
+    assert.ok(isGraphFailure(importFailure));
+    const opening = { type: 'graphOpening', protocolVersion: 1, workspaceSessionId: 'session', messageId: 'opening', hostSequence: 1,
+      state: { id: 'opening', target: { workspaceFolder: '/project', file: 'model.py', cls: 'Net', documentVersion: 1,
+        sourceDigest: 'a'.repeat(64), backendRevision: 1 }, phase: 'failed', detail: importMessage, hasCapture: false, failure: importFailure } };
+    assert.equal(isLocalBrowserMessage(opening), true);
+    for (const kind of ['setup', 'source', 'execution', 'capture']) {
+      assert.ok(isGraphFailure({ kind }));
+      assert.equal(isGraphFailure({ kind, diagnostic: importDiagnostic }), false, kind);
+      assert.equal(isLocalBrowserMessage({ ...opening, state: { ...opening.state, failure: { kind, diagnostic: importDiagnostic } } }), false, kind);
+    }
+    for (const failure of [{ ...importFailure, diagnostic: null }, { ...importFailure, importFailure: false },
+      { ...importFailure, code: 'MODEL IMPORT FAILED' }, { ...importFailure, retryCommand: 'pip install arbitrary' }]) {
+      assert.equal(isGraphFailure(failure), false); assert.equal(isLocalBrowserMessage(agentWire({ ...failedAgent, failure })), false);
+    }
+  });
+
+  test('retained agent failures are valid only in terminal error state and remain optional for older hosts', () => {
+    for (const status of ['idle', 'running', 'stopped', 'error']) {
+      const state = { ...failedAgent, status };
+      assert.equal(isCanvasAgentState(state), status === 'error', status);
+      assert.equal(isLocalBrowserMessage(agentWire(state)), status === 'error', status);
+      const { failure: _failure, ...legacy } = state;
+      assert.ok(isCanvasAgentState(legacy), `legacy ${status}`); assert.ok(isLocalBrowserMessage(agentWire(legacy)), `legacy ${status}`);
+    }
+    for (const failure of [null, [], 'ImportError', { ...importFailure, diagnostic: { ...importDiagnostic, traceback: 42 } }]) {
+      assert.equal(isCanvasAgentState({ ...failedAgent, failure }), false);
+      assert.equal(isLocalBrowserMessage(agentWire({ ...failedAgent, failure })), false);
+    }
+  });
+
   test('draft revision capability is optional for legacy code drafts and strictly boolean when present', () => {
     const message = { type: 'graphReviewState', protocolVersion: 1, workspaceSessionId: 'session', messageId: 'draft',
       state: { id: 'draft', proposal: { id: 'proposal' }, before: {}, after: {}, beforeLabel: 'Current', afterLabel: 'Proposed', stale: false, changedFiles: [] } };

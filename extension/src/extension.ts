@@ -8,6 +8,8 @@ import { homedir } from 'node:os';
 import { unsupportedRemote } from './remoteSupport';
 import { clientOrigin, forwardShellTarget } from './remoteForwarding';
 import { registerMcpGraphSetup } from '@tensorviz/graph-host/mcpGraphSetup';
+import { registerCanvasAgentPermissionTools } from './canvasAgentPermissionTools';
+import { createCanvasAgentProjectTools } from './canvasAgentProjectTools';
 import { registerMcpViewTools } from '@tensorviz/graph-host/mcpViews';
 import { McpGraphView, registerMcpGraphView } from '@tensorviz/graph-host/mcpGraphView';
 import { registerMcpValidationTools } from '@tensorviz/graph-host/mcpValidation';
@@ -82,11 +84,6 @@ import {
 import { registerTracebackLinks } from './tracebackLinks';
 import { registerWebsiteCommands } from './websiteCommands';
 import { TraceWorker, windowTraceWorker, workspaceTrusted } from './worker';
-import {
-  FIRST_RUN_KEY,
-  qualifiedWalkthroughId,
-  showWalkthroughOnce,
-} from './walkthrough';
 import {
   MODELS_VIEW,
   MODEL_TEMPLATES,
@@ -203,6 +200,7 @@ let inlayHints: ShapeInlayHints | undefined;
  *  page is anchored on. Module-scoped for the same reason as the lens index:
  *  registered once, reused by every command invocation after. */
 let browserGraph: LocalBrowserGraph | undefined;
+const agentProjectTools = new Map<string, ReturnType<typeof createCanvasAgentProjectTools>>();
 
 /** What the Electron tests hook into. Nothing in the product reads it. */
 export interface TestApi {
@@ -386,12 +384,14 @@ function windowOpening(): McpOpenGraph {
 
 async function modelDependencyOptions(context: vscode.ExtensionContext, target: LocalBrowserTargetIdentity,
   signal: AbortSignal): Promise<Omit<DependencyInstallOptions, 'packages'>> {
+  const approve = browserGraph?.agentPermissionRequester(target);
   const openingId = browserGraph?.opening?.state?.id;
   const resolved = resolveBackendDir(context);
   const uri = vscode.Uri.file(path.join(target.workspaceFolder, target.file));
   const python = await executionInterpreter(context, uri);
   if (!resolved.ok || !python) throw new GraphToolError('ENVIRONMENT_REQUIRED', 'Select a Python environment before installing model dependencies.');
   return { python, managerPython: backend?.interpreter, backendDir: resolved.backendDir, storage: context.globalStorageUri.fsPath, signal,
+    approve,
     current: async () => {
       const live = browserGraph?.opening?.state;
       const document = await vscode.workspace.openTextDocument(uri);
@@ -427,7 +427,8 @@ function windowTools(owner: string, canvasCode = false): HostToolset {
       current: () => browserGraph?.reviewState,
     });
     registerMcpGraphView(server, mcpGraphView ??= new McpGraphView(graph, () => browserGraph), owner);
-    if (surface?.opening && surface.setupHost) registerMcpGraphSetup(server, surface.opening, surface.setupHost);
+    if (surface?.opening && surface.setupHost) registerMcpGraphSetup(server, surface.opening, surface.setupHost,
+      canvasCode ? () => surface.agentPermissions.pending() : undefined);
     if (!surface) return;
     registerMcpCaptureTools(server, graph, surface.captureInspector,
       (ref, file) => surface.mcpProposals.readSource(graph, ref, owner, file));
@@ -436,11 +437,24 @@ function windowTools(owner: string, canvasCode = false): HostToolset {
     registerMcpViewTools(server, graph, surface.mcpViews, owner);
     registerMcpValidationTools(server, graph, surface.mcpRuns, owner);
     registerMcpProposalTools(server, graph, surface.mcpProposals, owner);
-    if (canvasCode) registerCanvasCodeTools(server, graph, surface.mcpProposals, owner);
+    if (canvasCode) {
+      registerCanvasCodeTools(server, graph, surface.mcpProposals, owner);
+      registerCanvasAgentPermissionTools(server, surface.agentPermissions);
+      let tools = agentProjectTools.get(owner);
+      if (!tools) {
+        tools = createCanvasAgentProjectTools({ capture: () => {
+          if (!browserGraph) throw new Error('No Canvas agent task is active.');
+          return browserGraph.captureAgentOperation();
+        } });
+        agentProjectTools.set(owner, tools);
+      }
+      tools.register(server);
+    }
   });
 }
 
 function releaseMcpOwner(owner: string): void {
+  agentProjectTools.get(owner)?.dispose(); agentProjectTools.delete(owner);
   mcpOpening?.cancelOwner(owner);
   mcpGraphView?.cancelOwner(owner);
   browserGraph?.mcpViews.cancelOwner(owner);
@@ -722,6 +736,7 @@ export function activate(context: vscode.ExtensionContext): { __test: TestApi } 
   const environmentOptions = (target: LocalBrowserTargetIdentity, signal: AbortSignal) => {
     if (!browserBackend.ok) throw new GraphToolError('NO_BACKEND', browserBackend.message);
     return { context, target, signal, backendDir: browserBackend.backendDir, managerPython: backend?.interpreter, workerCache,
+      approve: browserGraph?.agentPermissionRequester(target),
       diagnostic: (message: string) => channel.appendLine(message),
       readyManaged: async () => { const result = await managedBackendRuntime(context).check(); return result.state === 'ready' ? result.interpreter : undefined; },
     };
@@ -754,6 +769,11 @@ export function activate(context: vscode.ExtensionContext): { __test: TestApi } 
   browserGraph = new LocalBrowserGraph({
     observeAgent,
     agent: { run: (input, emit, signal) => canvasAgent.run(input, emit, signal), clear: preserveEvidence => canvasAgent.clear(preserveEvidence),
+      projectWork: {
+        running: signal => [...agentProjectTools.values()].some(tools => tools.running(signal)),
+        wait: (signal, waitMs) => [...agentProjectTools.values()].find(tools => tools.running(signal))?.wait(signal, waitMs) ?? Promise.resolve(),
+        unread: signal => [...agentProjectTools.values()].flatMap(tools => tools.unread(signal)),
+      },
       reference: model => windowGraph().reference(model),
       selection: (reference, nodeIds) => windowGraph().inspectNodes(reference, nodeIds),
       graph: (reference, maxBytes) => agentGraphContext(windowGraph(), reference, maxBytes),
@@ -1152,6 +1172,8 @@ async function detectProject(context: vscode.ExtensionContext): Promise<void> {
 /** VS Code does not reliably await an async deactivate, so the group kill must be
  *  synchronous — no awaits on this path. */
 export function deactivate(): void {
+  for (const tools of agentProjectTools.values()) tools.dispose();
+  agentProjectTools.clear();
   disposeSnapshotHelpers();
   void mcpLifecycle?.dispose();
   void stopGraphMcp();
@@ -1647,9 +1669,6 @@ function registerShell(context: vscode.ExtensionContext, lenses: WorkspaceClassI
   registerWebsiteCommands(context, channel);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('tensorviz.getStarted', () =>
-      vscode.commands.executeCommand('workbench.action.openWalkthrough', qualifiedWalkthroughId()),
-    ),
     vscode.commands.registerCommand('tensorviz.selectEnvironment', () => checkEnvironmentCommand(context, true)),
     vscode.commands.registerCommand('tensorviz.checkEnvironment', () =>
       checkEnvironmentCommand(context),
@@ -1666,18 +1685,6 @@ function registerShell(context: vscode.ExtensionContext, lenses: WorkspaceClassI
       models.refresh();
     }),
   );
-
-  void showWalkthroughOnce({
-    seen: () => context.globalState.get<boolean>(FIRST_RUN_KEY) === true,
-    remember: () => Promise.resolve(context.globalState.update(FIRST_RUN_KEY, true)),
-    // The Welcome / Get Started editor is not something the user opened, and it is usually the
-    // only tab in the very window a fresh install activates in. Counting it would suppress the
-    // walkthrough exactly when it is wanted, so it is filtered out.
-    hasOpenEditors: () => vscode.window.tabGroups.all.some(group => group.tabs.some(tab =>
-      !(tab.input instanceof vscode.TabInputWebview
-        && tab.input.viewType.startsWith('workbench.welcomePage')))),
-    open: (id) => vscode.commands.executeCommand('workbench.action.openWalkthrough', id),
-  });
 }
 
 /** Select project execution Python without restarting the tool-owned service. */

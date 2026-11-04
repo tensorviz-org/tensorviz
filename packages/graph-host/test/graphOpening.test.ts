@@ -47,6 +47,37 @@ const environment = (reason: GraphEnvironmentRecovery['reason'] = 'missing_libra
 });
 
 suite('environment recovery in the same graph opening', () => {
+  for (const kind of ['select_environment', 'create_environment', 'install_dependencies'] as const) {
+    test(`${kind} publishes verified Python readiness before reading inputs, without a second environment selection`, async () => {
+      const r = rig(), lookup = deferred<ProfileLookup>(); let checks = 0, lookups = 0;
+      r.deps.environment = async () => { checks++; return { ...environment(), canCreate: true }; };
+      r.deps.recoverEnvironment = async () => environment('ready');
+      r.deps.lookup = async () => { lookups++; return lookup.promise; };
+      await r.opening.open(target); const id = r.opening.state!.id;
+      const recovering = action(r.opening, 'prepare', kind === 'select_environment'
+        ? { kind, candidateId: 'project' } : { kind });
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(r.opening.state!.id, id); assert.equal(r.opening.state!.phase, 'resolving');
+      assert.equal(r.opening.state!.environment!.reason, 'ready');
+      assert.equal(checks, 1, 'the returned host verification is authoritative for this continuation');
+      assert.equal(lookups, 1); assert.equal(r.captures, 0);
+      lookup.resolve({ ok: false, kind: 'none' }); await recovering;
+      assert.equal(r.opening.state!.phase, 'needs_setup'); assert.equal(r.opening.state!.environment!.reason, 'ready');
+      assert.ok(r.opening.state!.discovery); assert.equal(r.captures, 0);
+    });
+  }
+  test('a late verified recovery cannot overwrite a replaced opening with the same model and source', async () => {
+    const r = rig(), repaired = deferred<GraphEnvironmentRecovery>();
+    r.deps.environment = async () => ({ ...environment(), canCreate: true });
+    r.deps.recoverEnvironment = () => repaired.promise;
+    await r.opening.open(target); const oldId = r.opening.state!.id;
+    const recovering = action(r.opening, 'create', { kind: 'create_environment' });
+    await r.opening.open(target); const newId = r.opening.state!.id;
+    assert.notEqual(oldId, newId);
+    repaired.resolve(environment('ready')); assert.equal(await recovering, false);
+    assert.equal(r.opening.state!.id, newId); assert.equal(r.opening.state!.environment!.reason, 'missing_libraries');
+    assert.equal(r.captures, 0);
+  });
   test('Browse checks the selected Python in the same opening before requesting library repair', async () => {
     const r = rig(); let selected = false;
     r.deps.environment = async () => ({ ...environment(), selectedId: selected ? 'browsed' : 'project',

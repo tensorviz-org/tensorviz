@@ -2,14 +2,14 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { ensureModelDependencies, installMcpDependencies, type DependencyInstallOptions } from '../../mcpDependencies';
+import { ensureModelDependencies, installMcpDependencies, replaceModelVersions, type DependencyInstallOptions } from '../../mcpDependencies';
 import { GraphToolError } from '@tensorviz/graph-host/mcpGraph';
 import { reset, state, setInfoResponder, infoMessages } from '../vscodeStub';
 
 suite('MCP model dependency approval', () => {
   let storage: string, calls: string[], options: DependencyInstallOptions;
   setup(async () => {
-    reset(); storage = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-dependency-test-')); calls = [];
+    reset(); infoMessages.length = 0; setInfoResponder(undefined); storage = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-dependency-test-')); calls = [];
     options = { storage, python: '/project/python', backendDir: '/backend', packages: ['einops>=0.8'],
       signal: new AbortController().signal, current: async () => true,
       runner: async (_python, _backend, args) => {
@@ -40,6 +40,86 @@ suite('MCP model dependency approval', () => {
     setInfoResponder(() => 'Install dependencies');
     await installMcpDependencies(options);
     assert.deepEqual(calls, ['plan-packages', 'install']); assert.deepEqual(await fs.readdir(storage), []);
+  });
+  test('agent approval reviews the frozen package versions in chat without a native modal', async () => {
+    const stages: string[] = []; options.progress = detail => stages.push(detail);
+    options.approve = async (request, signal) => {
+      assert.equal(request.operation, 'python.packages.install'); assert.equal(signal, options.signal);
+      assert.equal(request.scope, 'existing_environment');
+      assert.deepEqual(Object.keys(request).sort(), ['effects', 'facts', 'operation', 'scope']);
+      assert.deepEqual(request.effects, ['install']); assert.equal(request.facts.planDigest, 'reviewed');
+      assert.deepEqual(request.facts.packages, [{ name: 'einops', version: '0.8.1' }]);
+      assert.equal(request.facts.python, '/project/python'); assert.equal(request.facts.preservesTorch, true);
+      return true;
+    };
+    await installMcpDependencies(options);
+    assert.deepEqual(calls, ['plan-packages', 'install']); assert.deepEqual(infoMessages, []);
+    assert.ok(stages.includes('Waiting for approval in chat…'));
+    assert.ok(stages.every(detail => !detail.includes('VS Code')));
+  });
+  test('denied agent approval never installs or falls back to a native modal', async () => {
+    setInfoResponder(() => 'Install dependencies'); options.approve = async () => false;
+    await assert.rejects(installMcpDependencies(options), /not approved/);
+    assert.deepEqual(calls, ['plan-packages']); assert.deepEqual(infoMessages, []);
+  });
+  test('version and PyTorch replacement reviews both declare changes to an existing environment', async () => {
+    const operations: string[] = [];
+    options.approve = async request => {
+      assert.equal(request.scope, 'existing_environment'); operations.push(request.operation);
+      assert.deepEqual(request.effects, ['install', 'replace']); assert.equal(request.facts.planDigest, 'replacement');
+      assert.deepEqual(request.facts.packages, [{ name: 'torch', previous: '2.6.0', version: '2.7.1' }]);
+      assert.equal(request.facts.affectsSharedEnvironment, true); assert.equal(request.facts.backupAvailable, false);
+      return true;
+    };
+    options.runner = async (_python, _backend, args) => {
+      calls.push(args[0]);
+      if (args[0] === 'plan-replacement') return { ok: true, digest: 'replacement', replacesTorch: true,
+        packages: [{ name: 'torch', version: '2.7.1', previous: '2.6.0' }] };
+      assert.equal(args[0], 'install'); assert.equal(args[2], 'replacement'); return { ok: true };
+    };
+    await replaceModelVersions({ ...options, packages: ['torch==2.7.1'], project: '/project' });
+    assert.deepEqual(operations, ['python.packages.replace', 'python.packages.replace_torch']);
+    assert.deepEqual(calls, ['plan-replacement', 'install']); assert.deepEqual(state.warningMessages, []); assert.deepEqual(infoMessages, []);
+  });
+  test('agent source-build and install decisions are separate and never use native modals', async () => {
+    sourceOnly(); const requests: string[] = [];
+    options.approve = async request => {
+      requests.push(request.operation); assert.equal(request.scope, 'existing_environment');
+      if (request.operation === 'python.packages.build') {
+        assert.deepEqual(request.effects, ['execute_code']); assert.deepEqual(request.facts.access, { filesystem: true, network: true });
+        assert.deepEqual(request.facts.requestedPackages, ['einops>=0.8']);
+      } else {
+        assert.equal(request.facts.planDigest, 'built-and-reviewed'); assert.deepEqual(request.facts.builtFromSource, ['einops']);
+      }
+      return request.operation !== 'python.packages.install';
+    };
+    await assert.rejects(installMcpDependencies(options), /not approved/);
+    assert.deepEqual(requests, ['python.packages.build', 'python.packages.install']);
+    assert.deepEqual(calls, ['plan-packages', 'plan-packages-source']);
+    assert.deepEqual(state.warningMessages, []); assert.deepEqual(infoMessages, []);
+  });
+  test('denying a source build in chat cannot use native approval or run package build code', async () => {
+    sourceOnly(); options.approve = async request => { assert.equal(request.operation, 'python.packages.build'); return false; };
+    state.warningAnswers.push('Build from source');
+    await assert.rejects(installMcpDependencies(options), /not approved/);
+    assert.deepEqual(calls, ['plan-packages']); assert.deepEqual(state.warningMessages, []);
+  });
+  test('a stale active-agent permission cannot fall back to native approval', async () => {
+    options.approve = async () => { throw new Error('The active agent target changed.'); };
+    setInfoResponder(() => 'Install dependencies');
+    await assert.rejects(installMcpDependencies(options), /active agent target changed/);
+    assert.deepEqual(calls, ['plan-packages']); assert.deepEqual(infoMessages, []);
+  });
+  test('stopping during chat permission never starts an install', async () => {
+    const controller = new AbortController(); options.signal = controller.signal;
+    options.approve = async () => { controller.abort(); return true; };
+    await assert.rejects(installMcpDependencies(options), /abort/i);
+    assert.deepEqual(calls, ['plan-packages']); assert.deepEqual(infoMessages, []);
+  });
+  test('an inactive agent callback preserves native package review', async () => {
+    options.approve = async () => undefined; setInfoResponder(() => 'Install dependencies');
+    await installMcpDependencies(options);
+    assert.deepEqual(calls, ['plan-packages', 'install']); assert.equal(infoMessages.length, 1);
   });
   test('installation reports real stages and never declares success before opening verification', async () => {
     const stages: string[] = []; options.progress = detail => stages.push(detail);

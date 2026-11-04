@@ -96,8 +96,8 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
 
   test('real SDK streams two turns in one session and denies filesystem escalation', async () => {
     const session = await start(); const output: string[] = [];
-    await session.prompt('first', event => output.push(event.text), new AbortController().signal);
-    await session.prompt('second', event => output.push(event.text), new AbortController().signal);
+    await session.prompt('first', event => { if ('text' in event) output.push(event.text); }, new AbortController().signal);
+    await session.prompt('second', event => { if ('text' in event) output.push(event.text); }, new AbortController().signal);
     const wire = await journal();
     assert.deepEqual(output, ['answer first', 'answer second']);
     assert.equal(wire.filter(m => m.method === 'session/new').length, 1);
@@ -123,7 +123,7 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
       chunk('', 'empty-message'), chunk('It has ', 'answer'), chunk('two calls.', 'answer'),
     ]));
     const session = await start(); const output: string[] = [];
-    await session.prompt('stream', event => output.push(event.text), new AbortController().signal);
+    await session.prompt('stream', event => { if ('text' in event) output.push(event.text); }, new AbortController().signal);
     assert.equal(output.join(''), 'Checking the layer.\n\nIt has two calls.',
       'message boundaries must not join the preamble to the answer or split ordinary token chunks');
   });
@@ -138,7 +138,7 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
       { sessionUpdate: 'agent_message_chunk', messageId: 'answer', content: { type: 'text', text: '.' } },
     ].map(update => ({ sessionId: 'session-one', update }))));
     const session = await start(); const output: string[] = [];
-    await session.prompt('stream', event => output.push(event.text), new AbortController().signal);
+    await session.prompt('stream', event => { if ('text' in event) output.push(event.text); }, new AbortController().signal);
     assert.equal(output.join(''), 'The output is two.');
   });
 
@@ -148,7 +148,7 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
       await writeFile(path.join(directory, 'updates.json'), JSON.stringify([{ sessionId: 'session-one',
         update: { sessionUpdate: 'agent_message_chunk', messageId, content: { type: 'text', text: messageId } } }]));
       const output: string[] = [];
-      await session.prompt('stream', event => output.push(event.text), new AbortController().signal);
+      await session.prompt('stream', event => { if ('text' in event) output.push(event.text); }, new AbortController().signal);
       assert.equal(output.join(''), messageId);
     }
   });
@@ -165,6 +165,9 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
   test('Codex keeps host-owned MCP actions reachable without allowing permission escalation', async () => {
     const session = await start('codex');
     await session.prompt('first', () => {}, new AbortController().signal);
+    // The fixture sends end_turn immediately after requesting permission. Prompt
+    // completion does not mean its child process has read and journaled our reply.
+    await until(async () => (await journal()).some(m => m.id === 900 && m.result?.outcome.outcome === 'cancelled'));
     const wire = await journal();
     assert.deepEqual(wire[0].config.mcp_servers, {
       tensorviz_canvas: { url: 'http://127.0.0.1:9999/mcp',
@@ -183,7 +186,7 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
       const session = await start('codex');
       try {
         const output: string[] = [];
-        await session.prompt('first', event => output.push(event.text), new AbortController().signal);
+        await session.prompt('first', event => { if ('text' in event) output.push(event.text); }, new AbortController().signal);
         assert.deepEqual(output, ['answer first']);
         const wire = await journal(), methods = wire.map(m => m.method), rename = methods.lastIndexOf('_session/rename');
         assert.deepEqual(wire[rename].params, { sessionId: 'session-one', title: 'TensorViz Canvas' });
@@ -313,7 +316,7 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
     await until(async () => !(agent as any).acp?.preparing);
     await agent.warm(input(), signal);
     const output: string[] = [];
-    await agent.run(input('fresh facts'), e => output.push(e.text), signal);
+    await agent.run(input('fresh facts'), e => { if ('text' in e) output.push(e.text); }, signal);
     const wire = await journal(), prompts = wire.filter(m => m.method === 'session/prompt');
     assert.equal(prompts.length, 2); assert.equal(wire.filter(m => m.method === 'session/new').length, 1);
     assert.match(prompts[0].params.prompt[0].text, /Host context preparation/);

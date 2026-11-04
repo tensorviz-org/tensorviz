@@ -78,9 +78,9 @@ if(m.method==='turn/start'||m.type==='user'){
       assert.equal((await launches()).length, 1);
       assert.equal((await requests()).filter(m => m.method === 'turn/start' || m.type === 'user').length, 0, 'warm must not consume a model turn');
       const output: string[] = [];
-      await runtime.run(turn, event => output.push(event.text), signal);
+      await runtime.run(turn, event => { if ('text' in event) output.push(event.text); }, signal);
       await runtime.run({ ...turn, context: 'new graph selection', messages: [...turn.messages,
-        { id: 'answer', role: 'assistant', text: 'previous reply' }, { id: 'second', role: 'user', text: 'follow-up question' }] }, event => output.push(event.text), signal);
+        { id: 'answer', role: 'assistant', text: 'previous reply' }, { id: 'second', role: 'user', text: 'follow-up question' }] }, event => { if ('text' in event) output.push(event.text); }, signal);
       assert.deepEqual(output, ['answer', 'answer']);
       const log = await requests();
       assert.equal((await launches()).length, 1, 'neither Send may spawn another agent');
@@ -110,7 +110,7 @@ if(m.method==='turn/start'||m.type==='user'){
       await runtime.warm(warm, signal);
       assert.equal((await requests()).filter(m => m.method === 'turn/start' || m.type === 'user').length, 1);
       const output: string[] = [];
-      await runtime.run({ ...turn, context: 'fresh context at Send' }, event => output.push(event.text), signal);
+      await runtime.run({ ...turn, context: 'fresh context at Send' }, event => { if ('text' in event) output.push(event.text); }, signal);
       assert.deepEqual(output, ['answer']);
       const turns = (await requests()).filter(m => m.method === 'turn/start' || m.type === 'user');
       assert.equal(turns.length, 2); assert.equal((await launches()).length, 1);
@@ -126,9 +126,9 @@ if(m.method==='turn/start'||m.type==='user'){
       const first = (await launches())[0];
       await until(async () => !!(await (runtime as any).session.ready).interrupt);
       const output: string[] = [];
-      await runtime.run(turn, event => output.push(event.text), signal);
+      await runtime.run(turn, event => { if ('text' in event) output.push(event.text); }, signal);
       assert.ok(alive(first.pid));
-      await runtime.run(turn, event => output.push(event.text), signal);
+      await runtime.run(turn, event => { if ('text' in event) output.push(event.text); }, signal);
       assert.deepEqual(output, ['answer', 'answer']);
       assert.equal((await launches()).length, 1, 'interrupt must preserve the connection and cache key');
       assert.equal((await requests()).filter(m => m.method === 'turn/interrupt' || m.request?.subtype === 'interrupt').length, 1);
@@ -142,9 +142,9 @@ if(m.method==='turn/start'||m.type==='user'){
         await runtime.warm({ ...turn, preparation: { context: 'old snapshot' } }, signal);
         await until(async () => !!(await (runtime as any).session.ready).interrupt);
         const first = (await launches())[0], output: string[] = [];
-        await runtime.run(turn, event => output.push(event.text), signal);
+        await runtime.run(turn, event => { if ('text' in event) output.push(event.text); }, signal);
         await until(() => !alive(first.pid));
-        await runtime.run(turn, event => output.push(event.text), signal);
+        await runtime.run(turn, event => { if ('text' in event) output.push(event.text); }, signal);
         assert.deepEqual(output, ['answer', 'answer']); assert.equal((await launches()).length, 2);
       });
     }
@@ -167,7 +167,7 @@ if(m.method==='turn/start'||m.type==='user'){
       await runtime.warm({ ...turn, preparation: { context: 'current graph' } }, signal);
       await until(() => !(runtime as any).session);
       const output: string[] = [];
-      await runtime.run(turn, event => output.push(event.text), signal);
+      await runtime.run(turn, event => { if ('text' in event) output.push(event.text); }, signal);
       assert.deepEqual(output, ['answer']); assert.equal((await launches()).length, 2);
     });
     test(`${provider}: preparation times out and Clear cancels it without another request`, async () => {

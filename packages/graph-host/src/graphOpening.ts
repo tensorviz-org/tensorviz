@@ -43,6 +43,25 @@ const sameModel = (left: LocalBrowserTargetIdentity, right: LocalBrowserTargetId
 const sameSource = (left: LocalBrowserTargetIdentity, right: LocalBrowserTargetIdentity) =>
   sameModel(left, right) && left.sourceDigest === right.sourceDigest && left.documentVersion === right.documentVersion;
 
+/** A bounded read wait, shared by MCP polling and same-turn agent continuation. */
+export async function waitForGraphOpeningUpdate(opening: GraphOpeningController, state: GraphOpeningState,
+  waitMs: number, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted();
+  await new Promise<void>((resolve, reject) => {
+    const deadline = Date.now() + Math.min(10000, Math.max(0, Number.isFinite(waitMs) ? waitMs : 0));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const cleanup = () => { clearTimeout(timer); signal.removeEventListener('abort', abort); };
+    const abort = () => { cleanup(); reject(signal.reason); };
+    const check = () => {
+      if (signal.aborted) { abort(); return; }
+      if (opening.state !== state || Date.now() >= deadline) { cleanup(); resolve(); return; }
+      timer = setTimeout(check, Math.min(50, deadline - Date.now()));
+    };
+    signal.addEventListener('abort', abort, { once: true });
+    check();
+  });
+}
+
 /** One explicit opening owns setup, persistence and one captured invocation. */
 export class GraphOpeningController {
   private controller?: AbortController;
@@ -190,15 +209,16 @@ export class GraphOpeningController {
     }
   }
 
-  private async resolve(controller: AbortController, changeInputs = false, automatic = true): Promise<void> {
+  private async resolve(controller: AbortController, changeInputs = false, automatic = true,
+    verifiedEnvironment?: GraphEnvironmentRecovery): Promise<void> {
     if (!this.current(controller)) return;
     this.busy = true;
     try {
       const target = this.value!.target;
       await this.refreshConfigFile();
       if (!this.current(controller)) return;
-      if (this.dependencies.environment) {
-        const environment = await this.dependencies.environment(target, controller.signal,
+      if (verifiedEnvironment || this.dependencies.environment) {
+        const environment = verifiedEnvironment ?? await this.dependencies.environment!(target, controller.signal,
           detail => { if (this.current(controller)) this.set({ detail: detail.slice(0, 1024) }); });
         if (!this.current(controller)) return;
         this.set({ environment, failure: undefined });
@@ -342,10 +362,15 @@ export class GraphOpeningController {
             detail: 'Environments refreshed. Choose Python to continue opening this model.' });
           return true;
         }
-        if (typeof accepted === 'object' && accepted.reason !== 'ready') {
-          this.set({ phase: 'needs_setup', environment: accepted, detail: accepted.detail }); return true;
+        if (typeof accepted === 'object') {
+          // The recovery's fresh check is authoritative immediately. Keep it while
+          // reading inputs/config, which can fail or wait independently of Python.
+          this.set({ environment: accepted, failure: undefined });
+          if (accepted.reason !== 'ready') {
+            this.set({ phase: 'needs_setup', detail: accepted.detail }); return true;
+          }
         }
-        await this.resolve(controller);
+        await this.resolve(controller, false, true, typeof accepted === 'object' ? accepted : undefined);
       } else if (action.kind === 'submit') {
         this.set({ phase: 'saving', detail: 'Checking and saving this execution setup.', draft: action.draft, requirements: undefined, evidence: undefined });
         const result = await this.dependencies.save(target, action.draft, controller.signal);

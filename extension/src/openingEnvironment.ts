@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import type { GraphEnvironmentCandidate, GraphEnvironmentRecovery, LocalBrowserTargetIdentity } from '@tensorviz/contracts/protocol';
+import type { CanvasAgentPermissionRequest, GraphEnvironmentCandidate, GraphEnvironmentRecovery, LocalBrowserTargetIdentity } from '@tensorviz/contracts/protocol';
 import { GraphOpeningError, type EnvironmentRecoveryAction } from '@tensorviz/graph-host/graphOpening';
 import { inspectEnvironmentCandidates, type EnvironmentRunner } from '@tensorviz/graph-host/projectEnvironmentCore';
 import { inspectModelEnvironment, startModelInspection } from '@tensorviz/graph-host/modelEnvironment';
@@ -16,6 +16,7 @@ export interface OpeningEnvironmentOptions {
   readyManaged(): Promise<string | undefined>;
   workerCache: Set<string>;
   runner?: EnvironmentRunner;
+  approve?(request: CanvasAgentPermissionRequest, signal: AbortSignal): Promise<boolean | undefined>;
   diagnostic?(message: string): void;
 }
 const resourceFor = (target: LocalBrowserTargetIdentity) => vscode.Uri.file(path.join(target.workspaceFolder, target.file));
@@ -127,7 +128,8 @@ export async function recoverOpeningEnvironment(options: OpeningEnvironmentOptio
       : { kind: 'project', interpreter: candidate.interpreter, explicit: true }, resourceFor(options.target));
     acceptedPins.delete(pinKey(options.target, candidate.interpreter));
     host.changed();
-    return true;
+    await check();
+    return checkOpeningEnvironment(options);
   }
   const saved = environment.candidates.find(item => item.id === environment.selectedId);
   if (action.kind === 'use_installed_versions') {
@@ -146,12 +148,13 @@ export async function recoverOpeningEnvironment(options: OpeningEnvironmentOptio
         name: action.name,
         file: path.join(options.target.workspaceFolder, options.target.file), signal: options.signal,
         current: host.current, progress: detail => { options.diagnostic?.(`[model environment] ${detail}`); host.progress?.(detail); }, runner: options.runner,
+        approve: options.approve,
         selectEnvironment: python => rememberEnvironment(options.context, { kind: 'project', interpreter: python, explicit: true }, resourceFor(options.target)) });
       await check();
       host.changed();
       return checkOpeningEnvironment(options);
     }
-    const dependencies = await host.dependencies();
+    const dependencies = { ...await host.dependencies(), ...(options.approve ? { approve: options.approve } : {}) };
     if (action.kind === 'replace_versions' && saved) {
       if (dependencies.python !== saved.interpreter) throw new GraphToolError('STALE_TARGET', 'The selected environment changed. Check it again before replacing versions.');
       await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification,
@@ -189,11 +192,13 @@ export async function recoverOpeningEnvironment(options: OpeningEnvironmentOptio
   } catch (error) {
     options.diagnostic?.(`Environment repair: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
     await check();
-    const observed = await checkOpeningEnvironment(options);
+    // A declined/failed creation is an observation, never permission to adopt another Python.
+    const observed = await checkOpeningEnvironment(options, action.kind === 'create_environment' ? { refresh: true } : {});
     if (action.kind === 'create_environment' || action.kind === 'install_dependencies') throw new GraphOpeningError(
       error instanceof GraphToolError ? error.message : action.kind === 'create_environment'
         ? 'Environment creation failed. Choose another Python environment or inspect the setup details.' : 'Library setup failed. Retry or choose another Python environment.',
-      { kind: 'environment', ...(action.kind === 'install_dependencies' ? { code: error instanceof GraphToolError ? error.code : 'DEPENDENCY_SETUP_FAILED' } : {}) },
+      { kind: 'environment', code: error instanceof GraphToolError ? error.code : 'DEPENDENCY_SETUP_FAILED',
+        ...(error instanceof GraphToolError && error.diagnostic ? { importFailure: true, diagnostic: error.diagnostic } : {}) },
       { ...observed, reason: observed.reason === 'ready' ? 'selection_required' : observed.reason });
     return { ...observed, reason: observed.reason === 'ready' ? 'selection_required' : observed.reason,
       detail: ((error instanceof GraphToolError ? error.message : 'Library repair did not complete. Refresh or choose another environment.')

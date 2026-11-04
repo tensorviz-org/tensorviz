@@ -144,7 +144,8 @@ suite('Canvas agent session', () => {
     agent.handle(request({ action: 'sync' }));
     agent.openGraph(opening()); agent.openGraph(opening()); await tick();
     assert.equal(runs.length, 1); assert.equal(runs[0].provider, 'claude'); assert.equal(runs[0].intent, 'open_graph');
-    assert.match(runs[0].messages[0].text, /Net in model.py/); assert.match(runs[0].messages[0].text, /Save a complete setup; saving runs it once to capture the graph, so do not start other runs/);
+    assert.equal(runs[0].messages[0].text, 'Set up this project and open the graph for Net.');
+    assert.ok(runs[0].messages[0].text.length < 100, 'the visible setup request should stay concise');
     finish(); await tick();
     assert.equal(latest().status, 'idle', 'an agent question is a conversation, not a provider error');
     assert.match(latest().activity, /Setup needs your input/);
@@ -165,9 +166,11 @@ suite('Canvas agent session', () => {
 
   test('Use Agent starts a fresh conversation when the selected model changes', async () => {
     agent.handle(request(send())); await tick(); finish(); await tick();
+    agent.handle(request({ action: 'permission_mode', mode: 'full_setup' }));
     agent.openGraph({ ...opening(), target: { ...target, cls: 'Other' } }); await tick();
     assert.equal(runs.length, 2); assert.equal(runs[1].messages.length, 1);
     assert.match(runs[1].messages[0].text, /Other/); assert.equal(cleared, 1);
+    assert.equal(latest().permissionMode, 'ask', 'a different model starts a new chat with the default review policy');
   });
 
   test('source changes during readiness checks cannot launch a stale automatic opening', async () => {

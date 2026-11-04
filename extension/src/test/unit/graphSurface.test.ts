@@ -9,10 +9,11 @@ suite('Canvas command routing', () => {
   let canvas: SidebarCanvas;
   let registrations: vscode.Disposable[];
   let opens: unknown[], projects: unknown[], browsers: number;
+  let prepares: number;
   setup(() => {
-    reset(); resetEditors(); resetWebviews(); opens = []; projects = []; browsers = 0;
+    reset(); resetEditors(); resetWebviews(); opens = []; projects = []; browsers = 0; prepares = 0;
     canvas = new SidebarCanvas({
-      prepare: async () => ({ appUrl: 'http://127.0.0.1:9000/', appOrigin: 'http://127.0.0.1:9000', port: 9000, workspaceDir: '/ws' }),
+      prepare: async () => { prepares++; return { appUrl: 'http://127.0.0.1:9000/', appOrigin: 'http://127.0.0.1:9000', port: 9000, workspaceDir: '/ws' }; },
       receive() {}, replay() {}, channel: { appendLine() {} } as unknown as vscode.OutputChannel,
     });
     registrations = [canvas.register(), ...registerCanvasCommands(canvas, {
@@ -22,6 +23,20 @@ suite('Canvas command routing', () => {
     } as Pick<LocalBrowserGraph, 'open' | 'openProject' | 'openSelectedInBrowser'>)];
   });
   teardown(() => { canvas.dispose(); registrations.forEach(r => r.dispose()); resetWebviews(); resetEditors(); reset(); });
+
+  test('Get Started reveals the same starting screen without setup or a welcome editor', async () => {
+    await commands.executeCommand('tensorviz.getStarted');
+    const view = webviewState.views[0];
+    assert.match(view.webview.html, /Explore your model/);
+    assert.equal(canvas.visible, true);
+    await commands.executeCommand('tensorviz.hideCanvas');
+    await commands.executeCommand('tensorviz.getStarted');
+    assert.equal(canvas.visible, true);
+    assert.equal(webviewState.views.length, 1);
+    assert.equal(prepares, 0, 'getting started is not consent to set up a runtime');
+    assert.deepEqual(opens, []); assert.deepEqual(projects, []);
+    assert.ok(webviewState.commands.every(c => c.id !== 'workbench.action.openWalkthrough'));
+  });
 
   test('CodeLens/Models arguments select the exact class on the singleton regardless of legacy settings', async () => {
     openStubEditor('/ws/incidental.py', 'class Other: pass');

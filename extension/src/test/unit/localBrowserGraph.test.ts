@@ -788,24 +788,52 @@ suite('LocalBrowserGraph', () => {
     assert.equal(runs.length, 1); assert.equal(runs[0].intent, 'open_graph');
     assert.match(runs[0].context, /init.num_heads: required/); assert.match(runs[0].context, /class Net/);
     assert.match(runs[0].context, /"num_heads":12/);
+    assert.match(runs[0].context, /"workflow":/); assert.match(runs[0].context, /"nextStep":\{"kind":"inputs"/);
     assert.equal(runs[0].cwd, ROOT);
     rig.graph.handleCanvasMessage(message as never); await settle(); assert.equal(runs.length, 1, 'a replayed setup action cannot start another paid turn');
     const complete = (rig.graph as any).agent.options.openingComplete;
     const currentOpening = rig.graph.opening!.state!;
     assert.equal(complete(opening.target), false);
     Object.assign(currentOpening, { phase: 'failed', hasCapture: true }); assert.equal(complete(opening.target), false, 'a partial capture is not success');
-    Object.assign(currentOpening, { phase: 'capturing' }); assert.equal(complete(opening.target), true, 'saved setup is complete once the opening runs its capture');
+    Object.assign(currentOpening, { phase: 'capturing' }); assert.equal(complete(opening.target), false, 'a running capture is not a completed graph');
     Object.assign(currentOpening, { phase: 'resolving' }); assert.equal(complete(opening.target), false, 'preparing unknown inputs is not completed setup');
     const execution = (rig.graph as any).executionReview;
     execution.pending = { target: opening.target }; execution.value = { phase: 'review', kind: 'capture' };
     Object.assign(currentOpening, { phase: 'awaiting_execution' });
-    assert.equal(complete(opening.target), true, 'saved setup waiting for Run, where the opening was not approved, is also complete');
+    assert.equal(complete(opening.target), false, 'waiting for Run is an explicit blocker, not a completed graph');
     execution.value.kind = 'prepare'; assert.equal(complete(opening.target), false, 'preparing unknown inputs is not completed setup');
     execution.pending = undefined; execution.value = undefined;
     Object.assign(currentOpening, { phase: 'ready' }); assert.equal(complete(opening.target), true);
     assert.equal(complete({ ...opening.target, cls: 'Other' }), false);
     openStubEditor(RESID, SAVED + '\n# changed');
     assert.equal(complete(opening.target), false, 'measurements for previous source cannot complete this request');
+  });
+
+  test('same-turn setup progress waits for host updates and rejects aborted, replaced or changed-source openings', async () => {
+    const rig = makeGraph([], { profiles: {} as never,
+      trace: { worker: { run: async () => { throw new Error('No execution.'); }, cancel() {} },
+        trusted: async () => true, settings: () => ({ onSave: false, tier: 'real' }) },
+      agent: { run: async () => {}, clear() {} } });
+    rig.graph.opening!.open = async target => {
+      rig.graph.opening!.sourceOnly(target); Object.assign(rig.graph.opening!.state!, { phase: 'resolving' });
+    };
+    openStubEditor(RESID, SAVED); await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
+    const opening = rig.graph.opening!, target = opening.state!.target;
+    const progress = (rig.graph as any).agent.options.openingProgress;
+    const signal = new AbortController().signal;
+    assert.equal((await progress(target, signal)).id, opening.state!.id);
+    let settled = false;
+    const reading = progress(target, signal, 1000); void reading.then(() => { settled = true; });
+    await new Promise(resolve => setTimeout(resolve, 20)); assert.equal(settled, false);
+    opening.cancel('Stopped setup.'); assert.equal((await reading).phase, 'cancelled');
+    Object.assign(opening.state!, { phase: 'resolving' });
+    const replaced = progress(target, signal, 1000);
+    opening.sourceOnly(target); assert.equal(await replaced, undefined, 'same-source replacement still has a new opening identity');
+    Object.assign(opening.state!, { phase: 'resolving' });
+    const controller = new AbortController(), aborted = progress(target, controller.signal, 1000);
+    controller.abort(); await assert.rejects(aborted, /abort/i);
+    openStubEditor(RESID, SAVED + '\n# changed');
+    assert.equal(await progress(target, signal), undefined);
   });
 
   test('Use Agent accepts an unchanged buffer whose editor version restarted', async () => {

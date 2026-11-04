@@ -4,7 +4,7 @@ Save an interactive graph snapshot, or export an image for a document or discuss
 
 ## Save a graph file
 
-Choose **Export graph** in the Canvas to download a `.tensorviz.json` file. It keeps the captured graph and supported saved views and notes.
+In **Open Canvas in Browser**, choose **Export graph** to download a `.tensorviz.json` file. It keeps the captured graph and supported saved views and notes. The editor Canvas offers **Publish** to share through your website account.
 
 Open it with **Open graph file viewer** to explore the snapshot. Recipients do not need to run Python to browse a saved graph.
 
@@ -20,7 +20,7 @@ Use the Canvas export controls for **SVG** or **PNG** when you need a static ima
 
 ## Know what you are sharing
 
-A graph file is a snapshot, not your live Python process. It does not execute the model or prove that a later source revision has the same behavior. Review its contents before sharing it.
+A graph file is a snapshot, not your live Python process. It does not execute the model or prove that a later source revision has the same behavior. JAX files preserve inferred shapes and traced-program coverage; they cannot relabel those shapes as runtime measurements. Review the file’s contents before sharing it.
 
 [Explore a graph](canvas.md) · [Compare code revisions](graph-diff-review/README.md)
 

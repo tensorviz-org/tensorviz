@@ -10,7 +10,9 @@ Select a layer in the graph to find the Python that defines it.
 
 Switch **Code focus** on in the Canvas header. Selecting a node reveals its mapped source beside the graph; double-click or press **Enter** to navigate to it.
 
-With Code focus off, exploring the graph keeps the editor in place. You can still choose a node's file:line link to open its source explicitly.
+With Code focus off, exploring the graph keeps the editor in place. You can still choose a node's file:line link to open its source explicitly. If the Canvas is maximized, showing source restores the split so the code appears beside it.
+
+Double-click or press **Enter** on a module to enter it. Moving the editor cursor onto a layer focuses the outermost matching layer; a specific layer or operation line focuses that item.
 
 ## Dim unrelated code
 
@@ -26,7 +28,7 @@ With Code focus off, exploring the graph keeps the editor in place. You can stil
 
 Use **Surrounding code opacity** to make the rest of the file more or less visible. For a parameter card, **Parameter source** lets you keep its declaration, uses, or both.
 
-This changes highlighting only. It does not edit source. Code focus is available in the editor extension and its browser view.
+This changes highlighting only. It does not edit source. Code focus is available in the editor extension and its browser view, and each remembers its own choice. The plugin browser and graph-file viewer do not offer Code focus; graph review has its own source navigation.
 
 ## If nothing is highlighted
 

@@ -5,12 +5,10 @@ The website application is not in this repository. The extension client is.
 (`apiKey`, `projectId`, and the identity toolkit hosts). Those values identify
 the tensorviz.dev web app. They are not admin secrets. Access control is the
 website's rules and its upload API. Firebase Admin is not a backend dependency,
-and `backend/auth.py` does not accept bearer tokens. The canvas `firebase` npm
-package stays for hosted pages. The IDE entry `canvas/src/ide/main.tsx` does not
-import it. The extension still ships this public web config. Do not add a
-Firebase Admin private key.
+and `backend/auth.py` does not accept bearer tokens. The extension ships only
+public web configuration. Do not add a Firebase Admin private key.
 
-**Add to tensorViz**, in the VS Code Canvas model menu, puts the open graph on [tensorviz.dev](https://tensorviz.dev/explore/) in one
+**Publish**, in the VS Code Canvas toolbar, puts the open graph on [tensorviz.dev](https://tensorviz.dev/explore/) in one
 click. The graph arrives private. Your browser opens its **Share** dialog, where you
 choose who can see it and copy its link:
 
@@ -27,7 +25,7 @@ Canvas in Browser, which cannot sign in, keeps **Export graph** for a
 
 ## Signing in
 
-The first time, **Add to tensorViz** opens `tensorviz.dev/explore/connect/` in your
+The first time, **Publish** opens `tensorviz.dev/explore/connect/` in your
 browser. Pick a Google account, then let the browser open VS Code; the first time, VS
 Code may also ask to let tensorViz open the link. The graph is then added by itself.
 **tensorViz: Sign in to tensorViz** does the same from the command palette, and
@@ -42,7 +40,7 @@ deletes it. No token is written to the log.
 
 ## What is sent
 
-Nothing until you click **Add to tensorViz**. Then the extension posts the graph file
+Nothing until you click **Publish**. Then the extension posts the graph file
 Export graph would save ([what it holds](graph-files.md)), gzipped, to the website's
 upload API, `tensorviz.dev/api/graphs`, with your sign-in. The coding-agent plugin
 does not upload graphs. The website checks the file again, stores it, draws its card

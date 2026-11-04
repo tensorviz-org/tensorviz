@@ -8,6 +8,8 @@ In the editor, run **tensorViz: Select Python Environment**, or choose a Python 
 
 Your model’s Python and TensorViz’s service Python can be different. Changing the model environment does not mean reinstalling the service.
 
+When you open a model, TensorViz checks detected environments against the model’s libraries and recommends the one needing the fewest changes. An explicit choice is preserved. Save-triggered capture and Canvas agent help require a saved or configured environment; choose one explicitly if neither is available.
+
 ## Fix a setup problem
 
 | Problem | What to try |

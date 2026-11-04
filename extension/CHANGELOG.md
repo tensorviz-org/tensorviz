@@ -3,6 +3,23 @@
 ## Contents
 
 - [Unreleased](#unreleased)
+- [0.1.36](#0136)
+- [0.1.35](#0135)
+- [0.1.34](#0134)
+- [0.1.33](#0133)
+- [0.1.32](#0132)
+- [0.1.31](#0131)
+- [0.1.30](#0130)
+- [0.1.29](#0129)
+- [0.1.28](#0128)
+- [0.1.27](#0127)
+- [0.1.26](#0126)
+- [0.1.25](#0125)
+- [0.1.24](#0124)
+- [0.1.23](#0123)
+- [0.1.22](#0122)
+- [0.1.21](#0121)
+- [0.1.20](#0120)
 - [0.1.19](#0119)
 - [0.1.18](#0118)
 - [0.1.17](#0117)
@@ -25,7 +42,7 @@
 - [0.0.2](#002)
 - [0.0.1](#001)
 
-Extension **0.1.19**. The plugin host in this repository is **0.3.20**.
+Extension **0.1.36**. The plugin host in this repository is **0.3.61**.
 
 This tree is the visualization product: Open as Graph, graph diff, execution
 cache (`off`, `shadow`, and `on`), code focus, graph export, MCP, Hugging Face open, source
@@ -40,6 +57,192 @@ release publication are not in this tree.
 - Enable automatic validation after relevant saves and execution caching by default, with opt-outs and source/environment freshness checks.
 - Share class-scoped input declarations across setup, capture and generated source; avoid disabled statistics hooks on ScriptModules.
 - Add bounded source/computation queries, nested declaration review, multi-file agent drafts, checkpoint/output evidence, explicit code focus and streaming Canvas chat with optional ACP sessions. Inline editing forms are replaced by agent-assisted native source review.
+
+## 0.1.36
+
+- Share compact canonical model context across MCP and native/ACP Canvas agents: module aliases, complete retained call lists, registered parameter counts, ordered tensor shapes and explicit unknowns. Reuse matching measurements, refuse stale evidence and reduce the broader graph preload when compact facts are available. Inspection never runs the model or changes review permissions.
+
+## 0.1.35
+
+- Automatically highlight the outermost matching layer when clicking source code. Remove the instance chooser and internal node IDs; specific layer and standalone operation lines retain direct focus.
+
+- Attach current graph, shape and Canvas context before agent inference, and reuse complete verified source and pending drafts without redundant reads. Large graphs retain explicit limits and continuation. Progress now ends preparation and tool activity when those steps finish.
+
+- Add opt-in local agent test recording through `TENSORVIZ_AGENT_RECORDING_DIR`: timestamped prompts, replies, tool outcomes and review/execution state, with explicit recording limits. Disabled by default; no upload or permission change.
+
+- Preserve ACP reply message boundaries so progress preambles and final answers appear as separate paragraphs. Ordinary streamed chunks remain intact.
+
+- Find exact computation anchors from recorded module, operation and state names. Bounded lookup preserves repeated candidates and aliases, exposes original capture records, and keeps historical or missing evidence explicit.
+
+- Clarify that candidate Run uses the retained capture setup while Apply uses the current saved model setup. Explicit validation checkpoints and input overrides are not automatically saved to that profile.
+
+- Use one explicit-file proposal path for Canvas Python changes, including entry files and imported configuration. Every replacement names its file and digest; all diffs share one review decision and undoable edit. The complete review inventory is bounded to 256 files and 8,000,000 bytes, including one-file changes; oversized inventories are refused without truncation. See [source editing](../docs/source-editing.md#source-positions-and-review-limits).
+
+- Reuse bounded source indexes across agent queries. Source bytes and freshness are still checked on every request; edits rebuild cross-file relationships while unchanged files retain their parsed structure.
+
+- Show checkpoint-load results in reviewed candidates, including failures before a forward pass. Native Inspect, browser pages and MCP history retain bounded metadata tied to the reviewed source and checkpoint bytes; successful loading remains separate from forward correctness.
+
+- Let Canvas agents inspect graph-recorded local Python dependencies with `read_model_source(file)`, so imported blocks can be explained from their implementation. Reads stay bounded and verify current graph digests.
+
+- Reuse native Codex and Claude connections across Canvas turns and prepare the selected agent while composing. Reconnects replay retained history and evidence; preparation cannot use tools or bypass execution review. Five idle minutes release the process.
+
+- Retain bounded graph evidence in the Canvas conversation across Stop, agent reconnects, idle expiry and effort changes. Restored evidence keeps its original revision; New chat clears it. Continuing ACP sessions do not replay the evidence or add model calls.
+
+- Keep unobserved input shapes unknown in agent graph inspection, matching the existing output-shape boundary. Cached placeholders on unreached or unsupported capture nodes can no longer appear as measured input evidence.
+
+- Default Canvas chat to medium effort for Codex and Claude models that support it, including preparation and both native and ACP requests. Explicit saved effort choices are preserved.
+
+- Start ACP preparation when the selected agent is ready, reuse recent Codex routing checks, and skip Codex preparation when Send is already waiting. Supported Codex adapters use a fixed session title to avoid an unused model request. Claude keeps its existing early-Send sequence after comparison showed a regression; answer models, effort and review gates stay unchanged.
+
+- Reduce Canvas chat work after Send by attaching verified selected-layer facts. The opt-in ACP path connects and prepares context while composing, with bounded cancellation and no preparation tool access. Preparation can consume agent usage before Send; model/effort and native review remain unchanged.
+
+## 0.1.34
+
+- Moving the editor cursor onto a layer focuses that layer again, instead of
+  offering an internal declaration ID beside it. Model files that contain a form
+  feed and non-ASCII text on a later line open again.
+- Git review: moving the cursor onto a line with one change focuses it, even when
+  unchanged layers share the line or the change is used by several captured calls,
+  and selecting the second call of a change selects that call, so Next moves on.
+  Changes in models under nested project folders join their declarations and the
+  Canvas's captured graph, in VS Code and in the standalone plugin. Declarations
+  and layers assigned inside `try`, `with` and `match` blocks are reviewed, and a
+  later write there keeps an old capture from lending its context to a changed
+  layer. A layer assigned by different calls in different branches is listed once.
+- On lines with non-ASCII text, such as a `d_μ` argument or an emoji in a string,
+  clicking a Canvas card puts the cursor on the right character, Git review and
+  refused edits select exactly the code they name, and a Canvas parameter edit of
+  an `nn.Sequential` child changes that child instead of the `nn.Sequential(...)`
+  around it. Graph edits no longer land one line low in a file with a form feed
+  or U+2028 above the class, and no longer leave half an emoji on a last line
+  without a final newline. JAX shape hints appear on lines with non-ASCII text.
+- Execution cache: a run that loads native code other than the interpreter's,
+  torch's or numpy's own, or lists a folder or checks for a file outside its
+  tracked sources, is not stored, and a stored result is not reused after an
+  installed Python file it read or loaded before the run started changes, for
+  example most in-place edits to torch's Python files or a reinstall of the same
+  version. Files
+  linked into the Python installation's folders, such as Debian's `sitecustomize`
+  or Homebrew packages, count as installed; code loaded from outside them, such
+  as a `PYTHONPATH` folder, means the run is not stored. On macOS and Linux, a
+  pre-started worker whose pre-loaded files changed while it waited starts fresh,
+  so that run uses the edited code. A folder can set
+  `tensorviz.executionCache.mode` to `off` or `shadow` for its own runs without
+  clearing other folders' results; `off` for the whole window still turns the
+  cache off everywhere. A workspace inside the Python installation's folder is no
+  longer treated as installed files.
+  Reused results say "model not run again": Python still runs briefly to check that
+  nothing changed.
+- After a save-triggered run, Run model no longer shows "running" while its review
+  waits, and dismissing that review shows the earlier result again. Change inputs
+  and setup saves after it run at once, and an unchanged save no longer restarts
+  an accepted change.
+- Canvas agent chat sends its background context preparation at most once per
+  conversation; changing model or effort, Refresh and reopening chat no longer send
+  another. Use Agent during an agent check no longer leaves the agent stuck at
+  checking, and a stalled warm-up says the connection timed out.
+- In a file with several model classes, graph setup uses a `# tensorviz: input=`
+  comment only for the class it sits directly above or inside; one outside every
+  class applies to none of them, and setup asks for inputs. New models from
+  templates put it directly above the model class; move it there in template files
+  generated earlier with helper modules. The source-only drawing, a trace without
+  saved inputs and the project graph follow the same rule, so a class is never
+  drawn with another class's declaration, and
+  declaration text inside a string does not count. A trace without saved inputs
+  reads only the model's own file, so it can still give a class's declaration to
+  the file's other model when only another file shows that the class is a model.
+  Model files with carriage-return line breaks are read the same way. A trace also
+  reads a file saved as UTF-8 with a byte order mark this way, and its
+  `# tensorviz: out_shape=` block shapes are read again. A
+  class whose declaration is an expression, such as `torch.randn(4, 16)`, is drawn
+  from its source until it is traced; in VS Code a class without a declaration of
+  its own is drawn with the input shape an earlier build saved for it, if any.
+- The main Canvas trace worker is disposed with the extension, so its warm Python
+  process exits.
+
+## 0.1.33
+
+- Release the changes merged through `722b8363eab0`.
+
+## 0.1.32
+
+- Release the changes merged through `b5787bbcb258`.
+
+## 0.1.31
+
+- Keep Canvas coding-agent connections open across replies and minimizing; prepare
+  context when chat opens. Opening chat can consume provider usage before Send.
+- Default agent effort to medium when supported, preserving explicit choices.
+- Attach current model/selection facts to requests and display first text immediately.
+
+## 0.1.30
+
+- Saving changed model code or a known Python dependency now automatically
+  validates the selected model after a 1.5-second pause, using its saved inputs,
+  device and environment. Disable Trace On Save to opt out. Source-only inspection
+  stays nonexecuting, and Accept/Apply still runs once.
+
+- Accepting a model source proposal saves the reviewed file and automatically runs
+  the model with its saved inputs and device. Canvas Accept and native Apply share
+  this flow; save failures and intervening edits stop execution with an explanation.
+- Graph review opens the first located change's module. Verified constructor
+  locations identify deep edits, including proven Sequential replacements.
+  Next/Previous visits each affected call once; ambiguous or unobserved calls
+  remain unlocated.
+
+## 0.1.29
+
+- Turn on reuse of identical runs by default (`tensorviz.executionCache.mode` is now `on`). When you Run again, undo an edit, or reopen a model with exactly the same saved sources, setup, inputs, seed, environment and tensorViz backend as an earlier Run in this window, tensorViz shows that earlier graph without starting Python, labelled "Reused identical result from <time> (no Python ran)". **Run fresh** runs it anyway; set the mode to `off` to always run.
+
+## 0.1.28
+
+- Remove the Canvas heat-map overlays (**Parameters**, **Output tensor bytes**) and the card colours they painted.
+
+- While a model runs, **Cancel** is an icon beside **Running…** instead of overlapping it.
+
+- Selecting an Input or Output card shows its normal outline instead of a blue box with handles.
+
+- **Publish** in the toolbar adds the graph to your tensorViz account (it was Add to tensorViz in the model menu). The model menu no longer links to the graph file viewer.
+
+- The header has no expand/collapse toggle: controls are labelled when they fit and icon-only otherwise, and the environment and saved setup are in the model menu.
+
+## 0.1.27
+
+- Release the changes merged through `08ea99c88430`.
+
+## 0.1.26
+
+- Release the changes merged through `0f45faa01f70`.
+
+## 0.1.25
+
+- Release the changes merged through `c5565c67760d`.
+
+## 0.1.24
+
+- Make **Code focus** a one-click toggle at the start of the Canvas header. On, selecting a node opens its source beside the Canvas without taking keyboard focus, and double-clicking or pressing Enter on a layer moves focus to it. Off (the default), exploring the graph never opens or dims code. **Dim unrelated code**, scope and opacity move to the chevron beside it. Source links and the footer **Source** button open code either way, and each Canvas surface remembers its choice.
+
+- Remove the **Edit** control from Canvas layer and module cards, along with its inline source form, which did not work reliably. Source changes proposed by a connected coding agent still open in VS Code's native diff.
+
+- When the Canvas fills the window (its side bar maximized), showing source through Code focus, a source link or **Source** first restores the split, so the code appears beside the Canvas instead of behind it.
+
+- Fix double-clicking a card on the Canvas, which only selected it: a module now opens and, with **Code focus** on, a layer's source opens with keyboard focus, as Enter does. Double-clicking empty canvas still does nothing.
+
+- Keep a captured graph current when VS Code reloads an unchanged model file. The opening no longer reports "Source changed" and drops its capture, and **Use Agent** no longer refuses setup, when only the editor's document version restarted.
+
+## 0.1.23
+
+- Show captured dictionary keys and keyword input names on Input/Output cards, module boundaries and port tooltips. Older graph files recover names from their retained capture; unnamed values use readable one-based labels.
+
+## 0.1.22
+
+- Release the changes merged through `d28e99d779fe`.
+
+## 0.1.21
+
+- Release the changes merged through `e1d1a830011d`.
+
+## 0.1.20
 
 ## 0.1.19
 

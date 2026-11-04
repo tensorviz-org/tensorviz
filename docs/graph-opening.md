@@ -27,7 +27,17 @@ Saving your model or a tracked dependency automatically validates the open model
 
 An eligible identical CPU result can be [reused from the execution cache](execution-cache.md). A brief Python safety check still runs; **Run fresh** requests a new model execution.
 
+Saves within 1.5 seconds are combined. Typing, unchanged saves, unrelated files, source-only inspection and open source reviews do not start runs. Accept/Apply saves and runs once; an unchanged save does not restart it.
+
 Showing, hiding, or exploring the Canvas does not start another capture.
+
+## Choose a trace tier
+
+`tensorviz.traceTier` applies to graph capture without a saved profile. `real` is the default. Experimental `fake` uses shape-only tensors and retries once with real tensors if values are needed. Experimental `auto` starts with real tensors, then uses fake tensors for models previously counted at 150 million parameters or more. A large model that needed a real retry stays real. Saved profiles, validation and reviewed candidates use real tensors.
+
+## Models inside a larger workspace
+
+A nested model uses its project root for imports, `tensorviz.toml`, generated helpers and capture. Starting at the model’s directory, TensorViz stops at the first `tensorviz.toml`, `pyproject.toml`, `setup.py`, `setup.cfg` or `.git`, or at a directory whose name cannot be a Python module component. It never searches above the owning workspace. Add project metadata at the intended root when the boundary would otherwise be ambiguous. Source links still open the original workspace files.
 
 ## If you get stuck
 

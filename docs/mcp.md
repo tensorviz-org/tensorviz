@@ -15,6 +15,7 @@ Tool arguments are in [MCP tools](mcp-tools.md). Loopback, SSH, and the browser 
 - [Port](#port)
 - [Show the graph in a browser](#show-the-graph-in-a-browser)
 - [Fill missing inputs](#fill-missing-inputs)
+- [Read compact model context](#read-compact-model-context)
 
 ## Connect
 
@@ -69,3 +70,7 @@ When **Open as Graph** needs an example input, the Canvas shows **Choose a setup
 The agent calls `suggest_graph_inputs`, reads `forward` (including inherited definitions), fills `draft.profile` using the returned `inputContract`, then calls `configure_graph_setup` with the same opening id and source digest. Poll `get_graph_setup` until the capture finishes or a field is still missing.
 
 `suggest_graph_inputs` does not run Python. Only `configure_graph_setup` saves `tensorviz.toml` and starts the one forward capture, under the same checks as the form. The grammar, dtypes, and size limits are in [MCP tools](mcp-tools.md#fill-missing-inputs-with-your-agent).
+
+## Read compact model context
+
+Call `get_model_context` with the current model id and revision to read module aliases, registered parameter counts, complete retained call lists and ordered tensor shapes. Exact `focus` narrows the result; `maxBytes` accepts 2,000–100,000 bytes and defaults to 4,000. Unknowns and omitted records stay explicit. Stale evidence cannot supply current measurements. Native and ACP Canvas chat attach the same facts automatically when available. Inspection does not run the model or change source-review permissions. See [compact model context](model-context.md).

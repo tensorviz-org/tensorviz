@@ -53,13 +53,16 @@ shared-check:
 	npm run check:boundaries
 	npm run protocol:check
 
-## Plugin checks use the same explicit Python as the backend checks.
+## Plugin checks use backend Python plus explicit service and pipless capture fixtures.
 plugin-gate: plugin-unit plugin-capture plugin-package
 
 plugin-unit:
 	cd plugin && npm test
 
 plugin-capture: check-python
+	@test -n "$(TENSORVIZ_TEST_SERVICE_PYTHON)" -a -n "$(TENSORVIZ_TEST_CAPTURE_PYTHON)" \
+	  -a -n "$(TENSORVIZ_TEST_OTHER_PYTHON)" -a -n "$(TENSORVIZ_TEST_MISSING_PYTHON)" \
+	  || { echo "Set the service, capture, other and missing-library test Pythons described in docs/plugin-build.md (Capture-role tests)." >&2; exit 1; }
 	cd plugin && TENSORVIZ_TEST_PYTHON="$(PYTHON_ABS)" npm run test:capture
 
 plugin-package:
@@ -113,7 +116,7 @@ backend-tests: check-python
 ## checks line, which the old grep never looked at.
 backend-sweep: check-python
 	cd backend && "$(PYTHON_ABS)" scripts/run_template_validation_sweep.py \
-		--disable-adapters --strict --max-combinations 1 \
+		--enable-adapters --strict --max-combinations 1 \
 		--out reports/gate-single-current.md
 	cd backend && "$(PYTHON_ABS)" scripts/assert_sweep_report.py reports/gate-single-current.md
 
@@ -201,16 +204,11 @@ extension-electron: check-extension-deps check-python extension-webview
 	cd extension && npm run stage:backend
 	cd extension && TENSORVIZ_TEST_PYTHON="$(PYTHON_ABS)" npm run test:electron
 
-## Build the .vsix, then assert it carries the two things whose absence is invisible:
-## a `main` that is not inside it installs fine and answers "command not found", and a
-## missing canvas installs fine and opens an empty panel.
+## npm package runs verify-package.mjs against the newly written .vsix, including
+## its entry point and Canvas. Do not glob prior archives into a second unzip call:
+## unzip interprets additional archive names as entry filters and falsely fails.
 extension-package: check-extension-deps
 	cd extension && npm run package
-	@cd extension && unzip -l tensorviz-*.vsix | grep -q 'extension/out/extension.js' \
-	  || { echo "the .vsix does not contain extension/out/extension.js" >&2; exit 1; }
-	@cd extension && unzip -l tensorviz-*.vsix | grep -q 'extension/media/app/index.html' \
-	  || { echo "the .vsix does not contain the built canvas" >&2; exit 1; }
-	@echo "vsix OK: entry point and canvas both present"
 
 ## Every relative link in README.md and docs/ resolves
 docs-links:

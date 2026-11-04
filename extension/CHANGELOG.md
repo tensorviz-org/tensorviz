@@ -192,7 +192,7 @@ release publication are not in this tree.
 
 ## 0.1.29
 
-- Turn on reuse of identical runs by default (`tensorviz.executionCache.mode` is now `on`). When you Run again, undo an edit, or reopen a model with exactly the same saved sources, setup, inputs, seed, environment and tensorViz backend as an earlier Run in this window, tensorViz shows that earlier graph without starting Python, labelled "Reused identical result from <time> (no Python ran)". **Run fresh** runs it anyway; set the mode to `off` to always run.
+- Turn on reuse of identical runs by default (`tensorviz.executionCache.mode` is now `on`). When you Run again, undo an edit, or reopen a model with exactly the same saved sources, setup, inputs, seed, environment and tensorViz backend as an earlier Run in this window, tensorViz shows that earlier graph without starting Python, labelled `Reused identical result from <time> (no Python ran)`. **Run fresh** runs it anyway; set the mode to `off` to always run.
 
 ## 0.1.28
 

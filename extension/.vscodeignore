@@ -6,7 +6,6 @@ src/**
 out/**
 !out/extension.js
 .gitignore
-telemetry.config.local.json
 *.vsix
 # Tests and their runner config are not part of the shipped extension.
 .vscode-test.mjs

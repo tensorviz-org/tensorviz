@@ -4,6 +4,10 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { McpGraphService, object, type McpModel } from '@tensorviz/graph-host/mcpGraph';
 import { agentGraphContext } from '../../canvasAgentContext';
+import { captureTools } from '../../mcpHost';
+import { registerMcpCaptureTools } from '@tensorviz/graph-host/mcpCaptures';
+import { CaptureInspector } from '@tensorviz/graph-host/captureInspection';
+import { AttemptLedger } from '@tensorviz/graph-host/attemptLedger';
 
 suite('Canvas graph context', () => {
   const target = { workspaceFolder: '/work', file: 'net.py', cls: 'Net', documentVersion: 1, sourceDigest: 'a'.repeat(64), backendRevision: 1 };
@@ -27,6 +31,27 @@ suite('Canvas graph context', () => {
       model.target.documentVersion++;
       assert.throws(() => agentGraphContext(graph, ref), /revision changed/);
     } finally { await client.close(); await server.close(); }
+  });
+
+  test('window routing metadata does not enter the strict compact-context query', async () => {
+    const model = fixture(), graph = new McpGraphService('context', () => model);
+    const tools = captureTools(server => registerMcpCaptureTools(server, graph, new CaptureInspector(new AttemptLedger())));
+    const result = await tools.get('get_model_context')!.handler({ ...graph.reference(model), hostId: 'context' }, {});
+    assert.equal(result.isError, undefined);
+    assert.equal(result.structuredContent?.reason, 'no_latest_capture');
+    assert.equal(result.structuredContent?.available, false);
+  });
+
+  test('compact-context preload uses 8 KiB with exact continuation and preserves the normal 64 KiB default', () => {
+    const model = fixture(), graph = new McpGraphService('context', () => model);
+    (model.projection.document as any).semantic.nodes = Array.from({ length: 100 }, (_, i) =>
+      ({ node_id: `node-${i}`, op: 'Linear', params: { description: '界'.repeat(80) } }));
+    const ref = graph.reference(model), small = agentGraphContext(graph, ref, 8 * 1024), normal = agentGraphContext(graph, ref);
+    assert.ok(Buffer.byteLength(JSON.stringify(small)) <= 8 * 1024);
+    assert.ok((small.nodes as any[]).length > 0 && (small.nodes as any[]).length < (normal.nodes as any[]).length);
+    assert.equal(small.nextNodeOffset, (small.nodes as any[]).length);
+    assert.deepEqual(small.nodes, (normal.nodes as any[]).slice(0, small.nextNodeOffset as number));
+    assert.equal(normal.nextNodeOffset, null);
   });
 
   test('retains whole records and exact continuation offsets within the byte budget', () => {

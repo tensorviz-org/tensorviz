@@ -88,6 +88,7 @@ start a fresh request for the same file and class. That is different from
 | `get_graph` | Model id/revision; summary or paginated nodes/edges. Optional node ids select an internal subgraph. |
 | `list_captures` | Model id; latest attempt and retained complete/partial/displayed capture identities, including manual/browser runs. |
 | `inspect_capture` | Model id, capture/source ids and a paginated path; exact operations, calls, argument trees, values, state, effects, coverage and diagnostics. |
+| `get_model_context` | Current model id/revision; compact recorded module calls, aliases, registered parameter counts and tensor shapes. Defaults to 4,000 UTF-8 bytes; exact `focus` and `maxBytes` retrieve omitted modules. See [model context](model-context.md). |
 | `get_selection` | Model id/revision and a view id from discovery; selected nodes and real connections. |
 | `focus_view` | Model id/revision, view id and nodes or one edge; expands ancestors and waits for a canvas receipt. |
 | `validate_model` | Model id/revision and positional tensors or explicit execution setup (fixtures, keyword inputs, constructor/factory/checkpoint, device/mode); returns a run id. One forward capture. |

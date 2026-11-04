@@ -70,6 +70,21 @@ suite('named state queries with real CPU capture and MCP', function () {
     const client = new Client({ name: 'state-reader', version: '1' });
     const [a, b] = InMemoryTransport.createLinkedPair(); await server.connect(a); await client.connect(b);
     try {
+      const context = (await client.callTool({ name: 'get_model_context', arguments: { ...graph.reference(model), maxBytes: 12_000 } })).structuredContent as any;
+      assert.equal(context.available, true); assert.equal(context.captureId, capture.id);
+      assert.equal(context.coverage.scope, 'executed_path');
+      assert.deepEqual(context.omitted, { modules: 0, calls: 0 });
+      const rootModule = context.modules.find((m: any) => m.paths.includes(''));
+      assert.equal(rootModule.calls[0].parameterCount, tied ? 12 : 18,
+        'Root counts unique registered elements including the unused layer, without double counting tied weights');
+      for (const name of ['left', 'right']) {
+        const call = context.modules.find((m: any) => m.paths.includes(name)).calls[0];
+        assert.equal(call.parameterCount, 6);
+        assert.deepEqual(call.inputs.tensors.map((v: any) => v.shape), [[2, 3]]);
+        assert.deepEqual(call.outputs.tensors.map((v: any) => v.shape), [[2, 2]]);
+      }
+      assert.deepEqual(context.modules.find((m: any) => m.paths.includes('unused')).calls, [],
+        'Registration counts do not imply that an unused module executed');
       const find = async (text: string, kinds: string[]) =>
         (await client.callTool({ name: 'find_computation', arguments: { modelId: graph.reference(model).modelId,
           captureId: capture.id, sourceId: capture.source.id, text, kinds } })).structuredContent as any;

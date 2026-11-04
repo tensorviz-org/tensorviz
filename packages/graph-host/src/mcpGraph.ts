@@ -66,8 +66,13 @@ export class McpGraphService {
     this.refresh = refresh ?? refreshAfterEmptySlot;
   }
 
-  async toolResult(_tool: string, action: () => JsonObject | Promise<JsonObject>, _eligible = true): Promise<CallToolResult> {
+  /** Current facts await the host freshness check; historical readers keep their existing behavior. */
+  async currentToolResult(action: () => JsonObject | Promise<JsonObject>): Promise<CallToolResult> {
     return graphToolResult(async () => { await this.refresh?.(); return action(); });
+  }
+
+  async toolResult(_tool: string, action: () => JsonObject | Promise<JsonObject>, _eligible = true): Promise<CallToolResult> {
+    return this.currentToolResult(action);
   }
 
   reference(model: McpModel): ModelRef {

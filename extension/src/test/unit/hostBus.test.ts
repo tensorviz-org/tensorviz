@@ -99,6 +99,7 @@ suite('single MCP endpoint over the host bus', () => {
     dir = tempDir();
     released = []; calledOwners = [];
     const peerTools: HostToolset = new Map([
+      ['get_model_context', tool({ remote: true })],
       ['get_graph', tool({ remote: true })],
       ['validate_model', tool({ remote: true })],
       ['open_graph', tool({ requestId: 'remote-request', nextAction: { kind: 'poll', tool: 'open_graph', arguments: { requestId: 'remote-request' } } })],
@@ -123,6 +124,7 @@ suite('single MCP endpoint over the host bus', () => {
     await peer.start();
 
     const localTools: HostToolset = new Map([
+      ['get_model_context', tool({ local: true })],
       ['list_models', tool({ local: true })],
       ['get_graph', tool({ local: true })],
       ['validate_model', tool({ local: true })],
@@ -167,6 +169,9 @@ suite('single MCP endpoint over the host bus', () => {
     assert.equal((local.data as any).local, true);
     const remote = await call('get_graph', { modelId: modelId(peerHost), revision: 'a'.repeat(64) });
     assert.equal((remote.data as any).remote, true);
+    const context = await call('get_model_context', { modelId: modelId(peerHost), revision: 'a'.repeat(64) });
+    assert.equal(context.data.remote, true);
+    assert.equal(context.data.hostId, peerHost);
   });
 
   test('execution routes to the owning window with session identity', async () => {

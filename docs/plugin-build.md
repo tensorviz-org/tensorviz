@@ -69,7 +69,7 @@ TENSORVIZ_TEST_PYTHON=/absolute/path/to/python npm run test:claude --prefix plug
 ```
 
 The interpreter needs the backend dependencies. The test installs the local plugin
-into a disposable Claude Code profile, discovers 27 tools and the model-workflow
+into a disposable Claude Code profile, discovers 28 tools and the model-workflow
 skill, and checks that `find_computation`, `query_computation` and
 `analyze_computation_change` return `NO_MODEL` for an unopened model without
 starting capture or creating permission state. It then captures a synthetic CPU
@@ -81,3 +81,6 @@ Verified locally on 3 November 2026 with Claude Code 2.1.308, Node.js 26.5.0,
 CPython 3.12.13 and Torch 2.14.1 on macOS arm64: all 72 plugin unit tests and
 the Claude acceptance test passed without skips. The host, browser and panel
 built successfully, and links resolved across all 83 documentation files.
+
+The Claude acceptance check also reads `get_model_context` after capture and
+checks the synthetic Linear layer’s 15 parameters and [2,4] → [2,3] shapes.

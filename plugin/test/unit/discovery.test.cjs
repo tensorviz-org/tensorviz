@@ -24,12 +24,13 @@ test('a copied plugin discovers tools with no checkout, VS Code, Python, or PATH
     const { tools } = await client.listTools();
     assert.deepEqual(tools.map(tool => tool.name).sort(), ['list_models', 'get_graph', 'inspect_nodes', 'get_selection',
       'focus_view', 'open_graph_view', 'open_graph', 'get_execution_environment', 'list_captures', 'inspect_capture',
-      'find_computation', 'query_computation', 'analyze_computation_change',
+      'get_model_context', 'find_computation', 'query_computation', 'analyze_computation_change',
       'get_graph_setup', 'suggest_graph_inputs', 'configure_graph_setup',
       'validate_model', 'get_run', 'inspect_run', 'cancel_run', 'compare_runs', 'open_graph_diff',
       'open_graph_panel', 'graph_panel_read', 'graph_panel_exchange', 'detach_graph_panel', 'close_graph_panel'].sort());
     assert.equal(tools.find(tool => tool.name === 'list_models').annotations.readOnlyHint, true);
     for (const [name, query] of [
+      ['get_model_context', { revision: 'a'.repeat(64) }],
       ['find_computation', { text: 'Linear' }],
       ['query_computation', { anchors: [{ kind: 'value', id: 'missing' }] }],
       ['analyze_computation_change', { changes: [{ valueId: 'missing', shape: [2, 4] }] }],

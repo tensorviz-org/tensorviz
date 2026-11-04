@@ -1,7 +1,7 @@
 import { object, type JsonObject, type McpGraphService, type ModelRef } from '@tensorviz/graph-host/mcpGraph';
 
 /** Attach a bounded first graph page using the same node/edge serializers as MCP. */
-export function agentGraphContext(graph: McpGraphService, ref: ModelRef): JsonObject {
+export function agentGraphContext(graph: McpGraphService, ref: ModelRef, maxBytes = 64 * 1024): JsonObject {
   const { model, nodes: allNodes, edges: allEdges } = graph.require(ref);
   const page = { ...graph.reference(model), target: model.target, traced: model.projection.traced,
     projectionDigest: model.projection.projectionDigest, truncated: model.projection.truncated ?? false,
@@ -14,7 +14,7 @@ export function agentGraphContext(graph: McpGraphService, ref: ModelRef): JsonOb
   const result = { ...page, nodes: [] as JsonObject[], edges: [] as JsonObject[],
     nextNodeOffset: 0 as number | null, nextEdgeOffset: 0 as number | null, contextLimited: true };
   // Reserve space for commas and continuation offsets before taking whole records.
-  let remaining = 64 * 1024 - Buffer.byteLength(JSON.stringify(result)) - 32;
+  let remaining = maxBytes - Buffer.byteLength(JSON.stringify(result)) - 32;
   if (remaining < 0) return { ...ref, contextLimited: true, omitted: 'Graph metadata exceeds the context byte limit.',
     nextNodeOffset: 0, nextEdgeOffset: 0 };
   const take = (items: JsonObject[]) => {

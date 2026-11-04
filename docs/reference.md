@@ -102,6 +102,7 @@ Names below are every `registerTool` and `registerAppTool` registration under `e
 | `get_execution_environment` | extension, plugin | `packages/graph-host/src/mcpOpenGraph.ts`, `plugin/src/main.ts` |
 | `get_graph` | extension | `packages/graph-host/src/mcpGraph.ts` |
 | `get_graph_setup` | extension | `packages/graph-host/src/mcpGraphSetup.ts` |
+| `get_model_context` | extension | `packages/graph-host/src/mcpCaptures.ts` |
 | `get_proposal` | extension | `extension/src/mcpProposals.ts` |
 | `get_run` | extension | `packages/graph-host/src/mcpValidation.ts` |
 | `get_selection` | extension | `packages/graph-host/src/mcpViews.ts` |

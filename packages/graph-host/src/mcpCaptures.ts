@@ -5,10 +5,15 @@ import { McpGraphService, graphToolResult, modelRefSchema } from './mcpGraph';
 import { computationQuerySchema, computationFindSchema } from './computationQuery';
 import { computationSourceContext, type ComputationSourceReader } from './computationSource';
 import { computationChangeSchema } from './computationChange';
+import { getModelContext, MODEL_CONTEXT_GUIDANCE, modelContextQuerySchema } from './modelContext';
 
 export function registerMcpCaptureTools(server: McpServer, graph: McpGraphService, inspector: CaptureInspector,
   readSource?: ComputationSourceReader): void {
   const annotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+  server.registerTool('get_model_context', {
+    description: 'Read compact canonical architecture facts for the exact current model revision from its latest completed capture: aliases, unique registered parameter counts, full retained per-module call lists, ordered tensor shapes, modes, unknowns and coverage. Defaults to 4000 bytes; focus is an exact module ID, path, qualified type or invocation ID. Included call lists are atomic; use focus/larger maxBytes for omitted modules, inspect_capture for oversized lists. Source-only, stale-source, evicted and no-capture states return explicit unavailability. Awaits the host freshness guard; never executes model code, starts a capture or edits. ' + MODEL_CONTEXT_GUIDANCE,
+    inputSchema: { ...modelRefSchema, ...modelContextQuerySchema.shape }, annotations,
+  }, ({ modelId, revision, focus, maxBytes }) => graph.currentToolResult(() => getModelContext(graph, inspector, { modelId, revision }, { focus, maxBytes })));
   server.registerTool('find_computation', {
     description: 'Find exact computation anchors by case-sensitive literal substrings of captured module paths/type names, definition names, operation targets or observed parameter/buffer registration names. Returns every matching entity with bounded pages and exact inspection pointers; follow nextOffset. Use a returned ref with query_computation instead of guessing an ID from a name. Repeated names stay separate; aliases of one recorded module stay together. No match does not prove absence. Describes retained evidence, not current runtime state. Never reads new files, executes or edits.',
     inputSchema: { modelId: modelRefSchema.modelId, ...computationFindSchema.shape }, annotations,

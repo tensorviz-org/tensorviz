@@ -33,6 +33,7 @@ import { mock } from 'node:test';
 import { GraphToolError, McpGraphService } from '@tensorviz/graph-host/mcpGraph';
 import { GraphMcpServer } from '../../mcpServer';
 import { registerMcpValidationTools } from '@tensorviz/graph-host/mcpValidation';
+import { getModelContext } from '@tensorviz/graph-host/modelContext';
 import { registerMcpProposalTools } from '../../mcpProposals';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -654,6 +655,42 @@ suite('LocalBrowserGraph', () => {
     openStubEditor(RESID, SAVED + '\n# changed');
     await assert.rejects(prepare(rig.graph.target!, ['fc'], undefined, new AbortController().signal), /changed/);
   });
+  test('Canvas attaches the shared current packet before source and reduces graph preload only when available', async () => {
+    let service!: McpGraphService;
+    const rig = makeGraph([], { agent: { run: async () => {}, clear() {}, reference: model => service.reference(model),
+      graph: (reference, maxBytes) => agentGraphContext(service, reference, maxBytes),
+      modelContext: reference => getModelContext(service, rig.graph.captureInspector, reference) } });
+    service = new McpGraphService('context', () => rig.graph.mcpModel);
+    openStubEditor(RESID, SAVED);
+    await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
+    const target = rig.graph.target!, { capture, plan } = canonicalFixture();
+    capture.source.modelFile = target.file; capture.source.className = target.cls;
+    capture.source.files = [{ path: target.file, digest: target.sourceDigest, documentVersion: target.documentVersion, role: 'source' }];
+    plan.source = structuredClone(capture.source);
+    const ledger = (rig.graph as any).validationSummaries.ledger;
+    const handle = ledger.begin(capture.attemptId, target, 'manual', null);
+    handle.resolved({ plan, applicabilityDigest: capture.planDigest });
+    handle.captured({ ok: true, exitCode: 0, envelope: { protocol_version: 1,
+      result: { diagnostics: { semantic_capture: capture } }, spans: {}, error: null, worker: {} } });
+    handle.finish('passed');
+    (rig.graph.mcpModel!.projection.document as any).semantic = { edges: [],
+      nodes: Array.from({ length: 100 }, (_, i) => ({ node_id: `node-${i}`, op: 'Linear', params: { description: '界'.repeat(80) } })) };
+    const prepare = (rig.graph as any).agent.options.prepare;
+    const attached = JSON.parse((await prepare(target, [], undefined, new AbortController().signal)).context.split('\n')[1]);
+    assert.equal(Object.keys(attached)[0], 'modelContext');
+    assert.equal(attached.modelContext.available, true);
+    assert.deepEqual(attached.modelContext, getModelContext(service, rig.graph.captureInspector, service.reference(rig.graph.mcpModel!)));
+    assert.ok(Buffer.byteLength(JSON.stringify(attached.modelContext)) <= 4000);
+    assert.ok(Buffer.byteLength(JSON.stringify(attached.graphInspection)) <= 8 * 1024);
+    assert.equal(attached.graphInspection.nextNodeOffset, attached.graphInspection.nodes.length);
+    assert.equal(attached.source, SAVED);
+    ledger.begin('newer-no-capture', target, 'manual', null).finish('refused');
+    const missing = JSON.parse((await prepare(target, [], undefined, new AbortController().signal)).context.split('\n')[1]);
+    assert.equal(missing.modelContext.available, false);
+    assert.equal(missing.modelContext.reason, 'no_latest_capture');
+    assert.equal(missing.graphInspection.nodes.length, 100, 'normal graph context remains available without measured facts');
+  });
+
   test('empty and oversized selections use the existing inspection tool path', async () => {
     let service!: McpGraphService, inspections = 0;
     const rig = makeGraph([], { agent: { run: async () => {}, clear() {}, reference: model => service.reference(model),
@@ -905,6 +942,7 @@ suite('LocalBrowserGraph', () => {
   });
   test('only a current draft follow-up gets pending source and draft-node context', async () => {
     const rig = makeGraph([], { agent: { run: async () => {}, clear() {}, reference: () => ({ modelId: 'context', revision: 'a'.repeat(64) }),
+      modelContext: () => { throw new Error('Base measurements must not describe a proposed draft'); },
       selection: () => { throw new Error('Draft or historical selections must not be attached as live facts'); } } });
     openStubEditor(RESID, SAVED);
     await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();
@@ -971,6 +1009,7 @@ suite('LocalBrowserGraph', () => {
 
   test('after Accept an attested previous call remains usable for the next agent message', async () => {
     const rig = makeGraph([], { agent: { run: async () => {}, clear() {}, reference: () => ({ modelId: 'context', revision: 'a'.repeat(64) }),
+      modelContext: () => { throw new Error('Current measurements must not describe historical selections'); },
       selection: () => { throw new Error('Draft or historical selections must not be attached as live facts'); } } });
     openStubEditor(RESID, SAVED);
     await rig.graph.open({ uri: RESID, cls: 'Net' }, 'canvas'); await settle();

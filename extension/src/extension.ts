@@ -12,6 +12,7 @@ import { registerMcpViewTools } from '@tensorviz/graph-host/mcpViews';
 import { McpGraphView, registerMcpGraphView } from '@tensorviz/graph-host/mcpGraphView';
 import { registerMcpValidationTools } from '@tensorviz/graph-host/mcpValidation';
 import { registerMcpCaptureTools } from '@tensorviz/graph-host/mcpCaptures';
+import { getModelContext } from '@tensorviz/graph-host/modelContext';
 import { registerMcpSourceContextTool } from '@tensorviz/graph-host/mcpSourceContext';
 import { registerCanvasCodeTools, registerMcpProposalTools } from './mcpProposals';
 import { registerMcpGraphDiffTool } from './mcpGraphDiff';
@@ -752,7 +753,8 @@ export function activate(context: vscode.ExtensionContext): { __test: TestApi } 
     agent: { run: (input, emit, signal) => canvasAgent.run(input, emit, signal), clear: preserveEvidence => canvasAgent.clear(preserveEvidence),
       reference: model => windowGraph().reference(model),
       selection: (reference, nodeIds) => windowGraph().inspectNodes(reference, nodeIds),
-      graph: reference => agentGraphContext(windowGraph(), reference),
+      graph: (reference, maxBytes) => agentGraphContext(windowGraph(), reference, maxBytes),
+      modelContext: reference => getModelContext(windowGraph(), browserGraph!.captureInspector, reference),
       inspect: (provider, refresh, signal) => {
         if (!vscode.workspace.isTrusted) return Promise.resolve({ status: 'error' as const, detail: 'Trust this workspace in VS Code before connecting a coding agent.', models: [] });
         return canvasAgent.inspect(provider, browserGraph?.target?.workspaceFolder ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? homedir(), refresh, signal);

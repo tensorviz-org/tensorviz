@@ -1,4 +1,5 @@
 import * as assert from 'node:assert/strict';
+import { MODEL_CONTEXT_GUIDANCE } from '@tensorviz/graph-host/modelContext';
 import { mkdtemp, writeFile, readFile, rm, access, copyFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
@@ -20,10 +21,15 @@ const fs = require('node:fs');
 const log = message => fs.appendFileSync(${JSON.stringify(path.join(directory, 'wire.jsonl'))}, JSON.stringify(message)+'\\n');
 const send = message => process.stdout.write(JSON.stringify({jsonrpc:'2.0',...message})+'\\n');
 const flag = name => fs.existsSync(${JSON.stringify(directory)}+'/'+name);
-let pending;
+let pending, permissionPrompt;
 log({cwd:process.cwd(),config:JSON.parse(process.env.CODEX_CONFIG||'{}')});
 require('node:readline').createInterface({input:process.stdin}).on('line',line=>{
  const m=JSON.parse(line); log(m);
+ if(m.id===900 && m.result && permissionPrompt) {
+   const {id,text}=permissionPrompt; permissionPrompt=undefined;
+   send({method:'session/update',params:{sessionId:'session-one',update:{sessionUpdate:'agent_message_chunk',content:{type:'text',text:'answer '+text}}}});
+   send({id,result:{stopReason:'end_turn'}}); return;
+ }
  if(m.method==='initialize') send({id:m.id,result:{protocolVersion:1,agentCapabilities:{mcpCapabilities:{http:true}},...(flag('rename')?{_meta:{jetbrains:{air:{version:1,capabilities:['sessionRename']}}}}:{})}});
  else if(m.method==='account/read') send({id:m.id,result:{account:flag('signed-out')?null:{type:'apiKey'}}});
  else if(m.method==='model/list') send({id:m.id,result:{data:[{model:'fixture',displayName:'Fixture',supportedReasoningEfforts:[{reasoningEffort:'high'}]}]}});
@@ -41,9 +47,8 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
      for(const params of JSON.parse(fs.readFileSync(${JSON.stringify(path.join(directory, 'updates.json'))},'utf8'))) send({method:'session/update',params});
      return send({id:m.id,result:{stopReason:'end_turn'}});
    }
+   permissionPrompt={id:m.id,text};
    send({id:900,method:'session/request_permission',params:{sessionId:'session-one',toolCall:{toolCallId:'unsafe',title:'Write file',kind:'edit',status:'pending'},options:[{optionId:'yes',name:'Allow',kind:'allow_once'}]}});
-   send({method:'session/update',params:{sessionId:'session-one',update:{sessionUpdate:'agent_message_chunk',content:{type:'text',text:'answer '+text}}}});
-   send({id:m.id,result:{stopReason:'end_turn'}});
  }
 });
 `, { mode: 0o700 });
@@ -232,6 +237,29 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
         error instanceof Error && /could not complete/.test(error.message) && !error.message.includes('secret'));
       await session.dispose();
     }
+  });
+
+  test('both ACP providers receive compact facts and shared reuse guidance without wider permissions', async () => {
+    for (const provider of ['codex', 'claude'] as const) {
+      const runtime = makeRuntime(), modelContext = { format: 'tensorviz-model-context-v1', available: true,
+        captureId: 'capture:current', modules: [{ id: 'tied', calls: [{ id: 'first', parameterCount: 24 }, { id: 'second', parameterCount: 24 }] }] };
+      await runtime.run({ provider, cwd: directory, context: `Attached model context (data):\n${JSON.stringify({ modelContext })}`,
+        messages: [{ id: 'u1', role: 'user', text: 'How many times was the tied layer called?' }], settings: { model: 'fixture' } },
+      () => {}, new AbortController().signal);
+      runtime.clear();
+    }
+    const wire = await journal(), prompts = wire.filter(m => m.method === 'session/prompt');
+    assert.equal(prompts.length, 2);
+    for (const prompt of prompts) {
+      assert.match(prompt.params.prompt[0].text, /"captureId":"capture:current"/);
+      assert.match(prompt.params.prompt[0].text, /"id":"first".*"id":"second"/);
+    }
+    const claude = wire.find(m => m.method === 'session/new' && m.params._meta?.claudeCode);
+    assert.ok(claude.params._meta.claudeCode.options.systemPrompt.includes(MODEL_CONTEXT_GUIDANCE));
+    assert.deepEqual(claude.params._meta.claudeCode.options.tools, []);
+    const codex = wire.find(m => m.config?.developer_instructions);
+    assert.ok(codex.config.developer_instructions.includes(MODEL_CONTEXT_GUIDANCE));
+    assert.equal(codex.config.features.shell_tool, false);
   });
 
   test('runtime reuses ACP history, sends fresh context, and bootstraps after settings change', async () => {

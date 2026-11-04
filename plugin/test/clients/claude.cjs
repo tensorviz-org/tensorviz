@@ -78,8 +78,17 @@ test('Claude installs the standalone plugin and captures through its native MCP 
     });
     const initialized = await request({ subtype: 'initialize' });
     assert.match(JSON.stringify(initialized.commands), /tensorviz:model-workflow/);
+    // Initialization can finish while the plugin connection is still pending.
+    let connection;
+    const connectionDeadline = Date.now() + 30000;
+    do {
+      connection = (await request({ subtype: 'mcp_status' })).mcpServers.find(server => server.source === 'plugin');
+      if (connection?.status === 'connected') break;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } while (Date.now() < connectionDeadline);
+    assert.equal(connection?.status, 'connected', JSON.stringify(connection));
     const call = async (tool, args = {}) => {
-      // MCP call triggers Claude's deferred plugin connection without a model turn.
+      // Exercise Claude's native MCP control bridge without a model turn.
       const result = await request({ subtype: 'mcp_call', tool: `mcp__plugin_tensorviz_tensorviz__${tool}`, arguments: args });
       assert.ok(!result.isError, JSON.stringify(result));
       return result.structuredContent;
@@ -89,7 +98,7 @@ test('Claude installs the standalone plugin and captures through its native MCP 
     const status = await request({ subtype: 'mcp_status' });
     assert.equal(status.mcpServers.length, 1);
     assert.equal(status.mcpServers[0].source, 'plugin');
-    assert.equal(status.mcpServers[0].tools.length, 27);
+    assert.equal(status.mcpServers[0].tools.length, 28);
     for (const [tool, query] of [
       ['find_computation', { text: 'Linear' }],
       ['query_computation', { anchors: [{ kind: 'value', id: 'missing' }] }],
@@ -99,7 +108,7 @@ test('Claude installs the standalone plugin and captures through its native MCP 
         arguments: { modelId: 'unopened', captureId: 'missing', sourceId: 'missing', ...query } }),
         error => JSON.parse(error.message).error.code === 'NO_MODEL', 'analysis must not open or run a model');
     }
-    console.log('Loaded 27 plugin-owned tools (including 4 app-only Canvas tools), checked all three computation tools and loaded model-workflow through Claude.');
+    console.log('Loaded 28 plugin-owned tools (including 4 app-only Canvas tools), checked all three computation tools and loaded model-workflow through Claude.');
     assert.equal(await fs.stat(env.TENSORVIZ_DATA_DIR).catch(() => null), null);
     let capture = await call('open_graph', { workspaceRoot: project, file: 'model.py', cls: 'Tiny', interpreter: python });
     for (let n = 0; n < 450 && !['ready', 'failed', 'blocked', 'needs_setup', 'cancelled'].includes(capture.status); n++) {
@@ -112,6 +121,13 @@ test('Claude installs the standalone plugin and captures through its native MCP 
     assert.equal(permission.decision, 'granted', 'Consent must be saved inside this test fixture');
     const graph = await call('get_graph', { modelId: capture.models[0].modelId, revision: capture.models[0].revision, mode: 'graph', limit: 100 });
     assert.ok(graph.nodes.some(node => JSON.stringify(node.shapes).includes('3')));
+    const context = await call('get_model_context', { modelId: capture.models[0].modelId, revision: capture.models[0].revision });
+    assert.equal(context.available, true, JSON.stringify(context));
+    assert.ok(Buffer.byteLength(JSON.stringify(context)) <= 4000);
+    const fc = context.modules.find(module => module.paths.includes('fc'));
+    assert.equal(fc.calls[0].parameterCount, 15);
+    assert.deepEqual(fc.calls[0].inputs.tensors[0].shape, [2, 4]);
+    assert.deepEqual(fc.calls[0].outputs.tensors[0].shape, [2, 3]);
     console.log('Captured Tiny and inspected measured shapes through Claude with one saved plugin permission.');
     child.stdin.end();
     await new Promise(resolve => child.once('exit', resolve));

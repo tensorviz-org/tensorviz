@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import type { LocalBrowserTargetIdentity, ProjectionPayload } from '@tensorviz/contracts/protocol';
+import { isModelImportDiagnostic, type LocalBrowserTargetIdentity, type ProjectionPayload, type ModelImportDiagnostic } from '@tensorviz/contracts/protocol';
 
 export interface McpModel {
   target: LocalBrowserTargetIdentity;
@@ -41,7 +41,7 @@ function captureMetrics(meta: JsonObject, output: number[] | null, greyed: boole
 }
 
 export class GraphToolError extends Error {
-  constructor(readonly code: string, message: string) { super(message); }
+  constructor(readonly code: string, message: string, readonly diagnostic?: ModelImportDiagnostic) { super(message); }
 }
 /** All tools return standard MCP content and the same machine-readable error shape. */
 export async function graphToolResult(action: () => JsonObject | Promise<JsonObject>): Promise<CallToolResult> {
@@ -52,7 +52,8 @@ export async function graphToolResult(action: () => JsonObject | Promise<JsonObj
     return { content: [{ type: 'text', text }], structuredContent: result };
   } catch (error) {
     const result = { error: { code: error instanceof GraphToolError ? error.code : 'UNAVAILABLE',
-      message: error instanceof GraphToolError ? error.message : 'The graph operation could not complete. Check the TensorViz host and retry.' } };
+      message: error instanceof GraphToolError ? error.message : 'The graph operation could not complete. Check the TensorViz host and retry.',
+      ...(error instanceof GraphToolError && isModelImportDiagnostic(error.diagnostic) ? { diagnostic: error.diagnostic } : {}) } };
     return { isError: true, content: [{ type: 'text', text: JSON.stringify(result) }], structuredContent: result };
   }
 }

@@ -53,6 +53,24 @@ release publication are not in this tree.
 ## Unreleased
 
 - Share bounded captured model facts through `get_model_context` and native/ACP Canvas chat, with source freshness checks and explicit omissions. See [compact model context](../docs/model-context.md).
+
+- Compact chat permissions into a shield icon and themed keyboard-accessible menu. Move active generation to animated dots below the latest message, remove the idle header circle, and shorten settings with an explicit connection-recheck result. Keep unrelated general-assistant work outside the shared research/project prompt scope while supporting relevant mathematics.
+
+- Preserve the actual model-import exception, cause chain, traceback and observed runtime for same-task diagnosis. Add bounded project-file and machine inspection plus exact host-reviewed command jobs; every setup mode still asks before machine commands, and provider-native direct shell stays disabled. Show task activity with status icons and disclose retained failure evidence in chat.
+
+- Generate setup permission titles, explanations and both button labels with the active agent from structured host operation facts. Share one typed presentation tool and prompt section across operations/providers, preserve exact plans in Details, and resume the same task when an explanation is pending. Approval still follows the selected host policy.
+
+- Publish verified Python completion before input discovery and continue the same agent task into missing inputs and capture. Share typed setup progress between UI and tools; centralize provider prompts in a typed section registry.
+
+- Add a visible chat permission selector: **Ask every time**, **Auto setup**, and **Full setup access**. Automatic approvals leave receipts; Auto setup still asks before source builds or changing existing Python. New chats return to Ask.
+
+- Review agent-driven environment creation, source builds and exact dependency installs inside Canvas chat. Show **Needs approval**, expandable action details and explicit Allow/Deny; cancel pending requests when the task stops or context changes. Manual setup retains native reviews.
+- Unify Python and model-input setup with shared progress, concise agent/manual choices and one **Complete setup** reminder when the sidebar is closed. Resume the unfinished step with saved choices and draft edits intact.
+
+- Lead Python setup with **Set up project with agent**, explaining why the model needs Python. Keep manual recovery available, remove repeated diagnostics, and give the provided Python a readable name. Agents can prepare the selected opening’s environment through the same reviewed installation flow.
+
+- Use the tensorViz panel as the single starting screen. Remove the separate first-run welcome guide; **Get Started** reveals the panel without starting runtime setup.
+
 - Sync the eligible extension source through 2026-10-30, preserving this repository's visualization scope and release identity.
 - Enable automatic validation after relevant saves and execution caching by default, with opt-outs and source/environment freshness checks.
 - Share class-scoped input declarations across setup, capture and generated source; avoid disabled statistics hooks on ScriptModules.

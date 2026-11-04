@@ -5,11 +5,20 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { checkOpeningEnvironment, recoverOpeningEnvironment, type OpeningEnvironmentOptions } from '../../openingEnvironment';
 import { automaticProjectCandidate, ENVIRONMENTS_KEY, discoverEnvironments, environmentCost, rankEnvironmentCandidates, readyForModel, inspectExecutionEnvironment } from '../../projectEnvironment';
-import type { GraphEnvironmentCandidate } from '@tensorviz/contracts/protocol';
+import type { GraphEnvironmentCandidate, ModelImportDiagnostic } from '@tensorviz/contracts/protocol';
 import { reset, setInfoResponder, state } from '../vscodeStub';
 import type { EnvironmentRunner } from '@tensorviz/graph-host/projectEnvironmentCore';
 import { GraphOpeningError } from '@tensorviz/graph-host/graphOpening';
 import { GraphToolError } from '@tensorviz/graph-host/mcpGraph';
+
+const importMessage = "cannot import name 'ALL_ATTENTION_FUNCTIONS' from 'transformers.modeling_utils'";
+const importDiagnostic: ModelImportDiagnostic = {
+  exceptionType: 'ImportError', message: importMessage,
+  traceback: `Traceback (most recent call last):\n  File "/project/model.py", line 4, in <module>\nImportError: ${importMessage}`,
+  causes: [{ exceptionType: 'ImportError', message: importMessage, module: 'transformers.modeling_utils' }],
+  runtime: { platform: 'darwin', architecture: 'arm64', python: '3.12.13', torch: '2.6.0', cuda: null,
+    cudaAvailable: false, mpsAvailable: true }, truncated: false,
+};
 
 suite('native opening environment recovery', () => {
   let root: string, store: Map<string, unknown>, options: OpeningEnvironmentOptions, calls: string[][];
@@ -79,6 +88,65 @@ suite('native opening environment recovery', () => {
     assert.ok(remembered.interpreter.startsWith(path.join(fs.realpathSync(root), 'model-environments') + path.sep));
     assert.notEqual(remembered.interpreter, '/service/python');
     assert.equal(path.basename(path.dirname(path.dirname(remembered.interpreter))), 'my-model');
+  });
+  test('agent environment consent is forwarded before creation and refusal cannot change the saved Python', async () => {
+    const blocked = await checkOpeningEnvironment(options, { refresh: true });
+    calls.length = 0;
+    const requests: string[] = [];
+    options.approve = async (request, signal) => {
+      requests.push(request.operation); assert.equal(signal, options.signal);
+      assert.deepEqual(request.effects, ['create']); assert.equal(request.scope, 'isolated_environment');
+      assert.equal(request.facts.name, 'agent-model');
+      assert.ok(!fs.existsSync(path.join(root, 'model-environments')));
+      assert.deepEqual(calls, []); return false;
+    };
+    await assert.rejects(recoverOpeningEnvironment(options, blocked, { kind: 'create_environment', name: 'agent-model' }, host()), /not approved/);
+    assert.deepEqual(requests, ['python.environment.create']); assert.equal(store.get(ENVIRONMENTS_KEY), undefined);
+    assert.ok(!fs.existsSync(path.join(root, 'model-environments')));
+    assert.ok(calls.every(args => ['inspect-capture', 'inspect-candidate', 'inspect-model'].includes(args[2])));
+  });
+  test('failed environment creation reaches graph opening with the exact import diagnostic and original error code', async () => {
+    const blocked = await checkOpeningEnvironment(options, { refresh: true });
+    const base = options.runner!;
+    options.runner = async (python, backend, args, ...rest) => {
+      if (args[0] === 'create-environment') { fs.mkdirSync(args[1], { recursive: true }); return { ok: true }; }
+      if (args[2] === 'inspect-model-setup') return { ok: true, sourcePackages: [], manifestDigest: 'declared' };
+      if (args[2] === 'plan-model-environment') return { ok: true, digest: 'reviewed', packages: [{ name: 'torch', version: '2.10.0' }] };
+      if (args[2] === 'install') return { ok: true };
+      if (args[2] === 'probe-model') return { ok: false, code: 'MODEL_IMPORT_FAILED',
+        message: `Model import failed: ImportError: ${importMessage}`, diagnostic: importDiagnostic };
+      return base(python, backend, args, ...rest);
+    };
+    let changed = 0;
+    setInfoResponder(() => 'Install and continue');
+    await assert.rejects(recoverOpeningEnvironment(options, blocked, { kind: 'create_environment', name: 'failed-model' },
+      { ...host(), changed: () => changed++ }), error => {
+      assert.ok(error instanceof GraphOpeningError);
+      assert.equal(error.failure?.kind, 'environment');
+      assert.equal(error.failure?.code, 'MODEL_IMPORT_FAILED');
+      assert.equal(error.failure?.importFailure, true);
+      assert.deepEqual(error.failure?.diagnostic, importDiagnostic);
+      assert.match(error.message, /ALL_ATTENTION_FUNCTIONS/);
+      assert.equal(error.environment?.reason, 'selection_required');
+      return true;
+    });
+    assert.equal(changed, 0, 'a failed import cannot select the incomplete environment');
+    assert.equal(store.get(ENVIRONMENTS_KEY), undefined);
+    assert.deepEqual(fs.readdirSync(path.join(root, 'model-environments')), []);
+  });
+  test('dependency recovery preserves observed import evidence without guessing a GPU cause', async () => {
+    choose(); const recovery = await checkOpeningEnvironment(options);
+    await assert.rejects(recoverOpeningEnvironment(options, { ...recovery, reason: 'missing_libraries', requirements: ['transformers'] },
+      { kind: 'install_dependencies' }, { ...host(), dependencies: async () => {
+        throw new GraphToolError('MODEL_IMPORT_FAILED', `Model import failed: ImportError: ${importMessage}`, importDiagnostic);
+      } }), error => {
+      assert.ok(error instanceof GraphOpeningError);
+      assert.deepEqual(error.failure, { kind: 'environment', code: 'MODEL_IMPORT_FAILED', importFailure: true, diagnostic: importDiagnostic });
+      assert.equal(error.environment?.selectedId, recovery.selectedId);
+      assert.match(error.message, /cannot import name/);
+      assert.doesNotMatch(error.message, /requires CUDA|GPU required/);
+      return true;
+    });
   });
   test('explicit opening uses one compatible project Python and still verifies model and worker readiness', async () => {
     assert.equal((await checkOpeningEnvironment(options)).reason, 'ready');
@@ -261,10 +329,12 @@ suite('native opening environment recovery', () => {
   });
   test('selection rechecks candidate fingerprint and remembers the exact owning folder without resetting the opening', async () => {
     const recovery = await checkOpeningEnvironment(options, { refresh: true }); let changed = 0;
-    assert.equal(await recoverOpeningEnvironment(options, recovery, { kind: 'select_environment', candidateId: recovery.candidates[0].id },
-      { ...host(), changed: () => { changed++; } }), true);
+    const selected = await recoverOpeningEnvironment(options, recovery, { kind: 'select_environment', candidateId: recovery.candidates[0].id },
+      { ...host(), changed: () => { changed++; } });
+    assert.equal(typeof selected === 'object' && selected.reason, 'ready');
     assert.deepEqual(store.get(ENVIRONMENTS_KEY), { [root]: { kind: 'project', interpreter: path.join(root, '.venv', 'bin', 'python'), explicit: true } });
-    assert.equal(changed, 1); assert.equal(calls.length, 2);
+    assert.equal(changed, 1);
+    assert.deepEqual(calls.map(args => args[2]), ['inspect-candidate', 'inspect-capture', 'inspect-capture', 'inspect-model', 'probe-capture']);
   });
 
   test('a selected empty environment offers one native review for capture and source libraries before any worker import', async () => {
@@ -300,7 +370,8 @@ suite('native opening environment recovery', () => {
     assert.equal((await checkOpeningEnvironment(options)).reason, 'ready', 'a later refresh keeps the choice');
     assert.equal(store.get(ENVIRONMENTS_KEY) && Object.keys(store.get(ENVIRONMENTS_KEY) as object).length, 1, 'no pin is written to settings');
     // Choosing the environment again starts a fresh check against the project pins.
-    assert.equal(await recoverOpeningEnvironment(options, blocked, { kind: 'select_environment', candidateId: blocked.selectedId! }, host()), true);
+    const selected = await recoverOpeningEnvironment(options, blocked, { kind: 'select_environment', candidateId: blocked.selectedId! }, host());
+    assert.equal(typeof selected === 'object' && selected.reason, 'incompatible');
     assert.equal((await checkOpeningEnvironment(options)).reason, 'incompatible');
   });
   test('the saved project environment replaces its pinned versions after both answers; the managed one never does', async () => {

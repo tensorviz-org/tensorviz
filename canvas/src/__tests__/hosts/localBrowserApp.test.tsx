@@ -740,41 +740,53 @@ describe('LocalBrowserApp', () => {
     expect((rig.transport.send as jest.Mock).mock.calls.some(([message]) => message.action?.action === 'run')).toBe(false);
   });
 
-  it('warns only for confirmed absence, retains measurements and routes optional setup actions', () => {
+  it('uses one setup reminder and resumes the pending step without rerunning completed setup', () => {
     const rig = readyValidationPage();
-    const opening = { id: 'config-warning', target: netTarget(), phase: 'ready', hasCapture: true,
-      detail: 'Captured.', draft: { profileName: 'net_cpu', profile: {} } };
-    act(() => {
-      rig.emit(hostMessage('projection', { target: netTarget(), projection: netProjection({ traced: true }), traced: true, greyed: false }));
-      rig.emit(hostMessage('graphOpening', { state: opening }));
-    });
-    expect(screen.queryByRole('status', { name: 'Missing model configuration' })).toBeNull();
-    act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, configFileExists: false } })));
-    const warning = screen.getByRole('status', { name: 'Missing model configuration' });
-    expect(warning).toHaveTextContent('previous measurements');
-    expect(warning).toHaveTextContent('or edit the file manually');
-    const modelMenu = screen.getByRole('button', { name: 'Model and file actions' });
-    fireEvent.click(modelMenu);
-    expect(screen.queryByText('Saved as')).toBeNull();
-    fireEvent.click(modelMenu);
-    fireEvent.click(within(warning).getByRole('button', { name: 'Use Agent' }));
-    expect(screen.getByRole('region', { name: 'Canvas chat' })).toBeVisible();
-    expect(screen.getByRole('textbox', { name: 'Message to coding agent' })).toHaveValue('');
-    fireEvent.click(within(warning).getByRole('button', { name: 'Create tensorviz.toml' }));
-    for (const kind of ['agent_help', 'edit_config']) expect(rig.transport.send).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'graphSetupRequest', openingId: opening.id, target: opening.target, action: { kind },
+    const opening = { id: 'config-warning', target: netTarget(), phase: 'needs_setup', hasCapture: false,
+      detail: 'Example inputs needed.', configFileExists: false,
+      environment: { reason: 'ready', detail: 'Python checked.', candidates: [] },
+      discovery: { model: 'model:Net', init: [], inputs: [], examples: [], factories: [], configs: [], parents: [], constraints: [], truncated: false } };
+    act(() => rig.emit(hostMessage('graphOpening', { state: opening })));
+    expect(screen.getByRole('button', { name: 'Set up project with agent' })).toBeVisible();
+    expect(screen.queryByRole('status', { name: 'Project setup incomplete' })).toBeNull();
+    const progress = screen.getByRole('list', { name: 'Project setup progress' });
+    expect(within(progress).getByText('Python').closest('li')).toHaveTextContent('complete');
+    expect(within(progress).getByText('Model inputs').closest('li')).toHaveAttribute('aria-current', 'step');
+    fireEvent.click(screen.getByRole('button', { name: 'Close inputs' }));
+    const reminder = screen.getByRole('status', { name: 'Project setup incomplete' });
+    expect(reminder).toHaveTextContent('Model inputs pending');
+    const calls = (rig.transport.send as jest.Mock).mock.calls.length;
+    fireEvent.click(within(reminder).getByRole('button', { name: 'Complete setup' }));
+    expect(screen.getByRole('button', { name: 'Set up project with agent' })).toBeVisible();
+    expect(screen.queryByRole('status', { name: 'Project setup incomplete' })).toBeNull();
+    expect((rig.transport.send as jest.Mock).mock.calls).toHaveLength(calls);
+    act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, phase: 'source_only' } })));
+    fireEvent.click(screen.getByRole('button', { name: 'Complete setup' }));
+    expect(rig.transport.send).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'graphSetupRequest', openingId: opening.id, action: { kind: 'change_inputs' },
     }));
-    expect(screen.getByTestId('canvas-app')).toBeVisible();
-    act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, configFileExists: true } })));
-    expect(screen.queryByRole('status', { name: 'Missing model configuration' })).toBeNull();
-    fireEvent.click(modelMenu);
-    expect(screen.getByText('Saved as')).toHaveTextContent('net_cpu');
-    fireEvent.click(modelMenu);
-    act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, phase: 'source_only', hasCapture: false, configFileExists: false } })));
-    expect(screen.getByRole('status', { name: 'Missing model configuration' })).toHaveTextContent('Source inspection is available');
-    act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, phase: 'saving', hasCapture: false, configFileExists: false } })));
-    expect(screen.queryByRole('status', { name: 'Missing model configuration' })).toBeNull();
+    act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening, phase: 'ready', hasCapture: true, configFileExists: true } })));
+    expect(screen.queryByRole('status', { name: 'Project setup incomplete' })).toBeNull();
     expect((rig.transport.send as jest.Mock).mock.calls.some(([message]) => message.type === 'validateRequest')).toBe(false);
+  });
+  it('uses the same reminder when Python setup is closed and keeps it hidden during setup', () => {
+    const rig = readyValidationPage();
+    const opening = { id: 'python-pending', target: netTarget(), phase: 'needs_setup', hasCapture: false,
+      detail: 'Choose Python.', environment: { reason: 'selection_required', detail: 'Choose Python.', candidates: [], canCreate: true } };
+    act(() => rig.emit(hostMessage('graphOpening', { state: opening })));
+    expect(screen.queryByRole('status', { name: 'Project setup incomplete' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Close environment setup' }));
+    expect(screen.getByRole('status', { name: 'Project setup incomplete' })).toHaveTextContent('Python setup pending');
+    act(() => rig.emit(hostMessage('graphOpening', { state: { ...opening,
+      environment: { reason: 'ready', detail: 'Python verified.', candidates: [] },
+      discovery: { model: 'model:Net', init: [], inputs: [], examples: [], factories: [], configs: [], parents: [], constraints: [], truncated: false },
+    } })));
+    expect(screen.queryByText('Python setup pending')).toBeNull();
+    expect(screen.getByRole('status', { name: 'Project setup incomplete' })).toHaveTextContent('Model inputs pending');
+    fireEvent.click(screen.getByRole('button', { name: 'Complete setup' }));
+    expect(screen.getByRole('button', { name: 'Set up project with agent' })).toBeVisible();
+    expect(within(screen.getByRole('list', { name: 'Project setup progress' })).getByText('Python').closest('li')).toHaveTextContent('complete');
+    expect(screen.queryByRole('status', { name: 'Project setup incomplete' })).toBeNull();
   });
   it('keeps the source preview visible during setup and replaces it with the captured graph without Validate', () => {
     const rig = makeTransport();
@@ -888,7 +900,7 @@ describe('LocalBrowserApp', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close inputs' }));
     expect(screen.getByLabelText('x shape')).not.toBeVisible();
     expect(screen.getByTestId('canvas-app')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Change inputs' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Complete setup' })).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Change inputs' }));
     expect(screen.getByLabelText('x shape')).toBeVisible();
     expect(screen.getByLabelText('x shape')).toHaveValue('4, 8');
@@ -905,7 +917,7 @@ describe('LocalBrowserApp', () => {
       discovery: { model: 'model:Net', sourceDigest: 'a'.repeat(64), init: [], inputs: [{ name: 'x', kind: 'keyword', required: true }],
         examples: [], factories: [], configs: [], parents: [], constraints: [], truncated: false } };
     act(() => rig.emit(hostMessage('graphOpening', { state: opening })));
-    fireEvent.click(screen.getByRole('button', { name: 'Set up with agent' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set up project with agent' }));
     // The host publishes an agent's draft while the backend checks it; this one omits inputs.args.
     const profile = { kind: 'model', model: 'model:Net', init: { args: [], kwargs: {} },
       inputs: { kwargs: { x: { kind: 'tensor', shape: [4, 8], dtype: 'float32' } } } };
@@ -2222,7 +2234,8 @@ describe('draft graph preview', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Open agent chat/ }));
     act(() => rig.emit(hostMessage('graphReviewState', { state: draftState() })));
     expect(screen.getByText('Add a second classifier head')).toBeVisible();
-    expect(screen.getByText('Editing model…')).toBeVisible();
+    expect(screen.getByRole('img', { name: 'Agent running' })).toHaveAttribute('title', 'Agent running · Editing model…');
+    expect(screen.queryByText('Editing model…')).toBeNull();
     act(() => rig.emit(agentState(2, { messages: [{ id: 'turn-1', role: 'user', text: 'Add a second classifier head' }, { id: 'turn-2', role: 'assistant', text: 'Proposed fc2.' }] })));
     expect(screen.getByText('Proposed fc2.')).toBeVisible();
     const input = screen.getByRole('textbox', { name: 'Message to coding agent' });

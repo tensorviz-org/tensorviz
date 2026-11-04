@@ -4,8 +4,12 @@ TensorViz needs a way to create your model and an example input for one forward 
 
 ## Complete the setup
 
+The setup sidebar shows **Python → Model inputs**. Once Python is ready, the
+next step uses the same agent/manual choices. **Learn more** explains the saved
+configuration. If you close setup, choose **Complete setup** to return.
+
 1. Open the model with **Open as Graph**.
-2. Choose **Set up manually**, or **Set up with agent** in the editor. The plugin browser offers **Copy setup request**.
+2. Choose **Set up manually**, or **Set up project with agent** in the editor. The plugin browser offers **Copy setup request**.
 3. Fill in missing constructor values and input shapes. Choose a Python factory when your model needs custom initialization.
 4. Review the setup and save it.
 

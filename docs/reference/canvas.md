@@ -33,6 +33,11 @@ The persistent **Canvas** receives **Open as Graph**, per-class CodeLens, and Mo
 
 ## Automatic readiness and one starting screen
 
+The sidebar Canvas is the extension's single starting screen. Installation and
+activation do not open a separate welcome walkthrough. **tensorViz: Get Started**
+reveals this same view, preserving an open graph and leaving runtime setup to the
+existing explicit actions. Folder changes and model discovery update this home.
+
 In a trusted window the home automatically checks only tensorViz's owned runtime.
 A ready runtime shows **tensorViz is ready** regardless of VS Code's selected
 project Python or its libraries. Home does not discover environments, inspect

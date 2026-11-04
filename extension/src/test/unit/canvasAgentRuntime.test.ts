@@ -46,6 +46,40 @@ suite('Canvas agent provider compatibility', () => {
     }
   });
 
+  test('only current verified setup-tool results attest that the provider saw opening evidence', async () => {
+    for (const outcome of ['success', 'unrelated', 'malformed', 'refused', 'aborted']) {
+      const target = { workspaceFolder: '/fixture', file: 'model.py', cls: 'Net', documentVersion: 1, sourceDigest: 'a'.repeat(64), backendRevision: 0 };
+      const opening = { id: 'opening', target, phase: 'failed' as const, hasCapture: false, detail: 'Observed import failure', failure: { kind: 'environment' as const, code: 'MODEL_IMPORT_FAILED' } };
+      const name = outcome === 'unrelated' ? 'read_project_file' : 'get_graph_setup';
+      const controller = new AbortController(), events: AgentRunEvent[] = [];
+      const runtime = new CanvasAgentRuntime({ executable: async () => 'fixture', release() {}, tools: () => new Map([
+        [name, { config: { inputSchema: {}, annotations: { readOnlyHint: true } }, handler: async () => {
+          if (outcome === 'aborted') controller.abort();
+          return { content: [], ...(outcome === 'refused' ? { isError: true } : {}), structuredContent: {
+            opening: outcome === 'malformed' ? { ...opening, target: { ...target, sourceDigest: 'invalid' } } : opening,
+          } };
+        } }],
+      ]) });
+      const fixture = runtime as any;
+      let url = '';
+      fixture.startCodex = async (_executable: string, _input: unknown, endpoint: string) => {
+        url = endpoint; return { process: { completed: new Promise(() => {}) }, sent: false };
+      };
+      fixture.turn = async () => {
+        const client = new Client({ name: 'setup-evidence-test', version: '1' });
+        try {
+          await client.connect(new StreamableHTTPClientTransport(new URL(url), { requestInit: { headers: { Authorization: `Bearer ${fixture.token}` } } }));
+          await client.callTool({ name, arguments: {} });
+        } finally { await client.close(); }
+      };
+      try {
+        const running = runtime.run({ provider: 'codex', cwd: '/fixture', conversationId: 'chat', context: 'Model context', messages: [] }, event => events.push(event), controller.signal);
+        if (outcome === 'aborted') await assert.rejects(running); else await running;
+        assert.deepEqual(events.filter(event => event.kind === 'setup_evidence'), outcome === 'success' ? [{ kind: 'setup_evidence', opening }] : [], outcome);
+      } finally { runtime.clear(); }
+    }
+  });
+
   test('host-attached evidence survives Stop and effort changes but never crosses a conversation, provider or workspace', async () => {
     for (const change of ['stop', 'effort', 'clear', 'conversation', 'provider', 'cwd']) {
       const runtime = new CanvasAgentRuntime({ executable: async () => 'fixture', release() {}, tools: () => new Map() });

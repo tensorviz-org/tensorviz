@@ -624,6 +624,97 @@ def plan_replacement(directory: Path, requested: object, project: Path) -> dict:
                          for w in wheels]}
 
 
+def model_import_diagnostic(error: BaseException) -> dict:
+    """Keep actionable import evidence without source lines, locals or environment dumps.
+
+    This runs only inside the already-authorized model import worker. Device facts
+    come from Torch already loaded by that import; missing observations stay null.
+    """
+    truncated = False
+
+    def text(value, limit: int) -> str:
+        nonlocal truncated
+        try:
+            value = str(value)
+        except Exception:
+            value = type(value).__name__
+        # Linker/import failures may contain repository URLs. Do not expose URL
+        # credentials, common query tokens or authorization values in diagnostics.
+        value = re.sub(r"(?i)(https?://)[^/\s@]+@", r"\1[redacted]@", value)
+        value = re.sub(r"(?i)([?&](?:token|access_token|api_key|key|password|secret)=)[^&#\s]*", r"\1[redacted]", value)
+        value = re.sub(r"(?i)(\b(?:api[_-]?key|access[_-]?token|password|secret)\s*[:=]\s*)[^\s,;]+", r"\1[redacted]", value)
+        value = re.sub(r"(?i)(\bBearer\s+)[A-Za-z0-9._~+/=-]+", r"\1[redacted]", value)
+        value = re.sub(r"\b(?:sk-[A-Za-z0-9_-]{16,}|hf_[A-Za-z0-9]{16,})\b", "[redacted]", value)
+        value = "".join(character for character in value if ord(character) >= 32 or character in "\n\t")
+        encoded = value.encode('utf-16-le', errors='replace')
+        if len(encoded) > limit * 2:
+            truncated = True
+            return encoded[:limit * 2].decode('utf-16-le', errors='ignore')
+        return value
+
+    chain: list[BaseException] = []
+    current: BaseException | None = error
+    while current is not None and len(chain) < 8 and all(current is not previous for previous in chain):
+        chain.append(current)
+        current = current.__cause__ or (None if current.__suppress_context__ else current.__context__)
+    if current is not None:
+        truncated = True
+    causes = []
+    for cause in chain:
+        entry = {"exceptionType": text(type(cause).__name__, 128), "message": text(cause, 2048)}
+        module = getattr(cause, "name", None)
+        if isinstance(module, str) and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]{0,255}", module):
+            entry["module"] = module
+        causes.append(entry)
+
+    lines, frame_count = [], 0
+    for cause, entry in reversed(list(zip(chain, causes))):
+        if lines:
+            lines.append("Caused the following exception:")
+        frame = cause.__traceback__
+        while frame is not None:
+            if frame_count >= 64:
+                truncated = True
+                break
+            code = frame.tb_frame.f_code
+            lines.append(f'  File "{text(code.co_filename, 1024)}", line {frame.tb_lineno}, in {text(code.co_name, 128)}')
+            frame_count += 1
+            frame = frame.tb_next
+        lines.append(f'{entry["exceptionType"]}: {entry["message"]}')
+    traceback = text("\n".join(lines), 12000)
+
+    torch = sys.modules.get("torch")
+    def observed(getter):
+        try:
+            return getter() if torch is not None else None
+        except Exception:
+            return None
+    try:
+        torch_version = text(metadata.version("torch"), 128)
+    except Exception:
+        torch_version = None
+    cuda = observed(lambda: torch.version.cuda)
+    cuda_available = observed(lambda: torch.cuda.is_available())
+    mps_available = observed(lambda: torch.backends.mps.is_available())
+    runtime = {"platform": text(sys.platform, 128), "architecture": text(platform.machine(), 128),
+               "python": text(sys.version.split()[0], 128), "torch": torch_version,
+               "cuda": text(cuda, 128) if cuda is not None else None,
+               "cudaAvailable": cuda_available if isinstance(cuda_available, bool) else None,
+               "mpsAvailable": mps_available if isinstance(mps_available, bool) else None}
+    primary = causes[-1]
+    diagnostic = {"exceptionType": primary["exceptionType"], "message": primary["message"],
+                  "traceback": traceback, "causes": causes, "runtime": runtime, "truncated": truncated}
+    # The helper transport retains 128k of stdout. JSON escapes can expand each
+    # Unicode character sixfold, so per-string limits alone do not bound output.
+    while len(json.dumps(diagnostic)) > 64000:
+        diagnostic["truncated"] = True
+        diagnostic["traceback"] = diagnostic["traceback"][:len(diagnostic["traceback"]) // 2]
+        for entry in causes:
+            entry["message"] = entry["message"][:max(128, len(entry["message"]) // 2)]
+        diagnostic["message"] = causes[-1]["message"]
+    return diagnostic
+
+
 def probe_model_import(root: Path, file: Path) -> dict:
     if TARGET_PYTHON:
         result = subprocess.run([TARGET_PYTHON, '-I', '-B', str(REQUIREMENTS.parent / 'services' / 'ide' / 'environment_setup.py'),
@@ -643,8 +734,10 @@ def probe_model_import(root: Path, file: Path) -> dict:
         os.chdir(root)
         setup.load_module(file, root=root)
     except Exception as error:
-        cause = error.__cause__ or error
-        return {"ok": False, "code": "MODEL_IMPORT_FAILED", "message": f"The model still fails to import ({type(cause).__name__}) with the compatible libraries. The original environment was preserved."}
+        diagnostic = model_import_diagnostic(error)
+        return {"ok": False, "code": "MODEL_IMPORT_FAILED",
+                "message": f'Model import failed: {diagnostic["exceptionType"]}: {diagnostic["message"]}'[:2048],
+                "diagnostic": diagnostic}
     return {}
 
 

@@ -1,10 +1,51 @@
 # Python environments
 
-Use the environment that already runs your model. TensorViz checks it and asks before installing dependencies or creating an environment.
+TensorViz needs Python to run your model and record tensor shapes. In the editor,
+choose **Set up project with agent** to have your coding agent check the project,
+prepare Python and test inputs, and continue to the graph. By default, chat asks
+before creating an environment, building dependencies, or installing packages.
+The agent explains each proposed operation and supplies its action labels. Expand
+**Details** for the host-recorded operation, paths and exact versions.
+**Stop** cancels a pending request.
+
+The shield icon beside the composer opens this chat's permission menu. The current
+mode is checked; hover or focus another mode for its explanation:
+
+| Mode | What happens |
+| --- | --- |
+| **Ask every time** | Review each environment change. This is the default. |
+| **Auto setup** | Automatically create an isolated environment and install its packages. Ask before source builds or changes to existing environments. |
+| **Full setup access** | Automatically approve all supported environment setup actions, including source builds and existing-environment changes. |
+
+While the agent prepares an explanation, the operation remains paused and no
+approval button is shown. The generated explanation cannot change the operation
+or grant permission. Automatic approvals appear as **Auto-approved** in the conversation. They record
+permission, not successful installation. Changing the mode can approve a waiting
+request when its action is covered; switching back affects future reviews, not
+work already approved. New chats return to **Ask every time**. Source edits keep
+their existing review. Machine commands always need explicit approval in every
+mode, including **Full setup access**. Their **Details** show the exact executable,
+arguments, working directory and timeout. They can access machine files and the
+network; they run without a security sandbox.
+
+The setup screen keeps the explanation short. Expand **Learn more** for how the
+agent helps and the current setup details. The same sidebar shows **Python** and
+**Model inputs**, with a check beside completed steps. If you close it, **Complete
+setup** resumes the unfinished step and preserves your choices. Python completion is published as soon as its
+checks pass. The same agent then continues to model inputs, saves setup and
+captures the graph. If it needs a checkpoint, dataset or other missing choice,
+answer in the same chat.
 
 ## Choose an environment
 
-In the editor, run **tensorViz: Select Python Environment**, or choose a Python from the model setup prompt. For the plugin, tell your agent which environment or interpreter belongs to the project.
+Choose **Set up manually** if you want to select Python yourself. Reuse the
+environment that already runs your model, or create a separate model environment.
+**Setup options** returns to the agent route without losing your manual choices.
+You can also run **tensorViz: Select Python Environment**. For the plugin, tell
+your agent which environment or interpreter belongs to the project.
+
+**TensorViz Python** is the Python provided by TensorViz and shared across models.
+Expand **Interpreter details** to inspect its complete path and version details.
 
 Your model’s Python and TensorViz’s service Python can be different. Changing the model environment does not mean reinstalling the service.
 
@@ -20,9 +61,18 @@ If only the project’s version pins differ, choose **Try with installed version
 | --- | --- |
 | Python is missing or incompatible | Select a compatible interpreter from the prompt |
 | An import fails | Choose the environment where that library is installed, or review the proposed dependency setup |
-| You need a new environment | Use **Create model environment** in the editor and review the installation plan |
+| You need a new environment | Let the setup agent prepare it, or choose **Set up manually → Create model environment** and review the installation plan |
 | TensorViz’s own service will not start | Run **tensorViz: Repair runtime** in the editor |
 | The model fails during capture | Fix the reported Python error, save, and run again |
+
+If setup fails, the same agent can inspect the actual exception, traceback and
+observed Python/device facts, read the project's setup files, and request a
+diagnostic command when needed. It checks the command's real output before
+explaining the blocker. A new environment cannot fix an unsupported platform;
+the agent must establish that cause from evidence. Expand **Error details** in
+chat for retained error evidence. Animated dots beneath the latest message show
+the agent working; they stop when the turn ends or needs your approval. Hover or
+focus the indicator for details. Approval, stopped and error states remain distinct.
 
 The published plugin preview requires **CPython 3.12 on an Apple Silicon Mac** and targets CPU capture. See [installation options](install.md) for package requirements; [local setup](local-setup.md#versions) lists source-development versions.
 

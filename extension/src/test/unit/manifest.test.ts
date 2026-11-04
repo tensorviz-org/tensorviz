@@ -3,7 +3,6 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { DEFAULT_MCP_PORT } from '../../mcpServer';
-import { WALKTHROUGH_ID } from '../../walkthrough';
 import { MODELS_VIEW, NEW_MODEL_COMMAND, TEMPLATES_VIEW } from '../../views';
 
 /** The checkout, four directories up from out/test/unit. */
@@ -19,7 +18,7 @@ const contributes = manifest.contributes as Record<string, any>;
  * The manifest is a contract with three different readers — VS Code, the fork's product.json,
  * and the code in src/ — and none of them fails in a way you can see from a passing build.
  * A theme id that stopped matching ide/patches/0003 boots the fork on the upstream dark theme;
- * a walkthrough step whose media file was renamed renders as an empty panel; a
+ * an obsolete walkthrough opens a second onboarding surface; a
  * `configurationDefaults` key that is not ours changes a setting in somebody else's editor.
  * Each of those is one line here.
  */
@@ -67,28 +66,9 @@ suite('extension manifest', () => {
     assert.equal(contributes.configuration.properties['tensorviz.traceOnSave'].deprecationMessage, undefined);
   });
 
-  test('contributes the first-run walkthrough the code opens', () => {
-    const walkthroughs = contributes.walkthroughs as Array<Record<string, any>>;
-    assert.equal(walkthroughs?.length, 1);
-    assert.equal(walkthroughs[0].id, WALKTHROUGH_ID);
-    assert.ok(walkthroughs[0].steps.length >= 1);
-  });
-
-  test('every walkthrough step points at a media file that exists', () => {
-    for (const step of contributes.walkthroughs[0].steps as Array<Record<string, any>>) {
-      const markdown = step.media?.markdown as string | undefined;
-      assert.ok(markdown, `step ${step.id} has no markdown media`);
-      assert.ok(
-        fs.existsSync(path.join(EXTENSION, markdown)),
-        `step ${step.id} names ${markdown}, which is not in the extension`,
-      );
-      // extension/media/ is gitignored (it is where the built React app is staged), so a
-      // walkthrough asset there would pass locally and be missing from every clone.
-      assert.ok(
-        !markdown.startsWith('media/'),
-        `${markdown} is under extension/media/, which .gitignore excludes`,
-      );
-    }
+  test('uses the Canvas starting screen without a separate welcome walkthrough', () => {
+    assert.equal(contributes.walkthroughs, undefined);
+    assert.ok(contributes.commands.some((entry: any) => entry.command === 'tensorviz.getStarted'));
   });
 
   test('the Hugging Face panel assets are tracked outside the generated media build', () => {
@@ -157,7 +137,7 @@ suite('extension manifest', () => {
     assert.equal(manifest.enabledApiProposals, undefined);
   });
 
-  test('every command a view or a walkthrough invokes is contributed', () => {
+  test('every command a view invokes is contributed', () => {
     const contributed = new Set(
       (contributes.commands as Array<Record<string, any>>).map((entry) => entry.command),
     );
@@ -266,7 +246,7 @@ suite('extension manifest', () => {
   });
 
   test('activates on startup and on a Python workspace, and on nothing else', () => {
-    // onStartupFinished so the views and the walkthrough exist before a command is run.
+    // onStartupFinished so the views exist before a command is run.
     // workspaceContains:**/*.py is task.md P0: a folder with Python in it is a folder
     // where the Models view should already be filling in, and the backend now starts
     // itself rather than waiting for the user to press something.

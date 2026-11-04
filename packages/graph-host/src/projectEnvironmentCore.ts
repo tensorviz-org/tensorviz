@@ -4,13 +4,15 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
-import type { GraphEnvironmentCandidate } from '@tensorviz/contracts/protocol';
+import { isModelImportDiagnostic, type GraphEnvironmentCandidate, type ModelImportDiagnostic } from '@tensorviz/contracts/protocol';
 import { backendPythonArgs, nativeBackend } from './backendPython';
 
 export interface HelperResult {
   ok: boolean;
   code?: string;
   message?: string;
+  /** Bounded evidence retained from the already-authorized model import probe. */
+  diagnostic?: ModelImportDiagnostic;
   /** Sanitized unavailable requirement, never raw pip output or index URLs. */
   requirement?: string;
   python?: string;
@@ -48,6 +50,18 @@ export type EnvironmentRunner = (python: string, backendDir: string, args: strin
   cancelled: () => boolean, isolated?: boolean, parentPipe?: boolean) => Promise<HelperResult>;
 
 export type EnvironmentHint = Pick<GraphEnvironmentCandidate, 'interpreter' | 'source' | 'selected' | 'pythonSelected' | 'managed'>;
+
+/** Only schema-checked worker diagnostics cross into agent/browser state. */
+export function parseEnvironmentHelperResult(stdout: string): HelperResult {
+  try {
+    const result = JSON.parse(stdout.trim().split('\n').pop() ?? '') as HelperResult;
+    if (!result || typeof result.ok !== 'boolean') throw new Error();
+    if (result.diagnostic !== undefined && !isModelImportDiagnostic(result.diagnostic)) delete result.diagnostic;
+    return result;
+  } catch {
+    return { ok: false, message: 'The selected Python could not complete its compatibility check.' };
+  }
+}
 
 /** Two bounded metadata probes at a time; neither Torch nor the model is imported.
  *  With `model`, each probe also runs the static model check (`inspect-candidate`),
@@ -171,13 +185,7 @@ export function createEnvironmentRunner(entryPoint: string): EnvironmentRunner {
   child.stdout!.on('data', data => { stdout = (stdout + String(data)).slice(-128_000); });
   child.stderr!.resume(); // Import/pip output can contain private configuration; do not log it.
   child.on('error', () => finish({ ok: false, message: 'Could not start the selected Python. Choose another environment.' }));
-  child.on('close', () => {
-    try {
-      const result = JSON.parse(stdout.trim().split('\n').pop() ?? '') as HelperResult;
-      if (typeof result.ok !== 'boolean') throw new Error();
-      finish(result);
-    } catch { finish({ ok: false, message: 'The selected Python could not complete its compatibility check.' }); }
-  });
+  child.on('close', () => finish(parseEnvironmentHelperResult(stdout)));
 });
 }
 

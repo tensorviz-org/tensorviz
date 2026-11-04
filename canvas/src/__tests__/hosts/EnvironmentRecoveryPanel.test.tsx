@@ -15,19 +15,31 @@ const state = (): GraphOpeningState => ({ id: 'opening', phase: 'needs_setup', h
   discovery: { model: 'pkg.model:Net', sourceDigest: 'a'.repeat(64), init: [{ name: 'width', kind: 'keyword', required: true }],
     inputs: [], examples: [], factories: [], configs: [], parents: [], constraints: [], truncated: false } });
 
+// The recovery cases below exercise the explicit manual route. Initial method selection
+// has its own tests so manual controls cannot accidentally return to the first screen.
+function renderManual(ui: React.ReactElement) {
+  const result = render(ui);
+  const enterManual = () => {
+    const manual = screen.queryByRole('button', { name: 'Set up manually' });
+    if (manual) fireEvent.click(manual);
+  };
+  enterManual();
+  return { ...result, rerender: (next: React.ReactElement) => { result.rerender(next); enterManual(); } };
+}
+
 test('native missing model libraries offer environment creation without requiring an agent', () => {
   const opening = state(); opening.environment!.canCreate = true; opening.environment!.requirements = [];
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   fireEvent.click(screen.getByRole('button', { name: 'Create model environment…' }));
   expect(onAction).toHaveBeenCalledWith({ kind: 'create_environment', name: 'Net-env' });
   expect(screen.getByText(/Your current environment stays unchanged/)).toBeVisible();
-  fireEvent.click(screen.getByText('Investigate with agent'));
-  expect(screen.getByRole('button', { name: 'Use Agent' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Setup options' }));
+  expect(screen.getByRole('button', { name: 'Set up project with agent' })).toBeVisible();
 });
 
 test('creation is available with no existing Python and remains native-host only', () => {
   const opening = state(); opening.environment = { reason: 'unavailable', detail: 'No Python', candidates: [], canCreate: true };
-  const onAction = jest.fn(); const { rerender } = render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); const { rerender } = renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   fireEvent.click(screen.getByRole('button', { name: 'Create model environment…' }));
   expect(onAction).toHaveBeenCalledWith({ kind: 'create_environment', name: 'Net-env' });
   rerender(<GraphOpeningPanel state={opening} standalone connected onAction={onAction} />);
@@ -36,7 +48,7 @@ test('creation is available with no existing Python and remains native-host only
 
 test('creation names are editable, preserved on failure, and technical choices stay collapsed', () => {
   const opening = state(); opening.environment!.canCreate = true;
-  const onAction = jest.fn(); const { rerender } = render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); const { rerender } = renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   expect(screen.queryByRole('list', { name: 'Progress' })).toBeNull();
   expect(screen.getByText('Setup details').parentElement).not.toHaveAttribute('open');
   expect(screen.getAllByRole('radio', { hidden: true })[0]).not.toBeVisible();
@@ -62,7 +74,7 @@ test('creation names are editable, preserved on failure, and technical choices s
 test('a reconnect restores the creation name from the host; another model starts with its own name', () => {
   const opening = state(); opening.environment!.canCreate = true;
   opening.phase = 'resolving'; opening.environmentName = 'mamba-test';
-  const { rerender } = render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  const { rerender } = renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getByRole('heading', { name: 'Preparing mamba-test' })).toBeVisible();
   rerender(<GraphOpeningPanel state={{ ...opening, id: 'other', phase: 'needs_setup', environmentName: undefined,
     target: { ...opening.target, cls: 'Other' } }} connected onAction={jest.fn()} />);
@@ -73,7 +85,7 @@ test('a reconnect restores the creation name from the host; another model starts
 test('a failed creation still lets the user explicitly choose another Python instead of inspecting source', () => {
   const opening = state(); opening.environment!.canCreate = true;
   opening.phase = 'failed'; opening.detail = 'triton>=3.5.0 is unavailable for this platform.';
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   expect(screen.getByRole('button', { name: 'Inspect source only' })).toBeVisible();
   fireEvent.click(screen.getByText('Change environment'));
   fireEvent.click(screen.getAllByRole('radio')[1]);
@@ -84,7 +96,7 @@ test('a failed creation still lets the user explicitly choose another Python ins
 
 test('invalid names cannot create; an existing Python still offers additive installation', () => {
   const opening = state(); opening.environment!.canCreate = true;
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   fireEvent.click(screen.getByText('Change environment'));
   fireEvent.change(screen.getByRole('textbox', { name: 'Environment name' }), { target: { value: '../project' } });
   expect(screen.getByRole('button', { name: 'Create model environment…' })).toBeDisabled();
@@ -94,7 +106,7 @@ test('invalid names cannot create; an existing Python still offers additive inst
 
 test('new environment downloads display host progress with cancellation and no duplicate creation', () => {
   const opening = state(); opening.environment!.canCreate = true; opening.phase = 'resolving'; opening.detail = 'Downloading and installing the reviewed libraries…';
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getAllByRole('status')[0]).toHaveTextContent('Downloading and installing');
   expect(screen.queryByRole('button', { name: 'Create model environment…' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Preparing environment…' })).toBeDisabled();
@@ -104,7 +116,7 @@ test('new environment downloads display host progress with cancellation and no d
 test('repairing existing Python does not label it as a new model environment', () => {
   const opening = state(); opening.environment!.canCreate = true;
   opening.phase = 'resolving'; opening.detail = 'Installing libraries in the selected Python…';
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getByRole('heading', { name: 'Preparing project/.venv' })).toBeVisible();
   expect(screen.queryByText('New')).toBeNull();
   expect(screen.getByText('Saved')).toBeVisible();
@@ -112,14 +124,14 @@ test('repairing existing Python does not label it as a new model environment', (
 
 test('a private model class still starts with a valid portable environment name', () => {
   const opening = state(); opening.environment!.canCreate = true; opening.target.cls = '_Net';
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   fireEvent.click(screen.getByText('Change environment'));
   expect(screen.getByRole('textbox', { name: 'Environment name' })).toHaveValue('Net-env');
   expect(screen.getByRole('button', { name: 'Create model environment…' })).toBeEnabled();
 });
 
 test('missing libraries replace constructor setup with an explicit review action and accurately labelled environments', () => {
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={state()} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={state()} connected onAction={onAction} />);
   expect(screen.getByRole('heading', { name: 'Add the missing libraries' })).toBeVisible();
   expect(screen.queryByRole('heading', { name: 'Latest update' })).toBeNull();
   expect(screen.getByText(/torchmetrics, OpenCV and SciPy/)).toBeVisible();
@@ -132,7 +144,7 @@ test('missing libraries replace constructor setup with an explicit review action
 });
 
 test('changing a radio is only a suggestion until Use sends its listed ID, never a path', () => {
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={state()} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={state()} connected onAction={onAction} />);
   const radios = screen.getAllByRole('radio'); expect(radios[0]).toBeChecked(); expect(radios[2]).toBeDisabled();
   fireEvent.click(radios[1]); expect(onAction).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: /(?:Review missing|Install missing) libraries/ })).toBeNull();
@@ -144,7 +156,7 @@ test('changing a radio is only a suggestion until Use sends its listed ID, never
 });
 
 test('installation progress disables duplicate repair and selection while cancellation stays available', () => {
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={{ ...state(), phase: 'resolving', detail: 'Installing reviewed libraries…' }} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={{ ...state(), phase: 'resolving', detail: 'Installing reviewed libraries…' }} connected onAction={onAction} />);
   expect(screen.getAllByRole('status')[0]).toHaveTextContent('Installing reviewed libraries');
   expect(screen.queryByRole('alert')).toBeNull();
   expect(screen.getByRole('button', { name: 'Preparing environment…' })).toBeDisabled();
@@ -157,17 +169,18 @@ test.each([false, true])('a worker failure keeps its diagnostic visible and offe
   const opening = state(); opening.environment = { ...opening.environment!, reason: 'worker_failed', requirements: undefined,
     detail: 'The capture worker could not load.' };
   opening.detail = opening.environment.detail;
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} standalone={standalone} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={opening} standalone={standalone} connected onAction={onAction} />);
   expect(screen.queryByRole('button', { name: /(?:Review|Install) missing/ })).toBeNull();
-  expect(screen.getByText(standalone ? 'Investigate with MCP' : 'Investigate with agent').parentElement).toHaveAttribute('open');
   expect(screen.getByRole('alert')).toHaveTextContent('The capture worker could not load.');
-  fireEvent.click(screen.getByRole('button', { name: standalone ? 'Copy MCP investigation request' : 'Use Agent' }));
+  if (standalone) expect(screen.getByText('Investigate with MCP').parentElement).toHaveAttribute('open');
+  else fireEvent.click(screen.getByRole('button', { name: 'Setup options' }));
+  fireEvent.click(screen.getByRole('button', { name: standalone ? 'Copy MCP investigation request' : 'Set up project with agent' }));
   expect(onAction).toHaveBeenCalledWith({ kind: 'agent_help' });
   expect(screen.queryByRole('button', { name: 'Browse for Python…' })).toBeNull();
 });
 
 test('plugin repair states its existing permission instead of promising a VS Code review', () => {
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={state()} standalone connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={state()} standalone connected onAction={onAction} />);
   expect(screen.getByText(/Uses your TensorViz plugin permission/)).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Review missing libraries…' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Install missing libraries' }));
@@ -177,7 +190,7 @@ test('plugin repair states its existing permission instead of promising a VS Cod
 
 test('only the confirmed host ID permits repair even if candidate selected metadata disagrees', () => {
   const opening = state(); opening.environment!.selectedId = undefined;
-  const onAction = jest.fn(); const { rerender } = render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); const { rerender } = renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   expect(screen.queryByText('Saved')).toBeNull();
   expect(screen.queryByRole('button', { name: /(?:Review missing|Install missing) libraries/ })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Use other' }));
@@ -190,7 +203,7 @@ test('only the confirmed host ID permits repair even if candidate selected metad
 
 test('path details are opt-in and show the full host metadata without changing the choice', () => {
   const opening = state(); Object.assign(opening.environment!.candidates[0], { prefix: '/project/.venv', implementation: 'cpython', abi: 'cp312', architecture: 'arm64' });
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   expect(screen.getByText('/project/.venv/bin/python')).not.toBeVisible();
   fireEvent.click(screen.getByText('Interpreter details'));
   expect(screen.getByText('Interpreter details').parentElement).toHaveAttribute('open');
@@ -202,7 +215,7 @@ test('path details are opt-in and show the full host metadata without changing t
 
 test.each([false, true])('empty environments promote one host-appropriate discovery action (plugin=%s)', standalone => {
   const opening = state(); opening.environment!.candidates = []; opening.environment!.selectedId = undefined;
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} standalone={standalone} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={opening} standalone={standalone} connected onAction={onAction} />);
   expect(screen.getByRole('heading', { name: 'No usable Python found' })).toBeVisible();
   const primary = screen.getByRole('button', { name: standalone ? 'Refresh list' : 'Browse for Python…' });
   expect(primary).toBeEnabled(); fireEvent.click(primary);
@@ -212,14 +225,14 @@ test.each([false, true])('empty environments promote one host-appropriate discov
 
 test('all unavailable candidates stay visible and disabled while browsing remains possible', () => {
   const opening = state(); opening.environment!.candidates = [opening.environment!.candidates[2]]; opening.environment!.selectedId = 'gone';
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getByRole('radio')).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Browse for Python…' })).toBeEnabled();
 });
 
 test('disconnect disables host actions but local close and Escape do not cancel the attempt', () => {
   const onAction = jest.fn(), onClose = jest.fn();
-  render(<GraphOpeningPanel state={state()} connected={false} onAction={onAction} onClose={onClose} />);
+  renderManual(<GraphOpeningPanel state={state()} connected={false} onAction={onAction} onClose={onClose} />);
   expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Review missing libraries…' })).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Close environment setup' }));
@@ -229,7 +242,7 @@ test('disconnect disables host actions but local close and Escape do not cancel 
 
 test('Torch repair describes exact review only when supplied by the native host', () => {
   const opening = state(); opening.environment!.requirements = ['torch==2.7.1', 'pydantic']; opening.environment!.candidates[0].torch = null;
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getByText(/PyTorch can be large/)).toBeVisible();
   expect(screen.getByText('torch==2.7.1')).not.toBeVisible();
   fireEvent.click(screen.getByText('Requested libraries'));
@@ -241,7 +254,7 @@ test('compatibility repair follows the same confirmed-choice gate and preserves 
   const opening = state(); opening.environment!.reason = 'incompatible'; opening.environment!.compatibilityPackages = ['pydantic==2.12.0'];
   opening.environment!.detail = 'An exact diagnostic\n' + 'architecture mismatch '.repeat(12);
   opening.detail = opening.environment!.detail;
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   expect(screen.getByText(/An exact diagnostic/)).toBeVisible();
   fireEvent.click(screen.getByText('Packages to align'));
   expect(screen.getByText('pydantic==2.12.0')).toBeVisible();
@@ -254,7 +267,7 @@ test('compatibility repair follows the same confirmed-choice gate and preserves 
 
 test('unknown Torch metadata does not become a claim that Torch was not detected', () => {
   const opening = state(); opening.environment!.candidates[0].torch = undefined;
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getByText('py 3.12.13')).toBeVisible();
   expect(screen.queryByText(/no torch/)).toBeNull();
 });
@@ -265,7 +278,7 @@ test.each([
 ])('environment identity comes from real host paths while confirmation still uses its opaque ID ($identity)', ({ interpreter, prefix, identity }) => {
   const opening = state(); opening.environment!.selectedId = undefined;
   opening.environment!.candidates = [{ ...opening.environment!.candidates[0], id: 'opaque-host-id', interpreter, prefix }];
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   expect(screen.getByRole('radio', { name: new RegExp(identity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) })).toBeChecked();
   fireEvent.click(screen.getByText('Interpreter details'));
   expect(screen.getByText(interpreter)).toBeVisible(); expect(onAction).not.toHaveBeenCalled();
@@ -279,7 +292,7 @@ test('a model version conflict without a repair offer is visible before any disc
   opening.environment = { ...opening.environment!, reason: 'incompatible', requirements: undefined,
     detail: 'Installed libraries do not match this model: torch 2.7.1 (needs ==2.0.0). Choose a compatible environment.' };
   opening.detail = opening.environment.detail;
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   expect(screen.getByRole('alert')).toHaveTextContent('torch 2.7.1 (needs ==2.0.0)');
   expect(screen.getByRole('alert')).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Environment needs different libraries' })).toBeVisible();
@@ -299,7 +312,7 @@ test('project pins offered by the host can be tried as installed, only for the s
   opening.environment = { ...opening.environment!, reason: 'incompatible', requirements: undefined, declaredPins: ['torch==2.0.0'],
     detail: 'Installed libraries do not match this model: torch 2.7.1 (needs ==2.0.0). Choose a compatible environment.' };
   opening.detail = opening.environment.detail;
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   expect(screen.getByRole('heading', { name: 'Continue with project/.venv' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Try with installed versions' }));
   expect(onAction).toHaveBeenCalledWith({ kind: 'use_installed_versions' });
@@ -312,7 +325,7 @@ test('replaceable pins offer an install in the saved environment; the managed on
   const opening = state();
   opening.environment = { ...opening.environment!, reason: 'incompatible', requirements: undefined, declaredPins: ['torch==2.0.0'], replaceable: true,
     detail: 'Installed libraries do not match this model: torch 2.7.1 (needs ==2.0.0). Choose a compatible environment.' };
-  const onAction = jest.fn(); const { unmount } = render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); const { unmount } = renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   expect(screen.getByText(/checks that a build exists for Python 3\.12\.13/)).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Install in this environment…' }));
   expect(onAction).toHaveBeenCalledWith({ kind: 'replace_versions' });
@@ -320,7 +333,7 @@ test('replaceable pins offer an install in the saved environment; the managed on
   const managed = state();
   managed.environment = { ...opening.environment, replaceable: undefined,
     candidates: opening.environment.candidates.map(item => item.id === 'saved' ? { ...item, managed: true as const } : item) };
-  render(<GraphOpeningPanel state={managed} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={managed} connected onAction={jest.fn()} />);
   expect(screen.queryByRole('button', { name: 'Install in this environment…' })).toBeNull();
   expect(screen.getByText(/managed environment is shared by every model/)).toBeVisible();
   expect(screen.getByRole('button', { name: 'Try with installed versions' })).toBeVisible();
@@ -328,7 +341,7 @@ test('replaceable pins offer an install in the saved environment; the managed on
 
 test('a missing model library with no install recipe is visible while capture libraries are present', () => {
   const opening = state(); opening.environment!.requirements = [];
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   expect(screen.getByRole('alert')).toHaveTextContent('torchmetrics, OpenCV and SciPy');
   expect(screen.getByRole('alert')).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Model libraries are missing' })).toBeVisible();
@@ -348,7 +361,7 @@ test('a missing model library with no install recipe is visible while capture li
 
 test('unsupported model dependencies expose MCP help in standalone and cannot act while disconnected', () => {
   const opening = state(); opening.environment!.requirements = undefined;
-  const onAction = jest.fn(); const { rerender } = render(<GraphOpeningPanel state={opening} connected standalone onAction={onAction} />);
+  const onAction = jest.fn(); const { rerender } = renderManual(<GraphOpeningPanel state={opening} connected standalone onAction={onAction} />);
   fireEvent.click(screen.getByRole('button', { name: 'Copy MCP investigation request' }));
   expect(onAction).toHaveBeenLastCalledWith({ kind: 'agent_help' });
   rerender(<GraphOpeningPanel state={opening} connected={false} standalone onAction={onAction} />);
@@ -359,7 +372,7 @@ test('unsupported model dependencies expose MCP help in standalone and cannot ac
 test.each(['selection_required', 'missing_libraries', 'incompatible'] as const)('an environment selection failure replaces stale %s feedback and repair actions', reason => {
   const opening = state(); opening.phase = 'failed'; opening.detail = 'The selected Python changed. Refresh and choose it again.';
   opening.environment!.reason = reason; opening.environment!.compatibilityPackages = ['pydantic==2.12.0'];
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getByRole('alert')).toHaveTextContent(opening.detail);
   expect(screen.getByRole('alert')).toBeVisible();
   expect(screen.queryByRole('button', { name: /Review missing|Review compatibility|Install missing/ })).toBeNull();
@@ -370,7 +383,7 @@ test('a failed chooser action in needs_setup shows its new error alongside the p
   const opening = state(); opening.environment!.reason = 'incompatible';
   opening.environment!.detail = 'Installed torch 2.7.1 does not match the model requirement ==2.0.0.';
   opening.detail = 'Setup could not be saved or resumed. Check unsaved files and tensorviz.toml in VS Code; your form values are retained.';
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getByRole('alert')).toHaveTextContent(opening.detail);
   expect(screen.getByText(opening.detail)).toBeVisible();
   expect(screen.getByText(opening.environment!.detail)).not.toBeVisible();
@@ -382,14 +395,14 @@ test('host feedback about a changed candidate is visible without opening Environ
   const opening = state(); opening.environment!.reason = 'selection_required';
   opening.environment!.detail = 'This environment changed while the chooser was open. Refresh the list, then select it again.';
   opening.detail = opening.environment!.detail;
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getByText(opening.environment!.detail)).toBeVisible();
   expect(screen.queryByRole('heading', { name: /Model check for/ })).toBeNull();
 });
 
 test('completed checks reveal their result after scrolling through environments, without interrupting draft selection', () => {
   const opening = state();
-  const { rerender } = render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  const { rerender } = renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   const body = screen.getByRole('region', { name: 'Python environment for model' }).querySelector<HTMLDivElement>('.graph-environment-body')!;
   body.scrollTop = 240;
   fireEvent.click(screen.getAllByRole('radio')[1]);
@@ -405,7 +418,7 @@ test('completed checks reveal their result after scrolling through environments,
 
 test('saved-Python repair stays in the footer while alternatives scroll, and creation is secondary', () => {
   const opening = state(); opening.environment!.canCreate = true;
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   const panel = screen.getByRole('region', { name: 'Python environment for model' });
   const body = panel.querySelector('.graph-environment-body')!;
   const repair = screen.getByRole('button', { name: 'Add libraries here…' });
@@ -419,7 +432,7 @@ test('saved-Python repair stays in the footer while alternatives scroll, and cre
 
 test('progress and a network failure persist in the footer with a deliberate retry', () => {
   const opening = state(); opening.environment!.canCreate = true;
-  const onAction = jest.fn(); const { rerender } = render(<GraphOpeningPanel state={{ ...opening, phase: 'resolving', detail: 'Downloading reviewed libraries…' }} connected onAction={onAction} />);
+  const onAction = jest.fn(); const { rerender } = renderManual(<GraphOpeningPanel state={{ ...opening, phase: 'resolving', detail: 'Downloading reviewed libraries…' }} connected onAction={onAction} />);
   expect(screen.getByRole('progressbar')).not.toHaveAttribute('aria-valuenow');
   expect(screen.getByRole('progressbar').closest('footer')).not.toBeNull();
   rerender(<GraphOpeningPanel state={{ ...opening, phase: 'failed', detail: 'Library download could not connect.', failure: { kind: 'environment', code: 'DOWNLOAD_FAILED' } }} connected onAction={onAction} />);
@@ -434,7 +447,7 @@ test('a platform-unavailable package offers source inspection instead of another
   const opening = state(); opening.environment!.canCreate = true;
   opening.phase = 'failed'; opening.detail = 'triton>=3.5.0: No distribution for this platform.';
   opening.failure = { kind: 'environment', code: 'PACKAGE_UNAVAILABLE' };
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
   expect(screen.getByRole('alert')).toHaveTextContent('triton>=3.5.0');
   expect(screen.queryByRole('button', { name: 'Retry library setup…' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Create model environment…' })).not.toBeVisible();
@@ -444,7 +457,7 @@ test('a platform-unavailable package offers source inspection instead of another
 
 test('Stop retains the environment and offers an explicit retry without source changes', () => {
   const opening = state(); opening.environment!.canCreate = true; opening.phase = 'cancelled';
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getByRole('heading', { name: 'Environment setup stopped' })).toBeVisible();
   expect(screen.getByText('Setup stopped. You can retry when ready.')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Retry library setup…' })).toBeEnabled();
@@ -466,7 +479,7 @@ const ranked = (): GraphOpeningState => {
 };
 
 test('a recommendation opens the list with the environment needing the fewest changes preselected', () => {
-  const onAction = jest.fn(); render(<GraphOpeningPanel state={ranked()} connected onAction={onAction} />);
+  const onAction = jest.fn(); renderManual(<GraphOpeningPanel state={ranked()} connected onAction={onAction} />);
   const radios = screen.getAllByRole('radio');
   expect(radios[0]).toBeVisible(); expect(radios[0]).toBeChecked();
   expect(screen.getByText('Recommended').closest('.graph-environment-entry')).toHaveTextContent('envs/ml');
@@ -480,7 +493,7 @@ test('a recommendation opens the list with the environment needing the fewest ch
 });
 
 test('search filters environments by name, path or version and says when nothing matches', () => {
-  render(<GraphOpeningPanel state={ranked()} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={ranked()} connected onAction={jest.fn()} />);
   const search = screen.getByRole('searchbox', { name: 'Search environments' });
   fireEvent.change(search, { target: { value: 'conda' } });
   expect(screen.getAllByRole('radio')).toHaveLength(1);
@@ -494,7 +507,7 @@ test('search filters environments by name, path or version and says when nothing
 test('without model checks the saved choice stays preselected and the list closed, as for older hosts', () => {
   const opening = ranked(); delete opening.environment!.recommendedId;
   opening.environment!.candidates = opening.environment!.candidates.map(candidate => ({ ...candidate, modelChecked: undefined }));
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getAllByRole('radio', { hidden: true })[1]).toBeChecked();
   expect(screen.getAllByRole('radio', { hidden: true })[1]).not.toBeVisible();
   expect(screen.queryByText('Recommended')).toBeNull();
@@ -506,13 +519,13 @@ test('a library named by both the capture and model checks is listed once, witho
   const opening = ranked();
   opening.environment!.candidates[2] = { ...opening.environment!.candidates[2], status: 'missing_libraries', torch: null,
     missing: ['torch', 'tomli>=2.0; python_version < "3.11"'], modelMissing: ['torch', 'transformers>=5'] };
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getByText('To install: torch, tomli>=2.0, transformers>=5')).toBeVisible();
 });
 
 test('the ranked list stays open when the recommended environment is already saved', () => {
   const opening = ranked(); opening.environment!.recommendedId = 'saved';
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getByRole('heading', { name: 'Choose Python for this model' })).toBeVisible();
   expect(screen.getByRole('searchbox', { name: 'Search environments' })).toBeVisible();
   expect(screen.getAllByRole('radio')[1]).toBeChecked();
@@ -523,7 +536,7 @@ test('the ranked list stays open when the recommended environment is already sav
 
 test('an explicit saved choice keeps the ranked alternatives visible without selecting a ready alternative', () => {
   const opening = ranked(); delete opening.environment!.recommendedId;
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getByRole('searchbox', { name: 'Search environments' })).toBeVisible();
   expect(screen.getAllByRole('radio')[1]).toBeChecked();
   expect(screen.getAllByRole('radio')[0]).not.toBeChecked();
@@ -532,7 +545,80 @@ test('an explicit saved choice keeps the ranked alternatives visible without sel
 
 test('Change environment opens the ranked list even when the saved ready environment remains the recommendation', () => {
   const opening = ranked(); opening.environment!.reason = 'selection_required'; opening.environment!.selectedId = 'suggestion';
-  render(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
   expect(screen.getByRole('searchbox', { name: 'Search environments' })).toBeVisible();
   expect(screen.getAllByRole('radio')[0]).toBeChecked();
+});
+
+
+test('first use explains why Python is needed and sends the retained project to the agent in one click', () => {
+  const onAction = jest.fn(); const opening = state(); opening.environment!.canCreate = true;
+  render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  expect(screen.getByRole('heading', { name: 'Set up this project' })).toBeVisible();
+  expect(screen.getByText('Python runs your model to record tensor shapes.')).toBeVisible();
+  const agent = screen.getByRole('button', { name: 'Set up project with agent' });
+  expect(agent).toHaveFocus();
+  expect(agent).toHaveAccessibleDescription('Python runs your model to record tensor shapes.');
+  const explanation = screen.getByText(/Your agent checks the project, prepares Python and test inputs/);
+  expect(explanation).not.toBeVisible();
+  expect(screen.queryByRole('radio')).toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'Environment name' })).toBeNull();
+  expect(screen.queryByText('Investigate with agent')).toBeNull();
+  expect(onAction).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByText('Learn more'));
+  expect(explanation).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Current setup' })).toBeVisible();
+  fireEvent.click(agent);
+  expect(onAction).toHaveBeenCalledTimes(1);
+  expect(onAction).toHaveBeenCalledWith({ kind: 'agent_help' });
+});
+
+test('manual choices survive switching setup methods and refreshes, while another model starts with the agent route', () => {
+  const opening = ranked(); const onAction = jest.fn();
+  const { rerender } = render(<GraphOpeningPanel state={opening} connected onAction={onAction} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Set up manually' }));
+  fireEvent.click(screen.getAllByRole('radio')[0]);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Environment name' }), { target: { value: 'video-test' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Setup options' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Set up manually' }));
+  expect(screen.getAllByRole('radio')[0]).toBeChecked();
+  expect(screen.getByRole('textbox', { name: 'Environment name' })).toHaveValue('video-test');
+  rerender(<GraphOpeningPanel state={{ ...opening, detail: 'Environments refreshed.' }} connected onAction={onAction} />);
+  expect(screen.getByRole('textbox', { name: 'Environment name' })).toHaveValue('video-test');
+  rerender(<GraphOpeningPanel state={{ ...opening, id: 'another-model' }} connected onAction={onAction} />);
+  expect(screen.getByRole('button', { name: 'Set up project with agent' })).toBeVisible();
+  expect(screen.queryByRole('radio')).toBeNull();
+  expect(onAction).not.toHaveBeenCalled();
+});
+
+test('manual diagnostics do not repeat their visible summary in setup details', () => {
+  const opening = ranked();
+  const detail = 'Choose the Python environment for this model. The recommended one needs the fewest changes.';
+  opening.detail = detail; opening.environment!.detail = detail; opening.environment!.reason = 'selection_required';
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  expect(screen.getAllByText(detail)).toHaveLength(1);
+  expect(screen.queryByText('Setup details')).toBeNull();
+});
+
+test('managed Python has an understandable name and retains its complete interpreter in details', () => {
+  const opening = state();
+  opening.environment!.candidates[0] = { ...opening.environment!.candidates[0], managed: true,
+    interpreter: '/storage/tensorviz/runtime/venv/bin/python', prefix: '/storage/tensorviz/runtime/venv' };
+  renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  expect(screen.getByRole('radio', { name: /TensorViz Python/ })).toBeChecked();
+  expect(screen.getByText('Provided by TensorViz · shared across models')).toBeVisible();
+  fireEvent.click(screen.getByText('Interpreter details'));
+  expect(screen.getByText((_text, element) => element?.tagName === 'CODE' && element.textContent === '/storage/tensorviz/runtime/venv/bin/python')).toBeVisible();
+});
+
+test('agent setup is disabled offline, while manual inspection and local dismissal remain available', () => {
+  const onAction = jest.fn(), onClose = jest.fn();
+  render(<GraphOpeningPanel state={state()} connected={false} onAction={onAction} onClose={onClose} />);
+  expect(screen.getByRole('button', { name: 'Set up project with agent' })).toBeDisabled();
+  expect(screen.getByText(/Setup is available when the connection returns/)).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Set up manually' }));
+  expect(screen.getByRole('button', { name: 'Review missing libraries…' })).toBeDisabled();
+  fireEvent.keyDown(screen.getByRole('region', { name: 'Python environment for model' }), { key: 'Escape' });
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(onAction).not.toHaveBeenCalled();
 });

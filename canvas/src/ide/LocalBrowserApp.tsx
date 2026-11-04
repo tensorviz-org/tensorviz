@@ -6,19 +6,21 @@ import type { GraphReviewState, ProjectionPayload } from './protocol.generated';
 import GraphOpeningPanel from './GraphOpeningPanel';
 import { GraphSetupBoundary } from './GraphSetupBoundary';
 import { GraphRunNotice } from './GraphRunNotice';
+import { graphSetupWorkflow } from './graphSetupWorkflow.generated';
 import { newLocalBrowserMessageId, DEFAULT_CODE_FOCUS, type CodeFocusState, type GraphSetupAction } from './protocol.generated';
 import { createLocalBrowserViewControl } from './localBrowserViewControl';
 /** External browser view of one VS Code window's authenticated broker session.
  * The page presents the host-owned projection, freshness and validation evidence.
  * Navigation, source proposals and explicit validation use typed host requests;
  * source changes require native diff review and Apply/Discard in VS Code.
- * The browser cannot write workspace files or grant execution permission.
+ * The browser submits decisions for host-owned setup permissions; only the host
+ * executes the approved operation. Source proposals retain native review.
  * Reconnect restores the session snapshot; an ended session requires Open Canvas in Browser.
  */
 
 import React from 'react';
 import { graphMcpHelpRequest } from './graphHelpRequest.generated';
-import { FileCode2, GitCompareArrows, GitPullRequest, Unplug, Workflow } from 'lucide-react';
+import { CircleAlert, FileCode2, GitCompareArrows, GitPullRequest, Unplug, Workflow } from 'lucide-react';
 import CanvasStateScreen from './CanvasStateScreen';
 import { postToHost } from './bridge';
 import type { LocalBrowserValidationSummary } from './protocol.generated';
@@ -502,6 +504,15 @@ export default function LocalBrowserApp({
   const executionPending = !!page.opening?.execution && ['review', 'running', 'cancelling'].includes(page.opening.execution.phase);
   const hasOpeningPanel = !executionPending && !review && openingView.visible && !openingView.compact;
   const showOpening = hasOpeningPanel && dismissedOpeningId !== page.opening?.id;
+  const setupWorkflow = page.opening ? graphSetupWorkflow(page.opening) : undefined;
+  const setupIncomplete = !!page.opening && (page.opening.configFileExists === false
+    || setupWorkflow?.stages.python === 'pending' || setupWorkflow?.stages.inputs === 'needed'
+    || page.opening.failure?.kind === 'setup');
+  const resumeSetup = () => {
+    setDismissedOpeningId(null);
+    if (!hasOpeningPanel) openingAction({ kind: 'change_inputs' });
+    else requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.graph-opening-stage:not([hidden]) [data-setup-agent]')?.focus());
+  };
   const showProjectionRecovery = !review && !!page.activeTarget && !projection && page.syncState === 'stale' && !showOpening;
   const checkingPrevious = (openingBusy && page.opening?.phase !== 'awaiting_execution') || page.opening?.phase === 'cancelled'
     || (page.opening?.phase === 'failed' && !page.opening.hasCapture);
@@ -509,6 +520,11 @@ export default function LocalBrowserApp({
     setDismissedOpeningId(page.opening?.id ?? null);
     document.querySelector<HTMLButtonElement>('[aria-label="Change inputs"]')?.focus();
   };
+  React.useEffect(() => {
+    if (!showOpening && dismissedOpeningId === page.opening?.id) {
+      document.querySelector<HTMLButtonElement>('[aria-label="Complete setup"]')?.focus();
+    }
+  }, [showOpening, dismissedOpeningId, page.opening?.id]);
   React.useEffect(() => {
     if (reviewPresentation) {
       receiveProjection(reviewPresentation.projections[reviewMode]);
@@ -810,16 +826,11 @@ export default function LocalBrowserApp({
           </div>
         </div>
         {!review && <>
-        {page.opening?.configFileExists === false && !openingBusy && !page.greyed && <section className="local-browser-config-warning" role="status" aria-label="Missing model configuration">
-          <div><strong>tensorviz.toml is missing</strong>
-            <p>{page.opening.hasCapture ? 'The graph keeps its previous measurements. ' : 'Source inspection is available. '}
-              Save a model setup and example inputs to capture tensor shapes. Use Agent to complete setup, or edit the file manually.</p></div>
-          <div className="local-browser-config-actions">
-            <button type="button" className="local-canvas-control" disabled={status?.phase !== 'connected' || status.hostLink !== 'connected'}
-              onClick={() => openingAction({ kind: 'agent_help' })}>Use Agent</button>
-            <button type="button" className="local-canvas-control" disabled={status?.phase !== 'connected' || status.hostLink !== 'connected'}
-              onClick={() => openingAction({ kind: 'edit_config' })}>Create tensorviz.toml</button>
-          </div>
+        {setupIncomplete && !showOpening && !openingBusy && !executionPending && !page.greyed && <section className="local-browser-setup-reminder" role="status" aria-label="Project setup incomplete">
+          <CircleAlert size={15} aria-hidden="true" />
+          <span>{setupWorkflow?.stages.python === 'pending' ? 'Python setup pending' : 'Model inputs pending'}</span>
+          <button type="button" className="local-canvas-control" aria-label="Complete setup" disabled={status?.phase !== 'connected' || status.hostLink !== 'connected'}
+            onClick={resumeSetup}>Complete setup</button>
         </section>}
 
         </>}

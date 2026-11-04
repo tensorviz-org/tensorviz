@@ -678,6 +678,17 @@ export interface GraphFailure {
   fields?: string[];
   missingModules?: string[];
   importFailure?: true;
+  diagnostic?: ModelImportDiagnostic;
+}
+/** Bounded observed import evidence, retained even when a failed temporary Python is removed. */
+export interface ModelImportDiagnostic {
+  exceptionType: string;
+  message: string;
+  traceback: string;
+  causes: Array<{ exceptionType: string; message: string; module?: string }>;
+  runtime: { platform: string; architecture: string; python: string; torch: string | null; cuda: string | null;
+    cudaAvailable: boolean | null; mpsAvailable: boolean | null };
+  truncated: boolean;
 }
 export type GraphSetupAction =
   | ExecutionReviewAction
@@ -843,6 +854,34 @@ export interface CanvasAgentTurn {
   text: string;
   settings?: CanvasAgentSettings;
 }
+export type CanvasAgentPermissionMode = 'ask' | 'auto_setup' | 'full_setup';
+/** Effects describe authority, independently of operation names or generated wording. */
+export type CanvasAgentPermissionEffect = 'create' | 'install' | 'replace' | 'execute_code';
+export type CanvasAgentPermissionFact = null | boolean | number | string | CanvasAgentPermissionFact[] | { [key: string]: CanvasAgentPermissionFact };
+/** Host-owned facts from the actual operation. No generated copy or executable agent input. */
+export interface CanvasAgentPermissionRequest {
+  operation: string;
+  scope: 'isolated_environment' | 'existing_environment' | 'machine';
+  effects: CanvasAgentPermissionEffect[];
+  facts: Record<string, CanvasAgentPermissionFact>;
+}
+/** The active agent explains an existing host request; this never grants authority. */
+export interface CanvasAgentPermissionPresentation {
+  title: string;
+  summary: string;
+  allowLabel: string;
+  denyLabel: string;
+}
+export interface CanvasAgentPermission extends CanvasAgentPermissionRequest {
+  id: string;
+  requestId: string;
+  status: 'pending' | 'approved' | 'denied' | 'cancelled';
+  presentation?: CanvasAgentPermissionPresentation;
+  approval?: 'user' | 'policy';
+  /** Recorded only when a chat policy approved this exact setup request. */
+  mode?: CanvasAgentPermissionMode;
+}
+export const CANVAS_AGENT_PERMISSION_LIMIT = 20;
 export interface CanvasAgentState {
   sessionId: string;
   revision: number;
@@ -853,8 +892,13 @@ export interface CanvasAgentState {
   status: 'idle' | 'running' | 'stopped' | 'error';
   messages: CanvasAgentTurn[];
   activity: string;
+  /** Host-confirmed setup evidence, available for inspection after a failed task. */
+  failure?: GraphFailure;
   requestId?: string;
   context?: { target: LocalBrowserTargetIdentity; nodeIds: string[] };
+  permissions?: CanvasAgentPermission[];
+  /** This conversation only. Missing on older hosts means ask. */
+  permissionMode?: CanvasAgentPermissionMode;
 }
 export type CanvasAgentAction =
   | { action: 'sync' }
@@ -862,6 +906,8 @@ export type CanvasAgentAction =
   | { action: 'configure'; provider: CanvasAgentProvider; settings: CanvasAgentSettings; requestId?: string }
   | { action: 'clear' }
   | { action: 'stop'; requestId: string }
+  | { action: 'permission'; permissionId: string; decision: 'allow' | 'deny' }
+  | { action: 'permission_mode'; mode: CanvasAgentPermissionMode }
   | { action: 'send'; requestId: string; provider: CanvasAgentProvider; prompt: string; settings?: CanvasAgentSettings;
       target: LocalBrowserTargetIdentity; nodeIds: string[]; draftId?: string };
 export type LocalBrowserAgentRequest = LocalBrowserEnvelope<'agentRequest'> & { viewId: string } & CanvasAgentAction;
@@ -884,8 +930,53 @@ export function isCanvasAgentAvailability(value: unknown): value is CanvasAgentA
       && (model.defaultEffort === undefined || isBoundedString(model.defaultEffort, 32)));
 }
 
+export function isCanvasAgentPermissionMode(value: unknown): value is CanvasAgentPermissionMode {
+  return typeof value === 'string' && ['ask', 'auto_setup', 'full_setup'].includes(value);
+}
+
+export function isCanvasAgentPermissionRequest(value: unknown): value is CanvasAgentPermissionRequest {
+  return isRecord(value) && Object.keys(value).length === 4
+    && Object.keys(value).every(key => ['operation', 'scope', 'effects', 'facts'].includes(key))
+    && typeof value.operation === 'string' && /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/.test(value.operation) && value.operation.length <= 128
+    && typeof value.scope === 'string' && ['isolated_environment', 'existing_environment', 'machine'].includes(value.scope)
+    && Array.isArray(value.effects) && value.effects.length > 0 && value.effects.length <= 4
+    && new Set(value.effects).size === value.effects.length
+    && value.effects.every(effect => typeof effect === 'string' && ['create', 'install', 'replace', 'execute_code'].includes(effect))
+    && isRecord(value.facts) && Object.keys(value.facts).length > 0 && Object.keys(value.facts).length <= 64
+    && isSetupJson(value.facts, 12000, 8);
+}
+
+export function isCanvasAgentPermissionPresentation(value: unknown): value is CanvasAgentPermissionPresentation {
+  const text = (item: unknown, max: number): boolean => isBoundedString(item, max)
+    && typeof item === 'string' && item === item.trim()
+    && Array.from(item).every(character => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127);
+  return isRecord(value) && Object.keys(value).length === 4
+    && Object.keys(value).every(key => ['title', 'summary', 'allowLabel', 'denyLabel'].includes(key))
+    && text(value.title, 160) && text(value.summary, 512) && text(value.allowLabel, 64) && text(value.denyLabel, 64)
+    && value.allowLabel !== value.denyLabel;
+}
+
+/** Policies depend on host effects and resource scope, never agent text or operation IDs. */
+export function canvasAgentPermissionPolicyAllows(request: CanvasAgentPermissionRequest, mode: CanvasAgentPermissionMode): boolean {
+  return (mode === 'full_setup' && request.scope !== 'machine') || (mode === 'auto_setup' && request.scope === 'isolated_environment'
+    && request.effects.every(effect => effect === 'create' || effect === 'install'));
+}
+
+export function isCanvasAgentPermission(value: unknown): value is CanvasAgentPermission {
+  if (!isRecord(value) || Object.keys(value).length !== 7 + Number(value.presentation !== undefined) + Number(value.approval !== undefined) + Number(value.mode !== undefined)
+    || !Object.keys(value).every(key => ['operation', 'scope', 'effects', 'facts', 'presentation', 'id', 'requestId', 'status', 'approval', 'mode'].includes(key))) return false;
+  const { id, requestId, status, presentation, approval, mode, ...request } = value;
+  return isCanvasAgentPermissionRequest(request) && isBoundedString(id, 128) && isBoundedString(requestId, 128)
+    && typeof status === 'string' && ['pending', 'approved', 'denied', 'cancelled'].includes(status)
+    && (presentation === undefined ? status !== 'approved' : isCanvasAgentPermissionPresentation(presentation))
+    && (approval === undefined || (status === 'approved' && typeof approval === 'string' && ['user', 'policy'].includes(approval)))
+    && (approval === 'policy' ? status === 'approved' && isCanvasAgentPermissionMode(mode) && mode !== 'ask'
+      && canvasAgentPermissionPolicyAllows(request, mode) : mode === undefined);
+}
+
 export function isCanvasAgentState(value: unknown): value is CanvasAgentState {
-  if (!isRecord(value)) return false;
+  if (!isRecord(value) || !Object.keys(value).every(key => ['sessionId', 'revision', 'provider', 'ack', 'selections', 'agents',
+    'status', 'messages', 'activity', 'failure', 'requestId', 'context', 'permissions', 'permissionMode'].includes(key))) return false;
   return isBoundedString(value.sessionId, 128) && Number.isSafeInteger(value.revision) && Number(value.revision) >= 0
     && ['codex', 'claude'].includes(String(value.provider))
     && (value.ack === undefined || isBoundedString(value.ack, 128))
@@ -895,7 +986,15 @@ export function isCanvasAgentState(value: unknown): value is CanvasAgentState {
       && isCanvasAgentAvailability(value.agents.codex) && isCanvasAgentAvailability(value.agents.claude)))
     && ['idle', 'running', 'stopped', 'error'].includes(String(value.status))
     && typeof value.activity === 'string' && value.activity.length <= 2048
+    && (value.failure === undefined || (value.status === 'error' && isGraphFailure(value.failure)))
     && (value.requestId === undefined || isBoundedString(value.requestId, 128))
+    && (value.permissionMode === undefined || isCanvasAgentPermissionMode(value.permissionMode))
+    && (value.permissions === undefined || (Array.isArray(value.permissions) && value.permissions.length <= CANVAS_AGENT_PERMISSION_LIMIT
+      && value.permissions.every(isCanvasAgentPermission)
+      && new Set(value.permissions.map(permission => permission.id)).size === value.permissions.length
+      && value.permissions.filter(permission => permission.status === 'pending').length <= 1
+      && value.permissions.every(permission => permission.status !== 'pending'
+        || (value.status === 'running' && permission.requestId === value.requestId && value.context !== undefined))))
     && (value.context === undefined || (isRecord(value.context) && isLocalBrowserTarget(value.context.target)
       && Array.isArray(value.context.nodeIds) && value.context.nodeIds.length <= 100
       && value.context.nodeIds.every(id => isBoundedString(id, 1024))))
@@ -1132,10 +1231,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isSetupJson(value: unknown, maxBytes = 131072): boolean {
+function isSetupJson(value: unknown, maxBytes = 131072, maxDepth = 16): boolean {
   let entries = 0;
   const visit = (item: unknown, depth: number): boolean => {
-    if (++entries > 16384 || depth > 16) return false;
+    if (++entries > 16384 || depth > maxDepth) return false;
     if (item === null || typeof item === 'boolean' || typeof item === 'string') return true;
     if (typeof item === 'number') return Number.isFinite(item);
     if (Array.isArray(item)) return item.every(child => visit(child, depth + 1));
@@ -1303,7 +1402,25 @@ export function isGraphFailure(value: unknown): value is GraphFailure {
     && (value.missingModules === undefined || (value.kind === 'environment' && Array.isArray(value.missingModules)
       && value.missingModules.length <= 32 && value.missingModules.every(name => typeof name === 'string' && /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(name))))
     && (value.importFailure === undefined || (value.kind === 'environment' && value.importFailure === true))
-    && Object.keys(value).every(key => ['kind', 'code', 'fields', 'missingModules', 'importFailure'].includes(key));
+    && (value.diagnostic === undefined || (value.kind === 'environment' && isModelImportDiagnostic(value.diagnostic)))
+    && Object.keys(value).every(key => ['kind', 'code', 'fields', 'missingModules', 'importFailure', 'diagnostic'].includes(key));
+}
+
+export function isModelImportDiagnostic(value: unknown): value is ModelImportDiagnostic {
+  const text = (item: unknown, max: number) => typeof item === 'string' && item.length <= max;
+  const nullableText = (item: unknown) => item === null || isBoundedString(item, 128);
+  const nullableBoolean = (item: unknown) => item === null || typeof item === 'boolean';
+  if (!isRecord(value) || Object.keys(value).length !== 6
+    || !Object.keys(value).every(key => ['exceptionType', 'message', 'traceback', 'causes', 'runtime', 'truncated'].includes(key))) return false;
+  const runtime = value.runtime;
+  return isBoundedString(value.exceptionType, 128) && text(value.message, 2048) && text(value.traceback, 12000)
+    && typeof value.truncated === 'boolean' && Array.isArray(value.causes) && value.causes.length <= 8
+    && value.causes.every(cause => isRecord(cause) && Object.keys(cause).every(key => ['exceptionType', 'message', 'module'].includes(key))
+      && isBoundedString(cause.exceptionType, 128) && text(cause.message, 2048) && (cause.module === undefined || isBoundedString(cause.module, 256)))
+    && isRecord(runtime) && Object.keys(runtime).length === 7
+    && Object.keys(runtime).every(key => ['platform', 'architecture', 'python', 'torch', 'cuda', 'cudaAvailable', 'mpsAvailable'].includes(key))
+    && isBoundedString(runtime.platform, 128) && isBoundedString(runtime.architecture, 128) && isBoundedString(runtime.python, 128)
+    && nullableText(runtime.torch) && nullableText(runtime.cuda) && nullableBoolean(runtime.cudaAvailable) && nullableBoolean(runtime.mpsAvailable);
 }
 
 export function isCaptureExportReference(value: unknown): value is CaptureExportReference {
@@ -1771,6 +1888,12 @@ export function isLocalBrowserMessage(
       if (record.action === 'configure') return Object.keys(record).length === (record.requestId === undefined ? 8 : 9)
         && (record.requestId === undefined || isBoundedString(record.requestId, 128))
         && ['codex', 'claude'].includes(String(record.provider)) && isCanvasAgentSettings(record.settings);
+      if (record.action === 'permission') return Object.keys(record).length === 8
+        && Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'action', 'permissionId', 'decision'].includes(key))
+        && isBoundedString(record.permissionId, 128) && typeof record.decision === 'string' && ['allow', 'deny'].includes(record.decision);
+      if (record.action === 'permission_mode') return Object.keys(record).length === 7
+        && Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'action', 'mode'].includes(key))
+        && isCanvasAgentPermissionMode(record.mode);
       if (!isBoundedString(record.requestId, 128)) return false;
       if (record.action === 'stop') return Object.keys(record).length === 7;
       return record.action === 'send' && Object.keys(record).length === (record.settings === undefined ? 11 : 12) + (record.draftId === undefined ? 0 : 1)

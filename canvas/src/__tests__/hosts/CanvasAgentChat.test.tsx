@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { AGENT_COMPOSE_EVENT, CanvasAgentChat } from '../../ide/CanvasAgentChat';
-import type { CanvasAgentAvailability, CanvasAgentState } from '../../ide/protocol.generated';
+import type { CanvasAgentAvailability, CanvasAgentPermission, CanvasAgentState } from '../../ide/protocol.generated';
 import type { LocalBrowserViewTransport } from '../../ide/localBrowserViewTransport';
 
 const target = { workspaceFolder: '/project', file: 'model.py', cls: 'Net', documentVersion: 1, sourceDigest: 'a'.repeat(64), backendRevision: 1 };
@@ -42,13 +42,14 @@ function fixture(props: Pick<React.ComponentProps<typeof CanvasAgentChat>, 'draf
     props = { ...props, draftReview: draft };
     view.rerender(<CanvasAgentChat transport={transport} target={target} connected={status.phase === 'connected'} {...props} />);
   };
-  return { send, state, sent, link, lastSyncId, draftReview };
+  return { send, state, sent, link, lastSyncId, draftReview, unmount: view.unmount };
 }
 const openChat = () => fireEvent.click(screen.getByRole('button', { name: /^Open agent chat/ }));
 const settingsToggle = () => screen.getByRole('button', { name: /^Agent settings/ });
 const openSettings = () => fireEvent.click(settingsToggle());
 const settingsPanel = () => screen.queryByRole('group', { name: 'Agent settings' });
 const sendButton = () => screen.getByRole('button', { name: 'Send request' });
+const recheckButton = () => screen.getByRole('button', { name: 'Recheck agent connection' });
 const type = (text: string) => fireEvent.change(screen.getByRole('textbox'), { target: { value: text } });
 const chooseModel = (model: string) => fireEvent.change(screen.getByRole('combobox', { name: 'Model' }), { target: { value: model } });
 
@@ -60,7 +61,8 @@ test('Use Agent opens progress without requiring a typed prompt or racing host d
   expect(sent('send')).toHaveLength(0);
   state({ status: 'running', requestId: 'automatic-opening', activity: 'Preparing your graph…',
     messages: [{ id: 'automatic-opening', role: 'user', text: 'Complete setup and open the graph.' }] });
-  expect(screen.getByText('Preparing your graph…')).toBeVisible();
+  expect(screen.getByRole('img', { name: 'Agent running' })).toHaveAttribute('title', 'Agent running · Preparing your graph…');
+  expect(screen.queryByText('Preparing your graph…')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Stop agent' }));
   expect(sent('stop')).toEqual([expect.objectContaining({ requestId: 'automatic-opening' })]);
 });
@@ -151,7 +153,7 @@ test('checking keeps the idle layout quiet while describing why Send is disabled
   openChat();
   state({ agents: agents({ status: 'checking' }) });
   type('Inspect the model');
-  expect(screen.getByText('Checking…')).toBeVisible();
+  expect(screen.getByRole('img', { name: 'Checking agent connection' })).toBeVisible();
   expect(screen.getByRole('textbox')).toHaveAccessibleDescription('Checking Codex…');
   expect(sendButton()).toBeDisabled();
   expect(document.querySelector('.canvas-agent-readiness')).toBeNull();
@@ -176,6 +178,8 @@ test('completion is announced while chat stays open', () => {
   openSettings();
   expect(screen.getByRole('combobox', { name: 'Agent' })).toBeDisabled();
   expect(screen.getByRole('combobox', { name: 'Agent' })).toHaveAccessibleDescription('Start a new chat to switch agents.');
+  expect(screen.getByRole('combobox', { name: 'Agent' }).parentElement).toHaveAttribute('title', 'Start a new chat to switch agents.');
+  expect(screen.getByText('Start a new chat to switch agents.')).toHaveClass('canvas-agent-announcement');
 });
 
 test('discovers on open and on reconnect while open, never on collapsed mount or while minimized', () => {
@@ -188,7 +192,7 @@ test('discovers on open and on reconnect while open, never on collapsed mount or
   expect(sent('discover')).toEqual([expect.objectContaining({ action: 'discover' })]);
   expect(sent('discover')[0].refresh).toBeUndefined();
   state({ agents: agents({ status: 'checking' }) });
-  expect(screen.queryByRole('button', { name: 'Refresh' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Recheck agent connection' })).toBeNull();
   state({ revision: 2 });
   expect(screen.getByRole('status')).toHaveTextContent('Codex ready');
   link(false);
@@ -209,7 +213,8 @@ test('a check that ends without a verdict is not announced as a problem; a faile
   state({ revision: 4, status: 'running', requestId: 'setup', activity: 'Preparing your request…',
     agents: agents({ status: 'unchecked', detail: 'The check was interrupted. Refresh to check the agent.', models: [] }) });
   expect(screen.queryByText('Codex needs attention')).toBeNull();
-  expect(screen.getByText('Not checked')).toBeVisible();
+  expect(screen.getByRole('img', { name: 'Agent running' })).toBeVisible();
+  expect(screen.queryByText('Not checked')).toBeNull();
 });
 
 test.each([
@@ -217,7 +222,7 @@ test.each([
   ['signInRequired', 'Sign in to Codex in a terminal, then refresh.'],
   ['error', "Couldn't check Codex. Refresh to try again."],
 ] as const)('%s blocks Send but keeps composing and offers an explicit refresh', (status, message) => {
-  const { sent, state } = fixture();
+  const { sent, state, send } = fixture();
   openChat();
   state({ agents: agents({ status, detail: 'Host detail for this check', models: [] }) });
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Still typing' } });
@@ -226,14 +231,16 @@ test.each([
   expect(sendButton()).toBeDisabled();
   expect(screen.getByText(message).parentElement).toHaveAttribute('title', 'Host detail for this check');
   expect(settingsToggle()).toHaveAccessibleName(/^Agent settings: Needs attention, Codex/);
-  expect(screen.getByText('Needs attention')).toBeVisible();
+  expect(screen.getByRole('img', { name: 'Agent unavailable' })).toBeVisible();
   // The problem is explained outside the collapsed settings; they never open on their own.
   expect(settingsPanel()).toBeNull();
   fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
   expect(sent('send')).toHaveLength(0);
-  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Recheck agent connection' }));
   expect(sent('discover').slice(-1)[0]).toEqual(expect.objectContaining({ refresh: true }));
-  state({ revision: 2 });
+  const ack = send.mock.results.at(-1)!.value.messageId;
+  state({ revision: 2, ack, agents: agents({ status: 'checking' }) });
+  state({ revision: 3, ack });
   expect(sendButton()).toBeEnabled();
 });
 
@@ -466,20 +473,22 @@ test('Claude’s default alias is offered once, as Default with its actual model
   expect(model).toHaveValue('default');
 });
 
-test('settings sit behind an icon-only toggle beside a short status; the full choice is in its name and tooltip only', () => {
+test('checking appears in the reply area; idle stays quiet and readiness stays in settings descriptions', () => {
   const { state, link } = fixture();
   openChat();
   state({ agents: agents({ status: 'checking' }) });
-  expect(screen.getByText('Checking…')).toBeVisible();
+  expect(screen.getByRole('img', { name: 'Checking agent connection' })).toBeVisible();
   state({ revision: 2, provider: 'claude' });
-  expect(screen.getByText('Ready')).toBeVisible();
+  expect(screen.queryByRole('img', { name: 'Agent idle' })).toBeNull();
+  expect(document.querySelector('.canvas-agent-generation')).toBeNull();
+  expect(screen.queryByText('Ready')).toBeNull();
   // A long default model name never appears as on-screen text while settings are collapsed.
   expect(settingsToggle()).toHaveTextContent(/^$/);
   expect(screen.queryByText(/Opus 5\.5/)).toBeNull();
   expect(settingsToggle()).toHaveAccessibleName('Agent settings: Ready, Claude Code, Default (Opus 5.5), Default effort');
   expect(settingsToggle()).toHaveAttribute('title', 'Agent settings · Ready · Claude Code · Default (Opus 5.5) · Default effort');
   link(false);
-  expect(screen.getByText('Reconnecting')).toBeVisible();
+  expect(screen.getByRole('img', { name: 'Reconnecting to VS Code' })).toBeVisible();
 });
 
 test('settings start collapsed and open and close from the toggle', () => {
@@ -487,7 +496,8 @@ test('settings start collapsed and open and close from the toggle', () => {
   openChat();
   state();
   expect(settingsPanel()).toBeNull();
-  expect(screen.queryByRole('combobox')).toBeNull();
+  expect(screen.queryByRole('combobox', { name: 'Agent' })).toBeNull();
+  expect(screen.queryByRole('combobox', { name: 'Model' })).toBeNull();
   expect(settingsToggle()).toHaveAttribute('aria-expanded', 'false');
   openSettings();
   expect(settingsToggle()).toHaveAttribute('aria-expanded', 'true');
@@ -536,25 +546,80 @@ test('a dispatched Send collapses settings; a Send that cannot be dispatched lea
   expect(screen.getByRole('textbox')).toHaveValue('Go');
 });
 
-test('readiness and Refresh live in the open settings panel, and outside it only for a collapsed blocker', () => {
-  const { sent, state } = fixture();
+test('connection status and recheck live in settings, with account details available on focus', () => {
+  const { sent, state, send } = fixture();
   openChat();
   state();
-  expect(screen.queryByRole('button', { name: 'Refresh' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Recheck agent connection' })).toBeNull();
   openSettings();
   const panel = screen.getByRole('group', { name: 'Agent settings' });
-  // Ready is not an access or quota guarantee; the one-line caption says so, its tooltip in full.
-  const caption = within(panel).getByText('Your account · access and limits checked on Send');
+  const caption = within(panel).getByText('Connected');
   expect(caption).toBeVisible();
-  expect(caption).toHaveAttribute('title', expect.stringMatching(/doesn’t guarantee model access or remaining limits.*Source edits open in VS Code for review/));
+  expect(caption).toHaveAttribute('tabindex', '0');
+  act(() => caption.focus());
+  expect(caption).toHaveAccessibleDescription('Uses your Codex account. Model access and limits are checked when you send. Source edits open in VS Code for review.');
   expect(within(panel).queryByText(/Codex ready/)).toBeNull();
   expect(within(panel).getByRole('combobox', { name: 'Model' })).toHaveAccessibleDescription('Balanced');
-  fireEvent.click(within(panel).getByRole('button', { name: 'Refresh' }));
+  fireEvent.click(within(panel).getByRole('button', { name: 'Recheck agent connection' }));
   expect(sent('discover').slice(-1)[0]).toEqual(expect.objectContaining({ refresh: true }));
-  state({ revision: 2, agents: agents({ status: 'signInRequired', models: [] }) });
-  expect(screen.getAllByRole('button', { name: 'Refresh' })).toHaveLength(1);
+  const ack = send.mock.results.at(-1)!.value.messageId;
+  state({ revision: 2, ack, agents: agents({ status: 'checking' }) });
+  state({ revision: 3, ack, agents: agents({ status: 'signInRequired', models: [] }) });
+  expect(screen.getAllByRole('button', { name: 'Recheck agent connection' })).toHaveLength(1);
   expect(within(screen.getByRole('group', { name: 'Agent settings' })).getByText('Sign in to Codex in a terminal, then refresh.')).toBeVisible();
   expect(screen.getByRole('textbox')).toHaveAccessibleDescription('Sign in to Codex in a terminal, then refresh.');
+});
+
+test('recheck starts only on its host acknowledgement and settles when that observed check finishes', () => {
+  const { state, send } = fixture(); openChat(); state(); openSettings(); type('Keep my question');
+  fireEvent.click(recheckButton()); const dispatch = send.mock.results.at(-1)!.value;
+  expect(recheckButton()).toBeDisabled(); expect(recheckButton().querySelector('svg')).toHaveClass('canvas-agent-task-spin');
+  expect(screen.queryByText('Connection checked')).toBeNull();
+  state({ revision: 2, ack: dispatch.messageId });
+  expect(recheckButton()).toBeDisabled(); expect(screen.queryByText('Connection checked')).toBeNull();
+  state({ revision: 3, ack: 'unrelated', agents: agents({ status: 'checking' }) });
+  state({ revision: 4, ack: dispatch.messageId });
+  expect(recheckButton()).toBeDisabled(); expect(screen.queryByText('Connection checked')).toBeNull();
+  state({ revision: 5, ack: dispatch.messageId, agents: agents({ status: 'checking' }) });
+  expect(screen.getByText('Checking Codex…')).toBeVisible();
+  state({ revision: 4, ack: dispatch.messageId });
+  expect(screen.queryByText('Connection checked')).toBeNull();
+  // Another control can replace the host's last ack while this observed check runs.
+  state({ revision: 6, ack: 'another-control-ack' });
+  expect(screen.getByText('Connection checked')).toBeVisible(); expect(recheckButton()).toBeEnabled();
+  expect(recheckButton().querySelector('svg')).not.toHaveClass('canvas-agent-task-spin');
+  expect(screen.getByRole('textbox')).toHaveValue('Keep my question');
+});
+
+test('a recheck that ends with an unavailable agent never reports a successful connection check', () => {
+  const { state, send } = fixture(); openChat(); state(); openSettings();
+  fireEvent.click(recheckButton()); const ack = send.mock.results.at(-1)!.value.messageId;
+  state({ revision: 2, ack, agents: agents({ status: 'checking' }) });
+  state({ revision: 3, ack, agents: agents({ status: 'signInRequired', models: [] }) });
+  expect(screen.queryByText('Connection checked')).toBeNull(); expect(recheckButton()).toBeEnabled();
+  expect(screen.getByText('Sign in to Codex in a terminal, then refresh.')).toBeVisible(); expect(sendButton()).toBeDisabled();
+});
+
+test.each(['provider', 'session', 'configuration', 'disconnect'] as const)('a completed connection check is cleared after a %s change', change => {
+  const { state, send, link } = fixture(); openChat(); state(); openSettings();
+  fireEvent.click(recheckButton()); const ack = send.mock.results.at(-1)!.value.messageId;
+  state({ revision: 2, ack, agents: agents({ status: 'checking' }) });
+  state({ revision: 3, ack }); expect(screen.getByText('Connection checked')).toBeVisible();
+  if (change === 'provider') state({ revision: 4, provider: 'claude' });
+  else if (change === 'session') state({ sessionId: 'new-chat', revision: 0 });
+  else if (change === 'configuration') chooseModel('gpt-b');
+  else { link(false); link(true); }
+  expect(screen.queryByText('Connection checked')).toBeNull();
+  expect(screen.getByText('Connected')).toBeVisible(); expect(recheckButton()).toBeEnabled();
+});
+
+test('checking before a conversation uses the reply area rather than a header spinner', () => {
+  const { state } = fixture(); openChat(); state({ agents: agents({ status: 'checking' }) });
+  const indicator = screen.getByRole('img', { name: 'Checking agent connection' });
+  expect(indicator.closest('.canvas-agent-preparing')).not.toBeNull(); expect(indicator).toHaveAttribute('tabindex', '0');
+  expect(document.querySelector('.canvas-agent-bar')).not.toContainElement(indicator);
+  expect(screen.queryByRole('log')).toBeNull(); expect(indicator.querySelectorAll('.canvas-agent-generation-dots > i')).toHaveLength(4);
+  state({ revision: 2 }); expect(document.querySelector('.canvas-agent-generation')).toBeNull();
 });
 
 test('keyboard opening and closing settings keeps the panel and then its toggle in view', async () => {
@@ -689,4 +754,406 @@ describe('while a source draft is open', () => {
     expect(screen.getByRole('textbox')).toHaveValue('add a sigmoid');
     expect(sent('send')).toHaveLength(0);
   });
+});
+
+const permission = (changes: Partial<CanvasAgentPermission> = {}): CanvasAgentPermission => ({
+  id: 'install-1', requestId: 'setup-turn', operation: 'python.packages.install', scope: 'isolated_environment', effects: ['install'], status: 'pending',
+  facts: { python: '/storage/tensorviz/runtime/venv/bin/python', packages: ['numpy==2.2.6', 'scipy==1.15.3'], preserveExistingTorch: true },
+  presentation: { title: 'Install project libraries', summary: 'Install the reviewed libraries in TensorViz Python.', allowLabel: 'Install', denyLabel: 'Deny' }, ...changes,
+});
+const approvalState = (changes: Partial<CanvasAgentState> = {}): Partial<CanvasAgentState> => ({
+  status: 'running', requestId: 'setup-turn', activity: 'Waiting for Codex…', context: { target, nodeIds: [] },
+  messages: [{ id: 'setup-turn', role: 'user', text: 'Set up this project.' }], permissions: [permission()], ...changes,
+});
+
+test('a host permission opens this chat with a short explanation, neutral focus and exact details on demand', () => {
+  const { state, sent } = fixture();
+  state(approvalState());
+  const card = screen.getByRole('region', { name: 'Install project libraries' });
+  expect(screen.getByRole('region', { name: 'Canvas chat' })).toBeVisible();
+  expect(within(card).getByRole('heading', { name: 'Install project libraries' })).toHaveFocus();
+  expect(within(card).getByText('Install the reviewed libraries in TensorViz Python.')).toBeVisible();
+  expect(within(card).getByRole('button', { name: 'Install' })).not.toHaveFocus();
+  expect(within(card).getByText(/numpy==2\.2\.6/)).not.toBeVisible();
+  expect(screen.getByRole('img', { name: 'Waiting for your approval' })).toBeVisible();
+  expect(document.querySelector('.canvas-agent-activity')).toBeNull();
+  expect(screen.queryByText('Waiting for Codex…')).toBeNull();
+  expect(screen.queryByText('Ready')).toBeNull();
+  fireEvent.click(within(card).getByText('Details'));
+  expect(within(card).getByText(/numpy==2\.2\.6/)).toBeVisible();
+  expect(sent('permission')).toHaveLength(0);
+  expect(sent('discover')).toHaveLength(0);
+});
+
+test('an unexplained operation stays working without presenting consent or stealing focus', () => {
+  const { state, sent } = fixture();
+  state(approvalState({ permissions: [permission({ presentation: undefined })] }));
+  expect(screen.queryByRole('region', { name: 'Canvas chat' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Open agent chat · working' })).toBeVisible();
+  openChat();
+  const card = screen.getByRole('region', { name: 'Preparing approval…' });
+  expect(card).toHaveAttribute('aria-busy', 'true');
+  expect(screen.getByRole('textbox')).toHaveFocus();
+  expect(screen.getByRole('img', { name: 'Agent running' })).toBeVisible();
+  expect(screen.queryByText('Needs approval')).toBeNull();
+  expect(within(card).queryByRole('button')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Stop agent' })).toBeEnabled();
+  fireEvent.click(within(card).getByText('Details'));
+  expect(within(card).getByText(/python\.packages\.install/)).toBeVisible();
+  expect(sent('permission')).toHaveLength(0);
+});
+
+test('agent presentation turns the prepared operation into a focused user decision with dynamic labels', () => {
+  const { state, sent } = fixture();
+  state(approvalState({ permissions: [permission({ presentation: undefined })] }));
+  state(approvalState({ revision: 2, permissions: [permission({ presentation: {
+    title: 'Prepare VideoJev inference', summary: 'These packages let VideoJev load for the requested graph.',
+    allowLabel: 'Prepare VideoJev', denyLabel: 'Leave Python as it is',
+  } })] }));
+  const card = screen.getByRole('region', { name: 'Prepare VideoJev inference' });
+  expect(within(card).getByRole('heading', { name: 'Prepare VideoJev inference' })).toHaveFocus();
+  expect(card).toHaveAttribute('aria-busy', 'false');
+  expect(within(card).getByRole('button', { name: 'Prepare VideoJev' })).toBeEnabled();
+  fireEvent.click(within(card).getByText('Details'));
+  expect(within(card).getByText(/python\.packages\.install/)).toBeVisible();
+  expect(within(card).getByText(/numpy==2\.2\.6/)).toBeVisible();
+  fireEvent.click(within(card).getByRole('button', { name: 'Leave Python as it is' }));
+  expect(sent('permission')).toEqual([expect.objectContaining({ permissionId: 'install-1', decision: 'deny' })]);
+});
+
+test.each([['allow', 'Install', 'approved', 'Allowed'], ['deny', 'Deny', 'denied', 'Denied']] as const)(
+  '%s sends the exact pending permission while the agent is running and waits for host acknowledgement', (decision, label, status, result) => {
+    const { state, send, sent } = fixture();
+    state(approvalState());
+    fireEvent.click(screen.getByRole('button', { name: label }));
+    const dispatch = send.mock.results[send.mock.results.length - 1].value;
+    expect(sent('permission')).toEqual([expect.objectContaining({ action: 'permission', permissionId: 'install-1', decision })]);
+    expect(screen.getByRole('button', { name: 'Install' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Deny' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: label }));
+    expect(sent('permission')).toHaveLength(1);
+    state(approvalState({ revision: 2, ack: 'unrelated-background-update' }));
+    expect(screen.getByRole('button', { name: 'Install' })).toBeDisabled();
+    state(approvalState({ revision: 1, ack: dispatch.messageId }));
+    expect(screen.getByRole('button', { name: 'Install' })).toBeDisabled();
+    state(approvalState({ revision: 3, ack: dispatch.messageId, permissions: [permission({ status })], activity: 'Continuing project setup…' }));
+    expect(screen.queryByRole('button', { name: 'Install' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Deny' })).toBeNull();
+    expect(screen.getByText(`Install project libraries · ${result}`)).toBeVisible();
+    expect(screen.getByRole('img', { name: 'Agent running' })).toBeVisible();
+    expect(screen.queryByText('Ready')).toBeNull();
+    expect(sent('send')).toHaveLength(0);
+  });
+
+test('minimizing preserves the draft and pending permission with an attention shield', () => {
+  const { state } = fixture();
+  openChat(); state(); type('Keep my unfinished question');
+  fireEvent.click(screen.getByRole('button', { name: 'Minimize agent chat' }));
+  state(approvalState({ revision: 2 }));
+  expect(screen.getByRole('textbox')).toHaveValue('Keep my unfinished question');
+  fireEvent.click(screen.getByRole('button', { name: 'Minimize agent chat' }));
+  expect(screen.getByRole('button', { name: 'Open agent chat · needs approval' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Open agent chat · needs approval' })).toHaveClass('canvas-agent-bubble-approval');
+  state(approvalState({ revision: 3, activity: 'Still waiting for approval…' }));
+  expect(screen.queryByRole('region', { name: 'Canvas chat' })).toBeNull();
+  openChat();
+  expect(screen.getByRole('textbox')).toHaveValue('Keep my unfinished question');
+  expect(screen.getByRole('button', { name: 'Install' })).toBeEnabled();
+});
+
+test('disconnect disables consent, and reconnect reconciles a lost decision without replaying it', () => {
+  const { state, link, sent, lastSyncId } = fixture();
+  state(approvalState());
+  link(false);
+  expect(screen.getByRole('button', { name: 'Install' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Deny' })).toBeDisabled();
+  expect(screen.getByText('Reconnect to respond. Nothing is approved while disconnected.')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Install' }));
+  expect(sent('permission')).toHaveLength(0);
+  link(true); state(approvalState({ revision: 2, ack: lastSyncId() }));
+  fireEvent.click(screen.getByRole('button', { name: 'Install' }));
+  expect(sent('permission')).toHaveLength(1);
+  link(false); link(true);
+  expect(screen.getByRole('button', { name: 'Install' })).toBeDisabled();
+  state(approvalState({ revision: 3, ack: lastSyncId() }));
+  expect(screen.getByRole('button', { name: 'Install' })).toBeEnabled();
+  expect(sent('permission')).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Deny' }));
+  expect(sent('permission')).toHaveLength(2);
+  expect(sent('permission')[1]).toEqual(expect.objectContaining({ permissionId: 'install-1', decision: 'deny' }));
+});
+
+test('a stopped or different task cannot offer actions for a stale pending permission', () => {
+  const { state, sent } = fixture();
+  state(approvalState());
+  state(approvalState({ revision: 2, status: 'stopped', activity: 'Agent stopped.' }));
+  expect(screen.queryByRole('button', { name: 'Install' })).toBeNull();
+  expect(screen.getByText('Install project libraries · No longer active')).toBeVisible();
+  state(approvalState({ revision: 3, requestId: 'another-turn' }));
+  expect(screen.queryByRole('button', { name: 'Install' })).toBeNull();
+  expect(screen.queryByText('Needs approval')).toBeNull();
+  expect(sent('permission')).toHaveLength(0);
+});
+
+test('permission details are plain text and a restored request works without a retained message', () => {
+  const { state } = fixture();
+  const details = '<script>approveEverything()</script>\n/path/with/a/very/long/environment/name';
+  state(approvalState({ messages: [], permissions: [permission({ operation: 'python.environment.create', effects: ['create'], facts: { destination: details }, presentation: { title: 'Create project Python', summary: 'Keep this model in a separate Python.', allowLabel: 'Allow', denyLabel: 'Keep current Python' } })] }));
+  expect(screen.getByRole('log', { name: 'Agent conversation' })).toBeVisible();
+  fireEvent.click(screen.getByText('Details'));
+  expect(screen.getByText((_text, element) => element?.tagName === 'PRE' && !!element.textContent?.includes('<script>approveEverything()</script>'))).toBeVisible();
+  expect(document.querySelector('.canvas-agent-permission script')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Allow' })).toBeEnabled();
+});
+
+const permissionModeButton = () => screen.getByRole('button', { name: /^Setup permissions:/ });
+const permissionModeMenu = () => screen.getByRole('menu', { name: 'Setup permissions' });
+const permissionModeLabels = { ask: 'Ask every time', auto_setup: 'Auto setup', full_setup: 'Full setup access' };
+const choosePermissionMode = (mode: keyof typeof permissionModeLabels) => {
+  fireEvent.click(permissionModeButton());
+  fireEvent.click(screen.getByRole('menuitemradio', { name: permissionModeLabels[mode] }));
+};
+
+test('setup permissions stay beside composer controls with concise explanations on demand', () => {
+  const { state, sent } = fixture(); openChat(); state(); type('Keep this question');
+  const toggle = permissionModeButton();
+  expect(toggle).toHaveAccessibleName('Setup permissions: Ask every time');
+  expect(toggle.closest('.canvas-agent-composer-tools')).toContainElement(sendButton());
+  expect(settingsPanel()).toBeNull();
+  expect(screen.queryByRole('menu')).toBeNull();
+  expect(toggle).not.toHaveTextContent('Ask every time');
+  fireEvent.focus(toggle);
+  expect(toggle).toHaveAccessibleDescription(/Ask every time\. Review each environment change\. Commands and source edits always ask\. This chat only/);
+  fireEvent.click(toggle);
+  const menu = permissionModeMenu(), items = within(menu).getAllByRole('menuitemradio');
+  expect(items).toHaveLength(3);
+  expect(within(menu).getByRole('menuitemradio', { name: 'Ask every time' })).toHaveAttribute('aria-checked', 'true');
+  expect(within(menu).getByRole('menuitemradio', { name: 'Auto setup' })).toHaveAccessibleDescription('Approve new isolated Python and its packages. Builds and existing environments still ask. Commands and source edits always ask.');
+  fireEvent.pointerEnter(within(menu).getByRole('menuitemradio', { name: 'Auto setup' }));
+  expect(within(menu).getByText('Approve new isolated Python and its packages. Builds and existing environments still ask.')).toBeVisible();
+  fireEvent.pointerLeave(menu.querySelector('.canvas-agent-mode-options')!);
+  expect(within(menu).getByText('Review each environment change.')).toBeVisible();
+  fireEvent.click(within(menu).getByRole('menuitemradio', { name: 'Ask every time' }));
+  expect(screen.queryByRole('menu')).toBeNull();
+  expect(toggle).toHaveFocus();
+  expect(screen.getByRole('textbox')).toHaveValue('Keep this question');
+  expect(sent('permission_mode')).toHaveLength(0);
+});
+
+test('permission menu keyboard navigation inspects modes without changing access and Escape returns to its trigger', () => {
+  const { state, sent } = fixture(); openChat(); state({ permissionMode: 'auto_setup' }); type('Keep my setup question');
+  const toggle = permissionModeButton();
+  act(() => toggle.focus()); fireEvent.keyDown(toggle, { key: 'ArrowDown' });
+  const menu = permissionModeMenu();
+  const ask = within(menu).getByRole('menuitemradio', { name: 'Ask every time' });
+  const auto = within(menu).getByRole('menuitemradio', { name: 'Auto setup' });
+  const full = within(menu).getByRole('menuitemradio', { name: 'Full setup access' });
+  expect(auto).toHaveFocus(); expect(auto).toHaveAttribute('aria-checked', 'true');
+  fireEvent.keyDown(auto, { key: 'ArrowDown' }); expect(full).toHaveFocus();
+  expect(within(menu).getByText('Approve environment setup, including builds and version changes.')).toBeVisible();
+  fireEvent.keyDown(full, { key: 'ArrowDown' }); expect(ask).toHaveFocus();
+  fireEvent.keyDown(ask, { key: 'ArrowUp' }); expect(full).toHaveFocus();
+  fireEvent.keyDown(full, { key: 'Home' }); expect(ask).toHaveFocus();
+  fireEvent.keyDown(ask, { key: 'End' }); expect(full).toHaveFocus();
+  expect(auto).toHaveAttribute('aria-checked', 'true'); expect(full).toHaveAttribute('aria-checked', 'false');
+  expect(sent('permission_mode')).toHaveLength(0);
+  fireEvent.keyDown(full, { key: 'Escape' });
+  expect(screen.queryByRole('menu')).toBeNull(); expect(toggle).toHaveFocus();
+  expect(screen.getByRole('region', { name: 'Canvas chat' })).toBeVisible();
+  expect(screen.getByRole('textbox')).toHaveValue('Keep my setup question');
+});
+
+test('permission menu dismisses on pointer or focus moving outside without sending or losing the draft', () => {
+  const { state, sent } = fixture(); openChat(); state(); type('Keep my draft');
+  const input = screen.getByRole('textbox');
+  fireEvent.click(permissionModeButton()); expect(permissionModeMenu()).toBeVisible();
+  fireEvent.pointerDown(input); expect(screen.queryByRole('menu')).toBeNull();
+  fireEvent.click(permissionModeButton()); expect(permissionModeMenu()).toBeVisible();
+  act(() => input.focus()); expect(screen.queryByRole('menu')).toBeNull(); expect(input).toHaveFocus();
+  expect(input).toHaveValue('Keep my draft'); expect(sent('permission_mode')).toHaveLength(0);
+});
+
+test('permission menu cannot open before host state and closes its portal on disconnect or unmount', () => {
+  const { state, link, unmount, sent } = fixture(); openChat();
+  expect(permissionModeButton()).toBeDisabled(); fireEvent.click(permissionModeButton()); expect(screen.queryByRole('menu')).toBeNull();
+  state(); fireEvent.click(permissionModeButton()); expect(permissionModeMenu()).toBeVisible();
+  link(false); expect(screen.queryByRole('menu')).toBeNull(); expect(permissionModeButton()).toBeDisabled();
+  link(true); fireEvent.click(permissionModeButton()); expect(permissionModeMenu()).toBeVisible();
+  unmount(); expect(screen.queryByRole('menu')).toBeNull(); expect(sent('permission_mode')).toHaveLength(0);
+});
+
+test('mode changes work during a pending task and await the exact host acknowledgement', () => {
+  const { state, send, sent } = fixture(); state(approvalState());
+  expect(permissionModeButton()).toBeEnabled();
+  choosePermissionMode('auto_setup');
+  const dispatch = send.mock.results[send.mock.results.length - 1].value;
+  expect(sent('permission_mode')).toEqual([expect.objectContaining({ mode: 'auto_setup' })]);
+  expect(permissionModeButton()).toHaveAccessibleName('Setup permissions: Ask every time');
+  expect(permissionModeButton()).toBeDisabled();
+  expect(permissionModeButton().querySelector('svg')).toHaveClass('canvas-agent-task-spin');
+  expect(screen.getByText('Updating permissions…', { selector: '.canvas-agent-announcement' })).toHaveAttribute('role', 'status');
+  expect(document.querySelector('.canvas-agent-activity')?.textContent ?? '').not.toContain('Updating permissions…');
+  expect(screen.queryByRole('menu')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Install' })).toBeEnabled();
+  fireEvent.click(permissionModeButton());
+  expect(screen.queryByRole('menu')).toBeNull();
+  expect(sent('permission_mode')).toHaveLength(1);
+  state(approvalState({ revision: 2, permissionMode: 'auto_setup', ack: 'unrelated-background-ack' }));
+  expect(permissionModeButton()).toHaveAccessibleName('Setup permissions: Auto setup');
+  expect(permissionModeButton()).toBeDisabled();
+  state(approvalState({ revision: 1, ack: dispatch.messageId }));
+  expect(permissionModeButton()).toBeDisabled();
+  state(approvalState({ revision: 3, permissionMode: 'auto_setup', ack: dispatch.messageId,
+    permissions: [permission({ status: 'approved', approval: 'policy', mode: 'auto_setup' })], activity: 'Preparing inputs…' }));
+  expect(permissionModeButton()).toBeEnabled();
+  expect(permissionModeButton()).toHaveAccessibleName('Setup permissions: Auto setup');
+  expect(screen.queryByText('Updating permissions…')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Install' })).toBeNull();
+  expect(screen.getByText('Install project libraries · Auto-approved')).toBeVisible();
+  expect(screen.queryByText('Install project libraries · Allowed')).toBeNull();
+  expect(screen.getByRole('img', { name: 'Agent running' })).toBeVisible();
+  fireEvent.click(screen.getByText('Install project libraries · Auto-approved'));
+  expect(screen.getByText('Approved by Auto setup.')).toBeVisible();
+  expect(sent('permission')).toHaveLength(0);
+});
+
+test('a refused mode change yields to the host without optimistic access', () => {
+  const { state, send } = fixture(); openChat(); state();
+  choosePermissionMode('full_setup');
+  const dispatch = send.mock.results[send.mock.results.length - 1].value;
+  expect(permissionModeButton()).toHaveAccessibleName('Setup permissions: Ask every time');
+  state({ revision: 2, ack: dispatch.messageId, activity: 'Trust this workspace before changing setup permissions.' });
+  expect(permissionModeButton()).toHaveAccessibleName('Setup permissions: Ask every time');
+  expect(permissionModeButton()).toBeEnabled();
+  expect(screen.getByText('Trust this workspace before changing setup permissions.')).toBeVisible();
+});
+
+test('offline mode choice is disabled and a lost change is reconciled without reconnect replay', () => {
+  const { state, link, sent, lastSyncId } = fixture(); openChat(); state();
+  choosePermissionMode('full_setup');
+  link(false);
+  expect(permissionModeButton()).toBeDisabled();
+  fireEvent.click(permissionModeButton()); expect(screen.queryByRole('menu')).toBeNull();
+  expect(sent('permission_mode')).toHaveLength(1);
+  link(true);
+  expect(permissionModeButton()).toBeDisabled();
+  expect(sent('permission_mode')).toHaveLength(1);
+  state({ revision: 2, ack: lastSyncId(), permissionMode: 'ask' });
+  expect(permissionModeButton()).toBeEnabled();
+  expect(permissionModeButton()).toHaveAccessibleName('Setup permissions: Ask every time');
+  expect(sent('permission_mode')).toHaveLength(1);
+  choosePermissionMode('auto_setup');
+  expect(sent('permission_mode')).toHaveLength(2);
+});
+
+test('new chat resets permissions only when host state confirms the new session', () => {
+  const { state, sent } = fixture(); openChat();
+  state({ permissionMode: 'full_setup', messages: [{ id: 'u', role: 'user', text: 'Earlier setup' }] });
+  fireEvent.click(screen.getByRole('button', { name: 'New agent chat' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+  expect(sent('clear')).toHaveLength(1);
+  expect(permissionModeButton()).toHaveAccessibleName('Setup permissions: Full setup access');
+  state({ sessionId: 'new-chat', revision: 0 });
+  expect(permissionModeButton()).toHaveAccessibleName('Setup permissions: Ask every time');
+  expect(sent('permission_mode')).toHaveLength(0);
+});
+
+test('policy receipts identify automatic approval while legacy user receipts remain Allowed', () => {
+  const { state } = fixture(); openChat();
+  state({ permissionMode: 'full_setup' });
+  state({ revision: 2, permissionMode: 'full_setup', permissions: [
+    permission({ id: 'automatic', status: 'approved', approval: 'policy', mode: 'full_setup' }),
+    permission({ id: 'legacy', status: 'approved', presentation: { title: 'Create Python', summary: 'Keep this model in a separate Python.', allowLabel: 'Create', denyLabel: 'Cancel' } }),
+  ] });
+  expect(screen.getByText('Install project libraries · Auto-approved')).toBeVisible();
+  expect(screen.getByRole('status')).toHaveTextContent('Install project libraries: auto-approved');
+  expect(screen.getByText('Create Python · Allowed')).toBeVisible();
+  const receipt = screen.getByText('Install project libraries · Auto-approved').closest('details')!;
+  fireEvent.click(within(receipt).getByText('Install project libraries · Auto-approved'));
+  expect(screen.getByText('Approved by Full setup access.')).toBeVisible();
+  expect(within(receipt).getByText(/numpy==2\.2\.6/)).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Install' })).toBeNull();
+});
+
+
+test('generation stays at the end of the conversation and disappears when stopped, idle or awaiting approval', () => {
+  const { state } = fixture(); openChat();
+  state({ status: 'running', requestId: 'work', activity: 'Waiting for Codex…', messages: [{ id: 'work', role: 'user', text: 'Inspect this model' }] });
+  const working = screen.getByRole('img', { name: 'Agent running' });
+  expect(working).toHaveClass('canvas-agent-generation');
+  expect(working.querySelectorAll('.canvas-agent-generation-dots > i')).toHaveLength(4);
+  expect(screen.getByRole('log', { name: 'Agent conversation' }).lastElementChild).toBe(working);
+  expect(document.querySelector('.canvas-agent-bar')).not.toContainElement(working);
+  expect(screen.queryByText('Waiting for Codex…')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Stop agent' })).toBeEnabled();
+  state({ revision: 2, status: 'stopped', activity: 'Agent stopped.', messages: [{ id: 'work', role: 'user', text: 'Inspect this model' }] });
+  expect(screen.getByRole('img', { name: 'Agent stopped' })).toHaveAttribute('data-state', 'stopped');
+  expect(screen.getByRole('img', { name: 'Agent stopped' }).querySelector('svg')).not.toHaveClass('canvas-agent-task-spin');
+  expect(document.querySelector('.canvas-agent-generation')).toBeNull();
+  expect(screen.queryByText('Agent stopped.')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Stop agent' })).toBeNull();
+  state({ revision: 3, status: 'idle', activity: '', messages: [{ id: 'answer', role: 'assistant', text: 'This source call scores candidate answers.' }] });
+  expect(screen.queryByRole('img', { name: 'Agent idle' })).toBeNull();
+  expect(document.querySelector('.canvas-agent-generation')).toBeNull();
+  expect(screen.queryByText('Ready')).toBeNull();
+  state(approvalState({ revision: 4 }));
+  expect(screen.getByRole('img', { name: 'Waiting for your approval' })).toBeVisible();
+  expect(document.querySelector('.canvas-agent-generation')).toBeNull();
+});
+
+test('provider readiness cannot turn a failed task green or duplicate its error under a reply', () => {
+  const { state } = fixture(); openChat();
+  const failure = 'The model imports a CUDA-only package unavailable on this Apple Silicon host.';
+  state({ status: 'error', activity: failure, agents: agents(), messages: [{ id: 'answer', role: 'assistant', text: 'The import requires CUDA. This Mac has no CUDA device.' }] });
+  const icon = screen.getByRole('img', { name: 'Agent needs attention' });
+  expect(icon).toHaveAttribute('title', `Agent needs attention · ${failure}`);
+  expect(screen.queryByText('Ready')).toBeNull();
+  expect(screen.getByText(failure)).not.toBeVisible();
+  fireEvent.click(screen.getByText('Error details'));
+  expect(screen.getByRole('alert')).toHaveTextContent(failure);
+  expect(screen.getByRole('button', { name: 'Send request' })).toBeVisible();
+  openSettings();
+  expect(screen.getByText('Connected')).toBeVisible();
+});
+
+test('an error before the first reply stays directly visible and actionable', () => {
+  const { state } = fixture(); openChat();
+  state({ status: 'error', activity: 'Trust this workspace before executing project code.', messages: [] });
+  expect(screen.getByRole('alert')).toHaveTextContent('Trust this workspace before executing project code.');
+  expect(screen.queryByText('Error details')).toBeNull();
+  expect(screen.getByRole('img', { name: 'Agent needs attention' })).toBeVisible();
+});
+
+test('retained setup evidence is collapsed until requested and exposes the exact traceback and observed runtime', () => {
+  const { state } = fixture(); openChat();
+  const message = "cannot import name 'ALL_ATTENTION_FUNCTIONS' from 'transformers.modeling_utils'";
+  const traceback = `Traceback (most recent call last):\n  File "/project/timejev/asymmetric_video_memory.py", line 9, in <module>\nImportError: ${message}`;
+  const runtime = { platform: 'darwin', architecture: 'arm64', python: '3.12.13', torch: '2.6.0', cuda: null, cudaAvailable: false, mpsAvailable: true };
+  state({ status: 'error', activity: `ImportError: ${message}`, messages: [{ id: 'answer', role: 'assistant', text: 'The installed library does not export the symbol this model imports.' }],
+    failure: { kind: 'environment', code: 'MODEL_IMPORT_FAILED', importFailure: true, diagnostic: {
+      exceptionType: 'ImportError', message, traceback, causes: [{ exceptionType: 'ImportError', message }], runtime, truncated: false,
+    } } });
+  const trace = screen.getByLabelText('Setup traceback'), observed = screen.getByLabelText('Observed setup runtime');
+  expect(trace).not.toBeVisible(); expect(observed).not.toBeVisible();
+  expect(screen.getByText('Error details').closest('details')).not.toHaveAttribute('open');
+  fireEvent.click(screen.getByText('Error details'));
+  expect(trace).toBeVisible(); expect(trace.textContent).toBe(traceback); expect(trace).toHaveAttribute('tabindex', '0');
+  expect(observed).toBeVisible(); expect(observed.textContent).toBe(JSON.stringify(runtime, null, 2));
+  expect(observed).toHaveAttribute('tabindex', '0');
+  expect(screen.getAllByRole('alert')).toHaveLength(1); expect(screen.getByRole('alert')).toHaveTextContent(message);
+  state({ revision: 2, status: 'running', requestId: 'next-turn', activity: 'Investigating…' });
+  expect(screen.queryByLabelText('Setup traceback')).toBeNull(); expect(screen.queryByText('Error details')).toBeNull();
+});
+
+test('a retained failure before any reply keeps its short error visible and its evidence expandable', () => {
+  const { state } = fixture(); openChat();
+  state({ status: 'error', activity: 'Model import failed.', failure: { kind: 'environment', code: 'MODEL_IMPORT_FAILED', diagnostic: {
+    exceptionType: 'ImportError', message: 'Missing export.', traceback: 'ImportError: Missing export.', causes: [],
+    runtime: { platform: 'darwin', architecture: 'arm64', python: '3.12.13', torch: null, cuda: null, cudaAvailable: null, mpsAvailable: null }, truncated: true,
+  } } });
+  expect(screen.getByRole('alert')).toHaveTextContent('Model import failed.');
+  expect(screen.getByLabelText('Setup traceback')).not.toBeVisible();
+  fireEvent.click(screen.getByText('Error details'));
+  expect(screen.getByLabelText('Setup traceback')).toBeVisible(); expect(screen.getByText('Evidence truncated.')).toBeVisible();
+  expect(screen.getAllByRole('alert')).toHaveLength(1);
 });

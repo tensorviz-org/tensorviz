@@ -2359,6 +2359,7 @@
           "type": "string"
         },
         "requires_grad": {
+          "default": false,
           "title": "Requires Grad",
           "type": "boolean"
         },
@@ -2377,7 +2378,6 @@
         "kind",
         "shape",
         "dtype",
-        "requires_grad",
         "generator"
       ],
       "title": "TensorValue",

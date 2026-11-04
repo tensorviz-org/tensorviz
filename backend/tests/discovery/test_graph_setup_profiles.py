@@ -78,6 +78,102 @@ def test_missing_constructor_and_input_fields_are_reported_together():
         ("init", "kwargs", "width"), ("inputs", "kwargs", "x")}
 
 
+@pytest.mark.parametrize('dtype,generator', [
+    ('int64', dict(kind='randint', low=0, high=16, seed=0)),
+    ('float32', dict(kind='normal', mean=0, std=1, seed=0)),
+])
+def test_omitted_requires_grad_saves_an_explicit_false_default(dtype, generator):
+    pending = profile()
+    tensor = pending['inputs']['args'][0]
+    tensor.update(dtype=dtype, generator=generator)
+    del tensor['requires_grad']
+    result = prepare_profile(snapshot(), '', pending)
+    assert result['ok'], result
+    saved = tomllib.loads(result['config'])['profiles'][result['profile']]
+    assert saved['inputs']['args'][0]['requires_grad'] is False
+    assert 'requires_grad' not in tensor, 'validation must not mutate the draft'
+
+
+def test_tagged_tensor_errors_only_describe_the_selected_variant():
+    pending = profile()
+    pending['inputs'] = dict(args=[], kwargs={'input_ids': dict(
+        kind='tensor', dtype='int64', generator=dict(kind='randint', low=0, seed=0))})
+    result = prepare_profile(snapshot(), '', pending)
+    assert result == dict(ok=False, requirements=[
+        dict(field=['inputs', 'input_ids', 'shape'], reason='field required'),
+        dict(field=['inputs', 'input_ids', 'generator', 'high'], reason='field required')])
+
+
+@pytest.mark.parametrize('name', ['input_ids', 'bool', 'str', 'Binding'])
+def test_nested_tagged_values_keep_readable_paths_and_user_field_names(name):
+    pending = profile()
+    pending['inputs'] = dict(args=[], kwargs={name: dict(kind='dict', items={
+        'tokens': dict(kind='list', items=[dict(kind='tensor', dtype='float32',
+            generator=dict(kind='normal', mean=0, std=1, seed=0))])})})
+    result = prepare_profile(snapshot(), '', pending)
+    assert result == dict(ok=False, requirements=[dict(
+        field=['inputs', name, 'items', 'tokens', 'items', 0, 'shape'], reason='field required')])
+
+
+def test_float_value_tag_is_not_confused_with_a_scalar_union_branch():
+    pending = profile()
+    pending['inputs']['args'] = [dict(kind='float')]
+    assert prepare_profile(snapshot(), '', pending) == dict(ok=False, requirements=[dict(
+        field=['inputs', 0, 'value'], reason='field required')])
+
+
+@pytest.mark.parametrize('generator,field,reason', [
+    ({}, 'kind', 'field required'),
+    (dict(kind='unknown'), 'kind', 'unknown kind; choose one of'),
+    (dict(kind='normal', mean=0, std=-1.5, seed=0), 'std', 'Input should be greater than 0'),
+])
+def test_generator_validation_omits_union_labels(generator, field, reason):
+    pending = profile()
+    pending['inputs']['args'][0]['generator'] = generator
+    result = prepare_profile(snapshot(), '', pending)
+    assert not result['ok']
+    assert len(result['requirements']) == 1
+    requirement = result['requirements'][0]
+    assert requirement['field'] == ['inputs', 0, 'generator', field]
+    assert requirement['reason'].startswith(reason)
+
+
+def test_invalid_input_factory_does_not_report_binding_alternatives():
+    pending = profile()
+    pending['inputs'] = dict(factory=dict(file='inputs.py'))
+    result = prepare_profile(snapshot(), '', pending)
+    assert result == dict(ok=False, requirements=[dict(
+        field=['inputs', 'factory', 'callable'], reason='field required')])
+
+
+def test_draft_errors_are_capped_to_five_readable_requirements():
+    pending = profile()
+    pending['inputs']['args'] = [dict(kind='tensor', dtype='int64',
+        generator=dict(kind='randint', low=0, high=16, seed=0)) for _ in range(12)]
+    result = prepare_profile(snapshot(), '', pending)
+    assert not result['ok']
+    assert len(result['requirements']) == 5
+    assert ['.'.join(map(str, item['field'])) + ': ' + item['reason']
+            for item in result['requirements']] == [f'inputs.{index}.shape: field required' for index in range(5)]
+
+
+def test_signature_requirements_also_have_a_five_message_cap():
+    source = SOURCE.replace('x, *, mask=None', ', '.join(f'input_{index}' for index in range(12)))
+    pending = profile()
+    pending['inputs'] = dict(args=[], kwargs={})
+    result = prepare_profile(snapshot(source), '', pending)
+    assert not result['ok']
+    assert len(result['requirements']) == 5
+    assert [item['field'][-1] for item in result['requirements']] == [f'input_{index}' for index in range(5)]
+
+
+def test_model_level_errors_name_setup_and_omit_pydantic_prefixes():
+    pending = profile()
+    del pending['init']
+    assert prepare_profile(snapshot(), '', pending) == dict(ok=False, requirements=[dict(
+        field=['setup'], reason='provide exactly one of init or factory')])
+
+
 @pytest.mark.parametrize("binding", [{"args": [], "kwargs": {}}, {"args": [], "kwargs": {"is_training": False}}])
 def test_empty_delegated_input_cannot_be_saved_as_a_complete_profile(binding):
     source = '''from torch import nn

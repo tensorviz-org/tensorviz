@@ -313,6 +313,13 @@ Names below are every `registerTool` and `registerAppTool` registration under `e
 
 An example that matches `backend/tests/fixtures/model_profiles/valid.toml` is in [saved profiles](model-validation-profiles.md).
 
+Tensor bindings use `kind = "tensor"`, `shape`, `dtype`, and a tagged `generator`.
+`requires_grad` defaults to `false`; set it to `true` only for floating tensors.
+Graph setup reports invalid draft fields with short dotted paths and shows at
+most five validation requirements at a time. A class whose local inheritance
+proves it is outside PyTorch is rejected before signature discovery; tensorViz
+captures PyTorch `nn.Module` and supported Flax/JAX models.
+
 {SOURCE_DIRECTIVES}
 """
     return body if body.endswith("\n") else body + "\n"

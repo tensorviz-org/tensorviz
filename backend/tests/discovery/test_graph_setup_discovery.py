@@ -15,6 +15,66 @@ def inspect_model(source, cls="Net", extra=None, file="model.py"):
     return discover(request)
 
 
+@pytest.mark.parametrize('extra', [None, {'base.py': 'class Module: pass\n'}])
+@pytest.mark.parametrize('explicit_object', [False, True])
+def test_non_torch_module_is_rejected_before_signature_resolution(tmp_path, extra, explicit_object):
+    marker = tmp_path / 'must-not-execute'
+    declaration = 'class Module(object): pass' if explicit_object else 'class Module: pass'
+    base = declaration if extra is None else 'from base import Module'
+    if extra is not None:
+        extra = {'base.py': declaration + '\n'}
+    source = f'''from pathlib import Path
+Path({str(marker)!r}).touch()
+{base}
+class MLP(Module):
+    def __init__(self, nin, nouts): pass
+    def __call__(self, x): return x
+'''
+    result = inspect_model(source, cls='MLP', extra=extra)
+    assert result['resolution']['status'] == 'partial'
+    assert result['resolution']['unresolved'] == [
+        'MLP is not a torch.nn.Module subclass; tensorViz captures PyTorch nn.Module (and Flax) models.']
+    assert not result['resolution'].get('runtimeInputs')
+    from services.ide.graph_setup_protocol import discovery
+    assert discovery(result)
+    assert not marker.exists()
+
+
+def test_a_shadowed_object_base_must_be_verified_by_the_worker():
+    result = inspect_model('''from external import object
+class Net(object):
+    def forward(self, x): return x
+''')
+    assert result['inputs'][0]['name'] == 'x'
+
+
+@pytest.mark.parametrize('base', ['flax.linen', 'flax.nnx'])
+def test_flax_discovery_precedes_the_pytorch_class_check(base):
+    result = inspect_model(f'''import {base} as nn
+class Net(nn.Module):
+    def __call__(self, x): return x
+''')
+    assert result['resolution']['draft']['profile']['framework'] == 'jax'
+
+
+@pytest.mark.parametrize('base', ['nn.Module', 'nn.Linear'])
+def test_torch_modules_with_mixins_remain_supported(base):
+    result = inspect_model(f'''from torch import nn
+class Mixin: pass
+class Net(Mixin, {base}):
+    def forward(self, x): return x
+''')
+    assert result['inputs'][0]['name'] == 'x'
+
+
+def test_a_decorator_may_replace_a_plain_class_with_a_module():
+    result = inspect_model('''@module_wrapper
+class Net:
+    def forward(self, x): return x
+''')
+    assert result['inputs'] is None
+
+
 def test_setup_collects_constructor_and_all_forward_arguments_without_execution(tmp_path):
     marker = tmp_path / "executed"
     result = inspect_model(f'''

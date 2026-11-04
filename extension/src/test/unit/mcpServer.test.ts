@@ -9,10 +9,14 @@ suite('standard MCP HTTP transport', () => {
   let connection: McpConnection;
   const clients: Client[] = [];
   let disposed = 0;
+  let toolWait: Promise<void> | undefined, toolCalls: number;
   setup(async () => {
-    disposed = 0;
+    disposed = 0; toolWait = undefined; toolCalls = 0;
     server = new GraphMcpServer(mcp => {
-      mcp.registerTool('read_fixture', { description: 'Read a fixture', inputSchema: {}, annotations: { readOnlyHint: true } }, async () => ({ content: [{ type: 'text', text: 'graph facts' }] }));
+      mcp.registerTool('read_fixture', { description: 'Read a fixture', inputSchema: {}, annotations: { readOnlyHint: true } }, async () => {
+        toolCalls++; await toolWait;
+        return { content: [{ type: 'text', text: 'graph facts' }] };
+      });
       return () => { disposed++; };
     });
     connection = await server.start();
@@ -25,6 +29,50 @@ suite('standard MCP HTTP transport', () => {
     await client.connect(transport);
     return { client, transport };
   }
+  const initialize = () => fetch(connection.url, { method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {
+      protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'reinitialized-agent', version: '1' } } }) });
+
+  test('capacity evicts the least recently used idle session and preserves more recently used sessions', async () => {
+    const sessions = [];
+    for (let i = 0; i < 16; i++) sessions.push(await connect(`idle-${i}`));
+    const now = Date.now;
+    try {
+      Date.now = () => now() + 61_000;
+      await sessions[0].client.listTools();
+      await connect('new-agent');
+      assert.equal(server.sessionCount, 16);
+      assert.equal((await fetch(connection.url, { headers: { 'Mcp-Session-Id': sessions[1].transport.sessionId! } })).status, 404);
+      assert.equal((await sessions[0].client.listTools()).tools.length, 1);
+      assert.equal((await sessions[2].client.listTools()).tools.length, 1);
+      assert.equal(disposed, 1);
+    } finally { Date.now = now; }
+  });
+
+  test('reinitializing without DELETE never locks out a client when sessions have no active requests', async () => {
+    for (let i = 0; i < 20; i++) await connect(`reinitialize-${i}`);
+    assert.equal(server.sessionCount, 16);
+    assert.equal(disposed, 4);
+  });
+
+  test('active tool requests cannot be evicted even after the idle cutoff', async () => {
+    const sessions = [];
+    for (let i = 0; i < 16; i++) sessions.push(await connect(`busy-${i}`));
+    let finish!: () => void;
+    toolWait = new Promise<void>(resolve => { finish = resolve; });
+    const calls = sessions.map(session => session.client.callTool({ name: 'read_fixture', arguments: {} }));
+    const now = Date.now;
+    try {
+      while (toolCalls < 16) await new Promise<void>(resolve => setImmediate(resolve));
+      Date.now = () => now() + 61_000;
+      const rejected = await initialize();
+      assert.equal(rejected.status, 429);
+      assert.match((await rejected.json() as { error: string }).error, /Close unused sessions.*Disconnect coding agents.*Connect coding agent/);
+      assert.equal(disposed, 0);
+    } finally { Date.now = now; finish(); await Promise.all(calls); }
+    assert.equal(server.sessionCount, 16);
+  });
 
   test('an arbitrary standard client initializes, lists and invokes tools', async () => {
     const { client } = await connect('any-compatible-agent');

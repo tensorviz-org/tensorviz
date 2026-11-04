@@ -19,6 +19,7 @@ interface Snapshot {
   config?: SetupFileSnapshot;
   runtimeDraft?: GraphSetupDraft;
   configDefaults?: boolean;
+  unresolvedInputs?: string[];
 }
 export interface GraphSetupHostOptions {
   origin(): string | undefined;
@@ -84,6 +85,8 @@ export class GraphSetupHost {
       throw new SetupFileError('The saved configuration fields could not be restored.');
     }
     const snapshot: Snapshot = { target: { ...target }, sources,
+      unresolvedInputs: [...new Set([...(discovery.inputs ?? []).filter(field => field.required).map(field => field.name),
+        ...(discovery.resolution?.unresolved ?? []).flatMap(item => /^inputs\.([A-Za-z_]\w*)/.exec(item)?.[1] ?? [])])].slice(0, 64),
       ...(discovery.resolution?.runtimeInputs ? { runtimeDraft: discovery.resolution.draft,
         configDefaults: discovery.init === null && !discovery.resolution.draft.profile.factory } : {}) };
     const requirements: string[] = [];
@@ -103,7 +106,8 @@ export class GraphSetupHost {
     trace: LocalBrowserTraceSupport): Promise<{ draft?: GraphSetupDraft; detail: string; missingModules?: string[]; importFailure?: true }> {
     const snapshot = this.snapshot;
     this.check(target, signal);
-    const unavailable = { detail: 'An input example could not be determined. Complete the input fields to capture this model.' };
+    const unavailable = { detail: `Automatic input inference could not resolve the forward inputs${snapshot?.unresolvedInputs?.length
+      ? `: ${snapshot.unresolvedInputs.join(', ').slice(0, 384)}` : ''}. Fill the inputs in the setup form, or call suggest_graph_inputs / configure_graph_setup.` };
     if (!snapshot || !same(snapshot.target, target) || !snapshot.runtimeDraft || draft.configObject
       || JSON.stringify(snapshot.runtimeDraft) !== JSON.stringify(draft)) return unavailable;
     const translated = translateProfile(draft.profile as unknown as RunSpec['profile'], 'example');
@@ -128,7 +132,9 @@ export class GraphSetupHost {
       this.check(target, signal);
       if (!result.ok || !result.executionCurrent || !await result.recheckExecution?.(signal) || !await beforeLaunch()) {
         return result.ok ? unavailable : { detail: executionDiagnosticDetail(result.envelope?.error?.diagnostic, target.cls, result.envelope?.error?.node_id)
-          ?? 'Input preparation failed. Check the selected Python environment and model configuration.',
+          ?? [unavailable.detail, result.envelope?.error?.message, result.reason, result.detail]
+            .filter((value): value is string => typeof value === 'string' && !!value.trim())
+            .filter((value, index, values) => values.indexOf(value) === index).join('\n').slice(0, 1024),
           missingModules: executionFailure(result.envelope?.error?.diagnostic).missingModules,
           importFailure: executionFailure(result.envelope?.error?.diagnostic).importFailure };
       }

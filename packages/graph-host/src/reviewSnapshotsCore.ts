@@ -169,7 +169,14 @@ export async function indexSnapshot(folder: string): Promise<ReviewSnapshot> {
 
 export async function workingSnapshotCore(folder: string, open: readonly { file: string; isDirty: boolean; getText(): string }[] = []): Promise<ReviewSnapshot> {
   const names = (await reviewGit(folder, ['ls-files', '-z', '--cached', '--others', '--exclude-standard'])).split('\0').filter(Boolean);
-  names.push(...open.map(doc => path.relative(folder, doc.file).split(path.sep).join('/')));
+  const buffers = open.map(doc => path.relative(folder, doc.file).split(path.sep).join('/')).filter(reviewPath);
+  const unlisted = buffers.filter(file => !names.includes(file));
+  let ignored = new Set<string>();
+  if (unlisted.length) {
+    try { ignored = new Set((await reviewGit(folder, ['check-ignore', '-z', '--stdin'], `${unlisted.join('\0')}\0`)).split('\0').filter(Boolean)); }
+    catch (error) { if ((error as { code?: number }).code !== 1) throw error; }
+  }
+  names.push(...buffers.filter(file => !ignored.has(file)));
   const files = new Map<string, string>(), contents = new Map<string, string>();
   let truncated = false, bytes = 0;
   for (const file of [...new Set(names)].filter(reviewPath)) {

@@ -60,6 +60,19 @@ suite('automatic review inventories', () => {
     assert.equal(await index.read('model.py'), 'staged\n', 'index snapshots read captured blob IDs, not the mutable index');
     assert.equal(await after.read('model.py'), 'unsaved\n');
   });
+  test('ignored files and buffers in nested clones are not added, while tracked ignored files retain edits', async () => {
+    await fs.writeFile(path.join(root, '.gitignore'), 'clone/\nignored.py\nmodel.py\n');
+    await fs.mkdir(path.join(root, 'clone'));
+    await reviewGit(path.join(root, 'clone'), ['init', '-q']);
+    await fs.writeFile(path.join(root, 'clone/model.py'), 'nested disk\n');
+    for (const file of ['clone/model.py', 'clone/unsaved.py', 'ignored.py', 'model.py', 'new.py']) {
+      editorState.documents.set(path.join(root, file), `unsaved ${file}\n`);
+      editorState.dirtyDocuments.add(path.join(root, file));
+    }
+    const after = await workingSnapshot(root);
+    assert.deepEqual([...after.files.keys()].sort(), ['helper.py', 'model.py', 'new.py']);
+    assert.equal(await after.read('model.py'), 'unsaved model.py\n');
+  });
   test('project boundaries come from each snapshot including metadata absent on disk', () => {
     const files = new Map([['models/pyproject.toml', 'a'], ['models/nested/net.py', 'b']]);
     assert.equal(snapshotProject('models/nested/net.py', files), 'models');

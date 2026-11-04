@@ -6,7 +6,7 @@ import { inspectEnvironmentCandidates, type EnvironmentRunner } from '@tensorviz
 import { inspectModelEnvironment, startModelInspection } from '@tensorviz/graph-host/modelEnvironment';
 import { GraphToolError } from '@tensorviz/graph-host/mcpGraph';
 import { automaticProjectCandidate, discoverEnvironments, environmentCost, environmentExecutable, rankEnvironmentCandidates, readyForModel,
-  rememberEnvironment, runEnvironmentHelper, savedEnvironment } from './projectEnvironment';
+  rememberEnvironment, runEnvironmentHelper, savedEnvironment, savedEnvironmentLabel } from './projectEnvironment';
 import { ensureModelDependencies, installMcpDependencies, replaceModelVersions, type DependencyInstallOptions } from './mcpDependencies';
 import { createModelEnvironment } from './modelEnvironmentCreation';
 
@@ -72,7 +72,7 @@ export async function checkOpeningEnvironment(options: OpeningEnvironmentOptions
           : 'Choose the Python environment for this model. The VS Code selection is highlighted as a suggestion.' };
   }
   const capture = inspectEnvironmentCandidates([{ interpreter: selected,
-    source: choice?.kind === 'managed' ? 'tensorViz-managed fallback' : configured && !choice ? 'tensorViz Python setting' : 'Saved for this folder',
+    source: choice?.kind === 'managed' ? 'tensorViz-managed fallback' : configured && !choice ? 'tensorViz Python setting' : savedEnvironmentLabel(resource),
     selected: true, ...(choice?.kind === 'managed' ? { managed: true } : {}) }], { ...options, runner });
   // The model check needs only the interpreter, so it runs alongside the capture
   // check instead of after it. Both are read-only; if the environment turns out to

@@ -170,12 +170,15 @@ When an installed model library conflicts only with the project's own declaratio
 for example DINOv2's `torch==2.0.0` with the repository CPU pin Torch 2.14.1 installed ([pins](../local-setup.md#install)), native Canvas also
 offers **Try with installed versions** for the saved environment. The model check
 reports each conflict's exact declaration (`declaredPins`); the host remembers those
-pins for the workspace and interpreter during the current VS Code session and continues
+pins for the project and interpreter during the current VS Code session and continues
 the same opening. Nothing is installed or written to settings. Choosing the environment
 again, or a changed set of pins, starts a fresh check. A failed capture shows its real
 error, and an observed import failure brings the choice back. Conflicts with
 tensorViz's own capture requirements, such as Python or pydantic, are never
-overridable. The standalone plugin and MCP do not offer this override.
+overridable. The extension's MCP endpoint offers the same override as `open_graph`
+action `use_installed_versions`, using the current request, opening and source identities.
+It is offered only when the environment reports `declaredPins`. The standalone plugin
+does not offer this override.
 
 For a saved project environment the same notice also offers **Install in this
 environment**, which replaces the installed versions with the project's pins in place
@@ -291,13 +294,15 @@ notifications no longer block continuation while waiting to be dismissed.
 
 ## Extension service and project Python
 
-Python selection is scoped to the model's owning workspace folder. The picker
+Python selection is scoped to the model's project root, including nested projects;
+files without a nested project use their owning workspace folder. The picker
 queries the Python extension with the actual model resource, so its suggestion
 can differ between files and roots. Browser/MCP recovery and compatibility-copy
 promotion pass that same resource. A saved unavailable path remains authoritative.
 
 The old workspace-wide choice migrates only to the first folder, which owned the
-old picker. Other roots require their own choice. The former machine-wide managed
+old picker. It still applies to models rooted in that workspace folder, while nested
+projects require their own choice. The former machine-wide managed
 default no longer overrides a new folder's Python selection; the ready managed
 runtime remains available as a fallback without another download. Scoped selections
 are host-local and are not Settings Sync data.

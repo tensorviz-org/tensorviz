@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import { reviewGit } from '@tensorviz/graph-host/gitReviewSources';
-import { gitSnapshot, indexSnapshot, reviewFilePath, ReviewSession, ReviewSnapshot, workingSnapshot } from './reviewSnapshots';
+import { gitSnapshot, indexSnapshot, reviewDirectory, reviewFilePath, ReviewSession, ReviewSnapshot, workingSnapshot } from './reviewSnapshots';
 import { githubRepository, GitHubRead, loadPullRequest, parsePullRequestUrl } from './githubReview';
 import { sha256Text } from './workspaceSources';
 
@@ -13,12 +13,22 @@ function filename(uri: vscode.Uri): string {
   const value = query(uri);
   return reviewFilePath(typeof value.path === 'string' ? value.path : uri.fsPath);
 }
-export async function workspaceGitFolder(uri?: vscode.Uri): Promise<string | undefined> {
+export async function workspaceGitFolder(uri?: vscode.Uri, required = false): Promise<string | undefined> {
   const selected = uri && vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filename(uri)));
   const folder = selected ?? (vscode.workspace.workspaceFolders?.length === 1 ? vscode.workspace.workspaceFolders[0] : undefined);
-  const directory = folder?.uri.fsPath ?? (uri && path.isAbsolute(filename(uri)) ? path.dirname(filename(uri)) : undefined);
+  const file = uri && filename(uri);
+  if (file && !selected && vscode.workspace.workspaceFolders?.length) {
+    const inside = vscode.workspace.workspaceFolders.some(item => {
+      const relative = path.relative(reviewDirectory(item.uri.fsPath), file);
+      return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+    });
+    const active = vscode.window.activeTextEditor?.document.uri;
+    if (!inside && (!active || file !== filename(active))) return undefined;
+  }
+  const directory = file && path.isAbsolute(file) ? path.dirname(file) : folder?.uri.fsPath;
   if (!directory) return undefined;
-  try { return (await reviewGit(directory, ['rev-parse', '--show-toplevel'])).trim(); } catch { return undefined; }
+  try { return (await reviewGit(directory, ['rev-parse', '--show-toplevel'])).trim(); }
+  catch (error) { if (required) throw error; return undefined; }
 }
 export async function repositoryForFolder(folder: string, remote = 'origin'): Promise<string | undefined> {
   if (!/^[\w.-]+$/.test(remote)) return undefined;
@@ -27,8 +37,12 @@ export async function repositoryForFolder(folder: string, remote = 'origin'): Pr
 
 /** SCM actions identify their side explicitly; an unrelated active diff is never consulted. */
 export async function reviewFileChanges(uri: vscode.Uri, kind: 'working' | 'staged' | 'head'): Promise<ReviewSession> {
-  const folder = await workspaceGitFolder(uri);
+  const folder = await workspaceGitFolder(uri, true);
   if (!folder) throw new Error('Open a Python file in a Git repository to compare changes.');
+  if (kind !== 'working') {
+    try { await reviewGit(folder, ['rev-parse', '--verify', 'HEAD^{commit}']); }
+    catch (error) { throw new Error(`The Git repository has no readable HEAD commit. Create a commit before comparing. ${error instanceof Error ? error.message : String(error)}`); }
+  }
   const file = path.relative(folder, filename(uri)).split(path.sep).join('/');
   const before = kind === 'working' ? await indexSnapshot(folder) : await gitSnapshot(folder, 'HEAD');
   const after = kind === 'staged' ? await indexSnapshot(folder) : await workingSnapshot(folder);

@@ -722,8 +722,8 @@
     "//vsix": "Build a local VSIX in order: ensure dependencies, build:webview, compile, package. package uses the existing webview build; keeping the steps separate avoids duplicate builds in release-vsix.yml. See docs/releasing.md.",
     "vsix": "node scripts/build-vsix.mjs",
     "check:staged": "node scripts/check-staged.mjs",
-    "//dev:build": "Refresh the staged backend, webpage and compiled host before F5, then check that all three outputs are current.",
-    "dev:build": "npm run stage:backend && npm run build:webview && npm run compile && npm run check:staged"
+    "//dev:build": "Build the webpage before staging the backend and compiled host for F5, then check that all three outputs are current.",
+    "dev:build": "npm run build:webview && npm run stage:backend && npm run compile && npm run check:staged"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

@@ -14,6 +14,8 @@ Compare Python changes on the graph, with the code diff beside it.
 
 You can also choose **Graph diff** from an open Python diff, or run **tensorViz: Review model changes** for working changes, branch changes, or two local revisions. In Source Control, **Changes** compares the index with working files, including unsaved buffers; **Staged Changes** compares HEAD with the index. **Graph diff against HEAD** compares HEAD with working files.
 
+File-based comparisons use the nearest Git repository containing the model, including nested clones under a workspace that is not a repository. Ignored files and their open buffers are excluded from added files; tracked files retain unsaved edits. MCP reports the Git failure reason when the repository, HEAD commit, or Git executable is unavailable.
+
 
 ## Review a pull request
 

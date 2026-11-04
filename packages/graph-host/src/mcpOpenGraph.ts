@@ -28,7 +28,7 @@ export interface OpenGraphArgs {
   openingId?: string;
   sourceDigest?: string;
   draft?: Record<string, unknown>;
-  action?: 'retry' | 'cancel' | 'environment' | 'request_permission' | 'install_dependencies' | 'report_blocker' | 'select_environment' | 'refresh_environments';
+  action?: 'retry' | 'cancel' | 'environment' | 'request_permission' | 'install_dependencies' | 'report_blocker' | 'select_environment' | 'refresh_environments' | 'use_installed_versions';
   candidateId?: string;
   packages?: string[];
   blocker?: Blocker;
@@ -44,6 +44,7 @@ export interface OpenGraphHost {
   environment?(state: GraphOpeningState, signal: AbortSignal): Promise<boolean>;
   inspectEnvironment?(file: string | undefined, signal: AbortSignal): Promise<JsonObject>;
   permission?(signal: AbortSignal): Promise<void>;
+  pending?(): { kind: 'runtime_install_approval'; detail: string } | undefined;
 }
 interface Request {
   id: string;
@@ -160,6 +161,10 @@ export class McpOpenGraph {
         if (args.action === 'select_environment' && !state.environment?.candidates.some(candidate => candidate.id === args.candidateId && candidate.status !== 'unavailable')) {
           throw new GraphToolError('INVALID_REQUEST', 'Select a listed available candidateId from opening.environment. Refresh changed candidates first.');
         }
+        if (args.action === 'use_installed_versions' && (!['needs_setup', 'failed'].includes(state.phase)
+          || state.environment?.reason !== 'incompatible' || !state.environment.declaredPins?.length)) {
+          throw new GraphToolError('INVALID_REQUEST', 'Use installed versions only for reported project pin mismatches. Capture-library checks still apply.');
+        }
         const setupAction: GraphSetupAction = args.draft
           ? { kind: 'submit', draft: args.draft as { profile: Record<string, unknown> } }
           : args.action === 'select_environment' ? { kind: 'select_environment', candidateId: args.candidateId! }
@@ -227,6 +232,9 @@ export class McpOpenGraph {
       ? { openingId: current.id, sourceDigest: current.target.sourceDigest } : {}) };
     const call = (kind: string, instruction: string, args: JsonObject = identity, requiredArguments: string[] = []): JsonObject =>
       ({ kind, tool: 'open_graph', arguments: args, requiredArguments, instruction });
+    if (status === 'awaiting_runtime_install') return { ...call('approve_runtime_install',
+      'The user must approve “Install tensorViz’s runtime” in VS Code. If the prompt is hidden, run “tensorViz: Repair runtime”. After the user responds, poll this requestId; do not start another opening or approve through MCP.',
+      { requestId: request.id }), pollAfterMs: 1000 };
     if (this.host.permission && ['APPROVAL_DECLINED', 'APPROVAL_CANCELLED'].includes(request.error?.code ?? '')) {
       return call('permission_required', 'TensorViz is stopped. If the user requests enabling it, use this action to show their confirmation and resume this opening. This action cannot grant permission. Do not reopen a declined prompt automatically.',
         { requestId: request.id, action: 'request_permission' });
@@ -249,6 +257,9 @@ export class McpOpenGraph {
     if (request.error?.code === 'ENVIRONMENT_REQUIRED') return call('select_environment', 'Choose a working Python environment through the native chooser, then continue this request. If the user declines or no compatible environment is available, report_blocker.', { ...identity, action: 'environment' });
     const environment = current.environment;
     if (environment && environment.reason !== 'ready') {
+      if (environment.reason === 'incompatible' && environment.declaredPins?.length) return call('use_installed_versions',
+        'Project pins differ from installed libraries. Call this action to try the installed versions without installing or downgrading packages. Capture-worker checks still apply; model compatibility is not guaranteed.',
+        { ...identity, action: 'use_installed_versions' });
       if (environment.reason === 'selection_required' || environment.reason === 'unavailable') return call('select_environment',
         'Read opening.environment candidates and choose the model’s intended project Python. Submit its candidateId, or request the native environment chooser. Do not infer Python from your shell or silently substitute a missing saved choice.',
         { ...identity, action: environment.candidates.some(candidate => candidate.status !== 'unavailable') ? 'select_environment' : 'environment' },
@@ -280,7 +291,8 @@ export class McpOpenGraph {
       : request.error?.code === 'SOURCE_BUILD_DECLINED' ? { source: 'host', reason: 'Building dependencies from source was not approved.',
         evidence: request.error.message, nextStep: 'The user must approve the source build or provide requirements with compatible wheels. Do not repeat the declined build prompt.' } : undefined;
     const permissionBlocked = this.host.permission && ['APPROVAL_DECLINED', 'APPROVAL_CANCELLED'].includes(request.error?.code ?? '');
-    const status = blocker || permissionBlocked ? 'blocked' : request.error ? 'failed' : current?.execution?.phase === 'review' ? 'awaiting_execution' : request.pending ? 'opening'
+    const pending = request.pending ? this.host.pending?.() : undefined;
+    const status = blocker || permissionBlocked ? 'blocked' : request.error ? 'failed' : pending?.kind === 'runtime_install_approval' ? 'awaiting_runtime_install' : current?.execution?.phase === 'review' ? 'awaiting_execution' : request.pending ? 'opening'
       : current?.phase === 'cancelled' && current.cancellationReason === 'source_changed' ? 'source_changed' : current?.phase ?? 'superseded';
     const selected = current?.environment?.candidates.find(candidate => candidate.id === current.environment?.selectedId);
     const cached = request.dependencies?.environment as JsonObject | undefined;
@@ -298,6 +310,7 @@ export class McpOpenGraph {
     return { requestId: request.id, status, validated: status === 'ready' && current?.hasCapture === true,
       continuationRequired: !['blocked', 'cancelled', 'awaiting_execution'].includes(status) && !(status === 'ready' && current?.hasCapture),
       nextAction, next: nextAction.instruction,
+      ...(pending ? { pending } : {}),
       ...(blocker ? { blocker } : {}),
       ...(request.error ? { error: request.error } : {}),
       ...(environment ? { environment } : {}),
@@ -321,7 +334,7 @@ export function registerMcpOpenGraph(server: McpServer, service: McpOpenGraph, o
     inputSchema: { file: z.string().min(1).max(4096).optional(), cls: z.string().regex(/^[A-Za-z_]\w*$/).optional(),
       requestId: z.string().uuid().optional(), openingId: z.string().min(1).max(128).optional(),
       sourceDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(), draft: z.record(z.string(), z.json()).optional(),
-      action: z.enum(['retry', 'cancel', 'environment', 'install_dependencies', 'report_blocker', 'select_environment', 'refresh_environments']).optional(),
+      action: z.enum(['retry', 'cancel', 'environment', 'install_dependencies', 'report_blocker', 'select_environment', 'refresh_environments', 'use_installed_versions']).optional(),
       candidateId: z.string().min(1).max(64).optional(),
       packages: z.array(z.string().min(1).max(200)).min(1).max(32).optional(),
       blocker: blockerSchema.optional().describe('Required with report_blocker: specific reason, observed error or source evidence, and the question, asset or user action needed to continue. Agent-reported evidence is not independently verified.') },

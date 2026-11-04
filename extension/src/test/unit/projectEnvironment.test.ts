@@ -4,7 +4,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { ENVIRONMENT_KEY, ENVIRONMENTS_KEY, savedEnvironment, rememberEnvironment, EnvironmentChoice, EnvironmentRunner, environmentExecutable,
-  discoverEnvironments, resolveCaptureEnvironment, selectProjectEnvironment, selectedExecutionInterpreter, selectedExecutionEnvironment, inspectExecutionEnvironment } from '../../projectEnvironment';
+  discoverEnvironments, resolveCaptureEnvironment, selectProjectEnvironment, selectedExecutionInterpreter, selectedExecutionEnvironment, inspectExecutionEnvironment,
+  environmentScope, savedEnvironmentLabel } from '../../projectEnvironment';
 import { ManagedRuntime } from '../../runtime';
 import { graphMcpHelpRequest } from '@tensorviz/contracts/graphHelpRequest';
 import { reset, state, setInfoResponder, infoMessages } from '../vscodeStub';
@@ -50,6 +51,36 @@ suite('project environment selection and consent', () => {
     check: async () => ({ state: 'ready', interpreter }),
     provision: () => { throw new Error('must not recreate a ready environment'); },
   } as unknown as ManagedRuntime);
+
+  test('nested project choices never replace or inherit workspace choices, including legacy choices', async () => {
+    state.workspaceFolders = [{ uri: vscode.Uri.file(directory) }];
+    const project = path.join(directory, 'dinov2');
+    fs.mkdirSync(project); fs.writeFileSync(path.join(project, 'pyproject.toml'), '');
+    const model = vscode.Uri.file(path.join(project, 'model.py'));
+    const unrelated = vscode.Uri.file(path.join(directory, 'agent_test.py'));
+    const workspaceChoice = { kind: 'project' as const, interpreter: '/workspace/python' };
+    memory.set(ENVIRONMENT_KEY, workspaceChoice);
+    assert.deepEqual(savedEnvironment(context, unrelated), workspaceChoice);
+    assert.equal(savedEnvironment(context, model), undefined);
+    await rememberEnvironment(context, choice, model);
+    assert.equal(environmentScope(model), project);
+    assert.deepEqual(savedEnvironment(context, model), choice);
+    assert.deepEqual(savedEnvironment(context, unrelated), workspaceChoice);
+    assert.equal(await selectedExecutionInterpreter(context, model, async () => undefined), choice.interpreter);
+    assert.equal(await selectedExecutionInterpreter(context, unrelated, async () => undefined), workspaceChoice.interpreter);
+    assert.equal(savedEnvironmentLabel(model), `Saved for project: ${project}`);
+    const candidates = await discoverEnvironments(context, '/backend', { resource: model, signal: new AbortController().signal, runner });
+    assert.equal(candidates.find(candidate => candidate.selected)?.source, savedEnvironmentLabel(model));
+    state.workspaceFolders = [{ uri: vscode.Uri.file(project) }];
+    assert.deepEqual(savedEnvironment(context, model), choice, 'opening the nested folder preserves the same project key');
+  });
+  test('saved environment labels keep the project visible within the candidate wire limit', () => {
+    const project = `/${'parent/'.repeat(50)}model_project`;
+    state.workspaceFolders = [{ uri: vscode.Uri.file(project) }];
+    const label = savedEnvironmentLabel(vscode.Uri.file(path.join(project, 'model.py')));
+    assert.ok(label.length <= 256);
+    assert.ok(label.endsWith('/model_project'));
+  });
 
   test('Browse saves a chosen Python before any worker check or dependency review', async () => {
     memory.set(ENVIRONMENT_KEY, { kind: 'managed' });

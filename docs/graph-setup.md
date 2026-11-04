@@ -11,6 +11,8 @@ TensorViz needs a way to create your model and an example input for one forward 
 
 A complete initial setup saves `tensorviz.toml` and starts the capture. Suggested values are examples; check that they make sense for your model.
 
+If automatic input inference cannot resolve the forward inputs, fill them in the setup form. Agents can call `suggest_graph_inputs` or `configure_graph_setup`. The failure includes known unresolved input names and available worker details; manual inputs can still capture the model.
+
 ## Change an existing input
 
 Open **Inputs** in the Canvas. Review the saved profile, change the values, and use the run controls to capture again. When editing `tensorviz.toml` directly, save it before choosing **Run again**.

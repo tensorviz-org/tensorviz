@@ -59,6 +59,8 @@ npm run protocol:check
 npm run dev:build --prefix extension
 ```
 
+`dev:build` builds the webview before staging the backend, so it also works when `extension/media/app` does not exist yet. The VSIX build uses the same order.
+
 Open this folder in VS Code, choose **Run tensorViz extension (examples/tensorviz-test)**, and press F5. That launch config opens `examples/tensorviz-test`.
 
 `.vscode/launch.json` also defines **Run tensorViz extension (repository root)** for checks that need the whole checkout.

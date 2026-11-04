@@ -3,10 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prepare-content": "node prepare.mjs",
-    "dev": "node prepare.mjs && vitepress dev site",
-    "build": "node prepare.mjs && vitepress build site",
-    "preview": "vitepress preview site"
+    "prepare-content": "node .vitepress/prepare.mjs",
+    "dev": "node .vitepress/prepare.mjs && vitepress dev .",
+    "build": "node .vitepress/prepare.mjs && vitepress build .",
+    "preview": "vitepress preview ."
   },
   "devDependencies": {
     "@fontsource-variable/geist": "^5.3.0",

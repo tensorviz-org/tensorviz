@@ -15,7 +15,6 @@ on:
       - 'packages/**/*.md'
       - 'plugins/**/*.md'
       - 'examples/**/*.md'
-      - 'docs-site/**'
       - '.github/workflows/docs-site.yml'
   pull_request:
     paths:
@@ -29,7 +28,6 @@ on:
       - 'packages/**/*.md'
       - 'plugins/**/*.md'
       - 'examples/**/*.md'
-      - 'docs-site/**'
       - '.github/workflows/docs-site.yml'
   workflow_dispatch:
 
@@ -52,12 +50,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: docs-site/package-lock.json
+          cache-dependency-path: docs/package-lock.json
       - name: Install
-        working-directory: docs-site
+        working-directory: docs
         run: npm ci
       - name: Build
-        working-directory: docs-site
+        working-directory: docs
         run: DOCS_BASE=/tensorviz/ npm run build
       - name: Setup Pages
         if: github.event_name != 'pull_request' && vars.PAGES_ENABLED == 'true'
@@ -66,7 +64,7 @@ jobs:
         if: github.event_name != 'pull_request' && vars.PAGES_ENABLED == 'true'
         uses: actions/upload-pages-artifact@v5
         with:
-          path: docs-site/site/.vitepress/dist
+          path: docs/.vitepress/dist
 
   deploy:
     if: github.event_name != 'pull_request' && vars.PAGES_ENABLED == 'true'

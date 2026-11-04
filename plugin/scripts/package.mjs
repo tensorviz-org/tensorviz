@@ -110,8 +110,8 @@ async function pack({ release = false } = {}) {
     'plugin/package.json', 'plugin/package-lock.json', 'plugin/tsconfig.json',
     'plugin/scripts/build.mjs', 'plugin/scripts/package.mjs', 'tooling/packaging/bundle-notices.mjs',
     'canvas/package.json', 'canvas/package-lock.json', 'canvas/tsconfig.json',
-    'canvas/scripts/build-plugin.cjs', 'canvas/scripts/plugin-license.cjs', 'runtime/python/manifest.json', 'runtime/backend-profiles.json', 'tooling/runtime/stage-backend.mjs', 'tooling/runtime/assets.mjs', 'docs/standalone-install.md', 'docs/standalone-permissions.md', 'docs/standalone-cursor.md', 'docs/standalone-panel.md', 'docs/package-names.md',
-    'docs/standalone-t3.md', ...[...tracked].filter(file => file.startsWith('plugin/licenses/'))]) inputs.push(path.join(root, file));
+    'canvas/scripts/build-plugin.cjs', 'canvas/scripts/plugin-license.cjs', 'runtime/python/manifest.json', 'runtime/backend-profiles.json', 'tooling/runtime/stage-backend.mjs', 'tooling/runtime/assets.mjs', 'plugin/packaging/archive/standalone-install.md', 'plugin/packaging/archive/standalone-permissions.md', 'plugin/packaging/archive/standalone-cursor.md', 'plugin/packaging/archive/standalone-panel.md', 'plugin/packaging/archive/package-names.md',
+    'plugin/packaging/archive/standalone-t3.md', ...[...tracked].filter(file => file.startsWith('plugin/licenses/'))]) inputs.push(path.join(root, file));
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-package-'));
   const output = path.join(root, 'plugin/dist'), staging = path.join(temporary, `tensorviz-${version}`);
   const destination = path.join(staging, 'plugins/tensorviz');
@@ -133,13 +133,13 @@ async function pack({ release = false } = {}) {
     await copy(path.join(plugin, 'runtime-manifest.json'), path.join(destination, 'runtime-manifest.json'));
     await copy(path.join(root, 'LICENSE'), path.join(destination, 'LICENSE'));
     await copy(path.join(root, 'runtime/licenses/tldraw-5.0.1.md'), path.join(destination, 'licenses/tldraw-5.0.1.md'));
-    await copy(path.join(root, 'docs/standalone-install.md'), path.join(staging, 'README.md'));
-    await copy(path.join(root, 'docs/standalone-install.md'), path.join(staging, 'standalone-install.md'));
-    await copy(path.join(root, 'docs/standalone-permissions.md'), path.join(staging, 'standalone-permissions.md'));
-    await copy(path.join(root, 'docs/standalone-cursor.md'), path.join(staging, 'standalone-cursor.md'));
-    await copy(path.join(root, 'docs/standalone-panel.md'), path.join(staging, 'standalone-panel.md'));
-    await copy(path.join(root, 'docs/standalone-t3.md'), path.join(staging, 'standalone-t3.md'));
-    await copy(path.join(root, 'docs/package-names.md'), path.join(staging, 'package-names.md'));
+    await copy(path.join(root, 'plugin/packaging/archive/standalone-install.md'), path.join(staging, 'README.md'));
+    await copy(path.join(root, 'plugin/packaging/archive/standalone-install.md'), path.join(staging, 'standalone-install.md'));
+    await copy(path.join(root, 'plugin/packaging/archive/standalone-permissions.md'), path.join(staging, 'standalone-permissions.md'));
+    await copy(path.join(root, 'plugin/packaging/archive/standalone-cursor.md'), path.join(staging, 'standalone-cursor.md'));
+    await copy(path.join(root, 'plugin/packaging/archive/standalone-panel.md'), path.join(staging, 'standalone-panel.md'));
+    await copy(path.join(root, 'plugin/packaging/archive/standalone-t3.md'), path.join(staging, 'standalone-t3.md'));
+    await copy(path.join(root, 'plugin/packaging/archive/package-names.md'), path.join(staging, 'package-names.md'));
     const notices = path.join(destination, 'DEPENDENCY_NOTICES.md');
     const missing = {};
     for (const item of await json(path.join(root, 'plugin/licenses/sources.json'))) {
@@ -208,7 +208,7 @@ async function pack({ release = false } = {}) {
     await fs.mkdir(path.join(cursorRoot, '.cursor-plugin'), { recursive: true });
     await fs.writeFile(path.join(cursorRoot, '.cursor-plugin/marketplace.json'), JSON.stringify({ name: 'tensorviz-standalone',
       owner: { name: 'TensorViz' }, plugins: [{ name: 'tensorviz', source: 'plugins/tensorviz' }] }, null, 2) + '\n');
-    await copy(path.join(root, 'docs/standalone-cursor.md'), path.join(cursorRoot, 'README.md'));
+    await copy(path.join(root, 'plugin/packaging/archive/standalone-cursor.md'), path.join(cursorRoot, 'README.md'));
     await archiveRelease(cursorRoot, { ...baseManifest, target: 'cursor', compatibility: { ...baseManifest.compatibility,
       verified: [], verificationPending: ['Cursor installation, capture, display and update acceptance'] } });
   } finally { await fs.rm(temporary, { recursive: true, force: true }); }

@@ -52,12 +52,11 @@ Start with installation, then follow the task you want to do.
 
 - [Build from source](local-setup.md)
 - [Build the plugin](plugin-build.md)
+- [Build the documentation](documentation-site.md)
 - [Contributing](../CONTRIBUTING.md)
 - [Licensing](licensing.md) and [security](../SECURITY.md)
 - [Dependency maintenance](dependency-maintenance.md)
 - [Local agent QA recording](local-agent-recording.md)
 - [Extension changelog](../extension/CHANGELOG.md)
-- [Readable boundary names release](release-boundary-names-2026-10-27.md)
-- [Extension source sync](sync-2026-10-30.md)
 
 </details>

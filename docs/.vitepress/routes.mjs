@@ -8,7 +8,6 @@ export const outPath = (p) => (/(^|\/)README\.md$/.test(p) && p !== 'README.md' 
 // serves at the directory URL.
 export const route = (p) => {
   const o = outPath(p)
-  if (o === 'docs/getting-started.html') return '/docs/getting-started.html'
   if (o === 'index.md') return '/'
   if (o.endsWith('/index.md')) return '/' + o.slice(0, -'index.md'.length)
   if (o.endsWith('.md')) return '/' + o.slice(0, -'.md'.length) + '.html'

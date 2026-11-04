@@ -69,15 +69,15 @@ Canvas hot reload is the dev server (`npm start --prefix canvas`) with `REACT_AP
 
 ## Documentation website
 
-Run `npm ci --prefix docs-site` and `npm run dev --prefix docs-site` for a local
+Run `npm ci --prefix docs` and `npm run dev --prefix docs` for a local
 preview. The documentation workflow builds on matching pull requests and main
 updates. Deployment requires a configured GitHub Pages site and the repository
 Actions variable `PAGES_ENABLED=true`; it is off by default. See the
-[site guide](../docs-site/README.md).
+[documentation guide](documentation-site.md).
 
 The docs header and favicon use the original mark from
 [`canvas/public/favicon.svg`](../canvas/public/favicon.svg). Keep the three logo
-assets in `docs-site/site/public/` aligned with it.
+assets in `docs/public/` aligned with it.
 
 ## tldraw key
 

@@ -31,7 +31,7 @@ from fastapi.testclient import TestClient
 
 import server_v2  # noqa: E402
 
-GUIDE = Path(__file__).parent.resolve().parents[2] / "docs" / "getting-started.html"
+LEGACY_GUIDE = Path(__file__).resolve().parents[1] / "fixtures" / "getting-started.html"
 INPUT_SHAPE = [1, 3, 32, 32]
 FLATTENED = 16 * 15 * 15  # 3600
 
@@ -129,11 +129,11 @@ def test_the_old_recipe_still_fails_for_the_reason_the_audit_gave(client: TestCl
     assert any("multiplied" in error["message"] for error in body["errors"]), body["errors"]
 
 
-def test_the_current_source_example_opens_and_runs(client: TestClient) -> None:
-    """Run the exact source readers copy, including its declared trace shape."""
-    guide = GUIDE.read_text(encoding="utf-8")
+def test_the_legacy_source_example_opens_and_runs(client: TestClient) -> None:
+    """Keep the retired HTML guide recipe covered by a real forward pass."""
+    guide = LEGACY_GUIDE.read_text(encoding="utf-8")
     example = re.search(r'<section id="example">.*?<code>(.*?)</code>', guide, re.S)
-    assert example, "the source example must remain in the installation guide"
+    assert example, "the legacy fixture must retain its source example"
     source = html.unescape(example.group(1))
     declared = re.search(r"# tensorviz: input=([0-9,]+)", source)
     assert declared, "the example must declare its input for manual Validate"

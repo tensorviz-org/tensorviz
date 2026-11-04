@@ -1,7 +1,7 @@
 > Template for the compiled archive. `plugin/scripts/export-public.mjs` copies
-> `docs/public-plugin/` into that archive. The documentation index does not link
+> `plugin/packaging/public/` into that archive. The documentation index does not link
 > here. This source repository does not publish those zips or a Marketplace listing.
-> Build from source with [plugin-build.md](../plugin-build.md). The commands below
+> Build from source with [plugin-build.md](https://github.com/tensorviz-org/tensorviz/blob/main/docs/plugin-build.md). The commands below
 > apply only after a maintainer has published a compiled runtime.
 
 # tensorViz for coding agents

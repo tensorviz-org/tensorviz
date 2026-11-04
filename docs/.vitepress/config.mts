@@ -2,9 +2,9 @@ import { defineConfig } from 'vitepress'
 import fs from 'node:fs'
 import path from 'node:path'
 import { monoLight, monoDark } from './mono-theme'
-import { REPO, route } from '../../routes.mjs'
+import { REPO, route } from './routes.mjs'
 
-const gen = JSON.parse(fs.readFileSync(path.join(__dirname, 'generated.json'), 'utf8'))
+const gen = JSON.parse(fs.readFileSync(path.join(__dirname, 'cache/generated.json'), 'utf8'))
 const REF: string = gen.ref
 const base: string = gen.base || '/'
 // `head` is written into the HTML as given. The nav logo goes through
@@ -25,6 +25,7 @@ const sidebar = [
   { text: 'Setup & help', collapsed: true, items: [
     item('Python environments', 'docs/environment-recovery.md'), item('Model inputs', 'docs/graph-setup.md'),
     item('Coding-agent plugin', 'docs/agent-plugin.md'), item('Connect your editor to an agent', 'docs/mcp.md'),
+    item('Compact model context', 'docs/model-context.md'),
     item('JAX and Flax', 'docs/jax-support.md'), item('Hugging Face', 'docs/hugging-face-models.md')] },
   { text: 'Reference', collapsed: true, items: [
     item('All guides', 'docs/README.md'), item('Settings and commands', 'docs/reference.md'),
@@ -48,6 +49,8 @@ export default async () => {
     description: gen.tagline,
     lang: 'en-US',
     base,
+    srcDir: '.vitepress/cache/content',
+    outDir: '.vitepress/dist',
     appearance: true,
     // Pages does not map /page to /page.html. Links keep the .html suffix.
     cleanUrls: false,

@@ -42,7 +42,7 @@ export async function exportPublic(destination, options = {}) {
     await fs.copyFile(source, path.join(destination, relative));
   };
   const document = async (file, relative) => {
-    await copy(path.join(root, 'docs/public-plugin', file), relative);
+    await copy(path.join(root, 'plugin/packaging/public', file), relative);
     const target = path.join(destination, relative);
     await fs.writeFile(target, (await fs.readFile(target, 'utf8')).replaceAll('{{VERSION}}', version));
   };

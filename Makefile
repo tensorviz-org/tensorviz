@@ -214,7 +214,7 @@ extension-package: check-extension-deps
 
 ## Every relative link in README.md and docs/ resolves
 docs-links:
-	python3 docs/check_links.py
+	python3 tooling/docs/check_links.py
 
 ## Browser specs against a stack you started yourself (backend :8765, frontend :3000).
 ## playwright.config.ts lives in canvas/, so running `npx playwright test` from the

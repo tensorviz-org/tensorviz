@@ -41,7 +41,7 @@ these instructions do not claim marketplace acceptance.
 ## T3 Code
 
 T3 Code is not a supported install target in this source tree. Use
-[the plugin guide](../agent-plugin.md) for Claude Code, Codex, and Cursor.
+[the plugin guide](https://github.com/tensorviz-org/tensorviz/blob/main/docs/agent-plugin.md) for Claude Code, Codex, and Cursor.
 
 ## Updates and removal
 

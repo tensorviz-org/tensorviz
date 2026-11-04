@@ -1,30 +1,34 @@
-# Documentation website
+# Build the documentation
 
-The documentation website is built locally with VitePress from the repository Markdown. See [site development](../docs-site/README.md) for commands and deployment configuration.
+Documentation content and the website live in `docs/`:
 
-## Reading paths
+- `index.md`: website homepage.
+- `README.md`: guide index.
+- Markdown guides, `reference/` and `images/`: documentation content.
+- `.vitepress/`: website configuration, theme and build script.
+- `public/`: logos and static assets.
 
-- **Overview** uses the plain “TensorViz documentation” heading at the standard article title size and offers a compact installation picker without a product screenshot.
-- **Quickstart** provides the complete `MlpTiny` example, opening steps, and expected capture shapes.
-- **Installation options** covers clients, compatibility, package identities, and source builds.
-- Task guides show a focused annotated image, short instructions, and links to the detailed reference.
+From the repository root:
 
-The updated TensorViz logo, neutral colors, and Geist fonts are shared across these pages. Article columns retain their reading width; the overview has a wider layout with a single installation column and task guides that stack on small screens.
+```sh
+npm ci --prefix docs
+npm run dev --prefix docs
+```
 
-## Give a page to a coding agent
+Before submitting changes:
 
-Choose **Copy page** to copy an article as Markdown, or **View Markdown** to open its text. Copy failures keep the Markdown link available. The static build exports one Markdown file per page under `/markdown/` and lists the main task guides in `/llms.txt`. These paths include the configured site prefix, such as `/tensorviz/`.
+```sh
+python3 tooling/docs/check_links.py
+npm run build --prefix docs
+DOCS_BASE=/tensorviz/ npm run build --prefix docs
+```
 
-Markdown is generated from source content, including readable install commands rather than interactive Vue controls. No documentation service or external AI request is needed.
+The build preserves `/docs/` article URLs, writes the site to `.vitepress/dist/`,
+and exports article Markdown for **Copy page**, **View Markdown** and `/llms.txt`.
+Generated content stays in the ignored `.vitepress/cache/`; edit the source guides.
 
-## Image provenance
+GitHub Pages deployment requires Pages to use GitHub Actions and the repository
+variable `PAGES_ENABLED=true`. Pull requests build without deploying.
 
-The three images in `docs/images/` are screenshots of the repository's shared `LocalBrowserApp` and Canvas renderer with numbered documentation annotations:
-
-- `explore-graph.png`: the `graphReview.json` fixture's **before** projection (`MlpTiny`). It is a source preview, not a runtime capture.
-- `follow-code.png`: the same source preview with the Code focus control and a mapped layer identified.
-- `review-changes.png`: the fixture's before/after projections rendered as a source graph review. The changed revision widens the projection, replaces ReLU with GELU, and adds LayerNorm.
-
-They were rendered from this checkout with a local scripted transport. They demonstrate the source UI and do not establish installed-extension acceptance, runtime shape measurements, or a live editor navigation result. The quickstart's expected shapes describe what a successful capture of its example should produce.
-
-When updating the images, use a public example or a repository fixture. Keep source previews, runtime captures, and source comparisons labeled accurately. Do not include local credentials, private model paths, evaluation data, or unrelated product features.
+Guide images use the shared Canvas renderer with a source-preview fixture.
+They illustrate the controls; they do not show measured runtime shapes.

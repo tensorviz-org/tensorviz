@@ -13,9 +13,9 @@ docActions: false
 
 <div class="home-actions">
 
-[Open your first graph →](../docs/quickstart.md)
+[Open your first graph →](quickstart.md)
 
-[Explore the guides](../docs/README.md)
+[Explore the guides](README.md)
 
 </div>
 
@@ -35,7 +35,7 @@ docActions: false
 
 Expand modules, find a layer, and follow the connections. Inspect the shapes recorded by a capture.
 
-[Find your way around →](../docs/canvas.md)
+[Find your way around →](canvas.md)
 
 </div>
 
@@ -45,7 +45,7 @@ Expand modules, find a layer, and follow the connections. Inspect the shapes rec
 
 Select a layer to find its Python. Keep the architecture and its implementation in view.
 
-[Connect graph and source →](../docs/code-focus.md)
+[Connect graph and source →](code-focus.md)
 
 </div>
 
@@ -53,9 +53,9 @@ Select a layer to find its Python. Keep the architecture and its implementation 
 
 ### Review a change
 
-See which layers and connections changed between Python revisions, with the code diff beside the graph.
+Compare layers and connections between Python revisions, with the code diff beside the graph.
 
-[Read a graph diff →](../docs/graph-diff-review/README.md)
+[Read a graph diff →](graph-diff-review/README.md)
 
 </div>
 
@@ -63,6 +63,6 @@ See which layers and connections changed between Python revisions, with the code
 
 <div class="home-help">
 
-**Need a hand opening a model?** [Python environments](../docs/environment-recovery.md) · [Model inputs](../docs/graph-setup.md) · [Installation options](../docs/install.md)
+**Need a hand opening a model?** [Python environments](environment-recovery.md) · [Model inputs](graph-setup.md) · [Installation options](install.md)
 
 </div>

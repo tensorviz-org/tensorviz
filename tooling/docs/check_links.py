@@ -3,7 +3,7 @@
 
 Run from anywhere; no third-party dependencies:
 
-    python3 docs/check_links.py
+    python3 tooling/docs/check_links.py
 
 Checks root guides (including ``SECURITY.md`` and ``CODE_OF_CONDUCT.md``),
 coding-assistant context, example READMEs, ``packages/*/README.md``,
@@ -19,7 +19,7 @@ HTML/Markdown file under ``docs/``:
   * backticked or written ``tensorviz.*`` ids exist as settings, commands, views,
     or the extension id;
   * backticked MCP tool names exist as ``registerTool`` / ``registerAppTool`` calls;
-  * ``docs/reference.md`` matches ``docs/generate_reference.py``;
+  * ``docs/reference.md`` matches ``tooling/docs/generate_reference.py``;
   * ``docs/local-setup.md`` names the extension and plugin versions from the manifests.
 
 External ``http(s)://`` and ``mailto:`` links are not fetched.
@@ -33,10 +33,10 @@ import re
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS = REPO_ROOT / "docs"
-if str(DOCS) not in sys.path:
-    sys.path.insert(0, str(DOCS))
+if str(Path(__file__).parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).parent))
 
 from generate_reference import known_tensorviz_ids, render, tool_names  # noqa: E402
 
@@ -96,14 +96,16 @@ def _sources() -> list[Path]:
         "README.md", "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md",
         "AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md",
     )]
-    files += sorted(DOCS.rglob("*.html"))
-    files += sorted(DOCS.rglob("*.md"))
+    files += sorted(p for p in DOCS.rglob("*")
+                    if p.suffix in {".md", ".html"}
+                    and not {"node_modules", ".vitepress", "public"}.intersection(p.relative_to(DOCS).parts))
     files += sorted((REPO_ROOT / "examples").rglob("*.md"))
     files += sorted((REPO_ROOT / "extension").glob("*.md"))
     files += sorted((REPO_ROOT / "extension" / "walkthrough").glob("*.md"))
     files += sorted((REPO_ROOT / "packages").glob("*/README.md"))
     files += sorted((REPO_ROOT / "plugins").rglob("README.md"))
     files += sorted((REPO_ROOT / "plugins").rglob("SKILL.md"))
+    files += sorted((REPO_ROOT / "plugin" / "packaging").rglob("*.md"))
     # rglob walks the same README twice when both globs match; keep one path.
     seen = set()
     unique = []
@@ -261,11 +263,11 @@ def _version_problems() -> list[str]:
 def _reference_problems() -> list[str]:
     path = DOCS / "reference.md"
     if not path.is_file():
-        return ["docs/reference.md is missing. Run: python3 docs/generate_reference.py"]
+        return ["docs/reference.md is missing. Run: python3 tooling/docs/generate_reference.py"]
     expected = render()
     actual = path.read_text(encoding="utf-8")
     if actual != expected:
-        return ["docs/reference.md is stale. Run: python3 docs/generate_reference.py"]
+        return ["docs/reference.md is stale. Run: python3 tooling/docs/generate_reference.py"]
     return []
 
 

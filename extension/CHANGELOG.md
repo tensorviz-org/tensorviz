@@ -36,7 +36,7 @@ release publication are not in this tree.
 ## Unreleased
 
 - Share bounded captured model facts through `get_model_context` and native/ACP Canvas chat, with source freshness checks and explicit omissions. See [compact model context](../docs/model-context.md).
-- Sync the eligible extension source through 2026-10-30, preserving this repository's visualization scope and release identity. See the [sync record](../docs/sync-2026-10-30.md).
+- Sync the eligible extension source through 2026-10-30, preserving this repository's visualization scope and release identity.
 - Enable automatic validation after relevant saves and execution caching by default, with opt-outs and source/environment freshness checks.
 - Share class-scoped input declarations across setup, capture and generated source; avoid disabled statistics hooks on ScriptModules.
 - Add bounded source/computation queries, nested declaration review, multi-file agent drafts, checkpoint/output evidence, explicit code focus and streaming Canvas chat with optional ACP sessions. Inline editing forms are replaced by agent-assisted native source review.

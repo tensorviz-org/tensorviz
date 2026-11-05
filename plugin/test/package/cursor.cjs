@@ -30,7 +30,7 @@ test('Cursor package uses its supported path variable and shares the verified en
     }
     const plugin = path.join(directory, 'plugins/tensorviz');
     const config = JSON.parse(await fs.readFile(path.join(plugin, 'mcp.json'), 'utf8')).mcpServers.tensorviz;
-    assert.deepEqual(config.args, ['${CURSOR_PLUGIN_ROOT}/scripts/launch.sh']);
+    assert.deepEqual(config.args, ['${CURSOR_PLUGIN_ROOT}/scripts/launch.cjs']);
     const data = path.join(root, 'state');
     await client.connect(new StdioClientTransport({ command: config.command,
       args: config.args.map(arg => arg.replaceAll('${CURSOR_PLUGIN_ROOT}', plugin)), cwd: root,
@@ -41,7 +41,7 @@ test('Cursor package uses its supported path variable and shares the verified en
     const discovery = await client.callTool({ name: 'list_models', arguments: {} });
     assert.equal(discovery.structuredContent.host.version, version);
     assert.equal(await fs.stat(data).catch(() => null), null, 'Plugin discovery must not provision Python or create consent');
-    await fs.writeFile(path.join(plugin, 'mcp.json'), JSON.stringify({ mcpServers: { tensorviz: { ...config, args: ['${PLUGIN_ROOT}/scripts/launch.sh'] } } }));
+    await fs.writeFile(path.join(plugin, 'mcp.json'), JSON.stringify({ mcpServers: { tensorviz: { ...config, args: ['${PLUGIN_ROOT}/scripts/launch.cjs'] } } }));
     await assert.rejects(verifyRelease(directory), /integrity mismatch/);
     // A self-consistent inventory must still reject the incompatible client path.
     cursor.files['plugins/tensorviz/mcp.json'] = createHash('sha256').update(await fs.readFile(path.join(plugin, 'mcp.json'))).digest('hex');

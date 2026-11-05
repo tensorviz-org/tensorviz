@@ -13,15 +13,15 @@ Merge this server into `~/.cursor/mcp.json` (or Cursor's MCP settings):
 {
   "mcpServers": {
     "tensorviz": {
-      "command": "sh",
-      "args": ["/absolute/path/to/install/tensorviz-cursor-<version>/plugins/tensorviz/scripts/launch.sh"]
+      "command": "node",
+      "args": ["/absolute/path/to/install/tensorviz-cursor-<version>/plugins/tensorviz/scripts/launch.cjs"]
     }
   }
 }
 ```
 
 Replace the path and version with your extracted location. The packaged
-`plugins/tensorviz/mcp.json` uses `${CURSOR_PLUGIN_ROOT}/scripts/launch.sh`;
+`plugins/tensorviz/mcp.json` uses `${CURSOR_PLUGIN_ROOT}/scripts/launch.cjs`;
 `${CURSOR_PLUGIN_ROOT}` means the extracted `plugins/tensorviz` directory.
 Use its absolute path for a manual MCP entry.
 

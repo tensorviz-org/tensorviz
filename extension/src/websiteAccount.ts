@@ -257,7 +257,7 @@ export class WebsiteAccount {
   /** The website's callback, `/auth?state=…&id_token=…`. False when it does not answer the
    *  sign-in this window started: an old link, or one VS Code routed to another window. */
   handleUri(path: string, query: string): boolean {
-    if (path !== '/auth' || !this.pending) return false;
+    if ((path !== '/auth' && path !== 'auth') || !this.pending) return false;
     const params = new URLSearchParams(query);
     const state = Buffer.from(params.get('state') ?? '');
     const expected = Buffer.from(this.pending.state);

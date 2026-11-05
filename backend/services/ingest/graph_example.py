@@ -51,7 +51,44 @@ def propose_input(model: torch.nn.Module) -> dict:
     primary = named.get(primary) if isinstance(primary, str) else None
     # This is an execution worker: the library's example property may run code,
     # but forward is never called. Do not accept unrelated keys via **kwargs.
-    example = getattr(model, 'dummy_inputs', None)
+    def complete_example(candidate):
+        """Use a child's declared tensors, filling required attention masks from token ids."""
+        if not (isinstance(candidate, dict) and candidate and candidate.keys() <= named.keys()
+                and (primary is None or primary.name in candidate)):
+            return None
+        completed = dict(candidate)
+        for parameter in required:
+            if parameter.name in completed:
+                continue
+            if parameter.name == 'attention_mask':
+                ids_name = 'input_ids'
+            elif parameter.name.endswith('_attention_mask'):
+                ids_name = parameter.name[:-len('attention_mask')] + 'input_ids'
+            else:
+                continue
+            ids = completed.get(ids_name)
+            if type(ids) is not torch.Tensor or ids.device.type != 'cpu' or ids.layout != torch.strided:
+                return None
+            completed[parameter.name] = torch.ones(ids.shape, dtype=torch.int64)
+        try:
+            signature.bind(**completed)
+        except TypeError:
+            return None
+        return completed
+
+    example = complete_example(getattr(model, 'dummy_inputs', None))
+    if example is None:
+        matches = []
+        for index, (_, child) in enumerate(model.named_children()):
+            if index >= 4096:
+                raise ValueError('The constructed model exceeds the input inspection budget.')
+            candidate = complete_example(getattr(child, 'dummy_inputs', None))
+            if candidate is None:
+                continue
+            matches.append(candidate)
+            if len(matches) > 1:
+                raise ValueError('Multiple child input examples need an explicit input binding.')
+        example = matches[0] if matches else None
     if isinstance(example, dict) and example and example.keys() <= named.keys() and (
             primary is None or primary.name in example):
         from ..validation.contracts import Binding

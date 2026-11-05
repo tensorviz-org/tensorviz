@@ -103,17 +103,25 @@ def known_tensorviz_ids() -> set[str]:
     return ids
 
 
-def _audience(path: Path, index: int, text: str) -> str:
+def _audiences(path: Path, index: int, text: str) -> list[str]:
     before = text.rfind("export function", 0, index)
     signature = text[before:before + 90] if before != -1 else ""
     rel = path.as_posix()
-    if "registerCanvasCodeTools" in signature:
-        return "canvas agent"
+    if "registerCanvasCodeTools" in signature or path.name in {
+        "canvasAgentPermissionTools.ts", "canvasAgentProjectTools.ts",
+    }:
+        return ["canvas agent"]
     if rel.endswith("plugin/src/graphPanel.ts"):
-        return "plugin panel"
+        return ["plugin panel"]
     if "/plugin/src/" in rel:
-        return "plugin"
-    return "extension"
+        return ["plugin"]
+    # plugin/src/main.ts registers these shared toolsets as well as the extension.
+    # Other graph-host registrations remain host-specific unless called there.
+    if "/packages/graph-host/src/" in rel and path.name in {
+        "mcpGraph.ts", "mcpViews.ts", "mcpCaptures.ts", "mcpGraphSetup.ts", "mcpValidation.ts",
+    }:
+        return ["extension", "plugin"]
+    return ["extension"]
 
 
 def tool_records() -> list[dict]:
@@ -132,9 +140,9 @@ def tool_records() -> list[dict]:
                     description = bytes(desc_match.group(1), "utf-8").decode("unicode_escape")
                     description = re.sub(r"\s+", " ", description).strip()
                 record = found.setdefault(name, {"name": name, "audiences": [], "files": [], "description": ""})
-                audience = _audience(path, match.start(), text)
-                if audience not in record["audiences"]:
-                    record["audiences"].append(audience)
+                for audience in _audiences(path, match.start(), text):
+                    if audience not in record["audiences"]:
+                        record["audiences"].append(audience)
                 rel = str(path.relative_to(ROOT))
                 if rel not in record["files"]:
                     record["files"].append(rel)
@@ -277,7 +285,7 @@ Palette titles use the category `tensorViz` plus the title, for example **tensor
 
 ## MCP tools
 
-Names below are every `registerTool` and `registerAppTool` registration under `extension/src`, `packages/graph-host/src`, and `plugin/src`, excluding tests. **canvas agent** tools are registered only by `registerCanvasCodeTools` for the in-canvas agent. **plugin panel** tools with app visibility are the panel transport; the model-workflow skill tells the agent not to call those transport tools. Behavior and arguments: [MCP tools](mcp-tools.md).
+Names below are every `registerTool` and `registerAppTool` registration under `extension/src`, `packages/graph-host/src`, and `plugin/src`, excluding tests: {len(tool_records())} distinct names across the hosts. Shared toolsets show both **extension** and **plugin** where registered. **canvas agent** tools use only the private in-canvas agent endpoint: source review tools from `registerCanvasCodeTools`, permission explanation tools and reviewed project diagnostic tools. They are not exposed by the standalone plugin or the external extension MCP endpoint. `configure_graph_environment` is a shared setup tool; each host retains its own environment capabilities and approval flow. **plugin panel** tools with app visibility are the panel transport; the model-workflow skill tells the agent not to call those transport tools. Behavior and arguments: [MCP tools](mcp-tools.md).
 
 {_tools_table()}
 

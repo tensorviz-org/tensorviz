@@ -84,7 +84,7 @@ export function modelsMessage(state: ModelsState): { markdown: boolean; text: st
       markdown: state.markdown,
       text: state.markdown
         ? 'Open the folder your models live in to list them here. [Open Folder](command:workbench.action.files.openFolder) · [Get started](command:tensorviz.getStarted)'
-        : 'Open the folder your models live in to list them here. Run "tensorViz: Get Started" for a tour.',
+        : 'Open the folder your models live in to list them here. Run "tensorViz: Get Started" to open Canvas.',
     };
   }
   // Indexing, not an instruction to start anything (task.md P0). There is nothing for the user

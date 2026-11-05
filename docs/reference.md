@@ -86,48 +86,55 @@ Palette titles use the category `tensorViz` plus the title, for example **tensor
 
 ## MCP tools
 
-Names below are every `registerTool` and `registerAppTool` registration under `extension/src`, `packages/graph-host/src`, and `plugin/src`, excluding tests. **canvas agent** tools are registered only by `registerCanvasCodeTools` for the in-canvas agent. **plugin panel** tools with app visibility are the panel transport; the model-workflow skill tells the agent not to call those transport tools. Behavior and arguments: [MCP tools](mcp-tools.md).
+Names below are every `registerTool` and `registerAppTool` registration under `extension/src`, `packages/graph-host/src`, and `plugin/src`, excluding tests: 45 distinct names across the hosts. Shared toolsets show both **extension** and **plugin** where registered. **canvas agent** tools use only the private in-canvas agent endpoint: source review tools from `registerCanvasCodeTools`, permission explanation tools and reviewed project diagnostic tools. They are not exposed by the standalone plugin or the external extension MCP endpoint. `configure_graph_environment` is a shared setup tool; each host retains its own environment capabilities and approval flow. **plugin panel** tools with app visibility are the panel transport; the model-workflow skill tells the agent not to call those transport tools. Behavior and arguments: [MCP tools](mcp-tools.md).
 
 | Tool | Registered for | Source |
 | --- | --- | --- |
-| `analyze_computation_change` | extension | `packages/graph-host/src/mcpCaptures.ts` |
+| `analyze_computation_change` | extension, plugin | `packages/graph-host/src/mcpCaptures.ts` |
 | `cancel_proposal_candidate` | extension | `extension/src/mcpProposals.ts` |
-| `cancel_run` | extension | `packages/graph-host/src/mcpValidation.ts` |
+| `cancel_run` | extension, plugin | `packages/graph-host/src/mcpValidation.ts` |
 | `close_graph_panel` | plugin panel | `plugin/src/graphPanel.ts` |
-| `compare_runs` | extension | `packages/graph-host/src/mcpValidation.ts` |
-| `configure_graph_setup` | extension | `packages/graph-host/src/mcpGraphSetup.ts` |
+| `compare_runs` | extension, plugin | `packages/graph-host/src/mcpValidation.ts` |
+| `configure_graph_environment` | extension, plugin | `packages/graph-host/src/mcpGraphSetup.ts` |
+| `configure_graph_setup` | extension, plugin | `packages/graph-host/src/mcpGraphSetup.ts` |
 | `detach_graph_panel` | plugin panel | `plugin/src/graphPanel.ts` |
-| `find_computation` | extension | `packages/graph-host/src/mcpCaptures.ts` |
-| `focus_view` | extension | `packages/graph-host/src/mcpViews.ts` |
+| `find_computation` | extension, plugin | `packages/graph-host/src/mcpCaptures.ts` |
+| `focus_view` | extension, plugin | `packages/graph-host/src/mcpViews.ts` |
 | `get_execution_environment` | extension, plugin | `packages/graph-host/src/mcpOpenGraph.ts`, `plugin/src/main.ts` |
-| `get_graph` | extension | `packages/graph-host/src/mcpGraph.ts` |
-| `get_graph_setup` | extension | `packages/graph-host/src/mcpGraphSetup.ts` |
-| `get_model_context` | extension | `packages/graph-host/src/mcpCaptures.ts` |
+| `get_graph` | extension, plugin | `packages/graph-host/src/mcpGraph.ts` |
+| `get_graph_setup` | extension, plugin | `packages/graph-host/src/mcpGraphSetup.ts` |
+| `get_machine_info` | canvas agent | `extension/src/canvasAgentProjectTools.ts` |
+| `get_model_context` | extension, plugin | `packages/graph-host/src/mcpCaptures.ts` |
+| `get_pending_permission` | canvas agent | `extension/src/canvasAgentPermissionTools.ts` |
+| `get_project_command` | canvas agent | `extension/src/canvasAgentProjectTools.ts` |
 | `get_proposal` | extension | `extension/src/mcpProposals.ts` |
-| `get_run` | extension | `packages/graph-host/src/mcpValidation.ts` |
-| `get_selection` | extension | `packages/graph-host/src/mcpViews.ts` |
+| `get_run` | extension, plugin | `packages/graph-host/src/mcpValidation.ts` |
+| `get_selection` | extension, plugin | `packages/graph-host/src/mcpViews.ts` |
 | `graph_panel_exchange` | plugin panel | `plugin/src/graphPanel.ts` |
 | `graph_panel_read` | plugin panel | `plugin/src/graphPanel.ts` |
 | `inspect_applied_proposal` | extension | `extension/src/mcpProposals.ts` |
-| `inspect_capture` | extension | `packages/graph-host/src/mcpCaptures.ts` |
-| `inspect_nodes` | extension | `packages/graph-host/src/mcpGraph.ts` |
+| `inspect_capture` | extension, plugin | `packages/graph-host/src/mcpCaptures.ts` |
+| `inspect_nodes` | extension, plugin | `packages/graph-host/src/mcpGraph.ts` |
 | `inspect_proposal_candidate` | extension | `extension/src/mcpProposals.ts` |
-| `inspect_run` | extension | `packages/graph-host/src/mcpValidation.ts` |
-| `list_captures` | extension | `packages/graph-host/src/mcpCaptures.ts` |
+| `inspect_run` | extension, plugin | `packages/graph-host/src/mcpValidation.ts` |
+| `list_captures` | extension, plugin | `packages/graph-host/src/mcpCaptures.ts` |
 | `list_models` | extension, plugin | `packages/graph-host/src/mcpGraph.ts`, `plugin/src/main.ts` |
 | `list_proposal_candidates` | extension | `extension/src/mcpProposals.ts` |
 | `open_graph` | extension, plugin | `packages/graph-host/src/mcpOpenGraph.ts`, `plugin/src/main.ts` |
 | `open_graph_diff` | extension, plugin | `extension/src/mcpGraphDiff.ts`, `plugin/src/main.ts` |
 | `open_graph_panel` | plugin panel | `plugin/src/graphPanel.ts` |
 | `open_graph_view` | extension, plugin | `packages/graph-host/src/mcpGraphView.ts`, `plugin/src/main.ts` |
+| `present_permission` | canvas agent | `extension/src/canvasAgentPermissionTools.ts` |
 | `propose_edit` | extension | `extension/src/mcpProposals.ts` |
 | `propose_source_set` | canvas agent | `extension/src/mcpProposals.ts` |
-| `query_computation` | extension | `packages/graph-host/src/mcpCaptures.ts` |
+| `query_computation` | extension, plugin | `packages/graph-host/src/mcpCaptures.ts` |
 | `query_source_context` | extension | `packages/graph-host/src/mcpSourceContext.ts` |
 | `read_model_source` | canvas agent | `extension/src/mcpProposals.ts` |
+| `read_project_file` | canvas agent | `extension/src/canvasAgentProjectTools.ts` |
+| `request_project_command` | canvas agent | `extension/src/canvasAgentProjectTools.ts` |
 | `run_proposal_candidate` | extension | `extension/src/mcpProposals.ts` |
-| `suggest_graph_inputs` | extension | `packages/graph-host/src/mcpGraphSetup.ts` |
-| `validate_model` | extension | `packages/graph-host/src/mcpValidation.ts` |
+| `suggest_graph_inputs` | extension, plugin | `packages/graph-host/src/mcpGraphSetup.ts` |
+| `validate_model` | extension, plugin | `packages/graph-host/src/mcpValidation.ts` |
 
 ## tensorviz.toml
 

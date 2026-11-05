@@ -52,6 +52,10 @@ release publication are not in this tree.
 
 ## Unreleased
 
+- Show runtime download totals when available, update transferred bytes during smaller downloads, and use an accurate setup progress title. Keep cancellation and download verification unchanged.
+
+- Refresh plugin discovery expectations and the generated tool reference after the new setup and private Canvas tools; replace obsolete Get Started tour copy.
+
 - Share bounded captured model facts through `get_model_context` and native/ACP Canvas chat, with source freshness checks and explicit omissions. See [compact model context](../docs/model-context.md).
 
 - Compact chat permissions into a shield icon and themed keyboard-accessible menu. Move active generation to animated dots below the latest message, remove the idle header circle, and shorten settings with an explicit connection-recheck result. Keep unrelated general-assistant work outside the shared research/project prompt scope while supporting relevant mathematics.

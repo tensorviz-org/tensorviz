@@ -49,6 +49,11 @@ Expand **Interpreter details** to inspect its complete path and version details.
 
 Your model’s Python and TensorViz’s service Python can be different. Changing the model environment does not mean reinstalling the service.
 
+On the first launch, **Setting up tensorViz…** prepares the service runtime.
+Download progress shows received bytes and the total when the server supplies it;
+updates continue as bytes arrive, followed by verification, unpacking and dependency
+setup. You can cancel this preparation and try again later.
+
 Saved Python choices belong to the model’s project root. A nested checkout or Python project has its own choice; unrelated models in the outer workspace keep their workspace choice. The saved environment row shows the project path.
 
 When you open a model, TensorViz checks detected environments against the model’s libraries and recommends the one needing the fewest changes. An explicit choice is preserved. Save-triggered capture and Canvas agent help require a saved or configured environment; choose one explicitly if neither is available.

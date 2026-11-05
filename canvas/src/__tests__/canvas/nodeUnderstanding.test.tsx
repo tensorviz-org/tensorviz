@@ -101,12 +101,15 @@ it('separates the generated explanation from graph evidence and reveals only cit
 it('keeps source facts usable while loading, then permits a deliberate retry after failure', () => {
   const value = context({ ...ready, status: 'loading', explanation: undefined });
   const view = render(<NodeExplanationContext.Provider value={value}><NodeUnderstanding node={node} /></NodeExplanationContext.Provider>);
-  expect(screen.getByRole('img', { name: 'Reading node source' })).toBeVisible();
+  expect(screen.getByRole('status')).toHaveTextContent('Reading component');
+  expect(screen.getByRole('status')).toBeVisible();
+  expect(screen.getByRole('status').closest('.node-understanding-evidence')).toBeNull();
+  expect(screen.getByRole('status')).toHaveAttribute('title', expect.stringContaining('does not run the model'));
   expect(screen.getByLabelText('Graph inputs and outputs')).toHaveTextContent('scores');
   const failed: NodeExplanationState = { ...ready, status: 'unavailable', explanation: undefined, detail: 'Source changed. Select the node again.' };
   const next = context(failed);
   view.rerender(<NodeExplanationContext.Provider value={next}><NodeUnderstanding node={node} /></NodeExplanationContext.Provider>);
-  expect(screen.queryByRole('img', { name: 'Reading node source' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
   expect(next.retry).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Retry explanation' }));
   expect(next.retry).toHaveBeenCalledWith(failed);

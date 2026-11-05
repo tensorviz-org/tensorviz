@@ -91,6 +91,13 @@ suite('Explicit model explanation', () => {
     assert.equal(r.service.cached(selection, { modelId: 'model', revision: hash('new') }, r.route), undefined);
     assert.equal(r.service.cached(selection, { modelId: 'model', revision: hash('revision') }, { ...r.route, provider: 'claude' }), undefined);
   });
+  test('same-view readiness refusals return an unavailable receipt while foreign or stale targets stay private', async () => {
+    const r = rig(undefined, { refusal: request => request.viewId === 'view' && request.target.cls === 'Model'
+      ? { ref: { modelId: 'model', revision: hash('revision') }, detail: 'Trust this workspace in VS Code, then explain again.' } : undefined });
+    r.valid = false; r.start(); assert.equal(r.states.at(-1)!.status, 'unavailable'); assert.match(r.states.at(-1)!.detail!, /Trust this workspace/); assert.equal(r.inputs.length, 0);
+    const count = r.states.length; r.start({ requestId: 'foreign', viewId: 'foreign' }); r.start({ requestId: 'stale', target: { ...r.request.target, cls: 'OldModel' } }); assert.equal(r.states.length, count);
+  });
+
   test('unready and foreground-busy agents return actionable state without running', async () => {
     for (const change of [{ ready: false }, { busy: true }]) { const r = rig(); r.route = { ...r.route, ...change }; r.start(); await r.done(); assert.equal(r.states.at(-1)!.status, 'unavailable'); assert.ok(r.states.at(-1)!.detail); assert.equal(r.inputs.length, 0); }
   });

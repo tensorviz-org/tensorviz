@@ -31,7 +31,7 @@ export interface SidebarCanvasOptions {
 }
 
 const VIEW_REQUESTS = new Set([
-  'agentRequest', 'codeFocusRequest',
+  'agentRequest', 'codeFocusRequest', 'nodeExplanationRequest', 'modelExplanationRequest',
   'graphReviewRequest', 'snapshotRequest', 'revealNode', 'sourceEditRequest', 'sourceEditCancel',
   'validateRequest', 'validateCancel', 'projectFocus', 'projectExpand', 'projectDeclare',
   'viewSelection', 'viewFocusResult', 'ack', 'error',

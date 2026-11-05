@@ -520,6 +520,16 @@ export class LocalBrowserGraph implements vscode.Disposable {
       };
       this.modelExplanation = new CanvasModelExplanation({ ...options.agent.explanation,
         route: () => this.agent!.routing(), current: modelCurrent,
+        refusal: request => {
+          const model = this.mcpModel;
+          if (!model || !sameTargetIdentity(model.target, request.target) || !this.mcpViews.list().some(view => view.viewId === request.viewId)) return;
+          const detail = !vscode.workspace.isTrusted ? 'Trust this workspace in VS Code, then explain again.'
+            : this.reviewState ? 'Finish or close the source review before explaining this model.'
+              : this.busy || !model.current ? 'The graph is updating. Explain again when it is ready.'
+                : !this.mcpViews.displays(request.viewId, request.target) ? 'The canvas has not confirmed this graph yet. Try Explain model again.'
+                  : 'Some components are no longer in this graph. Explain the current view again.';
+          return { ref: options.agent!.reference!(model), detail };
+        },
         reference: request => { if (!modelCurrent(request)) throw new Error('The graph changed.'); return options.agent!.reference!(this.mcpModel!); },
         prepare: async (request, nodeId, signal) => {
           signal.throwIfAborted(); if (!modelCurrent(request)) throw new Error('The graph changed.');

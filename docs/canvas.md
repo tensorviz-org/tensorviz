@@ -78,6 +78,12 @@ inspectable. Adding annotations reserves space in the displayed layout while pre
 the camera, selection and saved graph positions. Connection lists, signatures,
 docstrings and parameter lists fit their content inside the existing details panel;
 they do not introduce separate scroll areas.
+The selection overlay scrolls within the available Canvas area, including when
+the editor gives the graph only part of the window. Source-reading activity is
+shown separately from tensor evidence; missing runtime shapes never start a loader.
+If the host does not acknowledge an explanation request or stops responding, the
+activity ends with a retryable explanation message. Existing source facts and
+completed explanations remain available. No forward pass is needed for this step.
 
 Explanations read source without running the model or changing your files. They are
 local to the current session and refresh after source or capture changes. Saved graph

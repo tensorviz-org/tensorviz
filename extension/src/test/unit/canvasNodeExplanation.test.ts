@@ -297,6 +297,32 @@ suite('Source-only node explanations', () => {
     const r = rig(async () => {}); r.start(); await r.done(); assert.equal(r.states.at(-1)!.status, 'unavailable');
   });
 
+  test('optional literal documentation never blocks generation and has its own bounded deadline', async () => {
+    let signal!: AbortSignal;
+    const r = rig(undefined, { documentationTimeoutMs: 10, documentation: async (_selection, value) => { signal = value; return new Promise(() => {}); } });
+    r.start(); await r.done(); assert.equal(r.inputs.length, 1); assert.equal(r.states.at(-1)!.status, 'ready');
+    await until(() => signal.aborted); assert.equal(r.states.at(-1)!.status, 'ready');
+  });
+
+  test('the source explanation deadline covers hung prepare, source reads and providers', async () => {
+    for (const stage of ['prepare', 'read', 'provider']) {
+      const extras: Partial<CanvasNodeExplanationOptions> = { timeoutMs: 5 };
+      if (stage === 'prepare') extras.prepare = async () => new Promise(() => {});
+      if (stage === 'read') extras.read = async () => new Promise(() => {});
+      const r = rig(stage === 'provider' ? async () => new Promise(() => {}) : undefined, extras);
+      r.start(); await r.done(); assert.equal(r.states.at(-1)!.status, 'unavailable'); assert.match(r.states.at(-1)!.detail!, /timed out/);
+      if (stage === 'provider') await until(() => r.clears === 1);
+      await r.request('retry'); await until(() => r.states.at(-1)!.status === 'unavailable' && r.states.at(-1)!.requestId !== r.states[0].requestId);
+    }
+  });
+
+  test('source or trust invalidation settles queued work instead of leaving its last pending state visible', async () => {
+    const r = rig(async () => new Promise(() => {})); r.start(); await until(() => r.inputs.length === 1);
+    r.valid = false; r.service.refresh(); assert.equal(r.states.at(-1)!.status, 'unavailable'); assert.equal(r.signals[0].aborted, true);
+    const queued = rig(undefined, { timeoutMs: 5 }); queued.start(); queued.route = { ...queued.route, busy: true };
+    await queued.done(); assert.equal(queued.states.at(-1)!.status, 'unavailable'); assert.equal(queued.inputs.length, 0);
+  });
+
   test('the deadline aborts the isolated provider and leaves a retryable state', async () => {
     const original = global.setTimeout;
     global.setTimeout = ((handler: (...args: any[]) => void, delay?: number, ...args: any[]) => original(handler, delay === 45000 ? 8 : delay, ...args)) as typeof setTimeout;
@@ -322,15 +348,16 @@ suite('Source-only node explanations', () => {
     await r.request('retry'); await r.done(); assert.notEqual(r.states.at(-1)!.requestId, requestId); assert.equal(r.inputs.length, 2);
   });
 
-  test('a new selection waits for cancellation of the previous isolated run', async () => {
-    let active = 0, maximum = 0, finish!: () => void;
+  test('a new selection clears the previous runtime without waiting for a provider that ignores abort', async () => {
+    let finish!: () => void, calls = 0;
     const r = rig(async (tools, _input, signal) => {
-      maximum = Math.max(maximum, ++active);
-      if (r.inputs.length === 1) await new Promise<void>(resolve => { finish = resolve; });
-      if (!signal.aborted) await call(tools, 'submit_node_explanation', payload()); active--;
+      if (++calls === 1) await new Promise<void>(resolve => { finish = resolve; });
+      else assert.ok(r.clears >= 1, 'the cancelled runtime must be cleared before another one starts');
+      if (!signal.aborted) await call(tools, 'submit_node_explanation', payload());
     });
     r.start(); await until(() => r.inputs.length === 1);
-    r.service.select({ ...r.selection, nodeIds: [] }); r.start(); await new Promise(resolve => setTimeout(resolve, 10)); assert.equal(r.inputs.length, 1);
-    finish(); await r.done(); assert.equal(maximum, 1); assert.equal(r.inputs.length, 2);
+    r.service.select({ ...r.selection, nodeIds: [] }); r.start(); await r.done();
+    assert.equal(r.inputs.length, 2); assert.equal(r.signals[0].aborted, true); assert.equal(r.states.at(-1)!.status, 'ready');
+    finish(); await new Promise(resolve => setImmediate(resolve)); assert.equal(r.states.at(-1)!.status, 'ready');
   });
 });

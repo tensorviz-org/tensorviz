@@ -30,6 +30,7 @@ import { nodeExplanationRevision } from '../../ide/nodeExplanationRevision';
 jest.mock('../../ide/nodeExplanationRevision', () => ({ nodeExplanationRevision: jest.fn(async () => 'current-graph-revision') }));
 
 import LocalBrowserApp from '../../ide/LocalBrowserApp';
+import { EXPLANATION_ACK_TIMEOUT_MS, NODE_EXPLANATION_IDLE_TIMEOUT_MS, MODEL_EXPLANATION_IDLE_TIMEOUT_MS } from '../../ide/explanationWatchdog';
 import * as bridge from '../../ide/bridge';
 import { currentProjection, reportNodeClick, reportProjectExpand } from '../../ide/projection';
 import {
@@ -198,6 +199,149 @@ function validationRequest(rig: TransportRig): { requestId: string; target: Loca
 }
 
 describe('LocalBrowserApp', () => {
+  it('recovers a lost model start, cancels it once and ignores late pass replies', async () => {
+    jest.useFakeTimers();
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => 'lost-model' } });
+    try {
+      const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+      (rig.transport as { session: unknown }).session = { viewId: 'model-view', capabilities: {} };
+      await act(async () => mockCapturedExplanationContext?.model?.start(['n']));
+      act(() => jest.advanceTimersByTime(EXPLANATION_ACK_TIMEOUT_MS));
+      expect(mockCapturedExplanationContext?.model?.state).toMatchObject({ status: 'unavailable', completed: 0, total: 1 });
+      expect(mockCapturedExplanationContext?.model?.state?.detail).toContain('graph host did not acknowledge');
+      const cancelled = () => (rig.transport.send as jest.Mock).mock.calls.filter(([message]) => message.type === 'modelExplanationRequest' && message.action === 'cancel');
+      expect(cancelled()).toHaveLength(1);
+      await act(async () => {
+        rig.emit(hostMessage('modelExplanation', { viewId: 'model-view', target: netTarget(), state: {
+          requestId: 'lost-model', revision: 'current-graph-revision', status: 'ready', completed: 1, total: 1 } }));
+        rig.emit(hostMessage('nodeExplanation', { viewId: 'model-view', target: netTarget(), state: {
+          requestId: 'lost-model', revision: 'current-graph-revision', nodeId: 'n', status: 'loading' } }));
+      });
+      expect(mockCapturedExplanationContext?.model?.state?.status).toBe('unavailable');
+      expect(mockCapturedExplanationContext?.states.n).toBeUndefined();
+      act(() => jest.advanceTimersByTime(MODEL_EXPLANATION_IDLE_TIMEOUT_MS));
+      expect(cancelled()).toHaveLength(1);
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+      else Reflect.deleteProperty(globalThis, 'crypto');
+      jest.useRealTimers();
+    }
+  });
+
+  it('bounds acknowledged model inactivity and retains partial annotations and documentation', async () => {
+    jest.useFakeTimers();
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => 'partial-model' } });
+    try {
+      const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] },
+        head: { file: 'models/net.py', start: [6, 0], end: [9, 0] } } }));
+      (rig.transport as { session: unknown }).session = { viewId: 'model-view', capabilities: {} };
+      await act(async () => mockCapturedExplanationContext?.model?.start(['n', 'head']));
+      const progress = { requestId: 'partial-model', revision: 'current-graph-revision', status: 'loading', completed: 0, total: 2 };
+      await act(async () => rig.emit(hostMessage('modelExplanation', { viewId: 'model-view', target: netTarget(), state: progress })));
+      act(() => jest.advanceTimersByTime(EXPLANATION_ACK_TIMEOUT_MS));
+      expect(mockCapturedExplanationContext?.model?.state?.status).toBe('loading');
+      const citation = { id: 'source', file: 'models/net.py', sourceDigest: 'a'.repeat(64), startLine: 2, endLine: 5 };
+      const documentation = { status: 'resolved', qualifiedName: 'Net.forward', kind: 'method', signature: 'def forward(self, x):', truncated: false, citation };
+      const explanation = { title: 'Extract features', purpose: 'Produce features for the next component.', inputs: ['Input'], outputs: ['Features'], steps: [], uncertainties: [], citations: [citation] };
+      await act(async () => {
+        rig.emit(hostMessage('nodeExplanation', { viewId: 'model-view', target: netTarget(), state: {
+          requestId: 'partial-model', revision: 'current-graph-revision', nodeId: 'n', status: 'ready', explanation, documentation } }));
+        rig.emit(hostMessage('modelExplanation', { viewId: 'model-view', target: netTarget(), state: { ...progress, completed: 1 } }));
+      });
+      act(() => jest.advanceTimersByTime(MODEL_EXPLANATION_IDLE_TIMEOUT_MS - 1));
+      await act(async () => {
+        rig.emit(hostMessage('modelExplanation', { viewId: 'model-view', target: netTarget(), state: progress }));
+        rig.emit(hostMessage('modelExplanation', { viewId: 'model-view', target: netTarget(), state: { ...progress, completed: 1 } }));
+      });
+      act(() => jest.advanceTimersByTime(1));
+      expect(mockCapturedExplanationContext?.model?.state).toMatchObject({ status: 'unavailable', completed: 1, total: 2 });
+      expect(mockCapturedExplanationContext?.model?.state?.detail).toContain('explanation stopped responding');
+      expect(mockCapturedExplanationContext?.annotations?.n.explanation).toEqual(explanation);
+      expect(mockCapturedExplanationContext?.states.n.documentation).toEqual(documentation);
+      expect((rig.transport.send as jest.Mock).mock.calls.filter(([message]) => message.action === 'cancel')).toHaveLength(1);
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+      else Reflect.deleteProperty(globalThis, 'crypto');
+      jest.useRealTimers();
+    }
+  });
+
+  it('settles an existing loading pass if a retry cannot verify the graph revision', async () => {
+    jest.useFakeTimers();
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    let sequence = 0;
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => `model-${++sequence}` } });
+    try {
+      const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+      (rig.transport as { session: unknown }).session = { viewId: 'model-view', capabilities: {} };
+      await act(async () => mockCapturedExplanationContext?.model?.start(['n']));
+      expect(mockCapturedExplanationContext?.model?.state?.status).toBe('loading');
+      (nodeExplanationRevision as jest.Mock).mockRejectedValueOnce(new Error('WebCrypto unavailable'));
+      await act(async () => mockCapturedExplanationContext?.model?.start(['n']));
+      expect(mockCapturedExplanationContext?.model?.state).toMatchObject({ status: 'unavailable', requestId: 'model-1', revision: 'current-graph-revision' });
+      expect(mockCapturedExplanationContext?.model?.state?.detail).toContain('revision could not be verified');
+      act(() => jest.advanceTimersByTime(MODEL_EXPLANATION_IDLE_TIMEOUT_MS));
+      expect((rig.transport.send as jest.Mock).mock.calls.filter(([message]) => message.action === 'cancel')).toHaveLength(1);
+      expect(mockCapturedExplanationContext?.model?.state?.status).toBe('unavailable');
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+      else Reflect.deleteProperty(globalThis, 'crypto');
+      jest.useRealTimers();
+    }
+  });
+
+  it('times out stalled node reads, preserves source docs and bounds a lost retry acknowledgement', async () => {
+    jest.useFakeTimers();
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    try {
+      const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+      (rig.transport as { session: unknown }).session = { viewId: 'node-view', capabilities: {} };
+      const state = { requestId: 'node-request', revision: 'current-graph-revision', nodeId: 'n', status: 'queued' as const };
+      const documentation = { status: 'resolved', qualifiedName: 'Net.forward', kind: 'method', signature: 'def forward(self, x):', truncated: false,
+        citation: { id: 'docs', file: 'models/net.py', sourceDigest: 'a'.repeat(64), startLine: 2, endLine: 5 } };
+      await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state })));
+      act(() => jest.advanceTimersByTime(NODE_EXPLANATION_IDLE_TIMEOUT_MS - 1));
+      await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state: { ...state, documentation } })));
+      act(() => jest.advanceTimersByTime(NODE_EXPLANATION_IDLE_TIMEOUT_MS - 1));
+      expect(mockCapturedExplanationContext?.states.n.status).toBe('queued');
+      act(() => jest.advanceTimersByTime(1));
+      expect(mockCapturedExplanationContext?.states.n).toMatchObject({ status: 'unavailable', documentation });
+      await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state: { ...state, status: 'loading' } })));
+      expect(mockCapturedExplanationContext?.states.n.status).toBe('unavailable');
+      act(() => mockCapturedExplanationContext?.retry(mockCapturedExplanationContext.states.n));
+      expect(mockCapturedExplanationContext?.states.n.status).toBe('queued');
+      act(() => jest.advanceTimersByTime(EXPLANATION_ACK_TIMEOUT_MS));
+      expect(mockCapturedExplanationContext?.states.n).toMatchObject({ status: 'unavailable', documentation });
+    } finally { jest.useRealTimers(); }
+  });
+
+  it('retires pending reads on provider changes and clears their clocks on capture changes and unmount', async () => {
+    jest.useFakeTimers();
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    try {
+      const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+      (rig.transport as { session: unknown }).session = { viewId: 'node-view', capabilities: {} };
+      const route = { sessionId: 'agent', revision: 1, provider: 'codex', status: 'idle', activity: '', messages: [], selections: { codex: { model: 'first' } } };
+      act(() => rig.emit(hostMessage('agentState', { viewId: 'node-view', state: route })));
+      const state = { requestId: 'node-request', revision: 'current-graph-revision', nodeId: 'n', status: 'loading' };
+      await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state })));
+      act(() => rig.emit(hostMessage('agentState', { viewId: 'node-view', state: { ...route, revision: 2, selections: { codex: { model: 'second' } } } })));
+      expect(mockCapturedExplanationContext?.states.n.status).toBe('unavailable');
+      expect(mockCapturedExplanationContext?.states.n.detail).toContain('agent changed');
+      await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state: { ...state, requestId: 'current-agent-request' } })));
+      act(() => rig.emit(hostMessage('projection', { target: netTarget(), projection: netProjection({ projectionDigest: 'new-capture' }), traced: false, greyed: false })));
+      act(() => jest.advanceTimersByTime(NODE_EXPLANATION_IDLE_TIMEOUT_MS));
+      expect(mockCapturedExplanationContext?.states).toEqual({});
+      cleanup();
+      expect(jest.getTimerCount()).toBe(0);
+    } finally { jest.useRealTimers(); }
+  });
+
   it('runs an explicit bounded model pass, verifies progress scope and preserves completed results on cancellation', async () => {
     (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
     const rig = readyValidationPage();

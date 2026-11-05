@@ -44,6 +44,13 @@ The full parameter list, including structured values and source expressions, gro
 with its content. Signatures, docstrings and connections also use the outer selection
 panel's scroll area rather than nested height limits. Review/source-assignment cards
 retain their evidence.
+The local overlay is bounded by its Canvas container rather than window height,
+so details and bottom actions stay reachable in short embedded views. Component
+reading has its own activity label and never implies a tensor capture is running.
+Native sidebar requests relay through the same explanation controller as browser
+views. Delivery and inactivity deadlines settle missing replies, retain available
+documentation and annotations, and reject late progress for expired work. Optional
+documentation reads have their own deadline and do not block agent generation.
 Root I/O height follows actual rows; an output without boundary data has no body.
 
 The existing selection panel shows deterministic node identity, source documentation,

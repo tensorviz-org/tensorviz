@@ -500,6 +500,35 @@ suite('SidebarCanvas lifecycle', () => {
     assert.equal(received.length, requests.length, 'candidate ownership still uses the host-assigned view');
   });
 
+  test('native explanation start, stop, retry and source requests reach the shared controller', async () => {
+    create(); await canvas.show(); const view = webviewState.views[0]; ready(view);
+    const identity = view.messages.find((message: any) => message.type === 'canvasConnected') as any;
+    const common = { protocolVersion: LOCAL_BROWSER_PROTOCOL_VERSION, workspaceSessionId: identity.sessionId,
+      messageId: 'explanation', viewId: identity.viewId, requestId: 'explain-model', target: model };
+    const requests = [
+      { ...common, type: 'modelExplanationRequest', action: 'start', nodeIds: ['encoder', 'latents'] },
+      { ...common, type: 'modelExplanationRequest', action: 'cancel', nodeIds: [] },
+      { ...common, type: 'nodeExplanationRequest', action: 'retry', nodeId: 'encoder' },
+      { ...common, type: 'nodeExplanationRequest', action: 'reveal', nodeId: 'encoder', citationId: 'evidence-1' },
+    ];
+    for (const request of requests) view.receive({ type: 'canvasMessage', message: request });
+    assert.deepEqual(received, requests, 'a visible Explain model click must reach the host instead of leaving local UI loading');
+    const state = { requestId: common.requestId, revision: 'fixture-revision', status: 'loading' as const, completed: 0, total: 2 };
+    canvas.post({ type: 'modelExplanation', viewId: identity.viewId, target: model, state });
+    canvas.post({ type: 'modelExplanation', viewId: identity.viewId, target: model, state: { ...state, status: 'ready', completed: 2 } });
+    assert.deepEqual(publications(view).filter(message => message.type === 'modelExplanation').map(message => message.state.status), ['loading', 'ready']);
+    for (const request of requests) {
+      view.receive({ type: 'canvasMessage', message: { ...request, workspaceSessionId: 'foreign-session' } });
+      view.receive({ type: 'canvasMessage', message: { ...request, viewId: 'foreign-view' } });
+    }
+    view.receive({ type: 'canvasMessage', message: { ...requests[0], nodeIds: [] } });
+    view.receive({ type: 'canvasMessage', message: { ...requests[3], citationId: '' } });
+    assert.deepEqual(received, requests, 'explanation routing must retain session, view and typed-payload guards');
+    view.setVisible(false);
+    for (const request of requests) view.receive({ type: 'canvasMessage', message: request });
+    assert.deepEqual(received, requests, 'a hidden native view cannot start explanation work or navigate source');
+  });
+
   test('terminal receipts and replay retain the authoritative attempt evidence', async () => {
     create(); await canvas.show(); const view = webviewState.views[0]; ready(view);
     const summaries = new ValidationSummaryStore(summary => canvas.post({ type: 'validationState', ...summary }));

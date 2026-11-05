@@ -4,13 +4,14 @@ import type { LocalBrowserModelExplanationRequest, LocalBrowserTargetIdentity, L
 import { isNodeExplanation, isNodeSourceDocumentation, type NodeSourceDocumentation, type ModelExplanationState, type NodeExplanation, type NodeExplanationCitation, type NodeExplanationState } from '@tensorviz/contracts/nodeExplanation';
 import { GraphToolError, graphToolResult, object, type McpModel, type JsonObject, type ModelRef } from '@tensorviz/graph-host/mcpGraph';
 import type { CanvasAgentRoute } from './canvasAgent';
-import { nodeExplanationSubmission, type CanvasNodeExplanationOptions } from './canvasNodeExplanation';
+import { explanationAbortable, nodeExplanationSubmission, type CanvasNodeExplanationOptions } from './canvasNodeExplanation';
 import { CANVAS_AGENT_PROMPTS } from './canvasAgentPrompts';
 import type { HostToolset } from './mcpHost';
 
 export interface CanvasModelExplanationOptions extends Pick<CanvasNodeExplanationOptions, 'route' | 'read' | 'runtime' | 'tools'> {
   current(request: LocalBrowserModelExplanationRequest, revision?: string): boolean;
   reference(request: LocalBrowserModelExplanationRequest): ModelRef;
+  refusal?(request: LocalBrowserModelExplanationRequest): { ref: ModelRef; detail: string } | undefined;
   prepare(request: LocalBrowserModelExplanationRequest, nodeId: string, signal: AbortSignal): Promise<{ context: unknown; source: { file: string; startLine: number } }>;
   publish(viewId: string, target: LocalBrowserTargetIdentity, state: ModelExplanationState): void;
   publishNode(viewId: string, target: LocalBrowserTargetIdentity, state: NodeExplanationState): void;
@@ -42,14 +43,6 @@ const FAILURE_DETAILS = {
   invalid_submission: 'Some generated explanations failed source validation.',
 } as const;
 type FailureReason = keyof typeof FAILURE_DETAILS;
-function abortable<T>(value: T | PromiseLike<T>, signal: AbortSignal): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const abort = () => { signal.removeEventListener('abort', abort); reject(new GraphToolError('CANCELLED', 'Explanation stopped.')); };
-    if (signal.aborted) abort();
-    else signal.addEventListener('abort', abort, { once: true });
-    Promise.resolve(value).then(result => { signal.removeEventListener('abort', abort); resolve(result); }, error => { signal.removeEventListener('abort', abort); reject(error); });
-  });
-}
 
 /** Keeps the model pass on exactly the same serializer facts used by MCP and chat. */
 export function modelExplanationNodeContext(model: McpModel, inspection: JsonObject, nodeId: string) {
@@ -107,10 +100,11 @@ export class CanvasModelExplanation {
       return;
     }
     if (this.active?.request.requestId === request.requestId && this.active.request.viewId === request.viewId && targetKey(this.active.request.target) === targetKey(request.target)) return;
-    if (!this.options.current(request) || !request.nodeIds.length || request.nodeIds.length > 128 || new Set(request.nodeIds).size !== request.nodeIds.length) return;
+    if (!request.nodeIds.length || request.nodeIds.length > 128 || new Set(request.nodeIds).size !== request.nodeIds.length) return;
+    if (!this.options.current(request)) { this.refuse(request); return; }
     this.stop('A new explanation started.');
     let ref: ModelRef;
-    try { ref = this.options.reference(request); } catch { return; }
+    try { ref = this.options.reference(request); } catch { this.refuse(request); return; }
     const route = this.options.route();
     const run: Run = { request: structuredClone(request), ref, route, controller: new AbortController(),
       documentation: new Map(), state: { requestId: request.requestId, revision: ref.revision, status: 'loading', completed: 0, total: request.nodeIds.length } };
@@ -121,12 +115,17 @@ export class CanvasModelExplanation {
     const previous = this.running;
     this.running = (async () => { await previous; if (this.current(run)) await this.explain(run); })().catch(() => {});
   }
+  private refuse(request: LocalBrowserModelExplanationRequest): void {
+    const refusal = this.options.refusal?.(request);
+    if (refusal) this.options.publish(request.viewId, request.target, { requestId: request.requestId, revision: refusal.ref.revision,
+      status: 'unavailable', completed: 0, total: request.nodeIds.length, detail: refusal.detail });
+  }
   private charge(batch: Batch, value: unknown): void {
     batch.bytes += Buffer.byteLength(JSON.stringify(value));
     if (batch.bytes > MAX_BYTES) throw new GraphToolError('SOURCE_LIMIT', 'The explanation context budget is exhausted.');
   }
   private async source(batch: Batch, file: string) {
-    this.check(batch); const source = await abortable(this.options.read(batch.run.request.target, file), batch.run.controller.signal); this.check(batch);
+    this.check(batch); const source = await explanationAbortable(this.options.read(batch.run.request.target, file), batch.run.controller.signal); this.check(batch);
     if (source.file !== file || hash(source.source) !== source.digest) throw new GraphToolError('STALE_TARGET', 'The source evidence changed.');
     return source;
   }
@@ -144,7 +143,7 @@ export class CanvasModelExplanation {
   private async documentation(batch: Batch, nodeId: string): Promise<NodeSourceDocumentation | undefined> {
     if (!this.options.documentation) return;
     try {
-      const value = await abortable(this.options.documentation(batch.run.request, nodeId, batch.run.controller.signal), batch.run.controller.signal);
+      const value = await explanationAbortable(this.options.documentation(batch.run.request, nodeId, batch.run.controller.signal), batch.run.controller.signal);
       this.check(batch); if (!value || !isNodeSourceDocumentation(value)) return;
       if (value.status === 'resolved') {
         const source = await this.source(batch, value.citation.file);
@@ -170,7 +169,7 @@ export class CanvasModelExplanation {
       handler: args => graphToolResult(async () => {
         this.check(batch);
         if (++batch.reads > 4 || args.modelId !== batch.run.ref.modelId || args.revision !== batch.run.ref.revision || args.assumeValue !== undefined || args.captureId !== undefined || args.sourceId !== undefined || (args.limit ?? 8) > 8 || (args.maxEntities ?? 16) > 16 || (args.depth ?? 1) > 1) throw new GraphToolError('INVALID_QUERY', 'Use a small source-only query in the attached revision.');
-        const response = await abortable(query.handler(args, { signal: batch.run.controller.signal }), batch.run.controller.signal); this.check(batch);
+        const response = await explanationAbortable(query.handler(args, { signal: batch.run.controller.signal }), batch.run.controller.signal); this.check(batch);
         if (response.isError) throw new GraphToolError('SOURCE_UNAVAILABLE', 'The source definition is unresolved.');
         const page = response.structuredContent as Record<string, unknown> | undefined;
         const citations: NodeExplanationCitation[] = [];
@@ -228,7 +227,7 @@ export class CanvasModelExplanation {
             const cached = this.cache.get(this.key(run.request.target, run.ref, nodeId, run.route));
             if (cached && await this.valid(batch, cached)) { this.node(run, nodeId, cached); continue; }
             try {
-              const prepared = await abortable(this.options.prepare(run.request, nodeId, run.controller.signal), run.controller.signal); this.check(batch);
+              const prepared = await explanationAbortable(this.options.prepare(run.request, nodeId, run.controller.signal), run.controller.signal); this.check(batch);
               if (Buffer.byteLength(JSON.stringify(prepared.context)) > 4096) { failures.add('context_limit'); continue; }
               const start = Math.max(1, prepared.source.startLine - 8);
               let evidence = sourceEvidence.find(item => item.citation.file === prepared.source.file
@@ -269,7 +268,7 @@ export class CanvasModelExplanation {
           for (const item of [...sourceEvidence, ...sourceDocumentation]) batch.exposed.add(item.citation.id);
           runtime = this.options.runtime(owner => this.tools(batch, owner));
           stage = 'provider';
-          await abortable(runtime.run({ provider: run.route.provider, settings: run.route.settings, intent: 'model_explanation', cwd: run.request.target.workspaceFolder,
+          await explanationAbortable(runtime.run({ provider: run.route.provider, settings: run.route.settings, intent: 'model_explanation', cwd: run.request.target.workspaceFolder,
             conversationId: hash(JSON.stringify([run.ref, run.request.requestId, offset])), context: JSON.stringify(context),
             messages: [{ id: `${run.request.requestId}-${offset}`, role: 'user', text: 'Explain these model components and the flow between them. Submit the structured node explanations.' }] }, () => {}, run.controller.signal), run.controller.signal);
           this.check(batch); stage = 'validation';

@@ -83,8 +83,11 @@ export function NodeUnderstanding({ node, nodes = [], edges = [], onNavigate }: 
   return <div className="node-understanding" aria-label="About this node">
     <div className="node-understanding-evidence">
       <span>{nodeEvidenceLabel(node.data)}</span>
-      {loading && <LoaderCircle size={13} className="node-understanding-loading" role="img" aria-label="Reading node source" />}
     </div>
+    {loading && <span className="node-understanding-attribution" role="status"
+      title="Reading source and preparing an explanation; this does not run the model or record tensor shapes.">
+      <LoaderCircle size={13} className="node-understanding-loading" aria-hidden="true" />Reading component
+    </span>}
     {facts.callable && facts.callable !== (explanation?.title ?? facts.title)
       && <code className="node-understanding-callable" title={facts.callable}>{facts.callable}</code>}
     <NodeSourceLink nodeId={node.id} data={node.data} />

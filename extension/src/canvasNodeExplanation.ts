@@ -21,6 +21,8 @@ export interface CanvasNodeExplanationOptions {
   reveal(target: LocalBrowserTargetIdentity, citation: NodeExplanationCitation, current: () => boolean): Promise<void>;
   cached?(selection: LocalBrowserViewSelectionMessage, ref: ModelRef, route: CanvasAgentRoute): NodeExplanation | undefined;
   debounceMs?: number;
+  timeoutMs?: number;
+  documentationTimeoutMs?: number;
 }
 interface Work {
   selection: LocalBrowserViewSelectionMessage;
@@ -33,6 +35,7 @@ interface Work {
   reads: number;
   bytes: number;
   result?: NodeExplanation;
+  timeout?: NodeJS.Timeout;
 }
 interface DocumentationWork {
   selection: LocalBrowserViewSelectionMessage;
@@ -40,9 +43,8 @@ interface DocumentationWork {
   key: string;
   controller: AbortController;
   timer?: NodeJS.Timeout;
+  timeout?: NodeJS.Timeout;
   value?: NodeSourceDocumentation;
-  done: Promise<void>;
-  finish(): void;
 }
 const digest = (source: string) => createHash('sha256').update(source).digest('hex');
 const string = (max: number) => z.string().trim().min(1).max(max).regex(/^[^\u0000-\u001f\u007f]+$/);
@@ -54,6 +56,16 @@ export const nodeExplanationSubmission = {
 const routeKey = (route: CanvasAgentRoute) => JSON.stringify([route.provider, route.resolvedModel, route.settings, route.ready, route.busy]);
 const targetKey = (target: LocalBrowserTargetIdentity) => [target.workspaceFolder, target.file, target.cls, target.sourceDigest, target.documentVersion, target.backendRevision];
 const identity = (selection: LocalBrowserViewSelectionMessage) => JSON.stringify([selection.viewId, targetKey(selection.target), selection.nodeIds, selection.edgeIds, selection.tooLarge]);
+
+/** A cancelled source task must release its queue even if a reader/provider ignores abort. */
+export function explanationAbortable<T>(value: T | PromiseLike<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = () => { signal.removeEventListener('abort', abort); reject(new GraphToolError('CANCELLED', 'Explanation stopped.')); };
+    if (signal.aborted) abort();
+    else signal.addEventListener('abort', abort, { once: true });
+    Promise.resolve(value).then(result => { signal.removeEventListener('abort', abort); resolve(result); }, error => { signal.removeEventListener('abort', abort); reject(error); });
+  });
+}
 
 /** Lexical source identity only. Resolution and ambiguity remain the parser's job. */
 export function nodeSourceDocumentationSymbol(parameters: unknown): string | undefined {
@@ -120,16 +132,24 @@ export class CanvasNodeExplanation {
       }
     }
     if (!this.current(work)) return;
+    clearTimeout(work.timeout);
     work.state = { ...work.state, status: 'ready', explanation: structuredClone(state.explanation), ...(documentation ? { documentation } : {}), detail: undefined }; this.publish(work);
   }
 
   disconnect(viewId: string): void { if (this.selected?.viewId === viewId) this.invalidate(); }
   invalidate(): void { this.cancel(); this.cancelDocumentation(); this.selected = undefined; }
   dispose(): void { this.disposed = true; this.invalidate(); this.cache.clear(); this.documentationCache.clear(); }
-  private cancel(): void { clearTimeout(this.timer); this.active?.controller.abort(); this.active = undefined; }
+  private cancel(): void {
+    clearTimeout(this.timer); const work = this.active; clearTimeout(work?.timeout);
+    if (work && !this.disposed && (work.state.status === 'queued' || work.state.status === 'loading')) {
+      work.state = { ...work.state, status: 'unavailable', detail: 'Source explanation stopped because the selection, graph or agent changed.' };
+      this.options.publish(work.selection.viewId, work.selection.target, structuredClone(work.state));
+    }
+    work?.controller.abort(); this.active = undefined;
+  }
   private cancelDocumentation(): void {
     const work = this.documentation;
-    if (work) { clearTimeout(work.timer); work.controller.abort(); work.finish(); }
+    if (work) { clearTimeout(work.timer); clearTimeout(work.timeout); work.controller.abort(); }
     this.documentation = undefined;
   }
   private documentationCurrent(work: DocumentationWork): boolean {
@@ -140,7 +160,7 @@ export class CanvasNodeExplanation {
     if (!this.documentationCurrent(work) || !isNodeSourceDocumentation(documentation)) return false;
     if (documentation.status === 'unavailable') return true;
     const citation = documentation.citation;
-    const source = await this.options.read(work.selection.target, citation.file);
+    const source = await explanationAbortable(this.options.read(work.selection.target, citation.file), work.controller.signal);
     return this.documentationCurrent(work) && source.file === citation.file && digest(source.source) === source.digest
       && source.digest === citation.sourceDigest && citation.endLine <= source.source.split('\n').length;
   }
@@ -149,14 +169,14 @@ export class CanvasNodeExplanation {
     if (this.documentation && this.documentationCurrent(this.documentation)) return this.documentation;
     this.cancelDocumentation();
     const key = JSON.stringify([selection.target.workspaceFolder, ref, selection.target.sourceDigest, selection.nodeIds[0]]);
-    let finish!: () => void;
-    const work: DocumentationWork = { selection, ref, key, controller: new AbortController(), done: new Promise(resolve => { finish = resolve; }), finish: () => finish() };
+    const work: DocumentationWork = { selection, ref, key, controller: new AbortController() };
     this.documentation = work;
     work.timer = setTimeout(() => { void (async () => {
+      work.timeout = setTimeout(() => { work.controller.abort(); }, this.options.documentationTimeoutMs ?? 10000);
       try {
         const cached = this.documentationCache.get(key);
         let value = cached && await this.validDocumentation(work, cached) ? cached : undefined;
-        if (!value && this.documentationCurrent(work)) value = await this.options.documentation!(selection, work.controller.signal);
+        if (!value && this.documentationCurrent(work)) value = await explanationAbortable(this.options.documentation!(selection, work.controller.signal), work.controller.signal);
         if (!value || !await this.validDocumentation(work, value)) return;
         work.value = structuredClone(value);
         this.documentationCache.delete(key); this.documentationCache.set(key, work.value);
@@ -168,7 +188,7 @@ export class CanvasNodeExplanation {
           this.options.publish(selection.viewId, selection.target, structuredClone(active.state));
         }
       } catch { /* Literal documentation is optional; node facts remain usable. */ }
-      finally { work.finish(); }
+      finally { clearTimeout(work.timeout); }
     })(); }, this.options.debounceMs ?? 400);
     return work;
   }
@@ -183,6 +203,15 @@ export class CanvasNodeExplanation {
   private publish(work: Work): void {
     if (this.current(work)) this.options.publish(work.selection.viewId, work.selection.target, structuredClone(work.state));
   }
+  private deadline(work: Work): void {
+    work.timeout = setTimeout(() => {
+      if (this.active === work && !this.disposed && (work.state.status === 'queued' || work.state.status === 'loading')) {
+        work.state = { ...work.state, status: 'unavailable', detail: 'The source explanation timed out. Retry when the agent is available.' };
+        this.options.publish(work.selection.viewId, work.selection.target, structuredClone(work.state));
+      }
+      work.controller.abort();
+    }, this.options.timeoutMs ?? 45000);
+  }
   private schedule(): void {
     const selection = this.selected!;
     const route = this.options.route(); this.lastRoute = routeKey(route);
@@ -195,15 +224,15 @@ export class CanvasNodeExplanation {
     if (documentation?.value) work.state.documentation = structuredClone(documentation.value);
     const enriched = this.options.cached?.(selection, ref, route);
     if (enriched) {
-      this.publish(work);
+      this.deadline(work); this.publish(work);
       void (async () => {
         try {
           if (await this.validate(work, enriched) && this.current(work)) {
-            work.state = { ...work.state, status: 'ready', explanation: structuredClone(enriched) }; this.publish(work); return;
+            work.state = { ...work.state, status: 'ready', explanation: structuredClone(enriched) }; clearTimeout(work.timeout); this.publish(work); return;
           }
         } catch { /* The graph may have changed while its evidence was read. */ }
         if (this.current(work)) {
-          work.state = { ...work.state, status: 'unavailable', detail: 'The source explanation changed. Explain the current model again.' }; this.publish(work);
+          work.state = { ...work.state, status: 'unavailable', detail: 'The source explanation changed. Explain the current model again.' }; clearTimeout(work.timeout); this.publish(work);
         }
       })();
       return;
@@ -212,16 +241,16 @@ export class CanvasNodeExplanation {
       work.state.status = 'unavailable'; work.state.detail = route.busy ? 'Available when the agent finishes its current task.' : 'Connect an agent in chat for a source explanation.';
       this.publish(work); return;
     }
-    this.publish(work);
+    this.deadline(work); this.publish(work);
     this.timer = setTimeout(() => {
       const previous = this.running;
-      this.running = (async () => { await previous; await documentation?.done; if (this.current(work)) await this.explain(work, route); })().catch(() => {});
+      this.running = (async () => { await previous; if (this.current(work)) await this.explain(work, route); })().catch(() => {});
     }, this.options.debounceMs ?? 400);
   }
 
   private async source(work: Work, file: string): Promise<NodeExplanationSource> {
     this.check(work);
-    const source = await this.options.read(work.selection.target, file);
+    const source = await explanationAbortable(this.options.read(work.selection.target, file), work.controller.signal);
     this.check(work);
     if (source.file !== file || digest(source.source) !== source.digest) throw new GraphToolError('STALE_TARGET', 'The source evidence changed.');
     return source;
@@ -266,7 +295,7 @@ export class CanvasNodeExplanation {
         || (args.limit ?? 16) > 16 || (args.maxEntities ?? 32) > 32 || (args.depth ?? 2) > 2) {
         throw new GraphToolError('INVALID_QUERY', 'Use the attached model revision and a small source-only query (limit<=16, maxEntities<=32, depth<=2); no hypothetical edits.');
       }
-      const result = await query.handler({ ...args, limit: args.limit ?? 16, maxEntities: args.maxEntities ?? 32, depth: args.depth ?? 2 }, { ...extra, signal: work.controller.signal });
+      const result = await explanationAbortable(query.handler({ ...args, limit: args.limit ?? 16, maxEntities: args.maxEntities ?? 32, depth: args.depth ?? 2 }, { ...extra, signal: work.controller.signal }), work.controller.signal);
       this.check(work);
       if (result.isError) throw new GraphToolError('SOURCE_UNAVAILABLE', 'The source query could not resolve this node; retain that uncertainty.');
       const page = result.structuredContent as Record<string, unknown> | undefined;
@@ -308,16 +337,10 @@ export class CanvasNodeExplanation {
   }
   private async explain(work: Work, route: CanvasAgentRoute): Promise<void> {
     let runtime: ReturnType<CanvasNodeExplanationOptions['runtime']> | undefined;
-    const timeout = setTimeout(() => {
-      if (this.current(work)) {
-        work.state = { ...work.state, status: 'unavailable', detail: 'The source explanation timed out. Retry when the agent is available.' }; this.publish(work);
-      }
-      work.controller.abort();
-    }, 45000);
-    const guard = setInterval(() => { if (!this.current(work)) work.controller.abort(); }, 250);
+    const guard = setInterval(() => { if (!this.current(work)) { if (this.active === work) this.invalidate(); else work.controller.abort(); } }, 250);
     try {
       this.check(work);
-      const prepared = await this.options.prepare(work.selection, work.controller.signal); this.check(work);
+      const prepared = await explanationAbortable(this.options.prepare(work.selection, work.controller.signal), work.controller.signal); this.check(work);
       if (prepared.ref.modelId !== work.ref?.modelId || prepared.ref.revision !== work.ref.revision) throw new Error('The graph revision changed during preparation.');
       this.check(work);
       const key = work.key = JSON.stringify([work.selection.target.workspaceFolder, prepared.ref, work.selection.target.sourceDigest,
@@ -331,15 +354,18 @@ export class CanvasNodeExplanation {
       const context = { facts: prepared.context, sourceEvidence: evidence };
       if (Buffer.byteLength(JSON.stringify(context)) > 48 * 1024) throw new GraphToolError('SOURCE_LIMIT', 'This selection has more context than a focused explanation can read.');
       runtime = this.options.runtime(owner => this.tools(work, owner));
-      await runtime.run({ provider: route.provider, settings: route.settings, intent: 'node_explanation', cwd: work.selection.target.workspaceFolder,
-        conversationId: digest(key), context: JSON.stringify(context), messages: [{ id: randomUUID(), role: 'user', text: 'Explain this selected model node from the supplied source evidence. Submit the structured explanation.' }] }, () => {}, work.controller.signal);
+      await explanationAbortable(runtime.run({ provider: route.provider, settings: route.settings, intent: 'node_explanation', cwd: work.selection.target.workspaceFolder,
+        conversationId: digest(key), context: JSON.stringify(context), messages: [{ id: randomUUID(), role: 'user', text: 'Explain this selected model node from the supplied source evidence. Submit the structured explanation.' }] }, () => {}, work.controller.signal), work.controller.signal);
       this.check(work);
       if (!work.result || !await this.validate(work, work.result)) throw new Error('No verified source explanation was returned.');
       this.cache.set(key, structuredClone(work.result)); while (this.cache.size > 64) this.cache.delete(this.cache.keys().next().value!);
       work.state = { ...work.state, status: 'ready', explanation: work.result }; this.publish(work);
     } catch {
       if (this.current(work)) { work.state = { ...work.state, status: 'unavailable', detail: 'A source explanation is unavailable. You can still inspect the node facts or retry.' }; this.publish(work); }
-    } finally { clearTimeout(timeout); clearInterval(guard); runtime?.clear(); }
+    } finally {
+      clearTimeout(work.timeout); clearInterval(guard); runtime?.clear();
+      if (this.active === work && !this.current(work) && (work.state.status === 'queued' || work.state.status === 'loading')) this.invalidate();
+    }
   }
 
   async request(message: LocalBrowserNodeExplanationRequest): Promise<void> {

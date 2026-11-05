@@ -37,6 +37,7 @@ import { LocalBrowserContext } from './localBrowserContext';
 import { NodeExplanationContext, type NodeExplanationContextValue } from '../canvas/NodeExplanationContext';
 import type { ModelExplanationState, NodeExplanationState } from './nodeExplanation.generated';
 import { nodeExplanationRevision } from './nodeExplanationRevision';
+import { ExplanationWatchdog, EXPLANATION_ACK_TIMEOUT_MS, NODE_EXPLANATION_IDLE_TIMEOUT_MS, MODEL_EXPLANATION_IDLE_TIMEOUT_MS } from './explanationWatchdog';
 import { CandidateReviewPanel } from './CandidateReviewPanel';
 import { createLocalBrowserCaptureClient, LocalBrowserCaptureClient } from './localBrowserCaptureClient';
 import { createLocalBrowserSourceEditClient, LocalBrowserSourceEditClient } from './localBrowserSourceEditClient';
@@ -155,6 +156,7 @@ export default function LocalBrowserApp({
   const [nodeAnnotations, setNodeAnnotations] = React.useState<{ scope: string; states: Record<string, NodeExplanationState> }>({ scope: '', states: {} });
   const [modelExplanation, setModelExplanation] = React.useState<{ scope: string; state?: ModelExplanationState; visible: boolean }>({ scope: '', visible: false });
   const modelExplanationRequestRef = React.useRef<{ scope: string; requestId: string } | null>(null);
+  const [explanationWatchdog] = React.useState(() => new ExplanationWatchdog());
   const [page, dispatch] = React.useReducer(
     reduceLocalBrowserViewMessage,
     EMPTY_LOCAL_BROWSER_PAGE_STATE,
@@ -188,12 +190,23 @@ export default function LocalBrowserApp({
   const explanationStatesRef = React.useRef(nodeExplanations);
   const explanationConnection = React.useRef(0);
   explanationStatesRef.current = nodeExplanations;
+  const expireNodeExplanation = React.useCallback((scope: string, nodeId: string, requestId: string, reason: 'timeout' | 'provider') => {
+    if (explanationScopeRef.current !== scope) return;
+    setNodeExplanations(previous => {
+      const state = previous.states[nodeId];
+      if (previous.scope !== scope || state?.requestId !== requestId || (state.status !== 'queued' && state.status !== 'loading')) return previous;
+      return { ...previous, states: { ...previous.states, [nodeId]: { ...state, status: 'unavailable',
+        detail: reason === 'provider' ? 'The agent changed. Retry with the current agent.'
+          : 'The explanation stopped responding. Retry; source details remain available.' } } };
+    });
+  }, []);
   React.useEffect(() => {
+    explanationWatchdog.clear();
     setNodeExplanations({ scope: explanationScope, states: {} });
     setNodeAnnotations({ scope: explanationScope, states: {} });
     setModelExplanation({ scope: explanationScope, visible: false });
     modelExplanationRequestRef.current = null;
-  }, [explanationScope]);
+  }, [explanationScope, explanationWatchdog]);
   const reviewRef = React.useRef({ state: review, presentation: reviewPresentation, mode: reviewMode, index: reviewIndex });
   const focusedReview = React.useRef<string | null>(null);
   const acceptedFocus = React.useRef<{ workspaceFolder?: string; file: string; cls: string; sourceDigest: string; nodeIds: string[] } | null>(null);
@@ -333,7 +346,14 @@ export default function LocalBrowserApp({
     setPortableExports(portableClient);
     const explanationArrivals = new Map<string, number>();
     let explanationArrival = 0;
+    let explanationRoute: string | undefined;
     const offMessage = transport.onMessage(message => {
+      if (message.type === 'agentState' && message.viewId === transport.session?.viewId) {
+        const state = message.state;
+        const route = JSON.stringify([state.sessionId, state.provider, state.selections?.[state.provider], state.agents?.[state.provider]?.defaultModel]);
+        if (explanationRoute !== undefined && explanationRoute !== route) explanationWatchdog.interrupt();
+        explanationRoute = route;
+      }
       if (message.type === 'modelExplanation' && message.viewId === transport.session?.viewId
         && !standalone && !reviewRef.current.state && !pageRef.current.greyed
         && sameValidationTarget(message.target, pageRef.current.activeTarget)) {
@@ -345,6 +365,18 @@ export default function LocalBrowserApp({
             if (scope !== explanationScopeRef.current || connection !== explanationConnection.current || transportRef.current !== transport
               || modelExplanationRequestRef.current !== request || message.state.revision !== revision
               || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') return;
+            if (!explanationWatchdog.observe('model', message.state.requestId, message.state.status, {
+              timeoutMs: MODEL_EXPLANATION_IDLE_TIMEOUT_MS,
+              expire: reason => {
+                if (explanationScopeRef.current !== scope || modelExplanationRequestRef.current !== request
+                  || transportRef.current !== transport || transport.session?.viewId !== message.viewId) return;
+                setModelExplanation(previous => previous.scope === scope && previous.state?.requestId === request.requestId && previous.state.status === 'loading'
+                  ? { ...previous, state: { ...previous.state, status: 'unavailable', detail: reason === 'provider'
+                    ? 'The agent changed. Explain again with the current agent.'
+                    : 'The explanation stopped responding. Completed node details remain available; retry to continue.' } } : previous);
+                transport.send({ type: 'modelExplanationRequest', viewId: message.viewId, target: message.target, requestId: request.requestId, action: 'cancel', nodeIds: [] });
+              },
+            }, message.state.completed)) return;
             setModelExplanation(previous => {
               if (previous.scope !== scope || previous.state?.requestId !== message.state.requestId) return previous;
               // Late progress can never reopen a settled request.
@@ -358,6 +390,8 @@ export default function LocalBrowserApp({
       if (message.type === 'nodeExplanation' && message.viewId === transport.session?.viewId
         && !standalone && !reviewRef.current.state && !pageRef.current.greyed
         && sameValidationTarget(message.target, pageRef.current.activeTarget)) {
+        if (explanationWatchdog.expired('model', message.state.requestId)
+          || !explanationWatchdog.accepts(`node:${message.state.nodeId}`, message.state.requestId, message.state.status)) return;
         const scope = explanationScopeRef.current;
         const connection = explanationConnection.current;
         const arrival = ++explanationArrival;
@@ -372,6 +406,11 @@ export default function LocalBrowserApp({
             || explanationArrivals.get(message.state.nodeId) !== arrival
             || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected'
             || message.state.revision !== revision) return;
+          if (explanationWatchdog.expired('model', message.state.requestId)
+            || !explanationWatchdog.observe(`node:${message.state.nodeId}`, message.state.requestId, message.state.status, {
+              timeoutMs: NODE_EXPLANATION_IDLE_TIMEOUT_MS,
+              expire: reason => expireNodeExplanation(scope, message.state.nodeId, message.state.requestId, reason),
+            })) return;
           setNodeExplanations(previous => {
             const states = previous.scope === scope ? previous.states : {};
             const before = states[message.state.nodeId];
@@ -458,6 +497,8 @@ export default function LocalBrowserApp({
       setStatus(next);
       if (next.phase !== 'connected' || next.hostLink !== 'connected') {
         explanationConnection.current += 1;
+        explanationWatchdog.clear();
+        explanationRoute = undefined;
         setNodeExplanations({ scope: '', states: {} });
         setNodeAnnotations({ scope: '', states: {} });
         setModelExplanation({ scope: '', visible: false });
@@ -539,6 +580,7 @@ export default function LocalBrowserApp({
     // rejection carries nothing extra to poll-handling here.
     transport.connect().catch(() => undefined);
     return () => {
+      explanationWatchdog.clear();
       window.removeEventListener('tensorviz-projection-rendered', reviewRendered);
       if (transportRef.current === transport) transportRef.current = null;
       setBrowserRevealNodeSink(null);
@@ -557,7 +599,7 @@ export default function LocalBrowserApp({
       offStatus();
       transport.dispose();
     };
-  }, [createTransport, standalone, copySource, copyReviewSource, focusReviewNode]);
+  }, [createTransport, standalone, copySource, copyReviewSource, focusReviewNode, explanationWatchdog, expireNodeExplanation]);
 
   // Every projection the reducer admits is handed to the canvas through the
   // same builder-command bus the framed bridge uses — one way into the canvas,
@@ -863,7 +905,14 @@ export default function LocalBrowserApp({
       || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') return;
     const request = { type: 'nodeExplanationRequest' as const, viewId, target, nodeId: state.nodeId, requestId: state.requestId };
     if (citationId) transport.send({ ...request, action: 'reveal', citationId });
-    else transport.send({ ...request, action: 'retry' });
+    else {
+      const scope = explanationScopeRef.current;
+      explanationWatchdog.retry(`node:${state.nodeId}`, state.requestId, { timeoutMs: EXPLANATION_ACK_TIMEOUT_MS,
+        expire: reason => expireNodeExplanation(scope, state.nodeId, state.requestId, reason) });
+      setNodeExplanations(previous => previous.scope === scope && previous.states[state.nodeId]?.requestId === state.requestId
+        ? { ...previous, states: { ...previous.states, [state.nodeId]: { ...previous.states[state.nodeId], status: 'queued', explanation: undefined, detail: undefined } } } : previous);
+      transport.send({ ...request, action: 'retry' });
+    }
   };
   const startModelExplanation = async (nodeIds: string[]) => {
     const transport = transportRef.current, target = targetRef.current, viewId = transport?.session?.viewId;
@@ -887,9 +936,27 @@ export default function LocalBrowserApp({
       const state: ModelExplanationState = { requestId: request.requestId, revision, status: bounded.length ? 'loading' : 'unavailable',
         completed: 0, total: bounded.length, ...(bounded.length ? {} : { detail: 'No source-mapped components in this view. Open or expand a model first.' }) };
       setModelExplanation({ scope, state, visible: true });
-      if (bounded.length) transport.send({ type: 'modelExplanationRequest', viewId, target, action: 'start', requestId: request.requestId, nodeIds: bounded });
+      if (bounded.length) {
+        explanationWatchdog.observe('model', request.requestId, 'loading', { timeoutMs: EXPLANATION_ACK_TIMEOUT_MS,
+          expire: reason => {
+            if (explanationScopeRef.current !== scope || modelExplanationRequestRef.current !== request
+              || transportRef.current !== transport || transport.session?.viewId !== viewId) return;
+            setModelExplanation(previous => previous.scope === scope && previous.state?.requestId === request.requestId && previous.state.status === 'loading'
+              ? { ...previous, state: { ...previous.state, status: 'unavailable', detail: reason === 'provider'
+                ? 'The agent changed. Explain again with the current agent.'
+                : 'The graph host did not acknowledge this explanation request. Retry or reload the Canvas.' } } : previous);
+            transport.send({ type: 'modelExplanationRequest', viewId, target, requestId: request.requestId, action: 'cancel', nodeIds: [] });
+          } });
+        transport.send({ type: 'modelExplanationRequest', viewId, target, action: 'start', requestId: request.requestId, nodeIds: bounded });
+      }
     } catch {
-      if (modelExplanationRequestRef.current === request) setSourceNotice('Model explanations are unavailable because the graph revision could not be verified.');
+      if (modelExplanationRequestRef.current !== request || explanationScopeRef.current !== scope || transportRef.current !== transport) return;
+      if (previous?.scope === scope) explanationWatchdog.observe('model', previous.requestId, 'cancelled');
+      // A retry can fail verification before it replaces the prior loading state.
+      // Settle that state using its verified revision rather than inventing one.
+      setModelExplanation(current => current.scope === scope && current.state?.status === 'loading'
+        ? { ...current, state: { ...current.state, status: 'unavailable', detail: 'The graph revision could not be verified. Reload the Canvas, then retry.' } } : current);
+      setSourceNotice('Model explanations are unavailable because the graph revision could not be verified.');
     }
   };
   const cancelModelExplanation = () => {

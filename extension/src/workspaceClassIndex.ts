@@ -55,7 +55,7 @@ export class WorkspaceClassIndex implements vscode.Disposable {
   /** root -> classes. Kept across a failed scan on purpose: a backend that is
    *  still starting must not make the Models view go empty. */
   private readonly index = new Map<string, WorkspaceClass[]>();
-  private readonly inFlight = new Map<string, Promise<void>>();
+  private readonly inFlight = new Map<string, Promise<boolean>>();
 
   constructor(private readonly source: ClassIndexSource) {}
 
@@ -70,6 +70,11 @@ export class WorkspaceClassIndex implements vscode.Disposable {
   async refresh(uri: vscode.Uri): Promise<void> {
     if (!isHostFile(uri)) return;
     const root = WorkspaceClassIndex.rootFor(uri);
+    await this.refreshRoot(root);
+  }
+
+  /** A model's project root may be nested inside its VS Code workspace folder. */
+  async refreshRoot(root: string): Promise<boolean> {
     const running = this.inFlight.get(root);
     if (running) {
       return running;
@@ -78,11 +83,13 @@ export class WorkspaceClassIndex implements vscode.Disposable {
       .then((classes) => {
         this.index.set(root, classes);
         this.changed.fire();
+        return true;
       })
       .catch(() => {
         // Deliberately silent, and deliberately keeping the old index: this runs
         // on every save, and a backend that has not started yet is the normal
         // case, not an error worth a notification.
+        return false;
       })
       .finally(() => {
         this.inFlight.delete(root);

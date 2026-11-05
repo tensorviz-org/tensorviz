@@ -768,6 +768,15 @@ export function activate(context: vscode.ExtensionContext): { __test: TestApi } 
       .some(setting => event.affectsConfiguration(`tensorviz.${setting}`))) { canvasAgent.invalidate(); browserGraph?.invalidateNodeExplanations(); }
   }));
   browserGraph = new LocalBrowserGraph({
+    modelClasses: async (folder, refresh) => {
+      if (!lenses) throw new Error('The project model index is not ready. Try again.');
+      if ((refresh || lenses.classesFor(folder) === undefined) && !await lenses.refreshRoot(folder)) {
+        throw new Error('Project models could not be refreshed. Check the tensorViz output and try again.');
+      }
+      const classes = lenses.classesFor(folder);
+      if (!classes) throw new Error('Project models could not be indexed. Check the tensorViz output and try again.');
+      return classes.map(model => ({ cls: model.name, file: model.file }));
+    },
     observeAgent,
     agent: { run: (input, emit, signal) => canvasAgent.run(input, emit, signal), clear: preserveEvidence => canvasAgent.clear(preserveEvidence),
       projectWork: {

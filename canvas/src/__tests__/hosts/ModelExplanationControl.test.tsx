@@ -50,6 +50,20 @@ it('retains partial results and exposes the actual failure and retry path', () =
   expect(screen.getByRole('button', { name: 'Open agent chat' })).toBeVisible();
 });
 
+it('shows the reason for a failed start instead of a misleading zero-completed count', () => {
+  const detail = 'The configured agent needs sign-in. Open agent chat to connect.';
+  mount(value({ state: { requestId: 'run', revision: 'revision', status: 'unavailable', completed: 0, total: 2, detail } }));
+  const trigger = screen.getByRole('button', { name: 'Retry explanations' });
+  fireEvent.focus(trigger.parentElement!);
+  expect(screen.getByRole('tooltip')).toHaveTextContent(detail);
+  fireEvent.blur(trigger.parentElement!);
+  fireEvent.click(screen.getByRole('button', { name: 'Model explanation details' }));
+  expect(screen.getByRole('alert')).toHaveTextContent(detail);
+  expect(screen.queryByText('0 of 2 components explained.')).not.toBeInTheDocument();
+  expect(screen.queryByText(/Up to 128 visible components/)).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Open agent chat' })).toBeVisible();
+});
+
 it('does not offer unsupported hosts an action and explains why a disconnected view is disabled', () => {
   const view = mount(null);
   expect(screen.queryByRole('button')).toBeNull();

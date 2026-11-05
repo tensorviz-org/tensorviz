@@ -11,6 +11,7 @@ interface Entry {
   requestId: string;
   status: Status | 'expired';
   progress?: number;
+  phases?: ReadonlySet<string>;
   timer?: ReturnType<typeof setTimeout>;
   expire?: (reason: ExpiryReason) => void;
 }
@@ -43,17 +44,20 @@ export class ExplanationWatchdog {
     const entry = this.entries.get(key);
     return this.retired.has(this.identity(key, requestId)) || (entry?.requestId === requestId && entry.status === 'expired');
   }
-  observe(key: string, requestId: string, status: Status, pending?: Pending, progress?: number): boolean {
+  observe(key: string, requestId: string, status: Status, pending?: Pending, progress?: number, phase?: string): boolean {
     if (!this.accepts(key, requestId, status)) return false;
     const previous = this.entries.get(key);
     if (previous?.requestId === requestId && progress !== undefined && previous.progress !== undefined) {
       if (progress < previous.progress) return false;
       // Replayed progress is not activity and must not keep a lost run alive.
-      if (status === 'loading' && previous.status === status && progress === previous.progress) return true;
+      if (status === 'loading' && previous.status === status && progress === previous.progress
+        && (previous.phases?.has(phase ?? '') || (previous.phases?.size ?? 0) >= 32)) return true;
     }
     if (previous && previous.requestId !== requestId) this.retire(key, previous);
     else clearTimeout(previous?.timer);
-    const entry: Entry = { requestId, status, progress };
+    const phases = new Set(previous?.requestId === requestId ? previous.phases : undefined);
+    if (progress !== undefined && phases.size < 32) phases.add(phase ?? '');
+    const entry: Entry = { requestId, status, progress, phases };
     this.entries.delete(key); this.entries.set(key, entry);
     if ((status === 'queued' || status === 'loading') && pending) {
       entry.expire = pending.expire;

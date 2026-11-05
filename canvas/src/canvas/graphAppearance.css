@@ -338,6 +338,34 @@
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .ui2-node-shape-row .ui2-node-shape.card-content-lines { font: 400 11px/16.5px var(--font-mono); }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-source-evidence { display: inline-flex; flex: none; color: var(--tv-text-3); }
 
+/* Module metadata uses one left-aligned text column, including wrapped paths. */
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .module-route, .node-source-location) {
+  display: flex; align-items: flex-start; justify-content: flex-start; gap: 5px;
+  min-width: 0; max-width: 100%; margin: 0; text-align: left;
+  white-space: normal; overflow: visible; text-overflow: clip;
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .module-route) {
+  font: 400 10px/15px var(--font-mono); color: var(--tv-text-3);
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .node-source-location) {
+  appearance: none; border: 0; border-radius: 2px; padding: 0; background: transparent;
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .node-source-location):is(:hover, :focus-visible) {
+  background: transparent; color: var(--tv-text); text-decoration: none;
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .node-source-location):is(:hover, :focus-visible) .card-content-lines {
+  text-decoration: underline;
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .node-source-location):focus-visible {
+  outline: 2px solid var(--tv-focus-ring); outline-offset: 2px;
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .module-route, .node-source-location) > svg {
+  flex: none; margin-top: 2px;
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-container .module-resolution-block {
+  padding: 0 12px; box-sizing: border-box;
+}
+
 /* Captured module tile anatomy (see cardMetrics). */
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .module-header {
   display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 6px 0 12px; box-sizing: border-box;

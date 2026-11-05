@@ -122,6 +122,8 @@ export type LocalBrowserViewSend =
   | WithoutWire<Extract<import('./protocol.generated').LocalBrowserNodeExplanationRequest, { action: 'retry' }>>
   | WithoutWire<Extract<import('./protocol.generated').LocalBrowserNodeExplanationRequest, { action: 'reveal' }>>
   | WithoutWire<import('./protocol.generated').LocalBrowserModelExplanationRequest>
+  | WithoutWire<Extract<import('./protocol.generated').LocalBrowserModelCatalogRequest, { action: 'list' }>>
+  | WithoutWire<Extract<import('./protocol.generated').LocalBrowserModelCatalogRequest, { action: 'select' }>>
   | WithoutWire<import('./protocol.generated').GraphReviewRequest>
   | WithoutWire<import('./protocol.generated').GraphReviewApplied>
   | WithoutWire<LocalBrowserGraphSetupRequestMessage>
@@ -151,6 +153,7 @@ export type LocalBrowserViewMessage =
   | import('./protocol.generated').LocalBrowserAgentState
   | import('./protocol.generated').LocalBrowserNodeExplanation
   | import('./protocol.generated').LocalBrowserModelExplanation
+  | import('./protocol.generated').LocalBrowserModelCatalog
   | import('./protocol.generated').GraphReviewMessage
   | import('./protocol.generated').GraphReviewFocus
   | LocalBrowserGraphOpeningMessage
@@ -598,6 +601,7 @@ export function createLocalBrowserViewTransport(
       case 'agentRequest':
       case 'nodeExplanationRequest':
       case 'modelExplanationRequest':
+      case 'modelCatalogRequest':
       case 'sourceEditCancel':
       case 'candidateRequest':
       case 'captureInspectRequest':

@@ -1,5 +1,6 @@
 import * as assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { mock } from 'node:test';
 import { z } from 'zod';
 import { CanvasModelExplanation, modelExplanationNodeContext, type CanvasModelExplanationOptions } from '../../canvasModelExplanation';
 import type { CanvasAgentRoute, AgentRunInput } from '../../canvasAgent';
@@ -83,6 +84,18 @@ suite('Explicit model explanation', () => {
     const r = rig(); r.start({ nodeIds: Array.from({ length: 14 }, (_, i) => `node-${i}`) }); await r.done();
     assert.deepEqual(r.inputs.map(input => JSON.parse(input.context).nodes.length), [6, 6, 2]); assert.equal(r.nodes.length, 14); assert.equal(r.states.at(-1)!.completed, 14);
   });
+  test('moving past an empty batch publishes its actual next range without claiming completed nodes', async () => {
+    let calls = 0;
+    const r = rig(async (tools, input) => {
+      if (++calls === 1) return;
+      const context = JSON.parse(input.context);
+      await call(tools, 'submit_model_explanations', { nodes: context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId])) });
+    });
+    r.start({ nodeIds: Array.from({ length: 8 }, (_, index) => `node-${index}`) }); await r.done();
+    const advanced = r.states.find(state => state.detail === 'Reading components 7–8 of 8…');
+    assert.equal(advanced?.status, 'loading'); assert.equal(advanced?.completed, 0); assert.equal(calls, 2);
+    assert.equal(r.states.at(-1)!.status, 'unavailable'); assert.equal(r.states.at(-1)!.completed, 2);
+  });
   test('cached same-revision results avoid more model calls and can be reused by node selection', async () => {
     const r = rig(); r.start(); await r.done(); r.start({ requestId: 'second' }); await until(() => r.states.at(-1)!.requestId === 'second' && r.states.at(-1)!.status === 'ready');
     assert.equal(r.inputs.length, 1);
@@ -100,6 +113,47 @@ suite('Explicit model explanation', () => {
 
   test('unready and foreground-busy agents return actionable state without running', async () => {
     for (const change of [{ ready: false }, { busy: true }]) { const r = rig(); r.route = { ...r.route, ...change }; r.start(); await r.done(); assert.equal(r.states.at(-1)!.status, 'unavailable'); assert.ok(r.states.at(-1)!.detail); assert.equal(r.inputs.length, 0); }
+  });
+  test('an explicit cold start checks the configured provider and continues without opening chat or another click', async () => {
+    let checks = 0;
+    const r = rig(undefined, { prepareRoute: async () => {
+      checks++; await new Promise(resolve => setImmediate(resolve));
+      r.route = { ...r.route, ready: true, resolvedModel: 'discovered-default', settings: { effort: 'medium' } }; return r.route;
+    } });
+    r.route = { ...r.route, ready: false, resolvedModel: undefined, settings: {} };
+    r.start(); assert.equal(r.states.at(-1)!.status, 'loading'); await r.done();
+    assert.equal(checks, 1); assert.equal(r.states.at(-1)!.status, 'ready'); assert.equal(r.nodes.length, 2);
+    assert.equal(r.inputs.length, 1); assert.deepEqual(r.inputs[0].settings, { effort: 'medium' });
+    assert.deepEqual(r.states.filter(state => state.status === 'loading' && state.completed === 0).map(state => state.detail), ['Connecting to agent…', 'Reading model components…']);
+    assert.equal(r.states.at(-1)!.detail, undefined, 'ready does not retain a stale activity label');
+  });
+  test('unavailable provider checks preserve the specific account reason and never start inference', async () => {
+    const r = rig(undefined, { prepareRoute: async () => { r.route = { ...r.route, ready: false, detail: 'Sign in to Codex before explaining source.' }; return r.route; } });
+    r.route = { ...r.route, ready: false }; r.start(); await r.done();
+    assert.equal(r.states.at(-1)!.status, 'unavailable'); assert.equal(r.states.at(-1)!.detail, 'Sign in to Codex before explaining source.');
+    assert.equal(r.inputs.length, 0); assert.equal(r.service.busy, false);
+  });
+  test('cancel and stale provider checks settle without late generation', async () => {
+    for (const mode of ['cancel', 'stale', 'busy']) {
+      let finish!: (route: CanvasAgentRoute) => void, signal!: AbortSignal;
+      const r = rig(undefined, { prepareRoute: received => { signal = received; return new Promise(resolve => { finish = resolve; }); } });
+      r.route = { ...r.route, ready: false }; r.start(); await until(() => !!finish);
+      if (mode === 'cancel') r.start({ action: 'cancel', nodeIds: [] });
+      else if (mode === 'stale') r.valid = false;
+      else r.route = { ...r.route, busy: true };
+      finish(r.route); await r.done();
+      assert.equal(r.states.at(-1)!.status, mode === 'cancel' ? 'cancelled' : 'unavailable');
+      assert.equal(signal.aborted, true); assert.equal(r.service.busy, false); assert.equal(r.inputs.length, 0);
+    }
+  });
+  test('configured-provider discovery has a bounded deadline even when its inspector ignores cancellation', async () => {
+    const original = global.setTimeout;
+    const timer = mock.method(global, 'setTimeout', ((fn: (...args: any[]) => void, ms: number, ...args: any[]) => original(fn, ms === 45_000 ? 5 : ms, ...args)) as typeof setTimeout);
+    try {
+      const r = rig(undefined, { prepareRoute: () => new Promise(() => {}) }); r.route = { ...r.route, ready: false };
+      r.start(); await r.done(); assert.equal(r.states.at(-1)!.status, 'unavailable'); assert.match(r.states.at(-1)!.detail!, /did not finish connecting/);
+      assert.equal(r.inputs.length, 0); assert.equal(r.service.busy, false);
+    } finally { timer.mock.restore(); }
   });
   test('cancel requires the same view, target and request; aborts isolated runtime', async () => {
     const r = rig(async (_tools, _input, signal) => new Promise(resolve => signal.addEventListener('abort', () => resolve(), { once: true })));

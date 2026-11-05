@@ -17,8 +17,15 @@ export function sourceLinkLayout(location: { file: string; line: number }, width
 }
 
 export function definitionLinkLayout(file: string, width: number) {
-  const lines = wrapCardText(`defined in ${file}`, Math.max(48, width - 24), 10, true);
+  // Body padding and the source icon/gap share the source-location text column.
+  const lines = wrapCardText(`defined in ${file}`, Math.max(48, width - 42), 10, true);
   return { lines, height: lines.length * 15 };
+}
+
+export function moduleRouteLayout(entry: string, exit: string, width: number) {
+  const label = `${entry.split('__').pop()} → ${exit.split('__').pop()}`;
+  const lines = wrapCardText(label, Math.max(48, width - 42), 10, true);
+  return { label, lines, height: lines.length * 15 };
 }
 
 export function ioValueLayout(value: string, width: number) {

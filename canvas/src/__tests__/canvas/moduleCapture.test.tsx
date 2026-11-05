@@ -5,6 +5,7 @@ import { reconcileModuleView } from '../../services/canvasLayout';
 import { createGraphFile, parseGraphFile } from '../../services/graphFile';
 import { initialGraphFileView, restoreGraphFileView } from '../../viewer/graphFileView';
 import { modelGraphToDocumentV2, graphDocumentV2ToModelGraph } from '../../services/graphDocumentAdapter';
+import { definitionLinkLayout, moduleRouteLayout } from '../../canvas/cardContentLayout';
 import { CapturePort, ModelGraph, ModelNodeData } from '../../types';
 import { moduleCardHeader, moduleCardHeight, moduleCardWidth } from '../../canvas/cardMetrics';
 import { NodeUnderstanding } from '../../canvas/NodeUnderstanding';
@@ -116,6 +117,29 @@ it.each([false, true])('leaves static-analysis notes to the source-notes list (e
   expect(container).not.toHaveTextContent('external to the workspace');
   expect(screen.getByText('defined in models/blocks.py')).toBeVisible();
   expect(moduleCardHeight(noted)).toBe(moduleCardHeight(plain));
+});
+
+it('keeps wrapped definition paths and call routes complete in their measured metadata rows', () => {
+  const file = 'nanovllm_voxcpm/layers/audio_vae_v2_with_an_unusually_long_filename.py';
+  const entry = 'parent__decoder.model_with_a_long_input_route';
+  const exit = 'parent__python@decoder_with_a_long_output_route#2';
+  const base = { ...capturedModule(), capturePorts: [], parameters: {}, sourceLocation: undefined };
+  const data = { ...base, parameters: { _defined_in: file }, moduleEntryNodeId: entry, moduleExitNodeId: exit };
+  const width = moduleCardWidth(data);
+  const definition = definitionLinkLayout(file, width);
+  const route = moduleRouteLayout(entry, exit, width);
+  const { container } = renderCard(data);
+  const link = screen.getByRole('button', { name: `defined in ${file}` });
+  expect(link.querySelectorAll('.card-content-lines > span')).toHaveLength(definition.lines.length);
+  expect(link).toHaveStyle({ height: `${definition.height}px` });
+  expect(link.textContent).toBe(`defined in ${file}`);
+  const routeRow = container.querySelector('.module-route')!;
+  expect(routeRow.textContent).toBe(route.label);
+  expect(routeRow.querySelectorAll('.card-content-lines > span')).toHaveLength(route.lines.length);
+  expect(routeRow).toHaveStyle({ height: `${route.height}px` });
+  // Header, body padding/border, two complete metadata rows and their one gap.
+  expect(moduleCardHeight(data, width))
+    .toBe(moduleCardHeader(data, width).height + 24 + definition.height + 8 + route.height);
 });
 
 it('shows readable names and reserves space for every boundary value', () => {

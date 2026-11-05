@@ -34,7 +34,7 @@ LocalBrowserErrorCode = Literal[
 LOCAL_BROWSER_ROLES: Final[frozenset[str]] = frozenset({"host", "view"})
 LOCAL_BROWSER_MESSAGE_TYPES: Final[frozenset[str]] = frozenset(
     {
-        "agentRequest", "agentState", "nodeExplanation", "nodeExplanationRequest", "modelExplanation", "modelExplanationRequest",
+        "agentRequest", "agentState", "nodeExplanation", "nodeExplanationRequest", "modelExplanation", "modelExplanationRequest", "modelCatalog", "modelCatalogRequest",
         "graphReviewRequest", "graphReviewState", "graphReviewFocus", "graphReviewApplied",
         "graphOpening", "graphSetupRequest",
         "connected",
@@ -177,6 +177,27 @@ def _model_explanation_state(value: Any) -> bool:
             and _is_non_negative_integer(value.get("completed")) and _is_non_negative_integer(value.get("total"))
             and value["completed"] <= value["total"] <= 10000
             and ("detail" not in value or _node_explanation_text(value["detail"], 320)))
+
+
+def _model_catalog(value: Any) -> bool:
+    if (not isinstance(value, dict) or not set(value) <= {"status", "models", "activeId", "detail", "truncated"}
+            or not isinstance(value.get("status"), str) or value["status"] not in ("loading", "ready", "unavailable")
+            or not isinstance(value.get("models"), list) or len(value["models"]) > 2000):
+        return False
+    for model in value["models"]:
+        if (not isinstance(model, dict) or set(model) != {"id", "cls", "file", "evidence", "opened"}
+                or not _node_explanation_text(model["id"], 128) or not _node_explanation_text(model["cls"], 512)
+                or not _node_explanation_text(model["file"], 4096)
+                or re.match(r"^(?:/|\\|[A-Za-z][A-Za-z0-9+.-]*:)", model["file"]) is not None
+                or any(part in ("", ".", "..") for part in re.split(r"[/\\]", model["file"]))
+                or not isinstance(model["evidence"], str) or model["evidence"] not in ("source", "captured")
+                or not isinstance(model["opened"], bool)):
+            return False
+    ids = {model["id"] for model in value["models"]}
+    return (len(ids) == len(value["models"])
+            and ("activeId" not in value or _node_explanation_text(value["activeId"], 128) and value["activeId"] in ids)
+            and ("detail" not in value or _node_explanation_text(value["detail"], 320))
+            and ("truncated" not in value or isinstance(value["truncated"], bool)))
 
 
 def _is_non_negative_integer(value: Any) -> bool:
@@ -708,6 +729,17 @@ def is_local_browser_message(value: Any, expected_workspace_session_id: str | No
     if message_type == "nodeExplanation":
         return (len(value) == 7 and _is_bounded_string(value.get("viewId"), 128)
                 and _target_is_valid(value.get("target")) and _node_explanation_state(value.get("state")))
+    if message_type == "modelCatalog":
+        return (len(value) == 8 and _is_bounded_string(value.get("viewId"), 128)
+                and _target_is_valid(value.get("target")) and _is_bounded_string(value.get("requestId"), 128)
+                and _model_catalog(value.get("catalog")))
+    if message_type == "modelCatalogRequest":
+        action = value.get("action")
+        return (len(value) == (9 if action == "select" else 8)
+                and set(value) <= {"type", "protocolVersion", "workspaceSessionId", "messageId", "viewId", "target", "requestId", "action", "modelId"}
+                and _is_bounded_string(value.get("viewId"), 128) and _target_is_valid(value.get("target"))
+                and _is_bounded_string(value.get("requestId"), 128)
+                and (action == "list" or action == "select" and _is_bounded_string(value.get("modelId"), 128)))
     if message_type == "modelExplanation":
         return (len(value) == 7 and _is_bounded_string(value.get("viewId"), 128)
                 and _target_is_valid(value.get("target")) and _model_explanation_state(value.get("state")))

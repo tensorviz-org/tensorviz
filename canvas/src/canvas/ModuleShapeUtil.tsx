@@ -25,7 +25,7 @@ import { CardIdentity } from './NodeCardIdentity';
 import { NodeExplanationContext } from './NodeExplanationContext';
 import { NodeExplanationAnnotation } from './NodeExplanationAnnotation';
 import { nodeAnnotationLayout } from './nodeExplanationPresentation';
-import { definitionLinkLayout } from './cardContentLayout';
+import { definitionLinkLayout, moduleRouteLayout } from './cardContentLayout';
 import { graphIsReadOnly } from './graphAccess';
 import { NodeIssues } from './NodeIssues';
 import { NodeChanges } from './NodeChanges';
@@ -256,8 +256,9 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
       ? data.parameters._defined_in
       : '';
     const definition = definitionFile ? definitionLinkLayout(definitionFile, shape.props.w) : undefined;
-    const definitionText = definition?.lines.length === 1 ? definition.lines[0]
-      : definition?.lines.map((line, index) => <span key={index}>{line}</span>);
+    const definitionText = <span className="card-content-lines">{definition?.lines.map((line, index) => <span key={index}>{line}</span>)}</span>;
+    const route = data.moduleEntryNodeId && data.moduleExitNodeId
+      ? moduleRouteLayout(data.moduleEntryNodeId, data.moduleExitNodeId, shape.props.w) : undefined;
     // Only the active project projection owns host-controlled expansion. Class
     // modules also carry `_kind` metadata; that field alone cannot choose the
     // project command channel. Portable and class modules expand locally.
@@ -424,12 +425,13 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
               <div className="module-resolution-block" style={{ height: definition?.height, flexShrink: 0 }}>
                 <button
                   type="button"
-                  className="module-source-link card-content-lines"
+                  className="module-source-link"
                   style={{ pointerEvents: 'auto', height: definition?.height, font: '10px/15px var(--font-mono)' }}
                   {...canvasButtonHandlers(() => reportNodeClick(sourceNodeId))}
+                  aria-label={`defined in ${definitionFile}`}
                   title={copySource ? `Copy ${definitionFile} source reference` : `Reveal ${definitionFile} in VS Code`}
                 >
-                  {definitionText}
+                  <FileCode2 size={11} aria-hidden="true" />{definitionText}
                 </button>
               </div>
             )}
@@ -532,19 +534,20 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
             {definitionFile && (
               <button
                 type="button"
-                className="module-source-link card-content-lines"
+                className="module-source-link"
                 style={{ pointerEvents: 'auto', height: definition?.height, flexShrink: 0, font: '10px/15px var(--font-mono)' }}
                 {...canvasButtonHandlers(() => reportNodeClick(sourceNodeId))}
+                aria-label={`defined in ${definitionFile}`}
                 title={copySource ? `Copy ${definitionFile} source reference` : `Reveal ${definitionFile} in VS Code`}
               >
-                {definitionText}
+                <FileCode2 size={11} aria-hidden="true" />{definitionText}
               </button>
             )}
 
-            {data.moduleEntryNodeId && data.moduleExitNodeId && (
-              <div className="module-route">
-                <CornerDownRight size={12} />
-                <span>{data.moduleEntryNodeId.split('__').pop()} {'->'} {data.moduleExitNodeId.split('__').pop()}</span>
+            {route && (
+              <div className="module-route" style={{ height: route.height, flexShrink: 0 }} title={route.label}>
+                <CornerDownRight size={11} aria-hidden="true" />
+                <span className="card-content-lines">{route.lines.map((line, index) => <span key={index}>{line}</span>)}</span>
               </div>
             )}
 

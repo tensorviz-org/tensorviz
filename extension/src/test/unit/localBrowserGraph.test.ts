@@ -423,6 +423,35 @@ function approveExecution(graph: LocalBrowserGraph): void {
 }
 
 suite('LocalBrowserGraph', () => {
+  for (const surface of ['canvas', 'browser'] as const) test(`${surface} model catalogue lists unopened project classes and selects through the existing graph target`, async () => {
+    const reads: boolean[] = [];
+    const rig = makeGraph([], { modelClasses: async (folder, refresh) => {
+      assert.equal(folder, ROOT); reads.push(refresh);
+      return [{ cls: 'Net', file: 'models/resid.py' }, { cls: 'Decoder', file: 'models/decoder.py' }];
+    } });
+    openStubEditor(RESID, SAVED);
+    const other = path.join(ROOT, 'models', 'decoder.py'); openStubEditor(other, SAVED.replace('Net', 'Decoder'));
+    await rig.graph.open({ uri: RESID, cls: 'Net' }, surface); await settle();
+    const target = rig.graph.target!, posts: any[] = surface === 'canvas' ? [] : rig.transports[0].published;
+    const send = (message: LocalBrowserMessage) => surface === 'canvas' ? rig.graph.handleCanvasMessage(message) : rig.transports[0].fire(message);
+    if (surface === 'canvas') {
+      rig.graph.attachCanvas(message => { posts.push(message); return true; }); rig.graph.setCanvasView('catalog-view', true);
+    } else send({ type: 'viewState', protocolVersion: 1, workspaceSessionId: 'ws-test', messageId: 'connected', viewId: 'catalog-view', connected: true });
+    const request = { type: 'modelCatalogRequest' as const, protocolVersion: 1 as const, workspaceSessionId: 'native-session',
+      messageId: 'catalog', viewId: 'catalog-view', target, requestId: 'catalog-request', action: 'list' as const };
+    send(request); await settle();
+    const catalog = posts.filter(message => message.type === 'modelCatalog').at(-1).catalog;
+    assert.equal(catalog.models.length, 2);
+    const decoder = catalog.models.find((model: any) => model.cls === 'Decoder');
+    assert.equal(decoder.opened, false); assert.equal(decoder.evidence, 'source');
+    send({ ...request, requestId: 'select', action: 'select', modelId: decoder.id }); await settle();
+    assert.equal(rig.graph.target?.cls, 'Decoder'); assert.equal(rig.graph.target?.file, 'models/decoder.py');
+    assert.equal(rig.graph.target?.sourceDigest, createHash('sha256').update(SAVED.replace('Net', 'Decoder')).digest('hex'));
+    assert.equal(rig.graph.mcpModel?.target.cls, 'Decoder', 'graph tools and agent context follow the selected class');
+    assert.deepEqual(reads, [false, true]); assert.equal(rig.opened.length, surface === 'canvas' ? 0 : 1, 'selection stays on the existing Canvas');
+    assert.ok(posts.some(message => message.type === 'activeTarget' && message.target.cls === 'Decoder'));
+  });
+
   for (const scenario of ['saved', 'first-save-fails', 'second-save-fails', 'next-file-changed', 'earlier-file-changed'] as const)
     test(`accepted source set saves only reviewed bytes before one opening: ${scenario}`, async () => {
       const rig = makeGraph([], { profiles: {} as never,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CircleAlert, LoaderCircle, Sparkles, X } from 'lucide-react';
+import { CircleAlert, LoaderCircle, MessageCircle, Sparkles, X } from 'lucide-react';
 import { NodeExplanationContext } from '../canvas/NodeExplanationContext';
 import { dispatchBuilderCommand } from '../components/ui2/builderCommand';
 import CanvasPopover from './CanvasPopover';
@@ -19,9 +19,10 @@ export default function ModelExplanationControl({ compact }: { compact: boolean 
   const canToggle = settled && completed > 0;
   const label = loading ? `Explaining model · ${completed}/${state.total}`
     : canToggle ? 'Explanations' : failed ? 'Retry explanations' : 'Explain model';
-  const help = model.disabledReason ?? (loading ? `${completed} of ${state.total} components explained. You can keep exploring or stop.`
-    : canToggle ? `${context.annotationsVisible ? 'Hide' : 'Show'} the generated purpose and flow labels. Full explanations stay in node details.`
-      : 'Explain component roles and data flow using this graph and its source. Uses the agent connected in chat.');
+  const help = model.disabledReason ?? (loading ? state.detail ?? `${completed} of ${state.total} components explained. You can keep exploring or stop.`
+    : failed && !canToggle && state?.detail ? state.detail
+      : canToggle ? `${context.annotationsVisible ? 'Hide' : 'Show'} the generated purpose and flow labels. Full explanations stay in node details.`
+        : 'Explain component roles and data flow using this graph and its source. Uses your configured agent.');
   const start = () => dispatchBuilderCommand('explain-model');
   return <div className="model-explanation-control">
     <CanvasTooltip text={help}><button type="button" className="local-canvas-control"
@@ -36,15 +37,14 @@ export default function ModelExplanationControl({ compact }: { compact: boolean 
     {settled && <CanvasPopover label="Model explanation details" title="Model explanations"
       trigger={failed ? <CircleAlert size={14} aria-hidden="true" /> : <span>{completed}/{state.total}</span>}>
       {close => <div className="model-explanation-details">
-        <p role="status">{state.status === 'cancelled' ? 'Stopped. ' : ''}{completed} of {state.total} components explained.</p>
-        {state.detail && <p>{state.detail}</p>}
-        <small>Source-based interpretation. Recorded tensor evidence stays separate. Up to 128 visible components per pass; unchanged explanations are reused.</small>
+        {completed > 0 && <p role="status">{state.status === 'cancelled' ? 'Stopped. ' : ''}{completed} of {state.total} components explained.</p>}
+        {state.detail && <p role={failed ? 'alert' : undefined}>{state.detail}</p>}
         <button type="button" className="local-canvas-menu-item" onClick={() => { start(); close(); }} disabled={!!model.disabledReason}>
           <Sparkles size={14} aria-hidden="true" /><span>{failed ? 'Try again' : 'Explain current view'}</span>
         </button>
         {failed && <button type="button" className="local-canvas-menu-item" onClick={() => {
           window.dispatchEvent(new CustomEvent('tensorviz-agent-compose')); close();
-        }}>Open agent chat</button>}
+        }}><MessageCircle size={14} aria-hidden="true" /><span>Open agent chat</span></button>}
       </div>}
     </CanvasPopover>}
     {loading && <span className="model-explanation-sr-status" role="status">{completed} of {state.total} components explained</span>}

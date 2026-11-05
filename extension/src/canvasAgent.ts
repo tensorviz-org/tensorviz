@@ -27,6 +27,7 @@ export interface CanvasAgentRoute {
   provider: CanvasAgentProvider;
   settings: CanvasAgentSettings;
   resolvedModel?: string;
+  detail?: string;
   ready: boolean;
   busy: boolean;
 }
@@ -98,7 +99,31 @@ export class CanvasAgent {
     const provider = this.state.provider, availability = this.state.agents?.[provider];
     const settings = this.runSettings(provider, this.state.selections?.[provider] ?? {});
     return { provider, settings: { ...settings }, resolvedModel: settings.model ?? availability?.defaultModel,
-      ready: !this.disposed && availability?.status === 'ready', busy: !!this.active || !!this.warming || !!this.discovery };
+      ready: !this.disposed && availability?.status === 'ready', detail: availability?.detail, busy: !!this.active || !!this.warming || !!this.discovery };
+  }
+
+  /** Explicit source interpretation checks its configured provider without opening or warming chat. */
+  async prepareExplanation(signal: AbortSignal): Promise<CanvasAgentRoute> {
+    signal.throwIfAborted();
+    const route = this.routing();
+    if (route.busy || this.disposed) return route;
+    const provider = route.provider, selection = JSON.stringify(this.state.selections?.[provider] ?? {});
+    let checked = this.state.agents?.[provider];
+    if (checked?.status !== 'ready' && this.options.inspect) {
+      checked = await this.options.inspect(provider, false, signal);
+      signal.throwIfAborted();
+      if (this.disposed || this.state.provider !== provider || JSON.stringify(this.state.selections?.[provider] ?? {}) !== selection) {
+        throw new Error('The configured agent changed. Explain this model again.');
+      }
+      if (this.active || this.discovery || this.warming) return this.routing();
+      this.state.agents![provider] = checked; this.publish();
+    }
+    const ready = this.routing();
+    if (checked?.status === 'ready') {
+      try { validateAgentSettings(checked, ready.settings); }
+      catch (error) { return { ...ready, ready: false, detail: error instanceof Error ? error.message : 'Choose an available model in agent settings.' }; }
+    }
+    return ready;
   }
 
   /** Tool authority is captured from the active host turn, never supplied by model arguments. */

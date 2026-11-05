@@ -45,6 +45,19 @@ describe('explanation reply watchdog', () => {
     expect(expire).toHaveBeenCalledTimes(1);
   });
 
+  it('allows each genuine cold-provider phase once without letting phase replay renew inactivity', () => {
+    const expire = jest.fn(), pending = { timeoutMs: 75, expire };
+    watchdog.observe('model', 'request', 'loading', pending, 0, 'Connecting to agent…');
+    jest.advanceTimersByTime(45);
+    watchdog.observe('model', 'request', 'loading', pending, 0, 'Reading model components…');
+    jest.advanceTimersByTime(60);
+    expect(expire).not.toHaveBeenCalled();
+    watchdog.observe('model', 'request', 'loading', pending, 0, 'Connecting to agent…');
+    watchdog.observe('model', 'request', 'loading', pending, 0, 'Reading model components…');
+    jest.advanceTimersByTime(15);
+    expect(expire).toHaveBeenCalledTimes(1);
+  });
+
   it('retires superseded requests and permits a deliberate retry after expiry', () => {
     const old = jest.fn(), current = jest.fn();
     watchdog.observe('node:n', 'old', 'loading', { timeoutMs: 10, expire: old });

@@ -35,6 +35,13 @@ Search by a name such as `conv1`, a type such as `type=Conv2d`, or a shape such 
 
 ## Understand a node
 
+Use the model name at the top to switch between PyTorch model classes discovered
+in this project. Search by class name or file. Models found by reading code do not
+need an environment setup or a forward pass to appear in the list. **Captured**
+means TensorViz has execution evidence for the displayed model; **From code**
+identifies a class found without running it. Opening a class uses the normal graph
+and setup flow. File and setup utilities remain under their own disclosure.
+
 Cards keep the same content at every zoom level. Full class and function names wrap;
 long names can use a wider card. Click a node to inspect it without changing the camera.
 Constructor arguments stay in **More details**. The full list grows with its content
@@ -59,6 +66,8 @@ roles directly to the visible cards. Technical names remain complete. The pass r
 bounded batches of graph facts, neighboring components and source excerpts; it never
 runs the model or changes its wiring. Progress shows completed components, with a stop
 button. Completed work remains available after a partial result or cancellation.
+The action checks your configured agent directly, even if chat has not been opened.
+It preserves your saved provider and model; no chat turn or forward pass is needed.
 Select a component for the full explanation, actual upstream/downstream links, steps,
 source citations and expandable concepts. General concepts are agent interpretations,
 not evidence of a particular implementation's behavior.
@@ -84,6 +93,9 @@ shown separately from tensor evidence; missing runtime shapes never start a load
 If the host does not acknowledge an explanation request or stops responding, the
 activity ends with a retryable explanation message. Existing source facts and
 completed explanations remain available. No forward pass is needed for this step.
+If a pass cannot start, its details show the reason rather than a zero-completed
+count. Source and definition links align with the rest of a module's metadata;
+long paths and route endpoints wrap without being shortened.
 
 Explanations read source without running the model or changing your files. They are
 local to the current session and refresh after source or capture changes. Saved graph

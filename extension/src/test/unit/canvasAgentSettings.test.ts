@@ -18,7 +18,7 @@ const ready = { status: 'ready' as const, detail: 'Ready', defaultModel: 'one', 
 
 suite('Canvas agent settings and readiness', () => {
   let agent: CanvasAgent, state: CanvasAgentState, runs: AgentRunInput[], remembered: any[], inspections: string[];
-  setup(() => { runs = []; remembered = []; inspections = []; });
+  setup(() => { runs = []; remembered = []; inspections = []; state = undefined!; });
   teardown(() => agent?.dispose());
   function create(extra: Partial<ConstructorParameters<typeof CanvasAgent>[0]> = {}) {
     agent = new CanvasAgent({ prepare: async () => ({ cwd: '/project', context: '' }),
@@ -29,6 +29,36 @@ suite('Canvas agent settings and readiness', () => {
     create(); agent.handle(request({ action: 'sync' })); assert.deepEqual(inspections, []); assert.equal(state.agents?.codex.status, 'unchecked');
     agent.handle(request({ action: 'discover' })); await tick();
     assert.deepEqual(inspections.sort(), ['claude', 'codex']); assert.equal(state.agents?.claude.status, 'ready'); assert.equal(runs.length, 0);
+  });
+  test('explicit source explanation discovers only the saved provider without opening or warming chat', async () => {
+    let warms = 0, prepares = 0;
+    create({ preferences: { provider: 'claude', selections: { claude: { effort: 'high' } } },
+      warm: async () => { warms++; }, prepare: async () => { prepares++; return { cwd: '/project', context: '' }; } });
+    assert.equal(agent.routing().ready, false);
+    const route = await agent.prepareExplanation(new AbortController().signal);
+    assert.deepEqual(inspections, ['claude']); assert.equal(route.provider, 'claude'); assert.equal(route.ready, true);
+    assert.equal(route.resolvedModel, 'one'); assert.deepEqual(route.settings, { effort: 'high' });
+    assert.equal(warms, 0); assert.equal(prepares, 0); assert.equal(runs.length, 0); assert.equal(remembered.length, 0);
+    assert.equal(Boolean(state), false, 'checking a provider does not mount a chat view');
+    await agent.prepareExplanation(new AbortController().signal); assert.deepEqual(inspections, ['claude']);
+    agent.handle(request({ action: 'sync' })); assert.equal(state.messages.length, 0);
+    assert.deepEqual(state.selections, { claude: { effort: 'high' } }); assert.equal(state.agents?.codex.status, 'unchecked');
+  });
+  test('source explanation retains configured-provider sign-in failures and validates saved models', async () => {
+    create({ inspect: async provider => { inspections.push(provider); return { status: 'signInRequired', detail: 'Sign in to the configured Codex account.', models: [] }; } });
+    const refused = await agent.prepareExplanation(new AbortController().signal);
+    assert.equal(refused.ready, false); assert.equal(refused.detail, 'Sign in to the configured Codex account.'); assert.deepEqual(inspections, ['codex']);
+    agent.dispose(); create({ preferences: { provider: 'codex', selections: { codex: { model: 'removed-model' } } } });
+    const invalid = await agent.prepareExplanation(new AbortController().signal);
+    assert.equal(invalid.ready, false); assert.match(invalid.detail!, /model/i); assert.equal(runs.length, 0);
+  });
+  test('cancelled source provider checks never publish late availability', async () => {
+    let finish!: (value: typeof ready) => void;
+    create({ inspect: () => new Promise(resolve => { finish = resolve; }) });
+    const controller = new AbortController(), checking = agent.prepareExplanation(controller.signal);
+    controller.abort(); finish(ready); await assert.rejects(checking, /abort/i);
+    assert.equal(agent.routing().ready, false); assert.equal(Boolean(state), false);
+    await assert.rejects(agent.prepareExplanation(controller.signal), /abort/i);
   });
   test('opening warms the selected agent before Ready, without waiting for the other probe', async () => {
     let finishWarm!: () => void, finishOther!: (value: typeof ready) => void;

@@ -19,7 +19,7 @@ import { nodePresentation } from './nodePresentation';
 import { cardHeaderLayout, wrapCardText } from './cardIdentity';
 import { tensorShapes } from './graphSemantics';
 import { operationGroupCard } from '../services/operationGroups';
-import { boundaryTextLayout, definitionLinkLayout, ioValueLayout, sourceLinkLayout } from './cardContentLayout';
+import { boundaryTextLayout, definitionLinkLayout, ioValueLayout, moduleRouteLayout, sourceLinkLayout } from './cardContentLayout';
 import { portLabel, portType } from './capturePorts';
 import { displayInputShape } from '../utils/inputShape';
 import { tensorSummaryData } from './tensorSummaryData';
@@ -120,7 +120,7 @@ export function moduleCardHeight(data: ModelNodeData, width = moduleCardWidth(da
   if (data.sourceReplacement) sections.push([data.sourceReplacement.coverage === 'partial' ? 28 : 14, 8]);
   if (data.sourceLocation) sections.push([sourceLinkLayout(data.sourceLocation, width).height, 6]);
   if (data.parameters?._defined_in) sections.push([definitionLinkLayout(String(data.parameters._defined_in), width).height, 8]);
-  if (data.moduleEntryNodeId && data.moduleExitNodeId) sections.push([14, 8]);
+  if (data.moduleEntryNodeId && data.moduleExitNodeId) sections.push([moduleRouteLayout(data.moduleEntryNodeId, data.moduleExitNodeId, width).height, 8]);
   if (data.modulePreviewNodes?.length) sections.push([42, 8]);
   const content = sections.reduce((sum, [height, gap], index) => sum + height + (index ? gap : 0), 0);
   return portCardHeight(data, header.height + (sections.length ? 24 + content : 2));

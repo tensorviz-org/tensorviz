@@ -432,6 +432,28 @@ suite('localBrowserHostTransport', () => {
     transport.dispose();
   });
 
+  test('project model catalogue publishes privately and list/select reach the host', async () => {
+    const { broker, transport, received } = makeTransport();
+    const connected = transport.connect();
+    broker.last.driverOpen(); broker.driverAcceptHost(broker.last); await connected;
+    try {
+      const catalog = { status: 'ready' as const, activeId: 'net', models: [{ id: 'net', cls: 'Net', file: 'model.py', evidence: 'source' as const, opened: true }] };
+      const published = transport.publish({ type: 'modelCatalog', viewId: 'canvas-1', target: TARGET, requestId: 'models', catalog });
+      assert.ok(published && published.type === 'modelCatalog');
+      assert.deepEqual(published.catalog, catalog);
+      assert.equal('hostSequence' in published, false);
+      const envelope = { protocolVersion: 1, workspaceSessionId: SESSION_ID, messageId: 'list-models', viewId: 'canvas-1', target: TARGET, requestId: 'models' };
+      const list = { ...envelope, type: 'modelCatalogRequest', action: 'list' };
+      const select = { ...list, action: 'select', modelId: 'net', messageId: 'select-model' };
+      broker.last.driverMessage(list); broker.last.driverMessage(select);
+      assert.deepEqual(received, [list, select]);
+      broker.last.driverMessage({ ...select, workspaceSessionId: 'another-session' });
+      broker.last.driverMessage({ ...list, file: '/arbitrary.py' });
+      assert.deepEqual(received, [list, select]);
+      assert.equal(transport.protocolViolations, 2);
+    } finally { transport.dispose(); }
+  });
+
   test('model explanation progress publishes and start/cancel reach the host without sequencing', async () => {
     const { broker, transport, received } = makeTransport();
     const connected = transport.connect();

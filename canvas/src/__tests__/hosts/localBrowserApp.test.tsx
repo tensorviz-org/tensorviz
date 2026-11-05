@@ -199,6 +199,74 @@ function validationRequest(rig: TransportRig): { requestId: string; target: Loca
 }
 
 describe('LocalBrowserApp', () => {
+  it('lists all project model classes, selects only a host identity, and ignores stale catalogue replies', async () => {
+    const rig = readyValidationPage();
+    (rig.transport as { session: unknown }).session = { viewId: 'models-view', capabilities: {} };
+    act(() => rig.emit(hostMessage('projection', { target: netTarget(), projection: netProjection({ projectionDigest: 'models' }), traced: false, greyed: false })));
+    const requests = () => (rig.transport.send as jest.Mock).mock.calls.map(([message]) => message).filter(message => message.type === 'modelCatalogRequest');
+    const first = requests()[requests().length - 1];
+    expect(first).toMatchObject({ action: 'list', viewId: 'models-view', target: netTarget() });
+    const catalog = { status: 'ready', activeId: 'net', models: [
+      { id: 'net', cls: 'Net', file: netTarget().file, evidence: 'captured', opened: true },
+      { id: 'new-source-class', cls: 'UncommonAudioDecoder', file: 'layers/decoder.py', evidence: 'source', opened: false },
+    ] };
+    const reply = (extra = {}) => hostMessage('modelCatalog', { viewId: 'models-view', target: netTarget(), requestId: first.requestId, catalog, ...extra });
+    act(() => { rig.emit(reply({ viewId: 'another-view' })); rig.emit(reply({ requestId: 'old-request' })); rig.emit(reply({ target: { ...netTarget(), documentVersion: 99 } })); });
+    fireEvent.click(screen.getByRole('button', { name: 'Switch model' }));
+    expect(screen.queryByText('UncommonAudioDecoder')).not.toBeInTheDocument();
+    act(() => rig.emit(reply()));
+    expect(screen.getByText('UncommonAudioDecoder')).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Project models' })).toHaveTextContent('From code');
+    expect(screen.getByRole('region', { name: 'Opened models' })).toHaveTextContent('Captured');
+    fireEvent.click(screen.getByRole('button', { name: /UncommonAudioDecoder/ }));
+    expect(requests()[requests().length - 1]).toMatchObject({ action: 'select', modelId: 'new-source-class', target: netTarget() });
+    expect(requests()[requests().length - 1]).not.toHaveProperty('file');
+    expect(screen.getByRole('button', { name: 'Switch model' })).toHaveTextContent('Net');
+    const newTarget = { ...netTarget(), cls: 'UncommonAudioDecoder', file: 'layers/decoder.py', backendRevision: 2 };
+    act(() => {
+      rig.emit(hostMessage('activeTarget', { target: newTarget }));
+      rig.emit(hostMessage('projection', { target: newTarget, projection: netProjection({ cls: newTarget.cls, file: newTarget.file, projectionDigest: 'decoder' }), traced: false, greyed: false }));
+    });
+    const next = requests()[requests().length - 1];
+    expect(next).toMatchObject({ action: 'list', target: newTarget });
+    expect(next.requestId).not.toBe(first.requestId);
+    act(() => rig.emit(reply()));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch model' }));
+    expect(screen.queryByRole('region', { name: 'Opened models' })).not.toBeInTheDocument();
+    expect(within(screen.getByRole('dialog', { name: 'Switch model' })).getByRole('status')).toHaveTextContent('Finding models');
+  });
+
+  it('bounds missing catalogue replies and refreshes after reconnect without replaying settled results', () => {
+    jest.useFakeTimers();
+    try {
+      const rig = readyValidationPage();
+      (rig.transport as { session: unknown }).session = { viewId: 'models-view', capabilities: {} };
+      act(() => rig.emit(hostMessage('projection', { target: netTarget(), projection: netProjection({ projectionDigest: 'models' }), traced: false, greyed: false })));
+      const requests = () => (rig.transport.send as jest.Mock).mock.calls.map(([message]) => message).filter(message => message.type === 'modelCatalogRequest');
+      const first = requests()[requests().length - 1];
+      act(() => jest.advanceTimersByTime(30000));
+      fireEvent.click(screen.getByRole('button', { name: 'Switch model' }));
+      expect(screen.getByText(/graph host did not reply/)).toBeVisible();
+      act(() => rig.emit(hostMessage('modelCatalog', { viewId: 'models-view', target: netTarget(), requestId: first.requestId,
+        catalog: { status: 'ready', models: [{ id: 'late', cls: 'LateModel', file: 'late.py', evidence: 'source', opened: false }] } })));
+      expect(screen.queryByText('LateModel')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh models' }));
+      const refreshed = requests()[requests().length - 1];
+      expect(refreshed.requestId).not.toBe(first.requestId);
+      act(() => rig.emit(hostMessage('modelCatalog', { viewId: 'models-view', target: netTarget(), requestId: refreshed.requestId,
+        catalog: { status: 'ready', models: [] } })));
+      expect(screen.getByText('No models found in this workspace.')).toBeVisible();
+      act(() => rig.emit(hostMessage('modelCatalog', { viewId: 'models-view', target: netTarget(), requestId: refreshed.requestId,
+        catalog: { status: 'loading', models: [] } })));
+      expect(screen.queryByText('Finding models…')).not.toBeInTheDocument();
+      act(() => rig.setStatus({ phase: 'reconnecting', hostLink: 'disconnected', error: null }));
+      act(() => rig.setStatus({ phase: 'connected', hostLink: 'connected', error: null }));
+      expect(requests()[requests().length - 1].requestId).not.toBe(refreshed.requestId);
+      cleanup();
+      expect(jest.getTimerCount()).toBe(0);
+    } finally { jest.useRealTimers(); }
+  });
+
   it('recovers a lost model start, cancels it once and ignores late pass replies', async () => {
     jest.useFakeTimers();
     (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
@@ -318,6 +386,60 @@ describe('LocalBrowserApp', () => {
       act(() => jest.advanceTimersByTime(EXPLANATION_ACK_TIMEOUT_MS));
       expect(mockCapturedExplanationContext?.states.n).toMatchObject({ status: 'unavailable', documentation });
     } finally { jest.useRealTimers(); }
+  });
+
+  it('keeps a cold first model explanation active while provider discovery resolves its default', async () => {
+    jest.useFakeTimers();
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => 'cold-model' } });
+    try {
+      const rig = readyValidationPage(netProjection({ spanmap: {
+        n: { file: 'models/net.py', start: [2, 0], end: [5, 0] },
+        head: { file: 'models/net.py', start: [6, 0], end: [9, 0] },
+      } }));
+      (rig.transport as { session: unknown }).session = { viewId: 'model-view', capabilities: {} };
+      const route = { sessionId: 'agent', revision: 1, provider: 'codex', status: 'idle', activity: '', messages: [],
+        agents: { codex: { status: 'unchecked', detail: '', models: [] } } };
+      act(() => rig.emit(hostMessage('agentState', { viewId: 'model-view', state: route })));
+      await act(async () => mockCapturedExplanationContext?.model?.start(['n', 'head']));
+      const requestId = mockCapturedExplanationContext!.model!.state!.requestId;
+      const state = { requestId, revision: 'current-graph-revision', status: 'loading', completed: 0, total: 2 };
+      await act(async () => rig.emit(hostMessage('modelExplanation', { viewId: 'model-view', target: netTarget(),
+        state: { ...state, detail: 'Connecting to agent…' } })));
+      act(() => jest.advanceTimersByTime(45_000));
+      act(() => rig.emit(hostMessage('agentState', { viewId: 'model-view', state: { ...route, revision: 2,
+        agents: { codex: { status: 'ready', detail: '', models: ['gpt-6.1-sol'], defaultModel: 'gpt-6.1-sol' } } } })));
+      expect(mockCapturedExplanationContext?.model?.state?.status).toBe('loading');
+      await act(async () => rig.emit(hostMessage('modelExplanation', { viewId: 'model-view', target: netTarget(),
+        state: { ...state, detail: 'Reading model components…' } })));
+      act(() => jest.advanceTimersByTime(60_000));
+      await act(async () => rig.emit(hostMessage('modelExplanation', { viewId: 'model-view', target: netTarget(),
+        state: { ...state, status: 'ready', completed: 2 } })));
+      expect(mockCapturedExplanationContext?.model?.state).toMatchObject({ status: 'ready', completed: 2, total: 2 });
+      expect((rig.transport.send as jest.Mock).mock.calls.filter(([message]) => message.action === 'cancel')).toHaveLength(0);
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+      else Reflect.deleteProperty(globalThis, 'crypto');
+      jest.useRealTimers();
+    }
+  });
+
+  it.each(['defaultModel', 'provider', 'sessionId'] as const)('retires pending reads when the known %s route changes', async change => {
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+    (rig.transport as { session: unknown }).session = { viewId: 'node-view', capabilities: {} };
+    const route = { sessionId: 'agent', revision: 1, provider: 'codex', status: 'idle', activity: '', messages: [],
+      agents: { codex: { status: 'ready', detail: '', models: [], defaultModel: 'first' } } };
+    act(() => rig.emit(hostMessage('agentState', { viewId: 'node-view', state: route })));
+    await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state: {
+      requestId: 'node-request', revision: 'current-graph-revision', nodeId: 'n', status: 'loading' } })));
+    const updated = change === 'defaultModel'
+      ? { ...route, agents: { codex: { ...route.agents.codex, defaultModel: 'second' } } }
+      : { ...route, [change]: 'different' };
+    act(() => rig.emit(hostMessage('agentState', { viewId: 'node-view', state: { ...updated, revision: 2 } })));
+    expect(mockCapturedExplanationContext?.states.n.status).toBe('unavailable');
+    expect(mockCapturedExplanationContext?.states.n.detail).toContain('agent changed');
   });
 
   it('retires pending reads on provider changes and clears their clocks on capture changes and unmount', async () => {
@@ -1069,7 +1191,8 @@ describe('LocalBrowserApp', () => {
     expect(screen.getByRole('button', { name: 'Run model' })).toBeEnabled();
     // The saved setup sits in the model menu, not in a header row.
     expect(screen.queryByText('Saved as')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Model and file actions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch model' }));
+    fireEvent.click(screen.getByText('File and setup'));
     expect(screen.getByText('Saved as')).toHaveTextContent('net_cpu');
     fireEvent.click(screen.getByRole('button', { name: 'Open tensorviz.toml' }));
     expect(rig.transport.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'graphSetupRequest', openingId: 'opening', action: { kind: 'edit_config' } }));
@@ -2249,7 +2372,7 @@ it('offers Export graph in the toolbar once the current model opens, and no grap
   const rig = makeTransport();
   render(<LocalBrowserApp createTransport={() => rig.transport} />);
   expect(screen.getByRole('button', { name: 'Export graph' })).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Model and file actions' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Switch model' }));
   expect(screen.queryByRole('link', { name: 'Open graph file viewer' })).not.toBeInTheDocument();
   const commands: string[] = [];
   const listener = (event: Event) => commands.push((event as CustomEvent).detail.command);
@@ -2319,12 +2442,12 @@ it('renders project indexing failures and sends canvas expansion with the host p
 it('dismisses model actions with Escape and outside clicks without sending commands', () => {
   const rig = makeTransport();
   render(<LocalBrowserApp createTransport={() => rig.transport} />);
-  const trigger = screen.getByRole('button', { name: 'Model and file actions' });
+  const trigger = screen.getByRole('button', { name: 'Switch model' });
   fireEvent.click(trigger);
-  expect(screen.getByRole('group', { name: 'Model actions' })).toBeInTheDocument();
+  expect(screen.getByRole('dialog', { name: 'Switch model' })).toBeInTheDocument();
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(trigger).toHaveFocus();
-  expect(screen.queryByRole('group', { name: 'Model actions' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('dialog', { name: 'Switch model' })).not.toBeInTheDocument();
   fireEvent.click(trigger);
   fireEvent.pointerDown(screen.getByTestId('canvas-app'));
   expect(trigger).toHaveAttribute('aria-expanded', 'false');

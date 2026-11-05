@@ -37,6 +37,7 @@ import { LocalBrowserContext } from './localBrowserContext';
 import { NodeExplanationContext, type NodeExplanationContextValue } from '../canvas/NodeExplanationContext';
 import type { ModelExplanationState, NodeExplanationState } from './nodeExplanation.generated';
 import { nodeExplanationRevision } from './nodeExplanationRevision';
+import type { ModelCatalog } from './modelCatalog.generated';
 import { ExplanationWatchdog, EXPLANATION_ACK_TIMEOUT_MS, NODE_EXPLANATION_IDLE_TIMEOUT_MS, MODEL_EXPLANATION_IDLE_TIMEOUT_MS } from './explanationWatchdog';
 import { CandidateReviewPanel } from './CandidateReviewPanel';
 import { createLocalBrowserCaptureClient, LocalBrowserCaptureClient } from './localBrowserCaptureClient';
@@ -151,6 +152,10 @@ export default function LocalBrowserApp({
 }: LocalBrowserAppProps): React.ReactElement {
   const standalone = hostKind === 'standalone';
   const [sourceNotice, setSourceNotice] = React.useState<string | null>(null);
+  const [modelCatalog, setModelCatalog] = React.useState<{ scope: string; catalog?: ModelCatalog }>({ scope: '' });
+  const modelCatalogRef = React.useRef(modelCatalog); modelCatalogRef.current = modelCatalog;
+  const modelCatalogRequestRef = React.useRef<{ scope: string; requestId: string; settled: boolean; timer?: ReturnType<typeof setTimeout> } | null>(null);
+  const modelCatalogSequence = React.useRef(0);
   const [codeFocus, setCodeFocus] = React.useState<CodeFocusState | null>(null);
   const [nodeExplanations, setNodeExplanations] = React.useState<{ scope: string; states: Record<string, NodeExplanationState> }>({ scope: '', states: {} });
   const [nodeAnnotations, setNodeAnnotations] = React.useState<{ scope: string; states: Record<string, NodeExplanationState> }>({ scope: '', states: {} });
@@ -317,6 +322,39 @@ export default function LocalBrowserApp({
     targetRef.current = review ? null : page.activeTarget;
   }, [page.activeTarget, review]);
 
+  const clearModelCatalogRequest = React.useCallback(() => {
+    clearTimeout(modelCatalogRequestRef.current?.timer);
+    modelCatalogRequestRef.current = null;
+  }, []);
+  const requestModelCatalog = React.useCallback((modelId?: string) => {
+    const transport = transportRef.current, target = targetRef.current, scope = explanationScopeRef.current;
+    const viewId = transport?.session?.viewId;
+    if (standalone || !transport || !target || !scope || !viewId
+      || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') return;
+    if (modelId && (modelCatalogRef.current.scope !== scope || !modelCatalogRef.current.catalog?.models.some(model => model.id === modelId))) return;
+    clearModelCatalogRequest();
+    const request = { scope, requestId: `models-${++modelCatalogSequence.current}-${newLocalBrowserMessageId()}`, settled: false,
+      timer: undefined as ReturnType<typeof setTimeout> | undefined };
+    modelCatalogRequestRef.current = request;
+    setModelCatalog(previous => ({ scope, catalog: { ...(previous.scope === scope ? previous.catalog : undefined), status: 'loading',
+      models: previous.scope === scope ? previous.catalog?.models ?? [] : [] } }));
+    request.timer = setTimeout(() => {
+      if (modelCatalogRequestRef.current !== request || explanationScopeRef.current !== scope || transportRef.current !== transport) return;
+      request.settled = true;
+      setModelCatalog(previous => previous.scope === scope ? { ...previous, catalog: { ...previous.catalog, models: previous.catalog?.models ?? [],
+        status: 'unavailable', detail: 'The graph host did not reply. Refresh the model list to try again.' } } : previous);
+    }, 15000);
+    const base = { type: 'modelCatalogRequest' as const, viewId, target, requestId: request.requestId };
+    if (modelId) transport.send({ ...base, action: 'select', modelId });
+    else transport.send({ ...base, action: 'list' });
+  }, [standalone, clearModelCatalogRequest]);
+  React.useEffect(() => {
+    clearModelCatalogRequest();
+    setModelCatalog({ scope: explanationScope });
+    if (explanationScope && status?.phase === 'connected' && status.hostLink === 'connected') requestModelCatalog();
+    return clearModelCatalogRequest;
+  }, [explanationScope, status?.phase, status?.hostLink, clearModelCatalogRequest, requestModelCatalog]);
+
   // The rail below reads the session through this state, so it observes the
   // same transport and page reducer the strip renders from.
   const [agentValidation, setAgentValidation] = React.useState<LocalBrowserValidationSummary | null>(null);
@@ -346,13 +384,27 @@ export default function LocalBrowserApp({
     setPortableExports(portableClient);
     const explanationArrivals = new Map<string, number>();
     let explanationArrival = 0;
-    let explanationRoute: string | undefined;
+    let explanationRoute: { selected: string; defaultModel?: string } | undefined;
     const offMessage = transport.onMessage(message => {
+      if (message.type === 'modelCatalog' && message.viewId === transport.session?.viewId
+        && !standalone && !reviewRef.current.state && !pageRef.current.greyed
+        && sameValidationTarget(message.target, pageRef.current.activeTarget)) {
+        const request = modelCatalogRequestRef.current;
+        if (request && !request.settled && request.requestId === message.requestId && request.scope === explanationScopeRef.current) {
+          if (message.catalog.status !== 'loading') { request.settled = true; clearTimeout(request.timer); }
+          setModelCatalog({ scope: request.scope, catalog: message.catalog });
+        }
+      }
       if (message.type === 'agentState' && message.viewId === transport.session?.viewId) {
         const state = message.state;
-        const route = JSON.stringify([state.sessionId, state.provider, state.selections?.[state.provider], state.agents?.[state.provider]?.defaultModel]);
-        if (explanationRoute !== undefined && explanationRoute !== route) explanationWatchdog.interrupt();
-        explanationRoute = route;
+        const selected = JSON.stringify([state.sessionId, state.provider, state.selections?.[state.provider]]);
+        const defaultModel = state.agents?.[state.provider]?.defaultModel;
+        const sameSelection = explanationRoute?.selected === selected;
+        // Discovering an unchecked provider resolves its default during the same request.
+        // Only explicit route changes or changes between known defaults retire that request.
+        if (explanationRoute && (!sameSelection || (explanationRoute.defaultModel && defaultModel
+          && explanationRoute.defaultModel !== defaultModel))) explanationWatchdog.interrupt();
+        explanationRoute = { selected, defaultModel: defaultModel ?? (sameSelection ? explanationRoute?.defaultModel : undefined) };
       }
       if (message.type === 'modelExplanation' && message.viewId === transport.session?.viewId
         && !standalone && !reviewRef.current.state && !pageRef.current.greyed
@@ -376,7 +428,7 @@ export default function LocalBrowserApp({
                     : 'The explanation stopped responding. Completed node details remain available; retry to continue.' } } : previous);
                 transport.send({ type: 'modelExplanationRequest', viewId: message.viewId, target: message.target, requestId: request.requestId, action: 'cancel', nodeIds: [] });
               },
-            }, message.state.completed)) return;
+            }, message.state.completed, message.state.detail)) return;
             setModelExplanation(previous => {
               if (previous.scope !== scope || previous.state?.requestId !== message.state.requestId) return previous;
               // Late progress can never reopen a settled request.
@@ -498,6 +550,8 @@ export default function LocalBrowserApp({
       if (next.phase !== 'connected' || next.hostLink !== 'connected') {
         explanationConnection.current += 1;
         explanationWatchdog.clear();
+        clearModelCatalogRequest();
+        setModelCatalog({ scope: '' });
         explanationRoute = undefined;
         setNodeExplanations({ scope: '', states: {} });
         setNodeAnnotations({ scope: '', states: {} });
@@ -580,6 +634,7 @@ export default function LocalBrowserApp({
     // rejection carries nothing extra to poll-handling here.
     transport.connect().catch(() => undefined);
     return () => {
+      clearModelCatalogRequest();
       explanationWatchdog.clear();
       window.removeEventListener('tensorviz-projection-rendered', reviewRendered);
       if (transportRef.current === transport) transportRef.current = null;
@@ -599,7 +654,7 @@ export default function LocalBrowserApp({
       offStatus();
       transport.dispose();
     };
-  }, [createTransport, standalone, copySource, copyReviewSource, focusReviewNode, explanationWatchdog, expireNodeExplanation]);
+  }, [createTransport, standalone, copySource, copyReviewSource, focusReviewNode, explanationWatchdog, expireNodeExplanation, clearModelCatalogRequest]);
 
   // Every projection the reducer admits is handed to the canvas through the
   // same builder-command bus the framed bridge uses — one way into the canvas,
@@ -1007,7 +1062,12 @@ export default function LocalBrowserApp({
             {review ? <div className="local-browser-compact-title" title={review ? reviewRevisions : page.activeTarget ? `${page.activeTarget.cls} · ${page.activeTarget.file}` : 'tensorViz'}>
               <strong>{review ? review.proposal ? 'Draft graph' : review.title || 'Graph diff' : page.activeTarget?.cls ?? 'tensorViz'}</strong>
               {review ? <span>{review.beforeLabel} → {review.afterLabel}</span> : page.activeTarget && <span>{page.activeTarget.file}</span>}
-            </div> : <LocalBrowserModelMenu target={page.activeTarget}>
+            </div> : <LocalBrowserModelMenu target={page.activeTarget}
+              catalog={modelCatalog.scope === explanationScope ? modelCatalog.catalog : undefined}
+              onSelect={standalone ? undefined : id => requestModelCatalog(id)} onRefresh={standalone ? undefined : () => requestModelCatalog()}
+              disabledReason={!explanationScope ? 'Open a current model graph first.'
+                : status?.phase !== 'connected' || status.hostLink !== 'connected' ? 'Reconnect to the graph host first.'
+                  : openingBusy ? 'Finish the active model task first.' : modelCatalog.catalog?.status === 'loading' ? 'Loading models…' : undefined}>
               {selectedEnvironment && <div className="local-browser-model-detail" title={selectedEnvironment.interpreter}>
                 <p>Used by tensorViz · Python {selectedEnvironment.python} · Torch {selectedEnvironment.torch}</p>
                 <button type="button" disabled={openingBusy || status?.phase !== 'connected' || status.hostLink !== 'connected'}

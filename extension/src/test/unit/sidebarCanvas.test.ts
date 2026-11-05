@@ -508,6 +508,8 @@ suite('SidebarCanvas lifecycle', () => {
     const requests = [
       { ...common, type: 'modelExplanationRequest', action: 'start', nodeIds: ['encoder', 'latents'] },
       { ...common, type: 'modelExplanationRequest', action: 'cancel', nodeIds: [] },
+      { ...common, type: 'modelCatalogRequest', action: 'list' },
+      { ...common, type: 'modelCatalogRequest', action: 'select', modelId: 'opaque-model' },
       { ...common, type: 'nodeExplanationRequest', action: 'retry', nodeId: 'encoder' },
       { ...common, type: 'nodeExplanationRequest', action: 'reveal', nodeId: 'encoder', citationId: 'evidence-1' },
     ];

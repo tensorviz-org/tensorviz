@@ -9,6 +9,7 @@ import { CANVAS_AGENT_PROMPTS } from './canvasAgentPrompts';
 import type { HostToolset } from './mcpHost';
 
 export interface CanvasModelExplanationOptions extends Pick<CanvasNodeExplanationOptions, 'route' | 'read' | 'runtime' | 'tools'> {
+  prepareRoute?(signal: AbortSignal): Promise<CanvasAgentRoute>;
   current(request: LocalBrowserModelExplanationRequest, revision?: string): boolean;
   reference(request: LocalBrowserModelExplanationRequest): ModelRef;
   refusal?(request: LocalBrowserModelExplanationRequest): { ref: ModelRef; detail: string } | undefined;
@@ -22,7 +23,7 @@ export interface CanvasModelExplanationOptions extends Pick<CanvasNodeExplanatio
 }
 interface Run {
   request: LocalBrowserModelExplanationRequest; ref: ModelRef; route: CanvasAgentRoute;
-  controller: AbortController; state: ModelExplanationState; documentation: Map<string, NodeSourceDocumentation>;
+  controller: AbortController; preparingRoute: boolean; state: ModelExplanationState; documentation: Map<string, NodeSourceDocumentation>;
 }
 interface Batch {
   run: Run; nodeIds: Set<string>; evidence: Map<string, NodeExplanationCitation>; reads: number; bytes: number;
@@ -79,8 +80,9 @@ export class CanvasModelExplanation {
   }
   private current(run: Run): boolean {
     const route = this.options.route();
-    return !this.disposed && this.active === run && !run.controller.signal.aborted && route.ready && !route.busy
-      && routeKey(route) === routeKey(run.route) && this.options.current(run.request, run.ref.revision);
+    return !this.disposed && this.active === run && !run.controller.signal.aborted && !route.busy
+      && (run.preparingRoute ? route.provider === run.route.provider : route.ready && routeKey(route) === routeKey(run.route))
+      && this.options.current(run.request, run.ref.revision);
   }
   private check(batch: Batch): void { if (!this.current(batch.run)) throw new GraphToolError('STALE_TARGET', 'The model, source or agent changed.'); }
   private publish(run: Run): void { this.options.publish(run.request.viewId, run.request.target, structuredClone(run.state)); }
@@ -106,14 +108,32 @@ export class CanvasModelExplanation {
     let ref: ModelRef;
     try { ref = this.options.reference(request); } catch { this.refuse(request); return; }
     const route = this.options.route();
-    const run: Run = { request: structuredClone(request), ref, route, controller: new AbortController(),
-      documentation: new Map(), state: { requestId: request.requestId, revision: ref.revision, status: 'loading', completed: 0, total: request.nodeIds.length } };
-    if (!route.ready || route.busy) {
-      run.state.status = 'unavailable'; run.state.detail = route.busy ? 'The agent is busy. Explain when its current task finishes.' : 'Connect an agent in chat, then explain this model.'; this.publish(run); return;
+    const run: Run = { request: structuredClone(request), ref, route, controller: new AbortController(), preparingRoute: !!this.options.prepareRoute,
+      documentation: new Map(), state: { requestId: request.requestId, revision: ref.revision, status: 'loading', completed: 0, total: request.nodeIds.length,
+        ...(!route.ready && this.options.prepareRoute ? { detail: 'Connecting to agent…' } : {}) } };
+    if ((!route.ready && !this.options.prepareRoute) || route.busy) {
+      run.state.status = 'unavailable'; run.state.detail = route.busy ? 'The agent is busy. Explain when its current task finishes.' : route.detail ?? 'Connect an agent in chat, then explain this model.'; this.publish(run); return;
     }
     this.active = run; this.publish(run); this.options.changed();
     const previous = this.running;
-    this.running = (async () => { await previous; if (this.current(run)) await this.explain(run); })().catch(() => {});
+    this.running = (async () => { await previous; if (this.current(run)) await this.start(run); else if (this.active === run) this.refresh(); })().catch(() => {});
+  }
+  private async start(run: Run): Promise<void> {
+    if (this.options.prepareRoute) {
+      const timeout = setTimeout(() => { if (this.active === run) this.stop('The configured agent did not finish connecting. Check its sign-in and try again.', 'unavailable'); }, 45000);
+      try {
+        const route = await explanationAbortable(this.options.prepareRoute(run.controller.signal), run.controller.signal);
+        if (!this.current(run)) { if (this.active === run) this.refresh(); return; }
+        run.route = route; run.preparingRoute = false;
+        if (!route.ready || route.busy) { this.stop(route.detail ?? 'Check the configured agent connection, then explain again.', 'unavailable'); return; }
+        run.state = { ...run.state, detail: 'Reading model components…' }; this.publish(run);
+      } catch {
+        if (this.active === run) this.stop('The configured agent could not connect. Check its sign-in and try again.', 'unavailable');
+        return;
+      } finally { clearTimeout(timeout); }
+    }
+    if (this.current(run)) await this.explain(run);
+    else if (this.active === run) this.refresh();
   }
   private refuse(request: LocalBrowserModelExplanationRequest): void {
     const refusal = this.options.refusal?.(request);
@@ -214,6 +234,9 @@ export class CanvasModelExplanation {
     try {
       for (let offset = 0; offset < run.request.nodeIds.length && this.current(run); offset += BATCH_SIZE) {
         const requested = run.request.nodeIds.slice(offset, offset + BATCH_SIZE);
+        if (offset > 0) {
+          run.state = { ...run.state, detail: `Reading components ${offset + 1}–${offset + requested.length} of ${run.request.nodeIds.length}…` }; this.publish(run);
+        }
         const batch: Batch = { run, nodeIds: new Set(), evidence: new Map(), reads: 0, bytes: 0, results: new Map(), exposed: new Set(), submitted: false, submissionAttempted: false };
         let runtime: ReturnType<CanvasModelExplanationOptions['runtime']> | undefined;
         const timer = setTimeout(() => { if (this.active === run) this.stop('Explanation timed out. Completed nodes remain available; retry to continue.', 'unavailable'); }, this.options.timeoutMs ?? 60000);
@@ -287,7 +310,7 @@ export class CanvasModelExplanation {
       }
       if (this.current(run)) {
         const partial = run.state.completed < run.state.total;
-        run.state = { ...run.state, status: partial ? 'unavailable' : 'ready', ...(partial ? { detail: `${run.state.completed} of ${run.state.total} nodes explained. ${[...failures].slice(0, 2).map(reason => FAILURE_DETAILS[reason]).join(' ') || FAILURE_DETAILS.no_submission} Retry to continue.` } : {}) };
+        run.state = { ...run.state, status: partial ? 'unavailable' : 'ready', ...(partial ? { detail: `${run.state.completed} of ${run.state.total} nodes explained. ${[...failures].slice(0, 2).map(reason => FAILURE_DETAILS[reason]).join(' ') || FAILURE_DETAILS.no_submission} Retry to continue.` } : { detail: undefined }) };
         this.active = undefined; this.publish(run); this.options.changed();
       }
     } finally { clearInterval(guard); if (this.active === run && !this.current(run)) this.stop('The model or agent changed. Completed nodes remain available.', 'unavailable'); }

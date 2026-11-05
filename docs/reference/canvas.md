@@ -51,6 +51,21 @@ Native sidebar requests relay through the same explanation controller as browser
 views. Delivery and inactivity deadlines settle missing replies, retain available
 documentation and annotations, and reject late progress for expired work. Optional
 documentation reads have their own deadline and do not block agent generation.
+Explain model discovers the saved provider independently of chat visibility, without
+warming a chat session or changing its provider/model settings. Connection and
+source-reading phases renew the inactivity deadline once per distinct phase;
+replayed phases cannot keep a stalled request alive.
+
+The model title opens a searchable project model catalogue backed by the existing
+AST class index. It lists discovered PyTorch model classes without importing or
+executing project code. Opened classes remain a separate group; execution evidence
+is labelled only when the host can substantiate it. Source and definition paths
+use a common left text column, and route rows reserve their complete wrapped height.
+The host supplies opaque selection handles and revalidates the indexed class,
+workspace, target, requesting view and source-review state before switching through
+the normal graph opener. Switching updates graph, source and agent context together.
+List delivery and indexing have bounded waits and a refresh path; standalone hosts
+without catalogue support keep their existing file/setup utilities.
 Root I/O height follows actual rows; an output without boundary data has no body.
 
 The existing selection panel shows deterministic node identity, source documentation,

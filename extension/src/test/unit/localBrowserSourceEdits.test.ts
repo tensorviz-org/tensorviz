@@ -134,8 +134,8 @@ suite('local browser source review', () => {
   });
 
   for (const throws of [false, true]) test(`failed write keeps the draft and surfaces the reason; throws=${throws}`, async () => {
-    let disposed = false;
-    const h = harness(undefined, undefined, () => ({ show() {}, dispose() { disposed = true; } }));
+    let disposed = false, republished = false;
+    const h = harness(undefined, undefined, () => ({ show() {}, notifyDecisionFailed() { republished = true; }, dispose() { disposed = true; } }));
     mock.method(workspace as any, 'applyEdit', async () => {
       assert.equal(disposed, false);
       if (throws) throw new Error('editor unavailable');
@@ -144,6 +144,7 @@ suite('local browser source review', () => {
     const result = await h.host.propose(h.message());
     assert.equal(result.status, 'refused');
     assert.equal(disposed, false);
+    assert.equal(republished, true);
     assert.match(state.warningMessages.join(' '), throws ? /did not confirm/ : /editor rejected/);
     assert.ok(h.logs.some(line => line.includes(result.detail)));
     h.host.dispose();
@@ -281,12 +282,21 @@ suite('local browser source review', () => {
     });
   }
 
-  for (const change of ['document-version', 'dependency', 'retarget', 'cancel'] as const) {
+  test('typed review applies after identical-byte document version drift', async () => {
+    const h = harness(async () => {
+      editorState.versions.set('/work/net.py', 7);
+      return true;
+    });
+    assert.equal((await h.host.propose(h.message())).status, 'applied');
+    assert.equal(editorState.appliedEdits.length, 1);
+    h.host.dispose();
+  });
+
+  for (const change of ['dependency', 'retarget', 'cancel'] as const) {
     test(`refuses apply after ${change} changes during native review`, async () => {
       let reviewed = false;
       const h = harness(async () => {
         reviewed = true;
-        if (change === 'document-version') editorState.versions.set('/work/net.py', 2);
         if (change === 'dependency') editorState.documents.set('/work/dep.py', '# changed\n');
         if (change === 'retarget') h.retarget();
         if (change === 'cancel') h.host.cancel('edit1');

@@ -8,7 +8,7 @@ export interface SourceDraftInput {
   id: string; target: LocalBrowserTargetIdentity; artifacts: CodeArtifact[]; sources: SourceSet;
   canRevise?: boolean;
 }
-export interface SourceDraftHandle { show(reveal: () => Promise<void>, decide: (approved: boolean) => void): void; dispose(): void }
+export interface SourceDraftHandle { show(reveal: () => Promise<void>, decide: (approved: boolean) => void): void; notifyDecisionFailed?(): void; dispose(): void }
 
 /** A proposal owns this temporary view. It never replaces the live projection. */
 export class SourceDrafts {
@@ -21,7 +21,12 @@ export class SourceDrafts {
   }) {}
   get current() { return this.pending?.reveal ? this.pending.state : undefined; }
   get active() { return !!this.pending; }
-  replay(): void { if (this.current) this.options.publish({ type: 'graphReviewState', state: this.current }); }
+  replay(): void {
+    if (this.current && this.pending) {
+      this.pending.state = { ...this.current };
+      this.options.publish({ type: 'graphReviewState', state: this.pending.state });
+    }
+  }
   handle(request: GraphReviewRequest): void {
     if (request.reviewId !== this.current?.id) { this.replay(); return; }
     if (request.action === 'reveal') void this.pending?.reveal?.();
@@ -79,6 +84,6 @@ export class SourceDrafts {
         this.replay();
       });
     if (signal.aborted) entry.dispose();
-    return { show: (reveal, decide) => { if (this.pending === entry && !signal.aborted) { entry.reveal = reveal; entry.decide = decide; this.replay(); } }, dispose: entry.dispose };
+    return { show: (reveal, decide) => { if (this.pending === entry && !signal.aborted) { entry.reveal = reveal; entry.decide = decide; this.replay(); } }, notifyDecisionFailed: () => { if (this.pending === entry) this.replay(); }, dispose: entry.dispose };
   }
 }

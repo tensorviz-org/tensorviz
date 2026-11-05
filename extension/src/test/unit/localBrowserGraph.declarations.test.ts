@@ -315,7 +315,7 @@ suite('localBrowserGraph — reviewed project declarations', () => {
 
   for (const moment of ['preparation', 'review', 'final-read'] as const) {
     for (const change of ['text', 'version', 'dependency', 'trust'] as const) {
-      test(`${change} changed during ${moment} cannot overwrite newer work`, async () => {
+      test(`${change} changed during ${moment} ${change === 'version' && moment !== 'preparation' ? 'accepts identical reviewed bytes' : 'cannot overwrite newer work'}`, async () => {
         await open();
         const mutate = () => {
           if (change === 'text') editorState.documents.set(FILE, '# user edit\n');
@@ -333,7 +333,9 @@ suite('localBrowserGraph — reviewed project declarations', () => {
         }
         await finished();
         assert.equal(diffs.length, moment === 'preparation' ? 0 : 1);
-        assert.equal(editorState.appliedEdits.length, 0); assert.equal(state.warningMessages.length, 1);
+        const applies = change === 'version' && moment !== 'preparation';
+        assert.equal(editorState.appliedEdits.length, applies ? 1 : 0);
+        assert.equal(state.warningMessages.length, applies ? 0 : 1);
       });
     }
   }

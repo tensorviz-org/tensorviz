@@ -42,6 +42,15 @@ describe('the external extension page is read-only', () => {
     expect(page).toContain('onRenameModel={readOnlyLocalBrowser ? undefined');
   });
 
+  it('hides the Blocks family legend and add palette in the local page', () => {
+    const overlay = readSource('canvas', 'GraphFocusOverlay.tsx');
+    expect(overlay).toContain('const local = React.useContext(LocalBrowserContext);');
+    expect(overlay).toContain('{!local && <FamilyLegend nodes={graphNodes.get()} />}');
+
+    const palette = readSource('components', 'ui2', 'BuilderPaletteV2.tsx');
+    expect(palette).toContain('if (localBrowserMode()) return null;');
+  });
+
   it('keeps node source editing and the chat rail out of local mode', () => {
     const builder = readSource('components', 'ModelBuilder.tsx');
     expect(builder).not.toContain('LocalBrowserAskRail');

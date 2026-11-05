@@ -33,6 +33,11 @@ Code may also ask to let tensorViz open the link. The graph is then added by its
 **tensorViz: Sign in to tensorViz** does the same from the command palette, and
 switches accounts.
 
+Sign-in waits up to ten minutes for the browser to return to VS Code. If it times
+out, or your session has expired, the error dialog offers **Retry**. Retrying
+**Publish** opens sign-in again and then uploads the same graph. A rejected upload
+token is renewed once automatically before asking you to sign in again.
+
 The website sends VS Code a Google ID token, valid for an hour, together with the
 random state VS Code started the sign-in with; it sends it only to this extension or
 to a loopback address on your computer. The extension exchanges the token with Firebase

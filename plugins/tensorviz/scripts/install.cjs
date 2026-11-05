@@ -90,7 +90,7 @@ async function planInstall({ catalog, host, connection, cwd = process.cwd(), rep
   for (const kind of ['.codex-plugin', '.claude-plugin']) {
     if ((await json(path.join(pluginRoot, kind, 'plugin.json'))).version !== manifest.version) throw new Error('Plugin manifest versions differ.');
   }
-  for (const file of ['scripts/launch.sh', 'runtime/host.cjs', 'runtime/permissions.cjs', 'backend/standalone_server.py', 'browser/index.html']) {
+  for (const file of ['scripts/launch.cjs', 'runtime/host.cjs', 'runtime/permissions.cjs', 'backend/standalone_server.py', 'browser/index.html']) {
     if (!(await fs.stat(path.join(pluginRoot, file)).catch(() => null))?.isFile()) throw new Error(`The release is incomplete (${file} is missing). Extract the complete archive again; do not install a source-only checkout.`);
   }
   const state = await inspect(run);

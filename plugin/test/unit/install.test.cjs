@@ -14,7 +14,7 @@ async function fixture(t) {
   for (const dir of ['.agents/plugins', 'plugins/tensorviz/.codex-plugin', 'plugins/tensorviz/.claude-plugin']) await fs.mkdir(path.join(catalog, dir), { recursive: true });
   await fs.writeFile(path.join(catalog, '.agents/plugins/marketplace.json'), JSON.stringify({ name: 'tensorviz-standalone', plugins: [{ name: 'tensorviz', source: { source: 'local', path: './plugins/tensorviz' } }] }));
   for (const file of ['plugin.json', '.codex-plugin/plugin.json', '.claude-plugin/plugin.json']) await fs.writeFile(path.join(plugin, file), JSON.stringify({ name: 'tensorviz', version: '0.1.0' }));
-  for (const file of ['scripts/launch.sh', 'runtime/host.cjs', 'runtime/permissions.cjs', 'backend/standalone_server.py', 'browser/index.html']) {
+  for (const file of ['scripts/launch.cjs', 'runtime/host.cjs', 'runtime/permissions.cjs', 'backend/standalone_server.py', 'browser/index.html']) {
     await fs.mkdir(path.dirname(path.join(plugin, file)), { recursive: true });
     await fs.writeFile(path.join(plugin, file), 'fixture');
   }

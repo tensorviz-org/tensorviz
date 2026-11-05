@@ -68,7 +68,10 @@ export async function shareGraph(account: WebsiteAccount, graph: ShareableGraph,
     // The API's own words, such as how many seconds the posting clock still needs.
     const message = typeof answer?.error?.message === 'string' ? answer.error.message : undefined;
     if (status === 429) throw new WebsiteError('too-soon', message ?? 'You posted to tensorViz a moment ago. Try again shortly.');
-    if (status === 401) throw new WebsiteError('signed-out', 'Your tensorViz sign-in has expired. Sign in again.');
+    if (status === 401) {
+      await account.signOut();
+      throw new WebsiteError('signed-out', 'Your tensorViz sign-in has expired. Sign in again.');
+    }
     if (status === 400 || status === 413) throw new WebsiteError('invalid', message ?? 'tensorViz could not read this graph.');
     if (status === 403) throw new WebsiteError('denied', message ?? 'tensorViz refused this graph.');
     throw new WebsiteError('unavailable', 'tensorViz is not answering. Try again shortly.');

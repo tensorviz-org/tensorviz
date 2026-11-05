@@ -3,8 +3,8 @@
   "mcpServers": {
     "tensorviz": {
       "type": "stdio",
-      "command": "sh",
-      "args": ["${PLUGIN_ROOT}/scripts/launch.sh"]
+      "command": "node",
+      "args": ["${PLUGIN_ROOT}/scripts/launch.cjs"]
     }
   }
 }

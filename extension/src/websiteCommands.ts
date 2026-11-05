@@ -19,14 +19,17 @@ export function registerWebsiteCommands(context: vscode.ExtensionContext, channe
     openExternal: async url => vscode.env.openExternal(vscode.Uri.parse(url)),
   });
 
-  const report = (what: string, error: unknown): void => {
-    if (error instanceof WebsiteError && error.code === 'cancelled') return;
+  const report = async (what: string, error: unknown): Promise<boolean> => {
+    if (error instanceof WebsiteError && error.code === 'cancelled') return false;
     const detail = error instanceof Error ? error.message : String(error);
     channel.appendLine(`[website] ${what} ${detail}`);
     // A modal keeps the whole sentence visible. A toast clips this message
     // (`Could not add the graph to tensorViz.` plus the reason) at the edge.
     const message = detail.startsWith(what) ? detail : `${what} ${detail}`;
-    void vscode.window.showErrorMessage(message, { modal: true });
+    const retry = error instanceof WebsiteError && ['expired', 'signed-out'].includes(error.code);
+    if (retry) return await vscode.window.showErrorMessage(message, { modal: true }, 'Retry') === 'Retry';
+    await vscode.window.showErrorMessage(message, { modal: true });
+    return false;
   };
 
   const signIn = (title: string) => {
@@ -51,6 +54,7 @@ export function registerWebsiteCommands(context: vscode.ExtensionContext, channe
     }
     adding = true;
     let shared: { title: string; id: string } | undefined;
+    let retry = false;
     try {
       const graph = shareableGraph(Buffer.from(file.bytes, 'base64'));
       if (!await account.session()) await signIn(`Sign in to tensorViz in your browser to add ${graph.title}`);
@@ -59,10 +63,11 @@ export function registerWebsiteCommands(context: vscode.ExtensionContext, channe
       channel.appendLine(`[website] shared graph ${id}`);
       shared = { title: graph.title, id };
     } catch (error) {
-      report('Could not add the graph to tensorViz.', error);
+      retry = await report('Could not add the graph to tensorViz.', error);
     } finally {
       adding = false;
     }
+    if (retry) return share(file);
     if (!shared) return;
     const config = account.config;
     await vscode.env.openExternal(vscode.Uri.parse(graphUrl(config, shared.id, true)));
@@ -74,34 +79,36 @@ export function registerWebsiteCommands(context: vscode.ExtensionContext, channe
     }
   };
 
+  const signInCommand = async (): Promise<void> => {
+    try {
+      const member = await account.member();
+      if (member) {
+        const choice = await vscode.window.showInformationMessage(`Signed in to tensorViz as ${who(member)}.`, 'Switch account', 'Sign out');
+        if (choice === 'Sign out') return await signOut();
+        if (choice !== 'Switch account') return;
+      }
+      const session = await signIn('Sign in to tensorViz in your browser');
+      void vscode.window.showInformationMessage(`Signed in to tensorViz as ${who(session)}.`);
+    } catch (error) {
+      if (await report('Could not sign in to tensorViz.', error)) return signInCommand();
+    }
+  };
+
   context.subscriptions.push(
     vscode.window.registerUriHandler({
       handleUri(uri: vscode.Uri) {
         if (account.handleUri(uri.path, uri.query)) return;
         channel.appendLine(`[website] ignored a ${uri.path} link`);
-        if (uri.path === '/auth') {
+        if (uri.path === '/auth' || uri.path === 'auth') {
           void vscode.window.showWarningMessage('This tensorViz sign-in has expired or was started in another window. Run "Sign in to tensorViz" again.');
         }
       },
     }),
     // Another window signed in or out: read the stored sign-in again on next use.
     context.secrets.onDidChange(event => { if (account.owns(event.key)) account.forget(); }),
-    vscode.commands.registerCommand(SIGN_IN_TO_WEBSITE, async () => {
-      try {
-        const member = await account.member();
-        if (member) {
-          const choice = await vscode.window.showInformationMessage(`Signed in to tensorViz as ${who(member)}.`, 'Switch account', 'Sign out');
-          if (choice === 'Sign out') return await signOut();
-          if (choice !== 'Switch account') return;
-        }
-        const session = await signIn('Sign in to tensorViz in your browser');
-        void vscode.window.showInformationMessage(`Signed in to tensorViz as ${who(session)}.`);
-      } catch (error) {
-        report('Could not sign in to tensorViz.', error);
-      }
-    }),
+    vscode.commands.registerCommand(SIGN_IN_TO_WEBSITE, signInCommand),
     vscode.commands.registerCommand(SIGN_OUT_OF_WEBSITE, async () => {
-      try { await signOut(); } catch (error) { report('Could not sign out of tensorViz.', error); }
+      try { await signOut(); } catch (error) { await report('Could not sign out of tensorViz.', error); }
     }),
     vscode.commands.registerCommand(SHARE_GRAPH_FILE, share),
   );

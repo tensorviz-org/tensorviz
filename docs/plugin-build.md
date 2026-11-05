@@ -69,7 +69,7 @@ TENSORVIZ_TEST_PYTHON=/absolute/path/to/python npm run test:claude --prefix plug
 ```
 
 The interpreter needs the backend dependencies. The test installs the local plugin
-into a disposable Claude Code profile, discovers 28 tools and the model-workflow
+into a disposable Claude Code profile, checks the complete tool list (shared with the discovery unit test) and the model-workflow
 skill, and checks that `find_computation`, `query_computation` and
 `analyze_computation_change` return `NO_MODEL` for an unopened model without
 starting capture or creating permission state. It then captures a synthetic CPU

@@ -136,3 +136,30 @@ test('cancelled runtime progress disappears immediately and cannot replace a new
     assert.equal(runtime.progress, undefined);
   } finally { https.get = original; await fs.rm(root, { recursive: true, force: true }); }
 });
+
+test('managed availability and venv paths follow supported platform pins', async () => {
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+  const arch = Object.getOwnPropertyDescriptor(process, 'arch');
+  const runtime = new ManagedRuntime(path.resolve(__dirname, '../../../plugins/tensorviz/backend'), os.tmpdir(), {});
+  try {
+    for (const [osName, cpu, available] of [
+      ['darwin', 'arm64', true], ['linux', 'x64', true], ['win32', 'x64', true],
+      ['linux', 'arm64', false], ['darwin', 'x64', false],
+    ]) {
+      Object.defineProperty(process, 'platform', { value: osName });
+      Object.defineProperty(process, 'arch', { value: cpu });
+      assert.equal(runtime.availability().available, available, `${osName}-${cpu}`);
+      if (available) {
+        const location = await runtime.location(os.tmpdir(), 'service');
+        assert.equal(location.interpreter, path.join(location.prefix,
+          ...(osName === 'win32' ? ['Scripts', 'python.exe'] : ['bin', 'python'])));
+      } else {
+        await assert.rejects(runtime.provisionService(os.tmpdir(), new AbortController().signal),
+          error => error.code === 'MANAGED_RUNTIME_UNSUPPORTED' && !error.message.includes('Select a compatible existing Python'));
+      }
+    }
+  } finally {
+    Object.defineProperty(process, 'platform', platform);
+    Object.defineProperty(process, 'arch', arch);
+  }
+});

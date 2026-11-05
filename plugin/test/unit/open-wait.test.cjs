@@ -4,7 +4,7 @@ const { StandaloneHost } = require('../../out/host/host.cjs');
 const { ApprovalGate } = require('../../out/host/approval.cjs');
 
 function fixture() {
-  const host = new StandaloneHost('/unused', '/unused', new ApprovalGate(async () => false, '/unused'));
+  const host = new StandaloneHost(require('node:path').resolve(__dirname, '../../../plugins/tensorviz/backend'), '/unused', new ApprovalGate(async () => false, '/unused'));
   host.checkFreshness = async () => {};
   return host;
 }

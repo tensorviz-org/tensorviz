@@ -69,7 +69,7 @@ suite('Explicit model explanation', () => {
     const scope = { parent: { file: 'model.py', cls: 'Model' }, nodes: [{ nodeId: 'encoder', kind: 'layer', operation: 'Encoder' }, { nodeId: 'decoder', kind: 'layer', operation: 'Decoder' }], connections: [{ sourceNodeId: 'encoder', targetNodeId: 'decoder' }] };
     const r = rig(async (tools, input) => {
       const context = JSON.parse(input.context);
-      assert.deepEqual(context.view, scope); assert.deepEqual(context.requestedNodeIds, ['encoder', 'decoder']);
+      assert.deepEqual(context.view, scope); assert.deepEqual(context.requestedNodeIds, ['encoder', 'decoder']); assert.deepEqual(context.visibleNodeIds, ['encoder', 'decoder']);
       const evidenceId = context.nodes[0].evidenceId;
       const nodes = context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId]));
       const view = { summary: 'The visible components turn audio samples into learned features and reconstruct audio.',
@@ -96,7 +96,7 @@ suite('Explicit model explanation', () => {
     const r = rig(async (tools, input) => {
       const context = JSON.parse(input.context);
       await call(tools, 'submit_model_explanations', { nodes: context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId])),
-        view: { summary: `Explain ${context.requestedNodeIds.length} visible nodes.`, connections: [], callouts: [] } });
+        view: { summary: `Explain ${context.visibleNodeIds.length} visible nodes.`, connections: [], callouts: [] } });
     }, { scope: request => ({ parent: { file: 'model.py', cls: 'Model' }, nodes: request.nodeIds.map(nodeId => ({ nodeId, kind: 'layer', operation: nodeId })), connections: [] }) });
     r.start(); await r.done();
     r.start({ requestId: 'smaller-view', nodeIds: ['decoder'] });
@@ -109,12 +109,27 @@ suite('Explicit model explanation', () => {
     const ids = Array.from({ length: 8 }, (_, index) => `n${index}`);
     const r = rig(async (tools, input) => {
       const context = JSON.parse(input.context), first = context.nodes[0];
-      await call(tools, 'submit_model_explanations', { nodes: context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId])),
-        view: { summary: 'A single story for this visible view.', connections: [], callouts: [{ title: first.nodeId, body: 'A source-backed relationship in the current view.', nodeIds: ['n0', first.nodeId].filter((value, index, all) => all.indexOf(value) === index), citationIds: [first.evidenceId] }] } });
+      assert.deepEqual(context.batchNodeIds, context.nodes.map((node: any) => node.nodeId));
+      assert.deepEqual(context.requestedNodeIds, context.batchNodeIds); assert.deepEqual(context.visibleNodeIds, ids);
+      const schema = z.object(tools.get('submit_model_explanations')!.config.inputSchema);
+      const otherBatch = ids.find(id => !context.batchNodeIds.includes(id))!;
+      assert.equal(schema.safeParse({ nodes: [result(otherBatch, [first.evidenceId])] }).success, false);
+      const nodes = context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId]));
+      if (!context.viewProgress.summary) {
+        assert.equal((await call(tools, 'submit_model_explanations', { nodes, view: { connections: [], callouts: [] } })).isError, true);
+        assert.equal((await call(tools, 'submit_model_explanations', { nodes, view: { summary: 'A visible story.', connections: [], callouts: [{ title: 'Unrelated future batch', body: 'This does not touch any currently requested batch node.', nodeIds: ['n7'], citationIds: [first.evidenceId] }] } })).isError, true);
+      } else {
+        assert.equal(context.viewProgress.summary, 'A single story for this visible view.');
+        assert.ok(context.viewProgress.explainedNodeIds.length >= 3);
+      }
+      await call(tools, 'submit_model_explanations', { nodes,
+        view: { ...(context.viewProgress.summary ? {} : { summary: 'A single story for this visible view.' }), connections: [], callouts: [{ title: first.nodeId, body: 'A source-backed relationship in the current view.', nodeIds: ['n0', first.nodeId].filter((value, index, all) => all.indexOf(value) === index), citationIds: [first.evidenceId] }] } });
     }, { scope: () => ({ parent: { file: 'model.py', cls: 'Model' }, nodes: ids.map(nodeId => ({ nodeId, kind: 'layer', operation: nodeId })), connections: [] }) });
     r.start({ nodeIds: ids }); await r.done();
     assert.equal(r.states.at(-1)!.status, 'ready'); assert.equal(r.states.at(-1)!.completed, 8);
-    assert.deepEqual(r.states.at(-1)!.view!.nodeIds, ids); assert.equal(r.states.at(-1)!.view!.callouts.length, 2);
+    assert.deepEqual(r.inputs.map(input => JSON.parse(input.context).nodes.length), [3, 3, 2]);
+    assert.equal(r.states.at(-1)!.view!.summary, 'A single story for this visible view.');
+    assert.deepEqual(r.states.at(-1)!.view!.nodeIds, ids); assert.equal(r.states.at(-1)!.view!.callouts.length, 3);
     assert.ok(r.states.every(state => state.completed <= state.total));
   });
 
@@ -244,7 +259,17 @@ suite('Explicit model explanation', () => {
   test('invalid IDs, invented evidence and duplicate results are rejected while a valid partial result is retained', async () => {
     const r = rig(async (tools, input) => {
       const node = JSON.parse(input.context).nodes[0];
-      for (const entries of [[result('invented', [node.evidenceId])], [result(node.nodeId, ['invented'])], [result(node.nodeId, [node.evidenceId]), result(node.nodeId, [node.evidenceId])]]) assert.equal((await call(tools, 'submit_model_explanations', { nodes: entries })).isError, true);
+      const submit = tools.get('submit_model_explanations')!;
+      for (const [entries, reason] of [
+        [[result('invented', [node.evidenceId])], /outside this batch/],
+        [[result(node.nodeId, ['invented'])], /evidence IDs not supplied/],
+        [[result(node.nodeId, [node.evidenceId, node.evidenceId])], /repeats a citation/],
+        [[result(node.nodeId, [node.evidenceId]), result(node.nodeId, [node.evidenceId])], /submitted twice/],
+      ] as const) {
+        // Exercise host authority as well as the narrower provider-facing schema.
+        const rejected = await submit.handler({ nodes: entries }, {});
+        assert.equal(rejected.isError, true); assert.match(JSON.stringify(rejected.structuredContent), reason);
+      }
       assert.equal((await call(tools, 'submit_model_explanations', { nodes: [result(node.nodeId, [node.evidenceId])] })).isError, undefined);
     });
     r.start(); await r.done(); assert.equal(r.states.at(-1)!.status, 'unavailable'); assert.equal(r.states.at(-1)!.completed, 1); assert.equal(r.nodes.length, 1);

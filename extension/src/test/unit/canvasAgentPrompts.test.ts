@@ -64,7 +64,8 @@ suite('Canvas agent prompt boundaries', () => {
     assert.match(system, /submit_model_explanations/); assert.match(system, /incoming values/); assert.match(system, /downstream nodes/);
     assert.match(system, /general concept explanation/); assert.match(system, /source.*does not establish/);
     assert.match(system, /Never execute code/); assert.match(system, /host-issued citation IDs/);
-    assert.match(system, /visible view/); assert.match(system, /boundary input and output/);
+    assert.match(system, /visible scope/); assert.match(system, /boundary input and output/);
+    assert.match(system, /ONLY for batchNodeIds/); assert.match(system, /additional IDs are not requested node results/);
     assert.match(system, /conditioning, configuration, state and control/); assert.match(system, /constructor order/);
     assert.match(system, /callouts/); assert.doesNotMatch(system, /sr_cond|CausalEncoder/);
     assert.doesNotMatch(system, /present_permission|workflow.nextStep|propose_source_set/);

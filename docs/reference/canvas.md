@@ -71,6 +71,12 @@ revealing its current verified source. A source-structure connection never prove
 observed tensor dependency. View results remain presentation-only, separate from model
 records, saved layout and capture evidence.
 
+View passes process at most three components per batch and publish completed batches
+without waiting for the full view. Each submission tool accepts only the current
+batch's node IDs. Later batches reuse the summary and add new connection meanings and
+callouts instead of repeating the view. Source reads and generation remain bounded;
+these explanations never require a model forward pass.
+
 Node purposes and I/O role labels use measured wrapping in live cards and SVG export.
 Connection meanings are available on their arrows and in the collapsible view overview.
 The main action always explains the current viewport; hide/show is in its details menu.

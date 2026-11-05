@@ -44,7 +44,7 @@ const targetKey = (target: LocalBrowserTargetIdentity) => JSON.stringify(target)
 const routeKey = (route: CanvasAgentRoute) => JSON.stringify([route.provider, route.resolvedModel, route.settings]);
 const shortText = (max: number) => z.string().trim().min(1).max(max).regex(/^[^\u0000-\u001f\u007f]+$/);
 const citationIds = z.array(shortText(128)).min(1).max(8);
-const viewSubmission = z.object({ summary: shortText(640),
+const viewSubmission = z.object({ summary: shortText(640).optional().describe('Required for the first view result; omit when the supplied viewProgress already has a summary.'),
     connections: z.array(z.object({ sourceNodeId: shortText(1024), targetNodeId: shortText(1024), label: shortText(120), detail: shortText(320).optional(), citationIds }).strict()).max(128),
     callouts: z.array(z.object({ title: shortText(80), body: shortText(480), nodeIds: z.array(shortText(1024)).min(1).max(128), citationIds }).strict()).max(6),
   }).strict();
@@ -54,6 +54,9 @@ const batchSubmission = {
 };
 const MAX_BYTES = 48 * 1024;
 const BATCH_SIZE = 6;
+// View results include relationships and source-linked callouts in addition to
+// node details. Smaller batches leave the existing bounded deadline useful.
+const VIEW_BATCH_SIZE = 3;
 const FAILURE_DETAILS = {
   source_unavailable: 'Some nodes have no readable source mapping.',
   context_limit: 'Some context exceeded the explanation limit.',
@@ -250,14 +253,17 @@ export class CanvasModelExplanation {
       if (new Set(supplied).size !== supplied.length || supplied.some(id => !batch.exposed.has(id))) throw new GraphToolError('INVALID_CITATION', 'Use evidence IDs actually supplied.');
       return supplied.map(id => batch.evidence.get(id)!);
     };
-    const view: ViewExplanation = { summary: generated.summary, nodeIds: [...batch.run.request.nodeIds],
+    const summary = generated.summary ?? batch.run.state.view?.summary;
+    if (!summary) throw new GraphToolError('INVALID_EXPLANATION', 'The first view result needs a short summary.');
+    const view: ViewExplanation = { summary, nodeIds: [...batch.run.request.nodeIds],
       connections: generated.connections.map(({ citationIds: supplied, ...connection }) => {
         if (!ids.has(connection.sourceNodeId) || !ids.has(connection.targetNodeId)
           || !knownEdges.has(JSON.stringify([connection.sourceNodeId, connection.targetNodeId]))) throw new GraphToolError('INVALID_EXPLANATION', 'Only annotate an existing connection between displayed nodes.');
+        if (!batch.nodeIds.has(connection.sourceNodeId) && !batch.nodeIds.has(connection.targetNodeId)) throw new GraphToolError('INVALID_EXPLANATION', 'Annotate connections touching a component in this batch.');
         return { ...connection, citations: citations(supplied) };
       }),
       callouts: generated.callouts.map(({ citationIds: supplied, ...callout }) => {
-        if (callout.nodeIds.some(id => !ids.has(id))) throw new GraphToolError('INVALID_EXPLANATION', 'Only attach callouts to displayed nodes.');
+        if (callout.nodeIds.some(id => !ids.has(id)) || !callout.nodeIds.some(id => batch.nodeIds.has(id))) throw new GraphToolError('INVALID_EXPLANATION', 'Attach callouts to displayed nodes including a component in this batch.');
         return { ...callout, citations: citations(supplied) };
       }),
     };
@@ -301,8 +307,9 @@ export class CanvasModelExplanation {
       inputSchema: { file: z.string().min(1).max(512), startLine: z.number().int().min(1).optional(), maxLines: z.number().int().min(1).max(80).optional() } },
       handler: args => graphToolResult(async () => { this.check(batch); if (++batch.reads > 4) throw new GraphToolError('SOURCE_LIMIT', 'The source read limit is reached.');
         const result = await this.excerpt(batch, args.file, args.startLine ?? 1, args.maxLines ?? 60); this.charge(batch, result); batch.exposed.add(result.citation.id); return result; }) });
-    tools.set('submit_model_explanations', { config: { description: 'Submit source-grounded presentation annotations for the requested node IDs. Does not change model facts, topology, files or permissions.', annotations,
-      inputSchema: batchSubmission },
+    const requestedIds = [...batch.nodeIds] as [string, ...string[]];
+    tools.set('submit_model_explanations', { config: { description: 'Submit source-grounded annotations only for batchNodeIds. visibleNodeIds and view are context for relationships, not additional requested node explanations. Does not change model facts, topology, files or permissions.', annotations,
+      inputSchema: { ...batchSubmission, nodes: z.array(z.object({ nodeId: z.enum(requestedIds), ...nodeExplanationSubmission }).strict()).min(1).max(requestedIds.length) } },
       handler: args => graphToolResult(async () => {
         batch.submissionAttempted = true; this.check(batch); if (batch.submitted) throw new GraphToolError('ALREADY_SUBMITTED', 'This batch was already submitted.');
         const parsed = z.object(batchSubmission).strict().parse(args);
@@ -310,7 +317,11 @@ export class CanvasModelExplanation {
         const results = new Map<string, NodeExplanation>();
         for (const entry of parsed.nodes) {
           const { nodeId, citationIds, ...generated } = entry;
-          if (!batch.nodeIds.has(nodeId) || results.has(nodeId) || new Set(citationIds).size !== citationIds.length || citationIds.some(id => !batch.exposed.has(id))) throw new GraphToolError('INVALID_EXPLANATION', 'Use distinct requested nodes and evidence IDs actually supplied.');
+          if (!batch.nodeIds.has(nodeId)) throw new GraphToolError('INVALID_EXPLANATION', `Node ${JSON.stringify(nodeId)} is outside this batch. Submit only batchNodeIds: ${JSON.stringify(requestedIds)}.`);
+          if (results.has(nodeId)) throw new GraphToolError('INVALID_EXPLANATION', `Node ${JSON.stringify(nodeId)} was submitted twice. Submit each batch node once.`);
+          if (new Set(citationIds).size !== citationIds.length) throw new GraphToolError('INVALID_CITATION', `Node ${JSON.stringify(nodeId)} repeats a citation ID. Use each evidence ID once.`);
+          const unknownCitations = citationIds.filter(id => !batch.exposed.has(id));
+          if (unknownCitations.length) throw new GraphToolError('INVALID_CITATION', `Node ${JSON.stringify(nodeId)} cites evidence IDs not supplied: ${JSON.stringify(unknownCitations)}. Use IDs from sourceEvidence, sourceDocumentation or a source tool response.`);
           const explanation = { ...generated, citations: citationIds.map(id => batch.evidence.get(id)!) };
           if (!await this.valid(batch, explanation)) throw new GraphToolError('INVALID_CITATION', 'Source evidence is stale or invalid.');
           results.set(nodeId, explanation);
@@ -340,8 +351,9 @@ export class CanvasModelExplanation {
     const failures = new Set<FailureReason>();
     const guard = setInterval(() => { if (!this.current(run)) this.refresh(); }, 250);
     try {
-      for (let offset = 0; offset < run.request.nodeIds.length && this.current(run); offset += BATCH_SIZE) {
-        const requested = run.request.nodeIds.slice(offset, offset + BATCH_SIZE);
+      const batchSize = run.scope ? VIEW_BATCH_SIZE : BATCH_SIZE;
+      for (let offset = 0; offset < run.request.nodeIds.length && this.current(run); offset += batchSize) {
+        const requested = run.request.nodeIds.slice(offset, offset + batchSize);
         if (offset > 0) {
           run.state = { ...run.state, detail: `Reading components ${offset + 1}–${offset + requested.length} of ${run.request.nodeIds.length}…` }; this.publish(run);
         }
@@ -395,7 +407,10 @@ export class CanvasModelExplanation {
             } catch (error) { this.check(batch); failures.add(error instanceof GraphToolError && error.code === 'SOURCE_LIMIT' ? 'context_limit' : 'source_unavailable'); }
           }
           if (!nodes.length) continue;
-          let context = { model: run.ref, ...(run.scope ? { view: run.scope, requestedNodeIds: run.request.nodeIds } : {}), nodes, sourceEvidence, sourceDocumentation };
+          let context = { model: run.ref, batchNodeIds: [...batch.nodeIds], requestedNodeIds: [...batch.nodeIds], ...(run.scope ? { view: run.scope, visibleNodeIds: run.request.nodeIds,
+            viewProgress: { summary: run.state.view?.summary, explainedNodeIds: [...run.ready.keys()],
+              connections: run.state.view?.connections.map(({ sourceNodeId, targetNodeId }) => ({ sourceNodeId, targetNodeId })) ?? [],
+              calloutTitles: run.state.view?.callouts.map(item => item.title) ?? [] } } : {}), nodes, sourceEvidence, sourceDocumentation };
           // Literal docs are optional context; never crowd out the current graph and source windows.
           if (Buffer.byteLength(JSON.stringify(context)) > MAX_BYTES) {
             sourceDocumentation = sourceDocumentation.map(item => ({ ...item, signature: item.signature.slice(0, 512), docstring: item.docstring?.slice(0, 256), truncated: true }));
@@ -411,7 +426,7 @@ export class CanvasModelExplanation {
           stage = 'provider';
           await explanationAbortable(runtime.run({ provider: run.route.provider, settings: run.route.settings, intent: 'model_explanation', cwd: run.request.target.workspaceFolder,
             conversationId: hash(JSON.stringify([run.ref, run.request.requestId, offset])), context: JSON.stringify(context),
-            messages: [{ id: `${run.request.requestId}-${offset}`, role: 'user', text: 'Explain this visible view so its inputs, components, connections and outputs are understandable without opening a sidebar. Explain only the requested batch nodes; use the shared view as context. Submit the structured node explanations and source-backed view explanation.' }] }, () => {}, run.controller.signal), run.controller.signal);
+            messages: [{ id: `${run.request.requestId}-${offset}`, role: 'user', text: 'Explain this visible view so its inputs, components, connections and outputs are understandable without opening a sidebar. Submit node explanations ONLY for batchNodeIds, the IDs in nodes. visibleNodeIds and view describe the full view for context; do not submit additional node explanations for them. Keep node steps focused, usually one or two. Label new connections touching this batch and add only useful new callouts; do not repeat viewProgress relationships or its summary. Submit the structured node explanations and source-backed view additions.' }] }, () => {}, run.controller.signal), run.controller.signal);
           this.check(batch); stage = 'validation';
           if (!batch.submitted || batch.results.size < batch.nodeIds.size) failures.add(batch.submissionAttempted && !batch.submitted ? 'invalid_submission' : 'no_submission');
           if (batch.view) { this.mergeView(run, batch.view); this.publish(run); }

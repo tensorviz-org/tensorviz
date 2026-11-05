@@ -2,18 +2,11 @@ import * as vscode from 'vscode';
 import { OPEN_AS_GRAPH, OPEN_PROJECT, OPEN_PROJECT_IN_BROWSER } from './commandIds';
 import { LocalBrowserGraph } from './localBrowserGraph';
 import { SidebarCanvas, SHOW_SIDEBAR_CANVAS } from './sidebarCanvas';
+import { selectedTextUri } from './editorSelection';
 
 export const HIDE_CANVAS = 'tensorviz.hideCanvas';
 export const OPEN_CANVAS_IN_BROWSER = 'tensorviz.openCanvasInBrowser';
 export const TOGGLE_CANVAS = 'tensorviz.toggleCanvas';
-
-/** The selected text tab remains available while a view or palette owns focus. */
-function selectedTextUri(): string | undefined {
-  const editor = vscode.window.activeTextEditor;
-  if (editor) return editor.document.uri.toString();
-  const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
-  return input instanceof vscode.TabInputText ? input.uri.toString() : undefined;
-}
 
 /** All user entry points share one target owner. Legacy graphSurface values no
  * longer route commands; the browser is an explicit action on that owner. */

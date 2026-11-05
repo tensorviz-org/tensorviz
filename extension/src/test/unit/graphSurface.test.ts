@@ -50,6 +50,23 @@ suite('Canvas command routing', () => {
     assert.equal(browsers, 0);
   });
 
+  test('sidebar home freezes the editor file for opening and retry', async () => {
+    const targets: unknown[] = [];
+    registrations.push(vscode.commands.registerCommand('tensorviz.openAsGraph', async target => {
+      targets.push(target);
+      openStubEditor('/ws/unrelated.py', '');
+      throw new Error('Discovery failed');
+    }));
+    await canvas.reveal();
+    openStubEditor('/ws/hf_models.py', '');
+    const view = webviewState.views[0];
+    view.receive({ type: 'homeAction', action: 'open' });
+    await new Promise<void>(resolve => setImmediate(resolve));
+    view.receive({ type: 'homeAction', action: 'retry' });
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.deepEqual(targets, [{ uri: '/ws/hf_models.py' }, { uri: '/ws/hf_models.py' }]);
+  });
+
   test('Show/Open/Toggle without a target retain the model or useful empty Canvas', async () => {
     openStubEditor('/ws/incidental.py', 'class Other: pass');
     await commands.executeCommand('tensorviz.openCanvas');
@@ -146,7 +163,7 @@ suite('Graph command selected tab', () => {
   setup(() => {
     reset(); resetEditors(); restore = []; resolved = []; opens = []; activeInput = undefined;
     patch(vscode, 'TabInputText', class { constructor(public uri: vscode.Uri) {} });
-    patch(vscode.window, 'tabGroups', { activeTabGroup: { get activeTab() { return activeInput === undefined ? undefined : { input: activeInput }; } } });
+    patch(vscode.window, 'tabGroups', { all: [], activeTabGroup: { get activeTab() { return activeInput === undefined ? undefined : { input: activeInput }; } } });
     resolve = async target => target.uri?.endsWith('.py') ? { uri: target.uri, cls: 'Net' } : undefined;
     registrations = registerCanvasCommands({ visible: false, hide: async () => {}, reveal: async () => {}, show: async () => true }, {
       open: async (...args) => { opens.push(args); },
@@ -162,6 +179,42 @@ suite('Graph command selected tab', () => {
     await commands.executeCommand('tensorviz.openAsGraph');
     assert.deepEqual(resolved, [{ uri: '/ws/new_model.py' }]);
     assert.deepEqual(opens, [[{ uri: '/ws/new_model.py', cls: 'Net' }, 'canvas']]);
+  });
+
+  test('webview focus retains the visible Python editor before considering unrelated tabs', async () => {
+    openStubEditor('/ws/hf_models.py', 'class Net: pass');
+    patch(vscode.window, 'activeTextEditor', undefined);
+    activeInput = new vscode.TabInputText(vscode.Uri.file('/ws/unrelated.py'));
+    await commands.executeCommand('tensorviz.openAsGraph');
+    assert.deepEqual(resolved, [{ uri: '/ws/hf_models.py' }]);
+    assert.deepEqual(opens, [[{ uri: '/ws/hf_models.py', cls: 'Net' }, 'canvas']]);
+  });
+
+  test('a Python tab in another group survives webview focus', async () => {
+    (vscode.window.tabGroups.all as unknown as object[]).push({
+      activeTab: { input: new vscode.TabInputText(vscode.Uri.file('/ws/model.py')) },
+    });
+    activeInput = { webview: true };
+    await commands.executeCommand('tensorviz.openAsGraph');
+    assert.deepEqual(resolved, [{ uri: '/ws/model.py' }]);
+  });
+
+  test('a non-Python active editor does not hide a visible Python file', async () => {
+    openStubEditor('/ws/model.pyw', '');
+    openStubEditor('/ws/README.md', '');
+    await commands.executeCommand('tensorviz.openAsGraph');
+    assert.deepEqual(resolved, [{ uri: '/ws/model.pyw' }]);
+  });
+
+  test('without a usable Python file the resolver can offer the workspace picker', async () => {
+    openStubEditor('/ws/README.md', '');
+    activeInput = new vscode.TabInputText(vscode.Uri.parse('untitled:/ws/model.py'));
+    resolve = async target => {
+      assert.equal(target.uri, undefined);
+      return { uri: '/ws/picked.py', cls: 'Picked' };
+    };
+    await commands.executeCommand('tensorviz.openAsGraph');
+    assert.deepEqual(opens, [[{ uri: '/ws/picked.py', cls: 'Picked' }, 'canvas']]);
   });
 
   test('the explicit selection wins over both editor and tab', async () => {
@@ -188,13 +241,15 @@ suite('Graph command selected tab', () => {
     assert.deepEqual(opens, [[{ uri: '/ws/first.py', cls: 'Net' }, 'canvas']]);
   });
 
-  for (const kind of ['no_tab', 'custom_tab', 'non_python']) {
+  for (const kind of ['no_tab', 'custom_tab', 'non_python', 'non_host']) {
     test(`${kind} cannot reopen an unrelated model`, async () => {
       openStubEditor('/ws/old.py', '');
       editorState.visibleTextEditors.length = 0;
       activeInput = kind === 'no_tab' ? undefined : kind === 'custom_tab'
-        ? { uri: vscode.Uri.file('/ws/old.py') } : new vscode.TabInputText(vscode.Uri.file('/ws/README.md'));
+        ? { uri: vscode.Uri.file('/ws/old.py') } : new vscode.TabInputText(kind === 'non_host'
+          ? vscode.Uri.parse('vscode-local:/ws/old.py') : vscode.Uri.file('/ws/README.md'));
       await commands.executeCommand('tensorviz.openAsGraph');
+      assert.deepEqual(resolved, [{ uri: undefined }]);
       assert.equal(opens.length, 0);
     });
   }

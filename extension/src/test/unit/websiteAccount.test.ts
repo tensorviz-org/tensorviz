@@ -1,4 +1,5 @@
 import * as assert from 'node:assert/strict';
+import { mock } from 'node:test';
 import { connectUrl, editorCallback, EMULATOR_VARIABLE, SITE_VARIABLE, WEBSITE, WebsiteError, websiteConfig } from '../../websiteAccount';
 import { CALLBACK, cancellation, google, SECRET, settled, setup, signIn, WEBSITE_STATE } from '../websiteFixture';
 
@@ -71,6 +72,35 @@ suite('tensorViz website sign-in', () => {
     await assert.rejects(pending, (error: WebsiteError) => error.code === 'cancelled');
     assert.equal(world.account.handleUri('/auth', `state=${state}&id_token=google-id-token`), false);
     assert.equal(world.secrets.size, 0);
+  });
+
+  test('a timed-out callback cannot complete a fresh sign-in, including equivalent URI forms', async () => {
+    const world = setup();
+    let expire: (() => void) | undefined;
+    const original = globalThis.setTimeout;
+    const timer = mock.method(globalThis, 'setTimeout', ((fn: () => void, ms: number, ...args: any[]) => {
+      if (ms === 600_000) expire = fn;
+      return original(fn, ms, ...args);
+    }) as typeof setTimeout);
+    try {
+      const first = world.account.signIn();
+      const rejected = assert.rejects(first, (error: WebsiteError) => error.code === 'expired' && /timed out/.test(error.message));
+      await settled();
+      const oldState = new URL(world.opened[0]).searchParams.get('state')!;
+      expire!();
+      await rejected;
+      assert.equal(world.secrets.size, 0);
+      assert.equal(world.account.handleUri('auth', `?state=${oldState}&id_token=late`), false);
+      const next = world.account.signIn();
+      await settled();
+      const state = new URL(world.opened[1]).searchParams.get('state')!;
+      assert.notEqual(state, oldState);
+      assert.equal(world.account.handleUri('auth', `?state=${oldState}&id_token=late`), false);
+      assert.equal(world.account.handleUri('//auth', `state=${state}&id_token=wrong-path`), false);
+      assert.equal(world.account.handleUri('auth', `?windowId=1&state=${state}&id_token=google-id-token`), true);
+      await next;
+      assert.equal(world.seen.filter(request => request.url.includes('accounts:signInWithIdp')).length, 1);
+    } finally { timer.mock.restore(); }
   });
 
   test('accepts Google accounts only, as the website rules do', async () => {

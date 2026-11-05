@@ -32,6 +32,8 @@ Every replacement names its file and current digest. The complete review invento
 
 When available, **Run reviewed candidate** uses the retained capture setup. Apply uses the current saved setup. Candidate checkpoint or input overrides do not update the saved profile. A checkpoint-load result is separate evidence from a successful forward.
 
+Captured edits check source limits against the selected model file and all files referenced by captured source bindings. Unrelated Python files collected from the workspace do not disable editing. The relevant files must still fit the source budgets and match their captured digests.
+
 ## In the local browser
 
 Use Canvas chat to request a proposal. Nodes link to their source instead of opening inline editing forms. The Canvas agent can propose changes across up to 16 existing, graph-recorded workspace Python files; external MCP clients retain their supported `propose_edit` recipes.

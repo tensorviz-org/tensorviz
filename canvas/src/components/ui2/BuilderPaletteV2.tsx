@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { categories, layerTypes } from '../../data/layerTypes';
-import { LayerType } from '../../types';
+import { LayerType, ModelNodeData } from '../../types';
+import { LocalSourceEditor } from '../../canvas/LocalSourceEditor';
 import { localBrowserMode } from '../../ide/projection';
 import {
   ApiService,
@@ -22,6 +23,7 @@ type AddLayerOptions = {
 };
 
 interface BuilderPaletteV2Props {
+  sourceNode?: { id: string; data: ModelNodeData };
   onAddLayer: (layerType: string, options?: AddLayerOptions) => void;
 }
 
@@ -190,9 +192,9 @@ const SECOND_GROUP_HEAD_STYLE: React.CSSProperties = {
 };
 
 export default function BuilderPaletteV2(props: BuilderPaletteV2Props) {
-  // Live traced models are edited through Python source or agent proposals.
-  // Keep the editable builder palette out of local views, including direct mounts.
-  if (localBrowserMode()) return null;
+  if (localBrowserMode()) return props.sourceNode
+    ? <LocalSourceEditor key={props.sourceNode.id} nodeId={props.sourceNode.id} data={props.sourceNode.data} structuralOnly />
+    : <p>Select a declared layer to insert a Block through source review.</p>;
   return <EditableBuilderPaletteV2 {...props} />;
 }
 

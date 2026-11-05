@@ -32,9 +32,13 @@ A captured graph describes the inputs and path from that run. Expanding, searchi
 
 Search by a name such as `conv1`, a type such as `type=Conv2d`, or a shape such as `shape=256`. Choose a result to jump to it. Hits inside a collapsed module stay grouped there until you open it.
 
-## Ask for a change
+## Edit the model
 
-The VS Code live-model Canvas is read-only: the Blocks palette and the floating **Blocks** family legend are hidden, and the inspector shows recorded values. Change the Python source or ask the agent to propose an edit. The website builder supports direct graph editing.
+Click a layer to edit supported constructor parameters, such as Linear `out_features` or Dropout `p`. Leave the field or press Enter to open a source draft through the same [review and Accept](source-editing.md) path as agent proposals. Accept writes Python and refreshes the model; the canvas does not change the model before review.
+
+Use the layer palette (Blocks), the inspector or the + on a supported connection to insert Linear, Dropout, LayerNorm, ReLU, GELU, SiLU, Sigmoid or Tanh after a declared layer. Set the new attribute name and constructor parameters, then choose **Review insertion**. **Review deletion** removes a declared layer or bypasses an activation with a supported deletion capability. A shared declaration affects all its calls; inspect the draft before Accept. Activation insertion on an exact captured operand uses its source capability. Declaration insertion on a connection is limited to single-output nodes. Insertion dimensions are explicit and are not inferred from recorded tensors.
+
+Captured constructor edits prefer exact source capabilities. Structural edits require an exact constructor declaration and a successful source plan. Navigation-only records, dynamic construction, unsupported expressions, control flow and ambiguous source edits show a limitation or refusal. Use the agent or edit Python directly for those cases. Free-form graph wiring, builder undo and code export remain unavailable in the live canvas. The floating Blocks family legend stays hidden.
 
 Successful captures with the same source digest as the previous capture do not show capture-to-capture change badges.
 

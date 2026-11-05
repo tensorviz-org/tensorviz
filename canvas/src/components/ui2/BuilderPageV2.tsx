@@ -885,14 +885,14 @@ export default function BuilderPageV2({
               click away — so the bar is scannable instead of a wall of 19 icons. */}
           <span className="ui2-toolbar-divider-vertical" />
           <GraphDetailToggle level={snapshot.captureDetailLevel} />
-          {!readOnlyLocalBrowser && <button
+          <button
             className={`ui2-tool ${paletteOpen ? 'active' : ''}`}
             onClick={() => setPaletteOpen((value) => !value)}
             aria-label={paletteOpen ? 'Hide layer palette' : 'Show layer palette'}
             title={paletteOpen ? 'Hide layer palette' : 'Add a layer (Shift+A)'}
           >
             <Layers3 size={15} />
-          </button>}
+          </button>
           <button className="ui2-tool" onClick={() => dispatchBuilderCommand('layout')} aria-label="Auto layout" title="Auto layout (⌘L)" data-testid="ui2-action-layout"><Wrench size={15} /></button>
           <button className="ui2-tool" onClick={() => dispatchBuilderCommand('fit-view')} aria-label="Fit graph to view" title="Fit to view (⌘0)" data-testid="ui2-action-fit-view"><Scan size={15} /></button>
           {!readOnlyLocalBrowser && <>
@@ -1006,9 +1006,10 @@ export default function BuilderPageV2({
           className="min-h-0 flex-1 relative overflow-hidden"
           style={{ display: viewTab === 'graph' ? undefined : 'none' }}
         >
-          {!readOnlyLocalBrowser && paletteOpen && (
+          {paletteOpen && (
             <div className="ui2-palette-drawer">
               <BuilderPaletteV2
+                sourceNode={canvasGraph?.nodes.find(node => node.id === snapshot.selectedNode?.id)}
                 onAddLayer={(layerType, options) => {
                   dispatchBuilderCommand('add-layer', { layerType, options });
                   setPaletteOpen(false);

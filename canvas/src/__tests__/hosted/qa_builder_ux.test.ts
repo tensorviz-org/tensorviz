@@ -438,7 +438,7 @@ describe('builder-chrome regressions', () => {
     // Read-only pages do not edit source, and a non-model shape (the chat card)
     // has no parameters to show.
     expect(handler).toContain('canEditParameters && isModelShape(');
-    expect(canvas).toContain('canEditParameters={!readOnly}');
+    expect(canvas).toContain('canEditParameters={!readOnly || !!local?.sourceEdits}');
     // It belongs to one card: any other selection takes it away.
     expect(canvas).toContain(
       "if (target && (selectedIds.length !== 1 || selectedIds[0] !== target)) closeNodeParameters();"

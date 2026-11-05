@@ -1,6 +1,6 @@
 # Edit your model
 
-Ask for a Python change in Canvas chat, review the proposed files, and decide whether to apply it.
+Edit supported constructor parameters, insert a Block or review a deletion [directly from the canvas](canvas.md#edit-the-model), or ask for a Python change in Canvas chat. Both routes produce a source draft for the same review and Accept decision.
 
 ## Make a proposal
 

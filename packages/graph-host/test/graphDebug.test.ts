@@ -22,6 +22,7 @@ suite('previous-run debugging context', () => {
   });
   test('changed initializer values are observed changes, independent of failure location', () => {
     const before = fixture(), after = fixture();
+    after.source.id = 'changed-source';
     const entry = { phase: 'initializer_entry' as const, status: 'observed' as const,
       positional: [{ name: 'width', value: { kind: 'int' as const, value: '8' } }] };
     before.modules[0].initializerArguments = entry;
@@ -33,6 +34,7 @@ suite('previous-run debugging context', () => {
   });
   test('numeric registrations and changed tensor shapes do not invent parameter matches', () => {
     const before = fixture(), after = fixture();
+    after.source.id = 'changed-source';
     before.modules[0].paths = after.modules[0].paths = ['blocks.0'];
     after.values[0].shape = [99, 1];
     assert.deepEqual(graphDebugContext({ capture: before, projection: projection(before) }, projection(after), after).changed, []);
@@ -44,10 +46,22 @@ suite('previous-run debugging context', () => {
     before.values.push({ ...before.values[0], id: 'weight-before', origin: 'state', producer: null,
       state: [{ kind: 'parameter', name: 'up.weight' }], shape: [16, 8] });
     const after: CaptureSnapshot = JSON.parse(JSON.stringify(before));
+    after.source.id = 'changed-source';
     after.values[after.values.length - 1].id = 'weight-after';
     after.values[after.values.length - 1].shape = [8, 8];
     return { before, after };
   };
+  test('successful captures with the baseline source digest have no parameter badges', () => {
+    const { before, after } = parameterCaptures();
+    after.source.id = before.source.id;
+    const previous = { capture: before, projection: projection(before) };
+    const unchanged = graphDebugContext(previous, projection(after), after);
+    assert.deepEqual(unchanged.changed, []);
+    assert.ok(unchanged.nodePairs.length);
+    after.source.id = 'changed-source';
+    assert.deepEqual(graphDebugContext(previous, projection(after), after).changed,
+      [{ nodeId: `node:${after.invocations[0].id}`, details: ['weight shape: [16, 8] → [8, 8]'] }]);
+  });
   test('named parameter shapes identify an upstream change without constructor observations', () => {
     const { before, after } = parameterCaptures();
     after.status = 'partial';

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Search } from 'lucide-react';
 import { categories, layerTypes } from '../../data/layerTypes';
 import { LayerType } from '../../types';
+import { localBrowserMode } from '../../ide/projection';
 import {
   ApiService,
   PaperTemplateInventoryResponse,
@@ -188,7 +189,14 @@ const SECOND_GROUP_HEAD_STYLE: React.CSSProperties = {
   borderTop: '1px solid var(--ui2-rule)',
 };
 
-export default function BuilderPaletteV2({ onAddLayer }: BuilderPaletteV2Props) {
+export default function BuilderPaletteV2(props: BuilderPaletteV2Props) {
+  // Live traced models are edited through Python source or agent proposals.
+  // Keep the editable builder palette out of local views, including direct mounts.
+  if (localBrowserMode()) return null;
+  return <EditableBuilderPaletteV2 {...props} />;
+}
+
+function EditableBuilderPaletteV2({ onAddLayer }: BuilderPaletteV2Props) {
   const [templateInventory, setTemplateInventory] = useState<PaperTemplateInventoryResponse | null>(null);
   const [templateError, setTemplateError] = useState('');
   // null means "there is no workspace here" — the hosted product, or an IDE whose

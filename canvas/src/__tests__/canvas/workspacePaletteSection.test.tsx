@@ -19,6 +19,10 @@ import { render, screen, waitFor, fireEvent, within } from '@testing-library/rea
 import BuilderPaletteV2 from '../../components/ui2/BuilderPaletteV2';
 import { setWorkspaceRoot } from '../../ide/workspaceClasses';
 
+jest.mock('../../ide/projection', () => ({
+  localBrowserMode: () => (globalThis as { __TENSORVIZ_LOCAL_BROWSER__?: boolean }).__TENSORVIZ_LOCAL_BROWSER__ === true,
+}));
+
 jest.mock('../../ide/bridge', () => ({
   bridgeActive: () => (global as { __bridge?: boolean }).__bridge === true,
   postToHost: jest.fn(),
@@ -44,6 +48,18 @@ function answerRootWith(root: string | null): void {
 }
 
 describe('the palette offers the workspace', () => {
+  afterEach(() => {
+    delete (window as { __TENSORVIZ_LOCAL_BROWSER__?: boolean }).__TENSORVIZ_LOCAL_BROWSER__;
+  });
+
+  it('hides all add controls in the read-only local browser', () => {
+    (window as { __TENSORVIZ_LOCAL_BROWSER__?: boolean }).__TENSORVIZ_LOCAL_BROWSER__ = true;
+    const { container } = render(<BuilderPaletteV2 onAddLayer={jest.fn()} />);
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText('Blocks')).toBeNull();
+    expect(screen.queryByLabelText('Search layers, blocks and templates')).toBeNull();
+  });
+
   beforeEach(() => {
     setWorkspaceRoot(null);
     (global as { __bridge?: boolean }).__bridge = false;

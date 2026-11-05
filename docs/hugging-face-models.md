@@ -35,6 +35,8 @@ the webview, written into model files, or included in inspection results.
 
 ## Run an example
 
+![GPT-2 from Hugging Face traced in the Canvas with 797 graph nodes, expanded to model.transformer with twelve GPT2Block nodes](images/hugging-face-gpt2-transformer.png)
+
 Expand **Run example inputs**. A neighboring `config.json` must declare a single
 architecture available as an installed Transformers `PreTrainedModel` class.
 The UI identifies the required class; availability is checked during loading.

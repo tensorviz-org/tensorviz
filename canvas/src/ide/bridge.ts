@@ -25,6 +25,13 @@ const CANVAS_STATE_INTERVAL_MS = 2000;
 
 let hostOrigin: string | null = null;
 let started = false;
+const bridgeListeners = new Set<() => void>();
+
+/** Subscribe to changes in host availability. */
+export function subscribeBridge(listener: () => void): () => void {
+  bridgeListeners.add(listener);
+  return () => { bridgeListeners.delete(listener); };
+}
 
 /** True once a shell has answered, which is the only proof there is a host at all. */
 export function bridgeActive(): boolean {
@@ -114,7 +121,9 @@ export function startBridge(): void {
         );
         return;
       }
+      const wasActive = bridgeActive();
       hostOrigin = event.origin;
+      if (!wasActive) bridgeListeners.forEach(listener => listener());
       if (data.theme === 'light' || data.theme === 'dark') setCanvasHostTheme(data.theme);
       postToHost({ type: 'canvasState', mounted: canvasMounted(), t: Date.now() });
       return;

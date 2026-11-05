@@ -1,3 +1,5 @@
+import { mergeProjection } from '../../ide/applyProjection';
+import { createDropoutInsertionReveal } from '../../ide/dropoutInsertion';
 import fixture from '../../test/fixtures/canvas/capture-document.json';
 import type { CapturePort, GraphDocumentV2, ModelGraph } from '../../types';
 import { graphDocumentV2ToModelGraph, modelGraphToDocumentV2 } from '../../services/graphDocumentAdapter';
@@ -83,4 +85,21 @@ test('an annotation is hidden with its parent and uses a real boundary port when
   const collapsed = reconcileModuleView(shown.nodes.map(node => node.id === root.node_id
     ? { ...node, data: { ...node.data, expanded: false } } : node), shown.edges);
   expect(collapsed.edges.some(edge => edge.id.startsWith('passthrough:'))).toBe(false);
+});
+
+test('accepted Dropout becomes visible after classification while ordinary opens stay hidden', () => {
+  const { document, call } = example();
+  call.op = 'torch.nn.modules.dropout.Dropout';
+  const before = JSON.parse(JSON.stringify(document));
+  before.semantic.nodes = before.semantic.nodes.filter((node: any) => node.node_id !== call.node_id);
+  const after = { file: 'model.py', cls: 'MLP', sourceDigest: 'accepted', document, traced: true } as any;
+  const graph = graphDocumentV2ToModelGraph(document);
+  const reveal = createDropoutInsertionReveal();
+  expect(reconcileModuleView(reveal.apply(after, graph.nodes), graph.edges).nodes.find(node => node.id === call.node_id)!.hidden).toBe(true);
+  reveal.accept({ before: { document: before }, after } as any, { document: before } as any);
+  const shown = reconcileModuleView(reveal.apply(after, graph.nodes), graph.edges);
+  expect(shown.nodes.find(node => node.id === call.node_id)).toMatchObject({ hidden: false, data: { passThroughShown: true } });
+  expect(shown.edges.some(edge => edge.id === `passthrough:${call.node_id}`)).toBe(true);
+  const refreshed = mergeProjection(graph, shown.nodes, { trustOpenness: true });
+  expect(refreshed.nodes.find(node => node.id === call.node_id)!.data.passThroughShown).toBe(true);
 });

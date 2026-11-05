@@ -125,6 +125,7 @@ export function mergeProjection(
       position: isUnplaced(previous) ? node.position : previous.position,
       ...openness,
       data: { ...node.data, ...(openness.data ?? {}),
+        passThroughShown: previous.data.passThroughShown ?? node.data.passThroughShown,
         operationDetailsShown: previous.data.operationDetailsShown ?? node.data.operationDetailsShown,
         captureDetailLevel: previous.data.captureDetailLevel ?? node.data.captureDetailLevel },
       ...(previous.selected ? { selected: true } : {}),

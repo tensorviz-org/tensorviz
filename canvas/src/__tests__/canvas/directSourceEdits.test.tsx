@@ -58,3 +58,12 @@ test('activation insertion preserves the exact operand capability', () => {
     kind: 'insert_unary_op', nodeId: 'act', capabilityId: 'insert', target, expected: insertion.expected,
     scope: 'source_expression', argumentPath: insertion.argumentPath, value: 'relu' });
 });
+
+test('Dropout insertion explains eval hiding and the unchanged-calls control', () => {
+  render(<LocalBrowserContext.Provider value={{ page: {} } as any}>
+    <LocalSourceEditor nodeId="fc" data={data} />
+  </LocalBrowserContext.Provider>);
+  expect(screen.getByText(/In eval captures, Dropout is recorded/)).toHaveTextContent('More tools → Show unchanged calls (N)');
+  fireEvent.change(screen.getByLabelText('Layer to insert'), { target: { value: 'layernorm' } });
+  expect(screen.queryByText(/In eval captures, Dropout is recorded/)).not.toBeInTheDocument();
+});

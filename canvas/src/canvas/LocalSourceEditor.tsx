@@ -1,4 +1,5 @@
 import React from 'react';
+import { DROPOUT_INSERT_HINT, isDropoutLayer } from '../ide/dropoutInsertion';
 import './localSourceEditor.css';
 import { ModelNodeData } from '../types';
 import { LocalBrowserContext } from '../ide/localBrowserContext';
@@ -48,6 +49,7 @@ export function LocalSourceEditor({ nodeId, data, structuralOnly = false, insert
         }}>{(declaration ? DIRECT_LAYERS : ['relu', 'gelu', 'silu', 'sigmoid', 'tanh']).map(id => <option key={id}>{id}</option>)}</select>
         {!(insertion && ['relu', 'gelu', 'silu', 'sigmoid', 'tanh'].includes(layer)) && <><label>Attribute name<input aria-label="New layer name" value={name} disabled={disabled} onChange={event => setName(event.target.value)} /></label>
         <label>Constructor params (JSON)<input aria-label="New layer parameters" value={params} disabled={disabled} onChange={event => setParams(event.target.value)} /></label></>}
+        {isDropoutLayer(layer) && <p>{DROPOUT_INSERT_HINT}</p>}
         <button disabled={disabled} onClick={() => void propose(() => {
           if (insertion && ['relu', 'gelu', 'silu', 'sigmoid', 'tanh'].includes(layer)) return insertUnarySourceEdit(insertion.nodeId, insertion.data, insertion.capabilityId, layer);
           const values = JSON.parse(params);

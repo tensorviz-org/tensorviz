@@ -48,7 +48,7 @@ export const GraphFocusOverlay = track(function GraphFocusOverlay() {
       <span>Comparison: + added · − removed · ~ changed.</span>
       <span>Canvas keys: [ / ] select a layer · Enter opens it · Esc clears focus.</span>
     </details>}
-    <FamilyLegend nodes={graphNodes.get()} />
+    {!local && <FamilyLegend nodes={graphNodes.get()} />}
     {!local && zoom < .55 && <button className="graph-readable" onClick={readable}>Zoom to readable detail ↗</button>}
     {focus.active && <section className="graph-focus-controls" aria-label="Connection focus">
       <div className="graph-focus-caption"><strong>{focus.selected.length === 1 ? label(focus.selected[0]) : `${focus.selected.length} layers`}</strong><span>{focus.edgeIds.size} connections{focus.truncated ? ' · limit reached' : ''}</span></div>

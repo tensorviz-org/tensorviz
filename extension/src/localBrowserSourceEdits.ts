@@ -762,21 +762,27 @@ export class LocalBrowserSourceEdits {
     const artifact = sourceArtifact(snapshot.document, context.entrypoint, [{
       range: { start: [1, 0], end: [end.line + 1, end.character] }, newText: patch.contents,
     }], sha256(patch.contents));
+    // The project declaration caller already displays refusal warnings.
     return this.reviewAndWrite(context.project.workspaceFolder, `tensorViz project declaration — ${context.entrypoint}`,
-      artifact, signal, stillCurrent, documents);
+      artifact, signal, stillCurrent, documents, undefined, undefined, undefined, undefined, undefined, undefined, false);
   }
 
   private async reviewAndWrite(folder: string, title: string, artifact: CodeArtifact | CodeArtifact[], signal: AbortSignal,
     stillCurrent: () => boolean, documents: ReviewDocuments,
     onReview?: (review: SourceProposalReview) => void, candidate?: CandidateReview, onShown?: (reveal: () => Promise<void>, decide: (approved: boolean) => void) => void,
     onApplied?: (uri: vscode.Uri, artifact: CodeArtifact) => void,
-    draftInput?: Pick<SourceDraftInput, 'id' | 'target' | 'canRevise'>, onDecision?: () => void): Promise<SourceProposalOutcome> {
+    draftInput?: Pick<SourceDraftInput, 'id' | 'target' | 'canRevise'>, onDecision?: () => void, notifyRefusal = true): Promise<SourceProposalOutcome> {
     if (draftInput && this.options.accepted) title += ' — Apply saves and runs the model';
     const artifacts = Array.isArray(artifact) ? artifact : [artifact];
     const files = artifacts.map(item => ({ file: item.path, beforeDigest: item.before_digest, afterDigest: item.after_digest }));
     const review: SourceProposalReview = Array.isArray(artifact) ? { title, files } : { title, ...files[0] };
     const changed = candidate?.onDidChange(value => onReview?.({ ...review, candidate: value }));
-    let approved: boolean;
+    let approved = false, applied = false;
+    const refuse = (detail: string) => {
+      this.options.channel.appendLine(`[source] ${detail}`);
+      if (notifyRefusal) void vscode.window.showWarningMessage(detail);
+      return this.outcome(signal.aborted ? 'cancelled' : 'refused', detail);
+    };
     let draft: SourceDraftHandle | undefined;
     try {
       if (!stillCurrent()) throw new Error('stale source');
@@ -794,33 +800,42 @@ export class LocalBrowserSourceEdits {
         }, onDecision)
         : await (this.options.review ?? reviewSource)(title, artifact, signal, candidate, shown, onDecision);
       onDecision?.();
-    } finally { draft?.dispose(); await candidate?.finish(); changed?.dispose(); }
-    if (candidate?.snapshot().cleanup === 'failed') {
-      return this.outcome('refused', 'Candidate cleanup failed. Private temporary files may remain. No source change was applied.');
+    } catch (error) {
+      draft?.dispose();
+      await candidate?.finish(); changed?.dispose();
+      throw error;
     }
-    if (!approved) {
-      return this.outcome('cancelled', 'Proposal discarded. No source change was applied.');
-    }
-    if (!stillCurrent()) throw new Error('stale source');
-    // Native diff previews can close source documents. A closed TextDocument
-    // remains readable but no longer follows disk/reopened-buffer changes.
-    // Rebind only after proving the same reviewed bytes, retaining the ordinary
-    // version check for documents that stayed open throughout review.
-    for (const snapshot of documents.values()) {
-      if (!snapshot.document.isClosed) continue;
-      const document = await vscode.workspace.openTextDocument(snapshot.document.uri);
-      if (sha256(document.getText()) !== snapshot.digest) throw new Error('stale closed source');
-      snapshot.document = document;
-      snapshot.version = document.version;
-    }
-    const currentOpenSources = () => stillCurrent() && [...documents.values()].every(item => !item.document.isClosed);
-    const writer = new SourceWriter(vscode.Uri.file(folder), this.options.channel);
-    let result;
-    try { result = await writer.write(artifacts, currentOpenSources); }
-    catch {
-      return this.outcome('refused', 'The editor did not confirm the source change. Inspect the buffer before retrying; use VS Code Undo if needed.');
-    }
-    if (result.outcome === 'applied') {
+    try {
+      // Wait for private execution cleanup while retaining the review and its guards.
+      // A refused candidate run does not prevent applying the reviewed source.
+      await candidate?.settle();
+      if (candidate?.snapshot().cleanup === 'failed') {
+        return refuse('Candidate cleanup failed. Private temporary files may remain. No source change was applied.');
+      }
+      if (!approved) {
+        return this.outcome('cancelled', 'Proposal discarded. No source change was applied.');
+      }
+      if (!stillCurrent()) return refuse('The review context changed. No source change was applied. Refresh the graph and review the proposal again.');
+      // Native diff previews can close source documents. A closed TextDocument
+      // remains readable but no longer follows disk/reopened-buffer changes.
+      // Rebind only after proving the same reviewed bytes, retaining the ordinary
+      // version check for documents that stayed open throughout review.
+      for (const snapshot of documents.values()) {
+        if (!snapshot.document.isClosed) continue;
+        const document = await vscode.workspace.openTextDocument(snapshot.document.uri);
+        if (sha256(document.getText()) !== snapshot.digest) return refuse('The source changed after review. No source change was applied.');
+        snapshot.document = document;
+        snapshot.version = document.version;
+      }
+      const currentOpenSources = () => stillCurrent() && [...documents.values()].every(item => !item.document.isClosed);
+      const writer = new SourceWriter(vscode.Uri.file(folder), this.options.channel);
+      let result;
+      try { result = await writer.write(artifacts, currentOpenSources); }
+      catch {
+        return refuse('The editor did not confirm the source change. Inspect the buffer before retrying; use VS Code Undo if needed.');
+      }
+      if (result.outcome !== 'applied') return refuse(result.reason ?? 'The editor refused the source change. Inspect the buffer before retrying.');
+      applied = true;
       for (const item of artifacts) onApplied?.(vscode.Uri.file(path.join(folder, item.path)), item);
       if (draftInput && this.pending?.id === draftInput.id && this.options.accepted) {
         const origin = this.options.origin(), token = this.options.token();
@@ -832,9 +847,13 @@ export class LocalBrowserSourceEdits {
           current: () => !signal.aborted && vscode.workspace.isTrusted && this.options.origin() === origin && this.options.token() === token
             && accepted.every(item => !item.document.isClosed && item.document.version === item.version && sha256(item.document.getText()) === item.digest) };
       }
+      return this.outcome('applied',
+        `Applied to ${artifacts.length === 1 ? 'the VS Code buffer' : `all ${artifacts.length} unsaved VS Code buffers in one edit`}. The graph refreshes from source; use VS Code Undo to revert.`);
+    } catch {
+      return refuse('The editor did not confirm the source change. Inspect the buffer before retrying; use VS Code Undo if needed.');
+    } finally {
+      if (!approved || applied) draft?.dispose();
+      await candidate?.finish(); changed?.dispose();
     }
-    return this.outcome(result.outcome === 'applied' ? 'applied' : 'refused', result.outcome === 'applied'
-      ? `Applied to ${artifacts.length === 1 ? 'the VS Code buffer' : `all ${artifacts.length} unsaved VS Code buffers in one edit`}. The graph refreshes from source; use VS Code Undo to revert.`
-      : 'The source changed during review or the editor refused the edit. Nothing from this proposal was applied.');
   }
 }

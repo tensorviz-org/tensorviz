@@ -77,9 +77,9 @@ class Model(torch.nn.Module):
         assert all("captureSourceExpression" not in node.metadata for node in unverified.semantic.nodes)
 
 
-def test_model_helper_hint_survives_unused_files_exhausting_source_edit_budget(tmp_path):
+def test_model_edits_and_helper_hint_survive_unused_files_exceeding_source_edit_budget(tmp_path):
     from services.semantic.source_bindings import CapturedSourceEvidence
-    from services.semantic.source_edits import CapturedEditResolver, SourceEditRefused
+    from services.semantic.source_edits import CapturedEditResolver
     from services.validation.source import MAX_FILES
     from tests.source_review.test_semantic_source_bindings import prepared, run
 
@@ -104,13 +104,14 @@ class Model(torch.nn.Module):
         unrelated.append(model_file.model_copy(update={"path": name, "digest": hashlib.sha256(text.encode()).hexdigest()}))
     snapshot = context.source.model_copy(update={"files": [*unrelated, model_file]})
     evidence = CapturedSourceEvidence(snapshot, tmp_path)
-    record = run(namespace["Model"](), replace(context, source=snapshot, source_evidence=evidence))
+    with evidence.construction.observe():
+        model = namespace["Model"]()
+    record = run(model, replace(context, source=snapshot, source_evidence=evidence))
     module = next(module for module in record.modules if module.paths == ["patch_embed"])
     call = next(call for call in record.invocations if call.moduleId == module.id)
     assert call.sourceBindingIds, "The selected model must not lose its call sites behind unrelated files."
     assert len(evidence.files) == MAX_FILES  # Keep the original verification budget.
-    with pytest.raises(SourceEditRefused, match="source_limit"):
-        CapturedEditResolver(record, sources)
+    assert set(CapturedEditResolver(record, sources).sources) == {"model.py"}
     options = dict(name="Model", graph_id="helper-hints", model_file="model.py",
         source_digests={file.path: file.digest for file in snapshot.files},
         source_graph={"nodes": [], "edges": []}, source_spans={})
@@ -121,8 +122,8 @@ class Model(torch.nn.Module):
     assert {key: span[key] for key in ("file", "start", "end", "kind")} == {
         "file": "model.py", "start": [7, 15], "end": [7, 34], "kind": "call"}
     assert span["file_digest"] == model_file.digest
-    assert node.metadata["sourceEditLimitation"] == "source_limit"
-    assert node.metadata["sourceEditCapabilities"] == []
+    assert node.metadata.get("sourceEditLimitation") != "source_limit"
+    assert node.metadata["sourceEditCapabilities"]
     stale = {**sources, "model.py": source.replace("self.patch_embed(x)", "self.patch_embed(x + 1)")}
     _, stale_spans = capture_document(record, **options, source_texts=stale)
     assert node.node_id not in stale_spans, "A stale buffer must never receive an observed hint."

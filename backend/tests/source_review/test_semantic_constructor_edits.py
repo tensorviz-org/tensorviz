@@ -240,3 +240,53 @@ def test_identity_expected_value_and_source_path_cannot_be_forged(tmp_path):
         payload = deepcopy(cap.model_dump(mode='json')); change(payload)
         with pytest.raises(ValidationError):
             ConstructorLiteralCapability.model_validate(payload)
+
+
+@pytest.mark.parametrize('padding', ['files', 'bytes'])
+def test_document_discovers_exact_constructor_edits_with_host_workspace_padding(tmp_path, padding):
+    from services.semantic.document import capture_document
+    from services.validation.source import MAX_BYTES, MAX_FILES
+    import hashlib
+
+    capture, _ = setup(tmp_path)
+    sources = {'model.py': SOURCE}
+    text = 'unused = True\n' if padding == 'files' else '#' + 'x' * MAX_BYTES
+    for index in range(MAX_FILES if padding == 'files' else 1):
+        path = f'unrelated_{index}.py'
+        sources[path] = text
+        capture.source.files.append(capture.source.files[0].model_copy(update={
+            'path': path, 'digest': hashlib.sha256(text.encode()).hexdigest()}))
+    capture.source.dependencyScope = 'partial'
+    document, _ = capture_document(capture, name='Model', graph_id='host-workspace', model_file='model.py',
+        source_digests={file.path: file.digest for file in capture.source.files},
+        source_graph={'nodes': [], 'edges': []}, source_spans={}, source_texts=sources)
+    caps = [cap for node in document.semantic.nodes for cap in node.metadata.get('sourceEditCapabilities', [])
+        if cap['command'] == 'set_constructor_literal' and cap['sourceArgumentPath'] == ['args', 1]]
+    assert caps
+    assert all(cap['expression']['quality'] == 'exact' for cap in caps)
+    assert all(node.metadata.get('sourceEditLimitation') != 'source_limit' for node in document.semantic.nodes)
+    resolver = CapturedEditResolver(capture, sources)
+    cap = capabilities(capture, resolver)[1]
+    assert apply(SOURCE, resolver.plan(intent(cap))) == SOURCE.replace('nn.Linear(4, 4,', 'nn.Linear(4, 8,')
+    with pytest.raises(SourceEditRefused, match='stale_source'):
+        CapturedEditResolver(capture, {**sources, 'model.py': SOURCE + '\n'})
+
+
+@pytest.mark.parametrize('budget', ['files', 'bytes', 'file_bytes'])
+def test_relevant_model_and_binding_sources_still_obey_edit_budgets(tmp_path, monkeypatch, budget):
+    from services.semantic import source_edits
+
+    capture, _ = setup(tmp_path)
+    sources = {'model.py': SOURCE}
+    if budget == 'files':
+        # Retain the model even when every binding points to another file.
+        for binding in capture.sourceBindings:
+            for anchor in binding.anchors:
+                anchor.file = 'helper.py'
+        sources['helper.py'] = SOURCE
+        capture.source.files.append(capture.source.files[0].model_copy(update={'path': 'helper.py'}))
+        monkeypatch.setattr(source_edits, 'MAX_FILES', 1)
+    else:
+        monkeypatch.setattr(source_edits, 'MAX_BYTES' if budget == 'bytes' else 'MAX_FILE_BYTES', len(SOURCE.encode()) - 1)
+    with pytest.raises(SourceEditRefused, match='source_limit'):
+        CapturedEditResolver(capture, sources)

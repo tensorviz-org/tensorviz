@@ -98,19 +98,12 @@ def capture_document(payload, *, name, graph_id, model_file, source_digests, sou
     if source_texts is not None and capture.backend != 'jaxpr':
         from .source_edits import CapturedEditResolver, SourceEditRefused
         try:
+            # The resolver bounds the model and binding files, excluding unrelated
+            # host-walked sources for both editing and navigation.
             edit_resolver = CapturedEditResolver(capture, source_texts)
             navigation_resolver = edit_resolver
         except SourceEditRefused as error:
             edit_unavailable = str(error)
-            if edit_unavailable == "source_limit":
-                # Navigation needs only recorded call-site files. Keep the same
-                # proof limits without granting edits over an incomplete source set.
-                referenced = {anchor.file for binding in capture.sourceBindings for anchor in binding.anchors}
-                try:
-                    navigation_resolver = CapturedEditResolver(capture,
-                        {path: text for path, text in source_texts.items() if path in referenced})
-                except SourceEditRefused:
-                    pass
     call_ordinals, module_calls = {}, defaultdict(list)
     for call in capture.invocations:
         module_calls[call.moduleId].append(call.id)

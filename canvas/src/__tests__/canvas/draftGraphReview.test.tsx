@@ -169,3 +169,12 @@ test('a Git review keeps its own toolbar, with no draft decisions', () => {
   expect(screen.queryByRole('group', { name: 'Draft decision' })).toBeNull();
   for (const name of ['Accept', 'Discard', 'Continue editing']) expect(screen.queryByRole('button', { name })).toBeNull();
 });
+
+test('Dropout draft review explains the eval capture before Accept', () => {
+  const state = draft();
+  const added = (state.after.document as any).semantic.nodes.find((node: any) => node.node_id === 'fc2');
+  added.op = 'torch.nn.Dropout';
+  render(<DraftGraphToolbar state={state} presentation={null} index={0} onChange={() => {}}
+    onSource={() => {}} onAccept={() => true} onDiscard={() => true} />);
+  expect(screen.getByText(/In eval captures, Dropout is recorded/)).toHaveTextContent('Show unchanged calls (N)');
+});

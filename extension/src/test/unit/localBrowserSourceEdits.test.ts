@@ -344,6 +344,27 @@ suite('local browser source review', () => {
     });
   }
 
+  for (const edit of [EDIT, { kind: 'remove_layer', nodeId: 'fc' },
+    { kind: 'add_layer', afterNodeId: 'fc', nodeId: 'drop', layerType: 'dropout', params: { p: 0.5 } }] as LocalBrowserSourceEdit[]) {
+    test(`captured exact constructor can plan and review ${edit.kind}`, async () => {
+      const h = harness();
+      const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, '../../../../tests/fixtures/contracts/captured-constructor-edit.json'), 'utf8'));
+      const capability = structuredClone(fixture.document.semantic.nodes.flatMap((node: any) => node.metadata.sourceEditCapabilities || [])
+        .find((cap: any) => cap.command === 'set_constructor_literal'));
+      capability.expression.anchors = [{ ...capability.expression.anchors[0], file: 'net.py', digest: sha256(BEFORE),
+        startLine: 4, startColumn: 18, endLine: 4, endColumn: 33 }];
+      h.context.projection.document = { semantic: { metadata: { capture: {} }, nodes: [
+        { node_id: 'fc', metadata: { captureRef: capability.target, sourceEditCapabilities: [capability] } },
+      ] } } as any;
+      const result = await h.host.propose({ requestId: edit.kind, target: TARGET, edit });
+      assert.equal(result.status, 'applied', result.detail);
+      assert.equal(h.requests.length, 2);
+      assert.equal(editorState.appliedEdits.length, 1);
+      const operations = h.requests[1].body.operations;
+      assert.ok(operations || h.requests[1].body.ops);
+    });
+  }
+
   test('untrusted workspaces cannot prepare source edits', async () => {
     const h = harness();
     state.isTrusted = false;

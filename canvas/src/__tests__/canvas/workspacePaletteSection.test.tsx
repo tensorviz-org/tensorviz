@@ -17,6 +17,7 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import BuilderPaletteV2 from '../../components/ui2/BuilderPaletteV2';
+import { LocalBrowserContext } from '../../ide/localBrowserContext';
 import { setWorkspaceRoot } from '../../ide/workspaceClasses';
 
 jest.mock('../../ide/projection', () => ({
@@ -52,12 +53,27 @@ describe('the palette offers the workspace', () => {
     delete (window as { __TENSORVIZ_LOCAL_BROWSER__?: boolean }).__TENSORVIZ_LOCAL_BROWSER__;
   });
 
-  it('hides all add controls in the read-only local browser', () => {
+  it('asks for a declaration before offering source review controls', () => {
     (window as { __TENSORVIZ_LOCAL_BROWSER__?: boolean }).__TENSORVIZ_LOCAL_BROWSER__ = true;
     const { container } = render(<BuilderPaletteV2 onAddLayer={jest.fn()} />);
-    expect(container).toBeEmptyDOMElement();
+    expect(container).toHaveTextContent('Select a declared layer');
     expect(screen.queryByText('Blocks')).toBeNull();
     expect(screen.queryByLabelText('Search layers, blocks and templates')).toBeNull();
+  });
+
+  it('offers supported local additions through source proposals', async () => {
+    (window as { __TENSORVIZ_LOCAL_BROWSER__?: boolean }).__TENSORVIZ_LOCAL_BROWSER__ = true;
+    const onAddLayer = jest.fn();
+    const propose = jest.fn(() => ({ promise: Promise.resolve({ status: 'refused', detail: 'Unsafe forward expression.' }) }));
+    render(<LocalBrowserContext.Provider value={{ sourceEdits: { propose }, page: {} } as any}>
+      <BuilderPaletteV2 onAddLayer={onAddLayer} sourceNode={{ id: 'fc', data: {
+        layerType: { id: 'linear' }, parameters: { out_features: 8 }, sourceLocation: { file: 'net.py', line: 4 },
+      } as any }} />
+    </LocalBrowserContext.Provider>);
+    fireEvent.click(screen.getByText('Review insertion'));
+    expect(propose).toHaveBeenCalledWith({ kind: 'add_layer', afterNodeId: 'fc', nodeId: 'new_layer', layerType: 'dropout', params: { p: 0.5 } });
+    expect(onAddLayer).not.toHaveBeenCalled();
+    expect(await screen.findByText('Unsafe forward expression.')).toBeInTheDocument();
   });
 
   beforeEach(() => {

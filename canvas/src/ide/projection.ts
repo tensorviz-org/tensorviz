@@ -1,3 +1,4 @@
+import { dropoutInsertionReveal } from './dropoutInsertion';
 import { wrapRepeatBlocks } from './repeatBlocks';
 /**
  * The app's half of "Open as Graph" (task.md M3).
@@ -230,6 +231,7 @@ export function applyProjection(
     graph = { ...graph, ...reconcileModuleView(graph.nodes, graph.edges, { relayout: true, direction }) };
   }
   const merged = mergeProjection(canonical ? graph : wrapRepeatBlocks(graph), retainedNodes, { viewRestored: payload.viewRestored, direction });
+  merged.nodes = dropoutInsertionReveal.apply(payload, merged.nodes);
   if (canonical && retainedNodes.length === 0 && !payload.viewRestored && payload.greyed) {
     pendingInitialLayout = { graphId: payload.graphId,
       positions: new Map(merged.nodes.filter(node => !node.hidden).map(node => [node.id, { ...node.position }])) };

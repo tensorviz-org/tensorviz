@@ -37,6 +37,7 @@ import { GraphEdgeLike } from './connectivity';
 import { EDGE_HIT_PX, findEdgeAtPoint, findEdgeWithMidpoint, selectedEdgeId } from './edgeSelection';
 import { doubleClickedShapeId } from './doubleClickTarget';
 import { EdgeInsertLayer } from './EdgeInsertLayer';
+import { LocalBrowserContext } from '../ide/localBrowserContext';
 import { NodeParametersPopover } from './NodeParametersPopover';
 import { GraphFocusOverlay, GraphNavigationContext } from './GraphFocusOverlay';
 import { setTraceDirection } from './graphFocus';
@@ -344,6 +345,7 @@ export const TldrawCanvas: React.FC<TldrawCanvasProps> = ({
   onInsertOnEdge,
   children,
 }) => {
+  const local = React.useContext(LocalBrowserContext);
   const bundledAssets = React.useContext(CanvasAssetContext);
   // A REF, not a context value: ports read the graph only at pointerdown, so
   // passing it by value would re-render every port on every graph edit.
@@ -501,7 +503,7 @@ export const TldrawCanvas: React.FC<TldrawCanvasProps> = ({
           onMount={handleMount}
         >
           <SelectionWatcher
-            canEditParameters={!readOnly}
+            canEditParameters={!readOnly || !!local?.sourceEdits}
             onSelectionChange={onSelectionChange}
             onShapeClick={onShapeClick}
             onShapeDoubleClick={onShapeDoubleClick}

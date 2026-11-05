@@ -535,12 +535,19 @@ export class LocalBrowserSourceEdits {
     if (!vscode.workspace.isTrusted || !context || !isLocalBrowserSourceEdit(edit)) {
       return this.outcome('refused', 'Source changes need a trusted workspace and a current graph. Wait for refresh and try again.');
     }
-    // A captured location proves navigation, not a legacy declaration recipe.
-    // Never let its span reach the codemod's line-based declaration fallback.
+    // Navigation spans alone cannot authorize a declaration codemod. An exact
+    // constructor capability can identify a declaration for the same planner.
     const semantic = (context.projection.document as { semantic?: { metadata?: Record<string, unknown>; nodes?: Array<{ node_id: string; metadata?: Record<string, unknown> }> } } | undefined)?.semantic;
     const capturedEdit = 'capabilityId' in edit;
     const canonical = !!(semantic?.metadata?.capture || semantic?.nodes?.some(node => node.metadata?.captureRef));
-    if (canonical && !capturedEdit) {
+    const declarationCapability = canonical && !capturedEdit && edit.kind !== 'group_layers'
+      ? semantic?.nodes?.find(node => node.node_id === sourceEditNodeIds(edit)[0])?.metadata?.sourceEditCapabilities
+      : undefined;
+    const constructor = Array.isArray(declarationCapability) ? declarationCapability.find(cap =>
+      isSourceEditCapability(cap) && cap.command === 'set_constructor_literal' &&
+      cap.expression.kind === 'constructor' && cap.expression.quality === 'exact' && cap.expression.anchors.length === 1 &&
+      isDeepStrictEqual(cap.target, semantic?.nodes?.find(node => node.node_id === sourceEditNodeIds(edit)[0])?.metadata?.captureRef)) : undefined;
+    if (canonical && !capturedEdit && !constructor) {
       return this.outcome('refused', 'Captured records need an explicit source-edit capability. A source location alone cannot authorize a layer edit.');
     }
     let captured: CaptureSnapshot | undefined;
@@ -656,7 +663,20 @@ export class LocalBrowserSourceEdits {
     }
 
     const ids = sourceEditNodeIds(edit);
-    const spans = ids.map(id => context.projection.spanmap[id] as { file?: string; start?: number[]; end?: number[] } | undefined);
+    let spans = ids.map(id => context.projection.spanmap[id] as { file?: string; start?: number[]; end?: number[] } | undefined);
+    let declarationName: string | undefined;
+    if (constructor) {
+      const anchor = constructor.expression.anchors[0];
+      const source = documents.get(anchor.file)?.document.getText();
+      const line = source?.split('\n')[anchor.startLine - 1];
+      // Require an entire assignment prefix, anchored at the exact constructor.
+      // Do not feed arbitrary call/navigation spans into the planner's fallback.
+      const prefix = line?.slice(0, anchor.startColumn);
+      const assignment = prefix?.match(/^\s*self\.([A-Za-z_]\w*)\s*=\s*$/);
+      if (!assignment || !source || sha256(source) !== anchor.digest) return this.outcome('refused', 'This constructor is not a standalone layer declaration. Use the agent or edit its source.');
+      declarationName = assignment[1];
+      spans = [{ file: anchor.file, start: [anchor.startLine, anchor.startColumn], end: [anchor.endLine, anchor.endColumn] }];
+    }
     const rel = spans[0]?.file;
     const snapshot = rel && documents.get(rel);
     if (!rel || !snapshot || spans.some(span => span?.file !== rel || !span.start || !span.end)) {
@@ -675,7 +695,7 @@ export class LocalBrowserSourceEdits {
     if (!classes.length) {
       return this.outcome('refused', 'The selection crosses class definitions. Select layers within one block.');
     }
-    const localIds = ids.map(id => id.split('.').pop()!);
+    const localIds = declarationName ? [declarationName] : ids.map(id => id.split('.').pop()!);
     if (new Set(localIds).size !== localIds.length) {
       return this.outcome('refused', 'Those instances share a source declaration. Select one instance of each layer.');
     }
@@ -684,7 +704,7 @@ export class LocalBrowserSourceEdits {
       return !ids.includes(id) && spans.some(selected => selected?.file === span.file &&
         JSON.stringify(selected?.start) === JSON.stringify(span.start) && JSON.stringify(selected?.end) === JSON.stringify(span.end));
     }).length;
-    const sharedTitle = shared ? ` — also affects ${shared} other projected instance${shared === 1 ? '' : 's'}` : '';
+    const sharedTitle = constructor ? ' — all executions of this declaration' : shared ? ` — also affects ${shared} other projected instance${shared === 1 ? '' : 's'}` : '';
     const applier = new EditApplier(backend, this.options.channel as vscode.OutputChannel, undefined, this.options.fetchImpl);
     const planned = await applier.plan({ uri: snapshot.document.uri, cls: classes[0].name, rel,
       sourceDigest: snapshot.digest,

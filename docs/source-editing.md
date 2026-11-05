@@ -1,6 +1,6 @@
 # Edit your model
 
-Ask for a Python change in Canvas chat, review the proposed files, and decide whether to apply it.
+Edit supported constructor parameters, insert a Block or review a deletion [directly from the canvas](canvas.md#edit-the-model), or ask for a Python change in Canvas chat. Both routes produce a source draft for the same review and Accept decision.
 
 ## Make a proposal
 
@@ -31,6 +31,8 @@ Navigation and edits account for non-ASCII text and emoji, including a final lin
 Every replacement names its file and current digest. The complete review inventory, including unchanged dependencies, is limited to 256 files and 8,000,000 bytes; oversized reviews are refused without truncation. All proposed files share one review decision and one undoable edit.
 
 When available, **Run reviewed candidate** uses the retained capture setup. Apply uses the current saved setup. Candidate checkpoint or input overrides do not update the saved profile. A checkpoint-load result is separate evidence from a successful forward.
+
+Captured edits check source limits against the selected model file and all files referenced by captured source bindings. Unrelated Python files collected from the workspace do not disable editing. The relevant files must still fit the source budgets and match their captured digests.
 
 ## In the local browser
 

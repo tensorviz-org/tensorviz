@@ -26,7 +26,7 @@ import { operationGroupCard } from './operationGroups';
 import { nodeEvidenceLabel } from '../canvas/nodePresentation';
 import { tensorShapes } from '../canvas/graphSemantics';
 import { operationTensorRows } from '../canvas/operationTensorData';
-import { moduleBoundaryRows, moduleContents, moduleEvidenceLabel } from './modulePresentation';
+import { compactBoundaryLabel, moduleBoundaryRows, moduleContents, moduleEvidenceLabel } from './modulePresentation';
 import { isFailingPort, nodeFailureLines } from '../canvas/graphIssues';
 import { AnchorSide, LayoutDirection, NodePortSides, portAnchorPoint } from '../canvas/edgeAnchors';
 import { displayedPorts, portLabel, portType } from '../canvas/capturePorts';
@@ -37,6 +37,10 @@ import { edgeControlPoints } from '../canvas/edgeCurve';
 import { graphReviewLabel } from '../ide/graphReviewLabels';
 import { BlockKind, classifyNode, isBlockFamily } from '../canvas/blockFamily';
 import { blockGlyphSvg } from '../canvas/blockGlyphs';
+import type { NodeExplanation, NodeExplanationState } from '../ide/nodeExplanation.generated';
+import { explainedGraphPresentation, nodeAnnotation, nodeAnnotationLayout } from '../canvas/nodeExplanationPresentation';
+import { boundaryTextLayout, ioValueLayout } from '../canvas/cardContentLayout';
+import { tensorSummaryData } from '../canvas/tensorSummaryData';
 
 export interface GraphSvgOptions {
   padding?: number;
@@ -44,6 +48,8 @@ export interface GraphSvgOptions {
   theme?: 'light' | 'dark';
   /** The direction the nodes were laid out with; ports and skip lanes follow it. */
   direction?: LayoutDirection;
+  explanationStates?: Readonly<Record<string, NodeExplanationState>>;
+  annotationsVisible?: boolean;
 }
 
 const ROW_PITCH = 20.5;
@@ -125,7 +131,9 @@ function identityText(box: Box, layout: ReturnType<typeof cardHeaderLayout>, COL
 /** Keep evidence beside the identity without consuming its wrapped text column. */
 function sourceEvidence(node: ModelNode, box: Box, COLOR: Palette): string {
   const previous = node.data.debugEvidence === 'previous';
-  if (!previous && node.data.debugEvidence !== 'source') return '';
+  const quietModule = node.type === 'moduleNode' && !node.data.captureRef && moduleEvidenceLabel(node.data) === undefined
+    && !node.data.review && !node.data.error && !['error', 'warning'].includes(node.data.moduleDiagnosticStatus ?? node.data.moduleStatus ?? 'ok');
+  if (!previous && node.data.debugEvidence !== 'source' && !quietModule) return '';
   const label = nodeEvidenceLabel(node.data);
   const x = box.x + box.w - 23, y = box.y + 14;
   const path = previous
@@ -161,8 +169,67 @@ function absolutePositions(nodes: ModelNode[]): Map<string, { x: number; y: numb
   return cache;
 }
 
-function boxOf(node: ModelNode, origin: { x: number; y: number }): Box {
-  return { ...origin, ...nodeCardSize(node) };
+function boxOf(node: ModelNode, origin: { x: number; y: number }, size?: { w: number; h: number }): Box {
+  return { ...origin, ...(size ?? nodeCardSize(node)) };
+}
+
+function fullBoundarySvg(rows: Array<{ label: string; value: string }>, box: Box, top: number, COLOR: Palette, root = false) {
+  const parts: string[] = [];
+  let y = box.y + top + 10;
+  for (const row of rows) {
+    const layout = boundaryTextLayout(row.label, row.value, box.w, !root && compactBoundaryLabel(row.label), root);
+    const rowY = y;
+    layout.labelLines.forEach((line, index) => parts.push(text(box.x + 20, rowY + 12 + index * 14, line, COLOR.muted, root ? 9 : 11)));
+    layout.valueLines.forEach((line, index) => parts.push(text(box.x + (layout.compact ? 62 : 20),
+      rowY + (layout.compact ? 13 : layout.labelLines.length * 14 + 14) + index * 18, line, COLOR.text, 12, 500, true)));
+    y += layout.height + 4;
+  }
+  return { svg: parts.join(''), height: rows.length ? y - (box.y + top + 10) - 4 : 0 };
+}
+
+function annotationSvg(explanation: NodeExplanation | undefined, box: Box, headerHeight: number, COLOR: Palette): string {
+  if (!explanation) return '';
+  const layout = nodeAnnotationLayout(explanation, box.w);
+  const parts = [`<g data-agent-interpretation="true"><title>${escapeXml(explanation.purpose)}</title>`,
+    `<line x1="${box.x}" x2="${box.x + box.w}" y1="${box.y + headerHeight}" y2="${box.y + headerHeight}" stroke="${COLOR.cardStroke}"/>`];
+  let y = box.y + headerHeight + 22;
+  layout.titleLines.forEach(line => { parts.push(text(box.x + 24, y, line, COLOR.text, 12, 550)); y += 16; });
+  for (const [label, lines] of [['In', layout.inputLines], ['Out', layout.outputLines]] as const) {
+    if (!lines.length) continue;
+    y += label === 'In' ? 6 : 4;
+    parts.push(text(box.x + 12, y, label, COLOR.muted, 10));
+    for (const line of lines) { parts.push(text(box.x + 40, y, line, COLOR.muted, 11)); y += 15; }
+  }
+  parts.push('</g>'); return parts.join('');
+}
+
+/** Paint the same operand labels and complete wrapped values as live cards. */
+function tensorRowsSvg(data: ModelNode['data'], box: Box, top: number, COLOR: Palette) {
+  const summary = tensorSummaryData(data, box.w);
+  let y = box.y + top + 12;
+  const parts: string[] = [];
+  if (summary.evidenceLabel && !summary.failure) {
+    parts.push(text(box.x + 12, y + 10, `Tensor shape · ${summary.evidenceLabel}`, COLOR.muted, 10));
+    y += 19;
+  }
+  for (const row of summary.rows) {
+    const rowY = y;
+    const label = `<text fill="${COLOR.muted}" ${FONT} font-size="10">${row.labelLines.map((line, index) =>
+      `<tspan x="${box.x + 20}" y="${rowY + 15 + index * 14}">${escapeXml(line)}</tspan>`).join('')}</text>`;
+    const values = `<text fill="${COLOR.text}" ${MONO} font-size="12">${row.valueLines.map((line, index) =>
+      `<tspan x="${box.x + 28 + row.labelWidth}" y="${rowY + 15 + index * row.lineHeight}">${escapeXml(line)}</tspan>`).join('')}</text>`;
+    parts.push(`<g data-tensor-row="${escapeXml(row.id)}">${label}${values}</g>`);
+    y += row.height + summary.rowGap;
+  }
+  // Failure facts already own space inside the tensor summary. Appending them
+  // after its full height would put them beyond the card's clipped row bounds.
+  if (summary.failure) {
+    nodeFailureLines(summary.data).forEach((line, index) => parts.push(text(box.x + 29,
+      y + 12 + index * 16, line, COLOR.error, 10)));
+  } else if (summary.data.error || summary.data.moduleStatus === 'warning' || summary.data.moduleStatus === 'error') {
+    parts.push(text(box.x + 29, y + 12, summary.data.error ? 'Shape check failed' : `${summary.data.moduleStatus} inside module`, COLOR.warning, 10));
+  }
+  return parts.join('');
 }
 
 type Tone = 'plain' | 'muted' | 'hint' | 'shape' | 'expr' | 'error' | 'warning';
@@ -305,7 +372,9 @@ function renderPorts(node: ModelNode, box: Box, sides: NodePortSides, COLOR: Pal
   return parts.join('');
 }
 
-export function graphToSvg(nodes: ModelNode[], edges: ModelEdge[], options: GraphSvgOptions = {}): string {
+export function graphToSvg(sourceNodes: ModelNode[], edges: ModelEdge[], options: GraphSvgOptions = {}): string {
+  const presentation = explainedGraphPresentation(sourceNodes, options.explanationStates ?? {}, options.annotationsVisible === true);
+  const nodes = presentation.nodes;
   const COLOR = options.theme === 'light' ? PAPER : INK;
   const FAMILY = options.theme === 'light' ? FAMILY_PAPER : FAMILY_INK;
   // The card's glyph tile: the family glyph on a tile tinted like the card's (Ink only).
@@ -321,7 +390,7 @@ export function graphToSvg(nodes: ModelNode[], edges: ModelEdge[], options: Grap
   const background = options.background ?? COLOR.background;
   const positions = absolutePositions(nodes);
   const visible = nodes.filter((node) => !node.hidden && positions.has(node.id));
-  const boxes = new Map(visible.map((node) => [node.id, boxOf(node, positions.get(node.id)!)] as const));
+  const boxes = new Map(visible.map((node) => [node.id, boxOf(node, positions.get(node.id)!, presentation.sizes.get(node.id))] as const));
   const router = createEdgeRouter(nodes, edges, options.direction);
   const routes = edges.flatMap(edge => {
     if (edge.hidden) return [];
@@ -374,6 +443,8 @@ export function graphToSvg(nodes: ModelNode[], edges: ModelEdge[], options: Grap
   for (const node of modules) {
     const box = boxes.get(node.id)!;
     const header = moduleCardHeader(node.data, box.w);
+    const explanation = nodeAnnotation(node, options.explanationStates ?? {}, options.annotationsVisible === true);
+    const annotationHeight = explanation ? nodeAnnotationLayout(explanation, box.w).height : 0;
     const count = node.data?.moduleLayerCount;
     const collapsed = !node.data?.expanded;
     const status = node.data?.moduleDiagnosticStatus ?? (node.data?.error ? 'error' : node.data?.moduleStatus);
@@ -386,23 +457,25 @@ export function graphToSvg(nodes: ModelNode[], edges: ModelEdge[], options: Grap
     if (statusDot) moduleRects.push(`<circle cx="${box.x + box.w - 14}" cy="${box.y + 17}" r="4" fill="${statusDot}"/>`);
     moduleRects.push(identityText(box, header, COLOR));
     moduleRects.push(sourceEvidence(node, box, COLOR));
+    moduleRects.push(annotationSvg(explanation, box, header.height, COLOR));
     const moduleRows: Row[] = [];
     if (node.data.review && node.data.review.status !== 'unchanged') {
       moduleRects.push(text(box.x + 12, box.y + header.height + 16, graphReviewLabel(node.data.review), reviewInk(node.data.diffStatus, diffColor || COLOR.muted), 9.5));
     } else if (node.data.debugEvidence === 'previous' || node.data.debugChanges?.length) {
       moduleRows.push({ left: node.data.debugEvidence === 'previous' ? 'Previous run'
         : `Changed · ${node.data.debugChanges![0]}`, tone: node.data.debugEvidence === 'previous' ? 'muted' : 'warning' });
-    } else if (count) {
+    } else if (count && !node.data.captureRef) {
       moduleRows.push({ left: `${count} layers · ${collapsed ? 'collapsed' : 'expanded'}`, tone: 'muted' });
     }
     if (collapsed) {
-      moduleBoundaryRows(node.data).forEach(row => moduleRows.push({ left: row.label, right: row.value, tone: 'shape' }));
+      const boundary = fullBoundarySvg(moduleBoundaryRows(node.data), box, header.height + annotationHeight, COLOR);
+      moduleRects.push(boundary.svg);
       const evidence = moduleEvidenceLabel(node.data);
       if (evidence) moduleRows.push({ left: evidence, tone: 'muted' });
       const contents = moduleContents(node.data);
       if (!count && contents.label) moduleRows.push({ left: contents.label, tone: 'muted' });
       if (node.data.capturePassThrough) moduleRows.push({ left: 'Input unchanged', tone: 'muted' });
-      moduleRects.push(renderCardRows(box, moduleRows, COLOR, header.height + (node.data.review && node.data.review.status !== 'unchanged' ? 20 : 0)));
+      moduleRects.push(renderCardRows(box, moduleRows, COLOR, header.height + annotationHeight + (boundary.height ? boundary.height + 8 : 0) + (node.data.review && node.data.review.status !== 'unchanged' ? 20 : 0)));
     } else if (moduleRows.length) {
       // Expanded frames reserve their body for children; structural context is a quiet caption.
       moduleRects.push(text(box.x + 12, box.y + header.height + 16, moduleRows[0].left, COLOR.muted, 9.5));
@@ -429,6 +502,8 @@ export function graphToSvg(nodes: ModelNode[], edges: ModelEdge[], options: Grap
     const isIo = node.type === 'inputNode' || node.type === 'outputNode';
     const header = isIo ? cardHeaderLayout(node.type === 'inputNode' ? 'Input' : 'Output', data.captureLabel, box.w)
       : layerCardHeader(data, box.w);
+    const explanation = nodeAnnotation(node, options.explanationStates ?? {}, options.annotationsVisible === true);
+    const annotationHeight = explanation ? nodeAnnotationLayout(explanation, box.w).height : 0;
     const stroke = data.error ? COLOR.error
       : data.diffStatus === 'added' ? COLOR.added
         : data.diffStatus === 'removed' ? COLOR.removed
@@ -437,10 +512,31 @@ export function graphToSvg(nodes: ModelNode[], edges: ModelEdge[], options: Grap
     cards.push(glyph(node, box.x + 6, box.y + 7));
     cards.push(identityText(box, header, COLOR));
     cards.push(sourceEvidence(node, box, COLOR));
+    cards.push(annotationSvg(explanation, box, header.height, COLOR));
     const reviewLabel = data.review ? graphReviewLabel(data.review) : data.diffStatus;
     if (reviewLabel) cards.push(text(box.x + 12, box.y + header.height + 16, reviewLabel, reviewInk(data.diffStatus, data.diffStatus ? COLOR[data.diffStatus] : COLOR.muted), 9.5, 600));
     const rows = !isIo && (data.review || data.sourceAssignment) ? cardRows(node) : compactRows(node);
-    cards.push(renderCardRows(box, rows, COLOR, header.height + (reviewLabel ? 20 : 0)));
+    if (isIo && data.capturePorts?.length) {
+      const boundary = fullBoundarySvg(data.capturePorts.map((port, index) => ({ label: portLabel(port, index), value: portType(port) })),
+        box, header.height + (reviewLabel ? 20 : 0), COLOR, true);
+      cards.push(boundary.svg);
+    } else if (isIo) {
+      let y = box.y + header.height + 10;
+      for (const row of rows) {
+        const value = row.right ?? row.left, layout = ioValueLayout(value, box.w);
+        const rowY = y;
+        if (row.right) cards.push(text(box.x + 12, y + 12, row.left, COLOR.muted, 10));
+        layout.lines.forEach((line, index) => cards.push(text(box.x + (row.right ? 74 : 12), rowY + 12 + index * 16.5, line, COLOR.text, 11, 400, true)));
+        y += layout.height + 4;
+      }
+    } else if (!data.review && !data.sourceAssignment && tensorSummaryData(data, box.w).rows.length) {
+      const groupHeight = data.operationGroup && data.operationGroup.kind !== 'slice' ? 30 : 0;
+      if (groupHeight) cards.push(renderCardRows(box, rows.filter(row => row.left.startsWith('Show ')), COLOR, header.height + annotationHeight));
+      cards.push(tensorRowsSvg(data, box, header.height + annotationHeight + groupHeight, COLOR));
+      const remainder = rows.filter(row => row.tone !== 'shape' && row.tone !== 'error' && !row.left.startsWith('Show '));
+      if (remainder.length) cards.push(renderCardRows(box, remainder, COLOR,
+        header.height + annotationHeight + groupHeight + tensorSummaryData(data, box.w).height - 12));
+    } else cards.push(renderCardRows(box, rows, COLOR, header.height + annotationHeight + (reviewLabel ? 20 : 0)));
     cards.push(renderPorts(node, box, router.sides.get(node.id)!, COLOR));
   }
   parts.push(`<g>${cards.join('')}</g>`);
@@ -451,11 +547,13 @@ export function graphToSvg(nodes: ModelNode[], edges: ModelEdge[], options: Grap
 export interface SvgNodeBounds { id: string; x: number; y: number; w: number; h: number }
 
 /** Bounds for hit-testing a click on the rendered image back to a node. */
-export function graphSvgBounds(nodes: ModelNode[]): SvgNodeBounds[] {
+export function graphSvgBounds(sourceNodes: ModelNode[], options: Pick<GraphSvgOptions, 'explanationStates' | 'annotationsVisible'> = {}): SvgNodeBounds[] {
+  const presentation = explainedGraphPresentation(sourceNodes, options.explanationStates ?? {}, options.annotationsVisible === true);
+  const nodes = presentation.nodes;
   const positions = absolutePositions(nodes);
   return nodes.filter((node) => !node.hidden && positions.has(node.id))
     .map((node) => {
-      const box = boxOf(node, positions.get(node.id)!);
+      const box = boxOf(node, positions.get(node.id)!, presentation.sizes.get(node.id));
       return { id: node.id, x: box.x, y: box.y, w: box.w, h: box.h };
     });
 }

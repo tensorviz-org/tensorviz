@@ -53,7 +53,7 @@ export function nodeEvidenceLabel(data: ModelNodeData): string {
   if (evidence === 'measured') return 'Captured · shapes recorded';
   if (evidence === 'inferred') return 'Shapes inferred';
   return data.debugEvidence === 'source' || data.sourceLocation || data.parameters?._raw_call
-    ? 'From source · shapes not recorded' : data.captureRef ? 'Captured · shapes not recorded' : 'Shapes not recorded';
+    ? 'Read from code · tensor shapes not recorded' : data.captureRef ? 'Captured · tensor shapes not recorded' : 'Tensor shapes not recorded';
 }
 
 export function nodeInputOutput(data: ModelNodeData): { inputs: string[]; outputs: string[] } {

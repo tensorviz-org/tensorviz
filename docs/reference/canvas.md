@@ -40,8 +40,10 @@ Technical names wrap in shared explicit lines; deterministic widths and header
 heights are reused by layout, hit bounds, connection anchors and SVG. Longer names
 can grow layer cards to 320px and module cards to 340px. Names are never shortened
 with an ellipsis. Agent interpretations stay in selection instead of renaming cards.
-The full parameter list, including structured values and source expressions, is
-scrollable with keyboard access. Review/source-assignment cards retain their evidence.
+The full parameter list, including structured values and source expressions, grows
+with its content. Signatures, docstrings and connections also use the outer selection
+panel's scroll area rather than nested height limits. Review/source-assignment cards
+retain their evidence.
 Root I/O height follows actual rows; an output without boundary data has no body.
 
 The existing selection panel shows deterministic node identity, source documentation,
@@ -585,21 +587,28 @@ including recorded shape/dtype facts, with Locate in graph and available source 
 
 ## Module tiles
 
+Ordinary cards keep the same information at every zoom. Their full technical names,
+paths, boundary values and source links wrap, and shared measurements size the card,
+layout and ports from that content. Missing module internals do not add a
+**Contents unavailable** pill or a nonfunctional expand control. A quiet code icon
+explains on hover that the graph was read from code and tensor shapes were not recorded.
+Warnings and failures retain their own evidence. See [Understand a node](../canvas.md#understand-a-node)
+for the explicit **Explain model** pass and the existing selection details.
+
 Input and output shapes stay visible on collapsed modules at every zoom tier.
-Zooming in adds source links and editing controls;
-it is no longer required to reveal the tensor dimensions. Shape values use larger
+Selection reveals technical depth without changing card content. Shape values use larger
 text than their In/Out labels. Each captured input/output keeps its own row,
 including scalar, non-tensor and unknown values.
 
 Captured-operation counts and the **Measured boundary** badge are removed from
 tiles and expanded-module headers. Unchanged calls say **Input unchanged** without
-an operation count. Stale, unavailable, source-only and limited evidence, plus
+an operation count. Stale and limited evidence, plus
 actionable issue badges, remain visible. Capture records and their details are
 unchanged.
 
 Captured tiles reserve height for the header and shape rows, adding
 room for source links, warnings and other content when present. A normal tile with
-two shape rows and a source link is 195 canvas pixels tall. Layout
+two shape rows and a source link grows from the actual wrapped content. Layout
 and port geometry use that same height; multiple inputs or outputs grow the tile.
 
 The tile styling uses a soft border, a small module icon well and a clear title/path

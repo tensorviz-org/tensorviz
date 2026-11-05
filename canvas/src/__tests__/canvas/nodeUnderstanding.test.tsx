@@ -20,6 +20,33 @@ const ready: NodeExplanationState = { requestId: 'request', nodeId: node.id, rev
   citations: [{ id: 'source', file: 'model.py', sourceDigest: 'a'.repeat(64), startLine: 20, endLine: 26 }],
 } };
 const context = (state: NodeExplanationState): NodeExplanationContextValue => ({ states: { [node.id]: state }, retry: jest.fn(), reveal: jest.fn() });
+
+it('adds expandable terminology without replacing source facts or inventing connections', () => {
+  const state = { ...ready, explanation: { ...ready.explanation!, concepts: [{ term: 'VAE', explanation: 'A variational autoencoder represents data through a learned latent distribution.' }] } };
+  render(<NodeExplanationContext.Provider value={context(state)}><NodeUnderstanding node={node} /></NodeExplanationContext.Provider>);
+  fireEvent.click(screen.getByText('More details'));
+  expect(screen.getByText('VAE').closest('details')).not.toHaveAttribute('open');
+  fireEvent.click(screen.getByText('VAE'));
+  expect(screen.getByText(state.explanation.concepts[0].explanation)).toBeVisible();
+  expect(screen.queryByLabelText('Connected components')).toBeNull();
+  expect(screen.getByLabelText('Graph inputs and outputs')).toHaveTextContent('candidates');
+});
+
+it('shows only actual graph neighbors with complete technical identities and navigates on click', () => {
+  const upstream = { ...node, id: 'encoder', data: { ...node.data, parameters: { _raw_call: 'self.encode_candidates_with_all_features(values)' } } };
+  const downstream = { ...node, id: 'normalizer', data: { ...node.data, parameters: { _raw_call: 'torch.softmax(scores)' } } };
+  const navigate = jest.fn();
+  render(<NodeUnderstanding node={node} nodes={[upstream, node, downstream]} edges={[
+    { id: 'in', source: upstream.id, target: node.id }, { id: 'out', source: node.id, target: downstream.id },
+    { id: 'duplicate', source: upstream.id, target: node.id },
+  ]} onNavigate={navigate} />);
+  const connections = screen.getByLabelText('Connected components');
+  expect(within(connections).getAllByRole('button')).toHaveLength(2);
+  fireEvent.click(within(connections).getByRole('button', { name: 'self.encode_candidates_with_all_features' }));
+  expect(navigate).toHaveBeenCalledWith('encoder');
+  expect(within(connections).getByRole('button', { name: 'torch.softmax' })).toBeVisible();
+  expect(screen.getByLabelText('Upstream and downstream components')).not.toHaveAttribute('tabindex');
+});
 const documentation: Extract<NodeSourceDocumentation, { status: 'resolved' }> = {
   status: 'resolved', kind: 'method', qualifiedName: 'models.spectral.SpectralMixer.blend',
   signature: 'def blend(\n    self,\n    features: tuple[Tensor, Tensor],\n    *,\n    scale: float = 0.5,\n    labels: Mapping[str, int] | None = None,\n) -> dict[str, Tensor]:',
@@ -43,7 +70,7 @@ it('keeps every parameter and the full technical identity available in the selec
 
 it('keeps source-only meaning unknown while exposing the exact call and graph names', () => {
   const view = render(<NodeUnderstanding node={node} />);
-  expect(screen.getByText('From source · shapes not recorded')).toBeVisible();
+  expect(screen.getByText('Read from code · tensor shapes not recorded')).toBeVisible();
   expect(screen.getAllByText('self._score_hidden', { exact: true })[0]).toBeVisible();
   expect(screen.getByLabelText('Graph inputs and outputs')).toHaveTextContent('candidates · question');
   expect(screen.queryByText(/Compare each candidate/)).not.toBeInTheDocument();
@@ -103,7 +130,7 @@ it('uses only registered layer descriptions, without treating arbitrary source n
 
 it('does not turn source-only cached sizes into recorded tensor evidence', () => {
   const unobserved = { ...node.data, inputShape: [99, 8], outputShape: [99, 1], parameters: { _shape_provenance: 'not_observed' } };
-  expect(nodeEvidenceLabel(unobserved)).toBe('From source · shapes not recorded');
+  expect(nodeEvidenceLabel(unobserved)).toBe('Read from code · tensor shapes not recorded');
   expect(nodeInputOutput(unobserved)).toEqual({ inputs: ['candidates', 'question'], outputs: ['scores'] });
   const measured = { ...node.data, inputPorts: ['features'], shapeEvidence: 'measured' as const, inputShape: [2, 8], outputShape: [2, 1], parameters: {} };
   expect(nodeInputOutput(measured)).toEqual({ inputs: ['features (2, 8)'], outputs: ['scores (2, 1)'] });

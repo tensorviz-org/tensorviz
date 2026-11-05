@@ -26,7 +26,7 @@ def test_version_roles_messages_and_errors_match_the_frozen_contract():
         "graphReviewRequest", "graphReviewState", "graphReviewFocus", "graphReviewApplied",
         "graphOpening", "graphSetupRequest",
         "codeFocusRequest", "codeFocusState",
-        "agentRequest", "agentState", "nodeExplanation", "nodeExplanationRequest",
+        "agentRequest", "agentState", "nodeExplanation", "nodeExplanationRequest", "modelExplanation", "modelExplanationRequest",
         "viewState", "viewSelection", "focusView", "viewFocusResult",
         "connected",
         "hostHandshake",

@@ -76,6 +76,7 @@ import {
   validateConnection,
 } from '../canvas/connectivity';
 import { LocalBrowserContext } from '../ide/localBrowserContext';
+import { NodeExplanationContext } from '../canvas/NodeExplanationContext';
 import { ValidationSweepOverlay } from '../canvas/ValidationSweepOverlay';
 import { deriveInputShapes, healEdgesAfterDeletion } from '../services/graphTopology';
 import { graphDocumentV2ToModelGraph } from '../services/graphDocumentAdapter';
@@ -328,6 +329,7 @@ const LOCAL_BROWSER_VIEW_COMMANDS = new Set([
   'zoom-in',
   'zoom-out',
   'zoom-readable',
+  'explain-model',
   'select-mode',
   'fit-view',
   'toggle-fullscreen',
@@ -376,6 +378,9 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
   const [canvasViewMode, setCanvasViewMode] = useState<CanvasViewMode>('overview');
   const [focusedModuleId, setFocusedModuleId] = useState<string | null>(null);
   const localContext = React.useContext(LocalBrowserContext);
+  const explanationContext = React.useContext(NodeExplanationContext);
+  const explanationContextRef = useRef(explanationContext);
+  explanationContextRef.current = explanationContext;
   const localContextRef = useRef(localContext);
   const graphExportPending = useRef(false);
   localContextRef.current = localContext;
@@ -671,7 +676,10 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
       }
       editor.zoomToFit({ animation: { duration } });
     } else {
-      const boxes = graphSvgBounds(moduleFocusRef.current.graphRef.current.nodes);
+      const explanation = explanationContextRef.current;
+      const boxes = graphSvgBounds(moduleFocusRef.current.graphRef.current.nodes, {
+        explanationStates: explanation?.annotations ?? explanation?.states, annotationsVisible: explanation?.annotationsVisible,
+      });
       if (!boxes.length) return;
       const x = Math.min(...boxes.map(box => box.x)), y = Math.min(...boxes.map(box => box.y));
       editor.zoomToBounds({ x, y, w: Math.max(...boxes.map(box => box.x + box.w)) - x,
@@ -1020,7 +1028,10 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
         { animation: { duration: cameraDuration() } });
     } else if (editorRef.current) {
       // SVG mode deliberately has no tldraw shapes for zoomToFit to measure.
-      const boxes = graphSvgBounds(result.nodes);
+      const explanation = explanationContextRef.current;
+      const boxes = graphSvgBounds(result.nodes, {
+        explanationStates: explanation?.annotations ?? explanation?.states, annotationsVisible: explanation?.annotationsVisible,
+      });
       if (boxes.length) {
         const x = Math.min(...boxes.map(box => box.x)), y = Math.min(...boxes.map(box => box.y));
         editorRef.current.zoomToBounds({ x, y, w: Math.max(...boxes.map(box => box.x + box.w)) - x,
@@ -2685,7 +2696,16 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
         return;
       }
       if (command === 'zoom-readable') {
-        if (editorRef.current) zoomToReadable(editorRef.current, moduleFocusRef.current.graphRef.current.nodes);
+        const explanation = explanationContextRef.current;
+        if (editorRef.current) zoomToReadable(editorRef.current, moduleFocusRef.current.graphRef.current.nodes, {
+          explanationStates: explanation?.annotations ?? explanation?.states, annotationsVisible: explanation?.annotationsVisible,
+        });
+        return;
+      }
+      if (command === 'explain-model') {
+        reportSelection();
+        explanationContextRef.current?.model?.start(moduleFocusRef.current.graphRef.current.nodes
+          .filter(node => !node.hidden && node.type !== 'inputNode' && node.type !== 'outputNode').map(node => node.id));
         return;
       }
       if (command === 'select-mode') {
@@ -2900,7 +2920,8 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
         if (format === 'svg') {
           const displayed = moduleFocusRef.current.graphRef.current;
           if (displayed.nodes.length) {
-            const svg = graphToSvg(displayed.nodes, displayed.edges, { theme: getCanvasTheme(), direction: layoutDirection });
+            const svg = graphToSvg(displayed.nodes, displayed.edges, { theme: getCanvasTheme(), direction: layoutDirection,
+              explanationStates: explanationContextRef.current?.annotations ?? explanationContextRef.current?.states, annotationsVisible: explanationContextRef.current?.annotationsVisible });
             if (save) hostServices.saveFile('graph.svg', new Blob([svg], { type: 'image/svg+xml' }));
             else void hostServices.copyText(svg);
             report({ ok: true, message: save ? 'Saved the SVG.' : 'Copied the SVG.' });

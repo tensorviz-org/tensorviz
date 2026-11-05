@@ -12,6 +12,7 @@ import { CaptureDetails } from './CaptureDetails';
 import { nodePresentation } from './nodePresentation';
 import { NodeExplanationContext } from './NodeExplanationContext';
 import { NodeUnderstanding } from './NodeUnderstanding';
+import { nodeIdToShapeId } from './canvasShapeId';
 
 /** Optional surface navigation shares the query's flow instead of covering it. */
 export const GraphNavigationContext = React.createContext<React.ReactNode>(null);
@@ -26,7 +27,7 @@ export const GraphFocusOverlay = track(function GraphFocusOverlay() {
   const focus = state.focus.get();
   const edge = state.index.get().edges.get(selectedEdgeId.get() ?? '');
   const labels = new Map(graphNodes.get().map(node => {
-    const state = explanations?.states[node.id];
+    const state = explanations?.annotations?.[node.id] ?? explanations?.states[node.id];
     return [node.id, (state?.status === 'ready' ? state.explanation?.title : undefined) ?? nodePresentation(node.data, node.id).title];
   }));
   const label = (id: string) => labels.get(id) ?? id;
@@ -58,7 +59,10 @@ export const GraphFocusOverlay = track(function GraphFocusOverlay() {
       <div className="graph-focus-caption"><strong>{focus.selected.length === 1 ? label(focus.selected[0]) : `${focus.selected.length} layers`}</strong><span>{focus.edgeIds.size} connections{focus.truncated ? ' · limit reached' : ''}</span></div>
       {selected && <>
         <BlockSummary node={selected} nodes={graphNodes.get()} edges={graphEdges.get()} showIdentity={false} />
-        <NodeUnderstanding key={selected.id} node={selected} />
+        <NodeUnderstanding key={selected.id} node={selected} nodes={graphNodes.get()} edges={graphEdges.get()} onNavigate={id => {
+          const shape = editor.getShape(nodeIdToShapeId(id));
+          if (shape) editor.select(shape.id);
+        }} />
       </>}
       <div role="group" aria-label="Trace direction">
         <button aria-pressed={focus.direction === 'local'} onClick={() => setTraceDirection(editor, 'local')}>Neighbors</button>

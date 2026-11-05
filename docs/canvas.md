@@ -14,6 +14,7 @@ Start with a model open in TensorViz. The Canvas lets you explore its structure 
 | See the captured operations | **All operations** |
 | Look inside a module | Expand it, or enter it and use the breadcrumb to go back |
 | Find a layer | **Find a layer** or **⌘/Ctrl+P** |
+| Explain the visible components and flow | **Explain model** (uses your connected agent) |
 | Change the example inputs | **Inputs** |
 | Capture again | **Run model** / **Run again** |
 | See more controls | **Expand toolbar** |
@@ -36,15 +37,16 @@ Search by a name such as `conv1`, a type such as `type=Conv2d`, or a shape such 
 
 Cards keep the same content at every zoom level. Full class and function names wrap;
 long names can use a wider card. Click a node to inspect it without changing the camera.
-Constructor arguments stay in **More details**, where the full list can be scrolled.
+Constructor arguments stay in **More details**. The full list grows with its content
+and scrolls with the surrounding selection panel.
 Input and Output cards reserve only their visible rows; an empty output is header-only.
 
 Select a node to see its callable, source and available inputs and outputs. When the
 declaration can be resolved, its author's docstring appears as **Source documentation**.
 **More details** includes the declared signature and complete available docstring.
 This works for custom classes and functions without an agent or catalogue entry;
-standard-layer reference descriptions are a fallback. **From source** means the call was
-found in code; tensor shapes remain unknown until recorded by a capture.
+standard-layer reference descriptions are a fallback. A small code icon means the call was
+read from code; its hover explains that tensor shapes have not been recorded.
 
 With an agent connected in chat, selecting one node automatically requests a short
 source-based explanation in the selection panel. Graph cards retain their technical names.
@@ -52,9 +54,34 @@ source-based explanation in the selection panel. Graph cards retain their techni
 Open **More details** for the complete call, steps, uncertainties and linked sources.
 **Discuss in chat** opens the existing chat with the current selection available.
 
+Choose **Explain model** in the toolbar to add generated purpose labels and input/output
+roles directly to the visible cards. Technical names remain complete. The pass reads
+bounded batches of graph facts, neighboring components and source excerpts; it never
+runs the model or changes its wiring. Progress shows completed components, with a stop
+button. Completed work remains available after a partial result or cancellation.
+Select a component for the full explanation, actual upstream/downstream links, steps,
+source citations and expandable concepts. General concepts are agent interpretations,
+not evidence of a particular implementation's behavior.
+
+Afterward, **Explanations** shows or hides the card annotations without another agent
+call. Its details control offers **Explain current view** for newly opened components
+or another pass. Each pass covers up to 128 visible source-mapped components, prioritizing
+those not yet explained. Unchanged node explanations are reused for the same revision,
+agent and model. Source/capture/provider changes invalidate reuse; a source or capture
+change also removes the old annotations. Saved graph files keep technical source facts.
+Image exports include visible annotations when enabled, marked as agent interpretations.
+
+Card dimensions follow their wrapped content, including long input/output names,
+tensor shapes and source links. Missing internal details do not produce a
+**Contents unavailable** placeholder. Actionable errors and capture limitations remain
+inspectable. Adding annotations reserves space in the displayed layout while preserving
+the camera, selection and saved graph positions. Connection lists, signatures,
+docstrings and parameter lists fit their content inside the existing details panel;
+they do not introduce separate scroll areas.
+
 Explanations read source without running the model or changing your files. They are
 local to the current session and refresh after source or capture changes. Saved graph
-files and SVG exports retain deterministic technical names.
+files and SVG exports retain full technical names.
 
 ## Ask for a change
 

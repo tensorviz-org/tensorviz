@@ -15,6 +15,8 @@ export interface NodeExplanation {
   outputs: string[];
   steps: string[];
   uncertainties: string[];
+  /** General terminology, separate from claims about this implementation. */
+  concepts?: { term: string; explanation: string }[];
   /** Resolved by the host from source evidence the agent actually received. */
   citations: NodeExplanationCitation[];
 }
@@ -42,6 +44,16 @@ export interface NodeExplanationState {
   detail?: string;
   explanation?: NodeExplanation;
   documentation?: NodeSourceDocumentation;
+}
+
+/** Progress for an explicit, bounded pass over the current graph. */
+export interface ModelExplanationState {
+  requestId: string;
+  revision: string;
+  status: 'loading' | 'ready' | 'unavailable' | 'cancelled';
+  completed: number;
+  total: number;
+  detail?: string;
 }
 
 const record = (value: unknown): value is Record<string, unknown> =>
@@ -81,11 +93,14 @@ export function isNodeExplanationCitation(value: unknown): value is NodeExplanat
 }
 
 export function isNodeExplanation(value: unknown): value is NodeExplanation {
-  return record(value) && Object.keys(value).length === 7
-    && keys(value, ['title', 'purpose', 'inputs', 'outputs', 'steps', 'uncertainties', 'citations'])
+  return record(value)
+    && keys(value, ['title', 'purpose', 'inputs', 'outputs', 'steps', 'uncertainties', 'citations', 'concepts'])
     && text(value.title, 80) && text(value.purpose, 320)
     && list(value.inputs, 6, 160) && list(value.outputs, 4, 160)
     && list(value.steps, 6, 320) && list(value.uncertainties, 4, 240)
+    && (value.concepts === undefined || (Array.isArray(value.concepts) && value.concepts.length <= 4
+      && value.concepts.every(concept => record(concept) && keys(concept, ['term', 'explanation'])
+        && text(concept.term, 80) && text(concept.explanation, 320))))
     && Array.isArray(value.citations) && value.citations.length >= 1 && value.citations.length <= 8
     && value.citations.every(isNodeExplanationCitation)
     && new Set(value.citations.map(citation => citation.id)).size === value.citations.length;
@@ -98,4 +113,13 @@ export function isNodeExplanationState(value: unknown): value is NodeExplanation
     && (value.detail === undefined || text(value.detail, 320))
     && (value.documentation === undefined || isNodeSourceDocumentation(value.documentation))
     && (value.status === 'ready' ? isNodeExplanation(value.explanation) : value.explanation === undefined);
+}
+
+export function isModelExplanationState(value: unknown): value is ModelExplanationState {
+  return record(value) && keys(value, ['requestId', 'revision', 'status', 'completed', 'total', 'detail'])
+    && text(value.requestId, 128) && text(value.revision, 256)
+    && typeof value.status === 'string' && ['loading', 'ready', 'unavailable', 'cancelled'].includes(value.status)
+    && Number.isSafeInteger(value.completed) && Number.isSafeInteger(value.total)
+    && Number(value.completed) >= 0 && Number(value.total) <= 10000 && Number(value.completed) <= Number(value.total)
+    && (value.detail === undefined || text(value.detail, 320));
 }

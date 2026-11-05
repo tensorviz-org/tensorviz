@@ -9,7 +9,7 @@
  * host/worker-only: it can contain private argv and literals. */
 import type { components as ValidationComponents } from './validationContracts.generated';
 import type { components as SemanticComponents } from './semanticContracts.generated';
-import { isNodeExplanationState, type NodeExplanationState } from './nodeExplanation';
+import { isNodeExplanationState, isModelExplanationState, type NodeExplanationState, type ModelExplanationState } from './nodeExplanation';
 export type LiteralEditCapability = SemanticComponents['schemas']['LiteralEditCapability'];
 export type SetLiteralEdit = SemanticComponents['schemas']['SetLiteralEdit'];
 export type ActivationEditCapability = SemanticComponents['schemas']['ActivationEditCapability'];
@@ -919,6 +919,14 @@ export type LocalBrowserNodeExplanationRequest = LocalBrowserEnvelope<'nodeExpla
   viewId: string; target: LocalBrowserTargetIdentity; nodeId: string; requestId: string;
 } & ({ action: 'retry' } | { action: 'reveal'; citationId: string });
 
+export type LocalBrowserModelExplanation = LocalBrowserEnvelope<'modelExplanation'> & {
+  viewId: string; target: LocalBrowserTargetIdentity; state: ModelExplanationState;
+};
+export type LocalBrowserModelExplanationRequest = LocalBrowserEnvelope<'modelExplanationRequest'> & {
+  viewId: string; target: LocalBrowserTargetIdentity; requestId: string;
+  action: 'start' | 'cancel'; nodeIds: string[];
+};
+
 export function isCanvasAgentSettings(value: unknown): value is CanvasAgentSettings {
   return isRecord(value) && Object.keys(value).every(key => ['model', 'effort'].includes(key))
     && (value.model === undefined || isBoundedString(value.model, 256))
@@ -1014,6 +1022,7 @@ export type LocalBrowserMessage =
   | CodeFocusRequest | CodeFocusState
   | LocalBrowserAgentRequest | LocalBrowserAgentState
   | LocalBrowserNodeExplanation | LocalBrowserNodeExplanationRequest
+  | LocalBrowserModelExplanation | LocalBrowserModelExplanationRequest
   | GraphReviewRequest | GraphReviewMessage | GraphReviewFocus | GraphReviewApplied
   | LocalBrowserGraphOpeningMessage
   | LocalBrowserGraphSetupRequestMessage
@@ -1060,7 +1069,7 @@ export type LocalBrowserMessage =
 
 export const LOCAL_BROWSER_MESSAGE_TYPES = [
   'codeFocusRequest', 'codeFocusState',
-  'agentRequest', 'agentState', 'nodeExplanation', 'nodeExplanationRequest',
+  'agentRequest', 'agentState', 'nodeExplanation', 'nodeExplanationRequest', 'modelExplanation', 'modelExplanationRequest',
   'graphReviewRequest', 'graphReviewState', 'graphReviewFocus', 'graphReviewApplied',
   'graphOpening', 'graphSetupRequest',
   'captureExportRequest', 'captureExportCancel', 'captureExportResult',
@@ -1915,6 +1924,17 @@ export function isLocalBrowserMessage(
     case 'nodeExplanation':
       return Object.keys(record).length === 7 && isBoundedString(record.viewId, 128)
         && isLocalBrowserTarget(record.target) && isNodeExplanationState(record.state);
+    case 'modelExplanation':
+      return Object.keys(record).length === 7 && isBoundedString(record.viewId, 128)
+        && isLocalBrowserTarget(record.target) && isModelExplanationState(record.state);
+    case 'modelExplanationRequest':
+      return Object.keys(record).length === 9
+        && Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'target', 'requestId', 'action', 'nodeIds'].includes(key))
+        && isBoundedString(record.viewId, 128) && isLocalBrowserTarget(record.target)
+        && isBoundedString(record.requestId, 128) && Array.isArray(record.nodeIds)
+        && record.nodeIds.length <= 128 && record.nodeIds.every(id => isBoundedString(id, 1024))
+        && new Set(record.nodeIds).size === record.nodeIds.length
+        && (record.action === 'start' ? record.nodeIds.length > 0 : record.action === 'cancel' && record.nodeIds.length === 0);
     case 'nodeExplanationRequest':
       return Object.keys(record).length === (record.action === 'reveal' ? 10 : 9)
         && Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'target', 'nodeId', 'requestId', 'action', 'citationId'].includes(key))

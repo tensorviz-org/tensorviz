@@ -248,6 +248,7 @@ export type LocalBrowserHostPublish =
   | WithoutWire<import('@tensorviz/contracts/protocol').CodeFocusState>
   | WithoutWire<import('@tensorviz/contracts/protocol').LocalBrowserAgentState>
   | WithoutWire<import('@tensorviz/contracts/protocol').LocalBrowserNodeExplanation>
+  | WithoutWire<import('@tensorviz/contracts/protocol').LocalBrowserModelExplanation>
   | WithoutWire<import('@tensorviz/contracts/protocol').GraphReviewMessage>
   | WithoutWire<import('@tensorviz/contracts/protocol').GraphReviewFocus>
   | WithoutWire<LocalBrowserGraphOpeningMessage>
@@ -493,6 +494,7 @@ export function createLocalBrowserHostTransport(
       parsed.type !== 'sourceEditRequest' &&
       parsed.type !== 'agentRequest' &&
       parsed.type !== 'nodeExplanationRequest' &&
+      parsed.type !== 'modelExplanationRequest' &&
       parsed.type !== 'sourceEditCancel' &&
       parsed.type !== 'candidateRequest' &&
       parsed.type !== 'captureInspectRequest' &&

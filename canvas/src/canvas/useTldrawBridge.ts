@@ -1,4 +1,3 @@
-import { layerCardWidth } from './cardMetrics';
 /**
  * useTldrawBridge — synchronises React Flow-style nodes/edges state
  * with a tldraw Editor instance.
@@ -10,7 +9,7 @@ import { layerCardWidth } from './cardMetrics';
  *   nodes/edges → tldraw store  (when the app updates nodes)
  *   tldraw store → nodes/edges  (when the user drags/creates on canvas)
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Editor,
   TLShapeId,
@@ -20,7 +19,7 @@ import { EDGE_SHAPE_TYPE, isManagedCanvasShape, isModelShape } from './canvasSha
 import { cameraDuration } from './reducedMotion';
 import { createEdgeRouter, routedShapeGeometry } from './edgeRouting';
 import { shouldCarryModuleChildren } from './dragCarry';
-import { layerCardHeight, ioCardHeight, nodeCardSize } from './cardMetrics';
+import { nodeCardSize } from './cardMetrics';
 import { AnchorBox, LayoutDirection } from './edgeAnchors';
 import { portSides } from './portLayout';
 import { localBrowserMode } from '../ide/projection';
@@ -28,6 +27,8 @@ import { nodeIdToShapeId, edgeIdToShapeId } from './canvasShapeId';
 import { updateFocusConnections } from './graphFocus';
 import { graphEdges, graphNodes } from './graphQueryState';
 import { graphIsReadOnly } from './graphAccess';
+import { NodeExplanationContext } from './NodeExplanationContext';
+import { explainedGraphPresentation } from './nodeExplanationPresentation';
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
@@ -101,7 +102,7 @@ interface UseTldrawBridgeOpts {
 }
 
 export function useTldrawBridge({
-  nodes,
+  nodes: sourceNodes,
   edges,
   direction,
   setNodes,
@@ -111,8 +112,13 @@ export function useTldrawBridge({
   queryNodes,
   onNodesSynced,
 }: UseTldrawBridgeOpts) {
+  const explanations = useContext(NodeExplanationContext);
+  const presentation = useMemo(() => explainedGraphPresentation(sourceNodes, explanations?.annotations ?? explanations?.states ?? {},
+    explanations?.annotationsVisible === true), [sourceNodes, explanations?.annotations, explanations?.states, explanations?.annotationsVisible]);
+  const nodes = presentation.nodes;
+  const offsets = useRef(presentation.offsets); offsets.current = presentation.offsets;
   const synced = useRef(onNodesSynced); synced.current = onNodesSynced;
-  useEffect(() => { graphNodes.set(queryNodes ?? nodes); }, [nodes, queryNodes]);
+  useEffect(() => { graphNodes.set(queryNodes ?? sourceNodes); }, [sourceNodes, queryNodes]);
   useEffect(() => { graphEdges.set(edges); }, [edges]);
   const editorRef = useRef<Editor | null>(null);
   const pendingFocusNodeRef = useRef<string | null>(null);
@@ -178,9 +184,11 @@ export function useTldrawBridge({
             const parentShape = node.parentNode
               ? shapesById.get(nodeIdToShapeId(node.parentNode as string))
               : undefined;
-            const nextPos = parentShape
+            const displayedPos = parentShape
               ? { x: shape.x - parentShape.x, y: shape.y - parentShape.y }
               : { x: shape.x, y: shape.y };
+            const offset = offsets.current.get(node.id);
+            const nextPos = { x: displayedPos.x - (offset?.x ?? 0), y: displayedPos.y - (offset?.y ?? 0) };
 
             if (
               Math.abs(node.position.x - nextPos.x) > 1 ||
@@ -379,7 +387,7 @@ export function useTldrawBridge({
       for (const n of nodes) if (previousData.get(n.id) !== n.data) { dataChanged = true; break; }
     }
     const hash = nodes.map((n) => `${n.id}:${n.position.x}:${n.position.y}:${n.parentNode}:${n.type}:${n.hidden}:${n.style?.width}:${n.style?.height}`).join('|');
-    if (!dataChanged && hash === lastNodesHash.current) { synced.current?.(nodes); return; }
+    if (!dataChanged && hash === lastNodesHash.current) { synced.current?.(sourceNodes); return; }
     lastNodesHash.current = hash;
     for (const n of nodes) previousData.set(n.id, n.data);
     // Evidence can change without geometry (for example a new profile batch).
@@ -443,7 +451,8 @@ export function useTldrawBridge({
         // reconciler rewrites style.width/height), so w/h belong in the UPDATE
         // partial too — set only at create time, an expanded module keeps its
         // collapsed frame and its children render outside it.
-        const moduleSize = isModule ? nodeCardSize(node) : null;
+        const displaySize = presentation.sizes.get(node.id) ?? nodeCardSize(node);
+        const moduleSize = isModule ? displaySize : null;
 
         // A tldraw shape's TYPE is immutable: `updateShape` keeps the original
         // ShapeUtil, so a node whose type flips goes on rendering as whatever it
@@ -466,13 +475,11 @@ export function useTldrawBridge({
           // whole-graph rewrite per sync is what made selection and drag slow:
           // updating every shape's props re-runs every card.
           const current = existing as any;
-          const desiredH = node.type === 'inputNode' || node.type === 'outputNode'
-            ? ioCardHeight(node.data, node.type === 'outputNode' ? 'output' : 'input', layerCardWidth(node.data))
-            : layerCardHeight(node.data || {});
+          const desiredH = displaySize.h;
           const moved = Math.abs(current.x - pos.x) > 0.01 || Math.abs(current.y - pos.y) > 0.01;
           const resized = isModule
             ? Math.abs((current.props?.w ?? 0) - moduleSize!.w) > 0.5 || Math.abs((current.props?.h ?? 0) - moduleSize!.h) > 0.5
-            : Math.abs((current.props?.h ?? 0) - desiredH) > 0.5;
+            : Math.abs((current.props?.h ?? 0) - desiredH) > 0.5 || Math.abs((current.props?.w ?? 0) - displaySize.w) > 0.5;
           const dataChanged = current.props?.nodeData !== node.data;
           if (moved || resized || dataChanged) {
             shapesToUpdate.push({
@@ -483,7 +490,7 @@ export function useTldrawBridge({
               props: {
                 nodeData: node.data,
                 ...(moduleSize || {}),
-                ...(isModule ? {} : { h: desiredH, w: layerCardWidth(node.data) }),
+                ...(isModule ? {} : { h: desiredH, w: displaySize.w }),
               },
             } as any);
           }
@@ -495,17 +502,11 @@ export function useTldrawBridge({
             x: pos.x,
             y: pos.y,
             props: {
-              w: moduleSize ? moduleSize.w : layerCardWidth(node.data),
+              w: displaySize.w,
               // Match the card's REAL rendered height, so the selection box,
               // resize handles and hit area cover the whole card rather than
               // just its top 120px.
-              h: moduleSize
-                ? moduleSize.h
-                // Root interfaces reserve their actual content; an empty output
-                // is header-only while an explicitly empty capture retains evidence.
-                : (node.type === 'inputNode' || node.type === 'outputNode'
-                  ? ioCardHeight(node.data, node.type === 'outputNode' ? 'output' : 'input', layerCardWidth(node.data))
-                  : layerCardHeight(node.data || {})),
+              h: displaySize.h,
               nodeData: node.data,
             },
           });
@@ -534,13 +535,13 @@ export function useTldrawBridge({
           }
         }, { history: 'ignore' });
       });
-      synced.current?.(nodes);
+      synced.current?.(sourceNodes);
     } finally {
       setTimeout(() => {
         isSyncingToEditor.current = false;
       }, 0);
     }
-  }, [nodes, editorReady, resyncTick]);
+  }, [nodes, sourceNodes, presentation.sizes, editorReady, resyncTick]);
 
   /**
    * Sync edges → tldraw model-edge shapes whenever edges or node positions change.

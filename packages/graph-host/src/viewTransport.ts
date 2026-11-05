@@ -120,6 +120,7 @@ export type LocalBrowserViewSend =
   | ({ type: 'agentRequest'; viewId: string } & import('@tensorviz/contracts/protocol').CanvasAgentAction)
   | WithoutWire<Extract<import('@tensorviz/contracts/protocol').LocalBrowserNodeExplanationRequest, { action: 'retry' }>>
   | WithoutWire<Extract<import('@tensorviz/contracts/protocol').LocalBrowserNodeExplanationRequest, { action: 'reveal' }>>
+  | WithoutWire<import('@tensorviz/contracts/protocol').LocalBrowserModelExplanationRequest>
   | WithoutWire<import('@tensorviz/contracts/protocol').GraphReviewRequest>
   | WithoutWire<import('@tensorviz/contracts/protocol').GraphReviewApplied>
   | WithoutWire<LocalBrowserGraphSetupRequestMessage>
@@ -148,6 +149,7 @@ export type LocalBrowserViewMessage =
   | import('@tensorviz/contracts/protocol').CodeFocusState
   | import('@tensorviz/contracts/protocol').LocalBrowserAgentState
   | import('@tensorviz/contracts/protocol').LocalBrowserNodeExplanation
+  | import('@tensorviz/contracts/protocol').LocalBrowserModelExplanation
   | import('@tensorviz/contracts/protocol').GraphReviewMessage
   | import('@tensorviz/contracts/protocol').GraphReviewFocus
   | LocalBrowserGraphOpeningMessage
@@ -594,6 +596,7 @@ export function createLocalBrowserViewTransport(
       case 'sourceEditRequest':
       case 'agentRequest':
       case 'nodeExplanationRequest':
+      case 'modelExplanationRequest':
       case 'sourceEditCancel':
       case 'candidateRequest':
       case 'captureInspectRequest':

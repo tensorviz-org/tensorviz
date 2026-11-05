@@ -174,13 +174,13 @@ function hostMessage(type: string, rest: Record<string, unknown>): LocalBrowserV
   } as LocalBrowserViewMessage;
 }
 
-function readyValidationPage() {
+function readyValidationPage(projection = netProjection()) {
   const rig = makeTransport();
   render(<LocalBrowserApp createTransport={() => rig.transport} />);
   act(() => {
     rig.setStatus({ phase: 'connected', hostLink: 'connected', error: null });
     rig.emit(hostMessage('activeTarget', { target: netTarget() }));
-    rig.emit(hostMessage('projection', { target: netTarget(), projection: netProjection(), traced: false, greyed: false }));
+    rig.emit(hostMessage('projection', { target: netTarget(), projection, traced: false, greyed: false }));
     rig.emit(hostMessage('syncState', { target: netTarget(), state: 'source-only' }));
   });
   return rig;
@@ -198,9 +198,45 @@ function validationRequest(rig: TransportRig): { requestId: string; target: Loca
 }
 
 describe('LocalBrowserApp', () => {
-  it('accepts only current revision explanations for this view, echoes the request, and drops state on capture changes', async () => {
+  it('runs an explicit bounded model pass, verifies progress scope and preserves completed results on cancellation', async () => {
     (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
     const rig = readyValidationPage();
+    (rig.transport as { session: unknown }).session = { viewId: 'model-view', workspaceSessionId: 'ws-test', capabilities: {} };
+    const cryptoDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: jest.fn(() => 'model-request') } });
+    act(() => rig.emit(hostMessage('projection', { target: netTarget(), projection: netProjection({ projectionDigest: 'capture',
+      spanmap: { component: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }), traced: false, greyed: false })));
+    await act(async () => mockCapturedExplanationContext?.model?.start(['not-mapped', 'component', 'component']));
+    expect(rig.transport.send).toHaveBeenLastCalledWith({ type: 'modelExplanationRequest', viewId: 'model-view', target: netTarget(),
+      requestId: 'model-request', action: 'start', nodeIds: ['component'] });
+    expect(mockCapturedExplanationContext?.annotationsVisible).toBe(true);
+    const progress = { requestId: 'model-request', revision: 'current-graph-revision', status: 'loading', completed: 0, total: 1 };
+    await act(async () => {
+      rig.emit(hostMessage('modelExplanation', { viewId: 'other-view', target: netTarget(), state: { ...progress, status: 'ready', completed: 1 } }));
+      rig.emit(hostMessage('modelExplanation', { viewId: 'model-view', target: netTarget(), state: { ...progress, revision: 'old-capture', status: 'ready', completed: 1 } }));
+    });
+    expect(mockCapturedExplanationContext?.model?.state?.status).toBe('loading');
+    act(() => mockCapturedExplanationContext?.model?.cancel());
+    expect(rig.transport.send).toHaveBeenLastCalledWith({ type: 'modelExplanationRequest', viewId: 'model-view', target: netTarget(),
+      requestId: 'model-request', action: 'cancel', nodeIds: [] });
+    await act(async () => rig.emit(hostMessage('modelExplanation', { viewId: 'model-view', target: netTarget(),
+      state: { ...progress, status: 'cancelled', completed: 1, detail: 'Stopped.' } })));
+    expect(mockCapturedExplanationContext?.model?.state?.status).toBe('cancelled');
+    expect(mockCapturedExplanationContext?.annotationsVisible).toBe(true);
+    await act(async () => rig.emit(hostMessage('modelExplanation', { viewId: 'model-view', target: netTarget(), state: progress })));
+    expect(mockCapturedExplanationContext?.model?.state?.status).toBe('cancelled');
+    act(() => mockCapturedExplanationContext?.model?.toggle());
+    expect(mockCapturedExplanationContext?.annotationsVisible).toBe(false);
+    act(() => rig.emit(hostMessage('projection', { target: netTarget(), projection: netProjection({ projectionDigest: 'next-capture' }), traced: false, greyed: false })));
+    expect(mockCapturedExplanationContext?.model?.state).toBeUndefined();
+    expect(mockCapturedExplanationContext?.annotationsVisible).toBe(false);
+    if (cryptoDescriptor) Object.defineProperty(globalThis, 'crypto', cryptoDescriptor);
+    else Reflect.deleteProperty(globalThis, 'crypto');
+  });
+
+  it('accepts only current revision explanations for this view, echoes the request, and drops state on capture changes', async () => {
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const rig = readyValidationPage(netProjection({ spanmap: { 'python@Net:328': { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
     (rig.transport as { session: unknown }).session = { viewId: 'node-view', workspaceSessionId: 'ws-test', capabilities: {} };
     const state = { requestId: 'node-request', nodeId: 'python@Net:328', revision: 'current-graph-revision', status: 'unavailable' as const, detail: 'Retry source explanation.' };
     const message = (extra = {}) => hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state, ...extra });
@@ -222,7 +258,7 @@ describe('LocalBrowserApp', () => {
   });
 
   it('rejects an explanation that completes revision verification after disconnect and reconnect', async () => {
-    const rig = readyValidationPage();
+    const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
     (rig.transport as { session: unknown }).session = { viewId: 'node-view', workspaceSessionId: 'ws-test', capabilities: {} };
     let resolve!: (revision: string) => void;
     (nodeExplanationRevision as jest.Mock).mockImplementationOnce(() => new Promise<string>(done => { resolve = done; }));
@@ -236,7 +272,7 @@ describe('LocalBrowserApp', () => {
   });
 
   it('keeps the latest request when older verification finishes later for the same node and revision', async () => {
-    const rig = readyValidationPage();
+    const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
     (rig.transport as { session: unknown }).session = { viewId: 'node-view', workspaceSessionId: 'ws-test', capabilities: {} };
     let resolve!: (revision: string) => void;
     (nodeExplanationRevision as jest.Mock)
@@ -247,6 +283,24 @@ describe('LocalBrowserApp', () => {
     await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state: { ...state, requestId: 'new-request' } })));
     await act(async () => resolve('current-graph-revision'));
     expect(mockCapturedExplanationContext?.states.n.requestId).toBe('new-request');
+  });
+
+  it('rejects phantom nodes and retains ready annotations during a new selection request', async () => {
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+    (rig.transport as { session: unknown }).session = { viewId: 'node-view', workspaceSessionId: 'ws-test', capabilities: {} };
+    const state = { requestId: 'model-request', nodeId: 'n', revision: 'current-graph-revision', status: 'ready',
+      explanation: { title: 'Score candidates', purpose: 'Compare candidates with the question.', inputs: ['Candidate features'], outputs: ['Scores'],
+        steps: [], uncertainties: [], citations: [{ id: 'source', file: 'models/net.py', sourceDigest: 'a'.repeat(64), startLine: 2, endLine: 5 }] } };
+    await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state: { ...state, nodeId: 'phantom' } })));
+    expect(mockCapturedExplanationContext?.annotations).toEqual({});
+    await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state })));
+    await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(),
+      state: { requestId: 'selection-request', nodeId: 'n', revision: state.revision, status: 'queued' } })));
+    expect(mockCapturedExplanationContext?.states.n.status).toBe('queued');
+    expect(mockCapturedExplanationContext?.annotations?.n.explanation).toEqual(state.explanation);
+    act(() => rig.setStatus({ phase: 'reconnecting', hostLink: 'disconnected', error: null }));
+    expect(mockCapturedExplanationContext?.annotations).toEqual({});
   });
 
   it.each([true, false])('shows input evidence only for the reviewed saved profile (matching=%s)', matching => {

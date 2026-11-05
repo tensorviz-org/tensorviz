@@ -79,7 +79,7 @@ const OutputShapeCard = track(function OutputShapeCard({ shape, editor }: { shap
     const data = shape.props.nodeData;
     const isSelected = editor.getSelectedShapeIds().includes(shape.id);
     const header = cardHeaderLayout('Output', data.captureLabel, shape.props.w);
-    const content = ioCardContent(data, 'output');
+    const content = ioCardContent(data, 'output', shape.props.w);
 
     const formatShape = (s?: number[]) => {
       if (!s) return '';
@@ -98,19 +98,19 @@ const OutputShapeCard = track(function OutputShapeCard({ shape, editor }: { shap
           </div>
 
           {content.bodyHeight > 0 && <div className="ui2-node-body">
-            {data.capturePorts ? <CaptureBoundaryRows ports={data.capturePorts} /> : content.rowCount > 0 && <div className="ui2-node-list">
+            {data.capturePorts ? <CaptureBoundaryRows ports={data.capturePorts} width={shape.props.w} /> : content.rowCount > 0 && <div className="ui2-node-list">
               {data.outputShape && (
-                <div className="ui2-node-shape-row">
+                <div className="ui2-node-shape-row" style={{ minHeight: content.values.shape?.height }}>
                   <LucideIcons.Layers size={11} />
                   <span>Shape</span>
-                  <span className="ui2-node-shape">{formatShape(data.outputShape)}</span>
+                  <span className="ui2-node-shape card-content-lines" title={formatShape(data.outputShape)}>{content.values.shape?.lines.map((line, index) => <span key={index}>{line}</span>)}</span>
                 </div>
               )}
               {content.name && (
-                <div className="ui2-node-shape-row">
+                <div className="ui2-node-shape-row" style={{ minHeight: content.values.name?.height }}>
                   <LucideIcons.Tag size={12} />
                   <span>Name</span>
-                  <span className="ui2-node-shape">{content.name}</span>
+                  <span className="ui2-node-shape card-content-lines" title={content.name}>{content.values.name?.lines.map((line, index) => <span key={index}>{line}</span>)}</span>
                 </div>
               )}
             </div>}

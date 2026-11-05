@@ -34,7 +34,7 @@ LocalBrowserErrorCode = Literal[
 LOCAL_BROWSER_ROLES: Final[frozenset[str]] = frozenset({"host", "view"})
 LOCAL_BROWSER_MESSAGE_TYPES: Final[frozenset[str]] = frozenset(
     {
-        "agentRequest", "agentState", "nodeExplanation", "nodeExplanationRequest",
+        "agentRequest", "agentState", "nodeExplanation", "nodeExplanationRequest", "modelExplanation", "modelExplanationRequest",
         "graphReviewRequest", "graphReviewState", "graphReviewFocus", "graphReviewApplied",
         "graphOpening", "graphSetupRequest",
         "connected",
@@ -118,7 +118,9 @@ def _node_explanation_citation(value: Any) -> bool:
 
 
 def _node_explanation(value: Any) -> bool:
-    if not isinstance(value, dict) or set(value) != {"title", "purpose", "inputs", "outputs", "steps", "uncertainties", "citations"}:
+    if (not isinstance(value, dict)
+            or not {"title", "purpose", "inputs", "outputs", "steps", "uncertainties", "citations"} <= set(value)
+            or not set(value) <= {"title", "purpose", "inputs", "outputs", "steps", "uncertainties", "citations", "concepts"}):
         return False
     def items(field, count, length):
         entries = value[field]
@@ -127,6 +129,10 @@ def _node_explanation(value: Any) -> bool:
     return (_node_explanation_text(value["title"], 80) and _node_explanation_text(value["purpose"], 320)
             and items("inputs", 6, 160) and items("outputs", 4, 160)
             and items("steps", 6, 320) and items("uncertainties", 4, 240)
+            and ("concepts" not in value or isinstance(value["concepts"], list) and len(value["concepts"]) <= 4
+                 and all(isinstance(concept, dict) and set(concept) == {"term", "explanation"}
+                         and _node_explanation_text(concept["term"], 80)
+                         and _node_explanation_text(concept["explanation"], 320) for concept in value["concepts"]))
             and isinstance(citations, list) and 1 <= len(citations) <= 8
             and all(_node_explanation_citation(item) for item in citations)
             and len({item["id"] for item in citations}) == len(citations))
@@ -160,6 +166,17 @@ def _node_explanation_state(value: Any) -> bool:
             and ("detail" not in value or _node_explanation_text(value["detail"], 320))
             and ("documentation" not in value or _node_source_documentation(value["documentation"]))
             and (_node_explanation(value.get("explanation")) if value["status"] == "ready" else "explanation" not in value))
+
+
+def _model_explanation_state(value: Any) -> bool:
+    return (isinstance(value, dict)
+            and set(value) <= {"requestId", "revision", "status", "completed", "total", "detail"}
+            and _node_explanation_text(value.get("requestId"), 128)
+            and _node_explanation_text(value.get("revision"), 256)
+            and isinstance(value.get("status"), str) and value["status"] in ("loading", "ready", "unavailable", "cancelled")
+            and _is_non_negative_integer(value.get("completed")) and _is_non_negative_integer(value.get("total"))
+            and value["completed"] <= value["total"] <= 10000
+            and ("detail" not in value or _node_explanation_text(value["detail"], 320)))
 
 
 def _is_non_negative_integer(value: Any) -> bool:
@@ -691,6 +708,18 @@ def is_local_browser_message(value: Any, expected_workspace_session_id: str | No
     if message_type == "nodeExplanation":
         return (len(value) == 7 and _is_bounded_string(value.get("viewId"), 128)
                 and _target_is_valid(value.get("target")) and _node_explanation_state(value.get("state")))
+    if message_type == "modelExplanation":
+        return (len(value) == 7 and _is_bounded_string(value.get("viewId"), 128)
+                and _target_is_valid(value.get("target")) and _model_explanation_state(value.get("state")))
+    if message_type == "modelExplanationRequest":
+        action, node_ids = value.get("action"), value.get("nodeIds")
+        return (len(value) == 9
+                and set(value) <= {"type", "protocolVersion", "workspaceSessionId", "messageId", "viewId", "target", "requestId", "action", "nodeIds"}
+                and _is_bounded_string(value.get("viewId"), 128) and _target_is_valid(value.get("target"))
+                and _is_bounded_string(value.get("requestId"), 128) and isinstance(node_ids, list)
+                and len(node_ids) <= 128 and all(_is_bounded_string(node_id, 1024) for node_id in node_ids)
+                and len(set(node_ids)) == len(node_ids)
+                and (len(node_ids) > 0 if action == "start" else action == "cancel" and len(node_ids) == 0))
     if message_type == "nodeExplanationRequest":
         action = value.get("action")
         return (len(value) == (10 if action == "reveal" else 9)

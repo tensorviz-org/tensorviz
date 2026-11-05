@@ -16,7 +16,7 @@ export interface AgentRunInput {
   selectionEvidence?: Record<string, unknown>;
   messages: CanvasAgentTurn[];
   settings?: CanvasAgentSettings;
-  intent?: 'open_graph' | 'node_explanation';
+  intent?: 'open_graph' | 'node_explanation' | 'model_explanation';
 }
 export type AgentWarmInput = Omit<AgentRunInput, 'messages' | 'context'> & { context?: string; preparation?: { context: string } };
 export type AgentRunEvent = { kind: 'text'; text: string } | { kind: 'activity'; text: string }

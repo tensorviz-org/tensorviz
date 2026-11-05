@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileText, LoaderCircle, MessageCircle, Sparkles } from 'lucide-react';
-import type { ModelNode } from '../types';
+import type { ModelEdge, ModelNode } from '../types';
 import type { NodeExplanationCitation, NodeExplanationState, NodeSourceDocumentation } from '../ide/nodeExplanation.generated';
 import { sourceParameterValues } from '../ide/cardParams';
 import { LocalBrowserContext } from '../ide/localBrowserContext';
@@ -8,6 +8,7 @@ import { NodeExplanationContext } from './NodeExplanationContext';
 import { nodeEvidenceLabel, nodeInputOutput, nodePresentation, sourceDocumentationSummary } from './nodePresentation';
 import { NodeSourceLink } from './NodeSourceControls';
 import { customCardModel } from './customCard';
+import { moduleContents } from '../services/modulePresentation';
 import './nodeUnderstanding.css';
 
 function InputOutput({ inputs, outputs, label }: { inputs: string[]; outputs: string[]; label: string }) {
@@ -44,7 +45,12 @@ function sourceScrollKey(event: React.KeyboardEvent) {
 }
 
 /** A selected node's overview; interpretation and source/capture facts stay distinct. */
-export function NodeUnderstanding({ node }: { node: ModelNode }) {
+export function NodeUnderstanding({ node, nodes = [], edges = [], onNavigate }: {
+  node: ModelNode;
+  nodes?: readonly ModelNode[];
+  edges?: readonly ModelEdge[];
+  onNavigate?(nodeId: string): void;
+}) {
   const context = React.useContext(NodeExplanationContext);
   const local = React.useContext(LocalBrowserContext);
   const state = context?.states[node.id];
@@ -54,9 +60,22 @@ export function NodeUnderstanding({ node }: { node: ModelNode }) {
   const sourceSummary = sourceDocumentationSummary(source?.docstring);
   const facts = nodePresentation(node.data, node.id);
   const custom = customCardModel(node.data.layerType?.id, node.data.parameters);
+  const contents = node.type === 'moduleNode' ? moduleContents(node.data) : undefined;
   const io = nodeInputOutput(node.data);
   const params = Object.entries(sourceParameterValues(node.data.parameters ?? {})).filter(([name]) => !name.startsWith('_'));
   const loading = state?.status === 'queued' || state?.status === 'loading';
+  const connected = (direction: 'in' | 'out') => [...new Set(edges.filter(edge => direction === 'in'
+    ? edge.target === node.id : edge.source === node.id).map(edge => direction === 'in' ? edge.source : edge.target))]
+    .map(id => nodes.find(peer => peer.id === id)).filter((peer): peer is ModelNode => !!peer);
+  const upstream = connected('in'), downstream = connected('out');
+  const peers = (items: ModelNode[]) => items.map(peer => {
+    const generated = context?.annotations?.[peer.id] ?? context?.states[peer.id];
+    const role = generated?.status === 'ready' ? generated.explanation?.title : undefined;
+    const identity = nodePresentation(peer.data, peer.id);
+    return <button type="button" key={peer.id} disabled={!onNavigate} onClick={() => onNavigate?.(peer.id)}>
+      {role && <span>{role}</span>}<code>{identity.callable || identity.title}</code>
+    </button>;
+  });
   const unavailableNotice = state?.status === 'unavailable' && <div className="node-understanding-unavailable">
     <span title={state.detail}>{state.detail || 'Explanation unavailable.'}</span>
     {context && <button type="button" onClick={() => context.retry(state)}>Retry explanation</button>}
@@ -81,6 +100,13 @@ export function NodeUnderstanding({ node }: { node: ModelNode }) {
       </div> : facts.purpose && <p className="node-understanding-reference" title="Layer reference">{facts.purpose}</p>}
       <InputOutput {...io} label="Graph inputs and outputs" />
     </>}
+    {(upstream.length > 0 || downstream.length > 0) && <section className="node-understanding-connections" aria-label="Connected components">
+      <span className="node-understanding-detail-label">Connected components · from graph</span>
+      <div className="node-understanding-neighbors" aria-label="Upstream and downstream components">
+        {upstream.length > 0 && <div><span>Receives from</span>{peers(upstream)}</div>}
+        {downstream.length > 0 && <div><span>Provides to</span>{peers(downstream)}</div>}
+      </div>
+    </section>}
     {!documentation && unavailableNotice}
     <details className="node-understanding-details" key={`${node.id}:${state?.revision ?? ''}`}>
       <summary>More details</summary>
@@ -105,6 +131,7 @@ export function NodeUnderstanding({ node }: { node: ModelNode }) {
           {node.data.captureLabel && node.data.captureLabel !== facts.callable && !/^#?python@/.test(node.data.captureLabel)
             && <div><dt>Graph path</dt><dd><code>{node.data.captureLabel}</code></dd></div>}
         </dl>
+        {contents?.detail && <p>{contents.detail}</p>}
         {(facts.rawCall || custom?.snippet) && <div><span className="node-understanding-detail-label">Source call</span><pre>{facts.rawCall || custom?.snippet}</pre></div>}
         {explanation && <div><span className="node-understanding-detail-label">Graph evidence</span><InputOutput {...io} label="Graph inputs and outputs" /></div>}
         {params.length > 0 && <section aria-label="Parameters">
@@ -126,6 +153,12 @@ export function NodeUnderstanding({ node }: { node: ModelNode }) {
         {explanation && state && <div className="node-understanding-interpretation">
           <span className="node-understanding-attribution"><Sparkles size={12} aria-hidden="true" />Agent interpretation</span>
           {explanation.steps.length > 0 && <ol aria-label="How it works">{explanation.steps.map((step, index) => <li key={index}>{step}</li>)}</ol>}
+          {!!explanation.concepts?.length && <section aria-label="Related concepts">
+            <span className="node-understanding-detail-label">Concepts · agent explanation</span>
+            {explanation.concepts.map((concept, index) => <details className="node-understanding-concept" key={index}>
+              <summary>{concept.term}</summary><p>{concept.explanation}</p>
+            </details>)}
+          </section>}
           {explanation.uncertainties.length > 0 && <div><span className="node-understanding-detail-label">Uncertainties</span>
             <ul>{explanation.uncertainties.map((uncertainty, index) => <li key={index}>{uncertainty}</li>)}</ul></div>}
           <div className="node-understanding-sources" aria-label="Explanation sources">

@@ -12,14 +12,18 @@ import { cardParams, inputProvenanceNote } from '../ide/cardParams';
 import { opSummary } from './opSummary';
 import { portCardHeight } from './capturePorts';
 import type { CapturePort, ModelNode, ModelNodeData } from '../types';
-import { BOUNDARY_ROW_COMPACT, BOUNDARY_ROW_FULL, compactBoundaryLabel, moduleBoundaryRows,
-  moduleEvidenceLabel, moduleParameterRows } from '../services/modulePresentation';
+import { moduleBoundaryLayout, moduleContents, moduleEvidenceLabel, moduleParameterRows } from '../services/modulePresentation';
 import { ownGraphIssues, nodeFailureLines } from './graphIssues';
 import { operationTensorRows } from './operationTensorData';
 import { nodePresentation } from './nodePresentation';
 import { cardHeaderLayout, wrapCardText } from './cardIdentity';
 import { tensorShapes } from './graphSemantics';
 import { operationGroupCard } from '../services/operationGroups';
+import { boundaryTextLayout, definitionLinkLayout, ioValueLayout, sourceLinkLayout } from './cardContentLayout';
+import { portLabel, portType } from './capturePorts';
+import { displayInputShape } from '../utils/inputShape';
+import { tensorSummaryData } from './tensorSummaryData';
+import { tensorRowLayout } from './cardContentLayout';
 /** Ordinary cards reserve wrapped identity and visible tensor/status content.
  * Parameters, source excerpts and runtime statistics belong in selection details.
  * Review/assignment cards retain the measured row geometry below for exact changes.
@@ -39,18 +43,19 @@ export const moduleCardWidth = (data: ModelNodeData): number => {
 };
 
 /** Layout and export must reserve the same footprint as the live card. */
-export function nodeCardSize(node: ModelNode): { w: number; h: number } {
+export function nodeCardSize(node: ModelNode, width?: number): { w: number; h: number } {
   if (node.type === 'moduleNode') {
-    const w = typeof node.style?.width === 'number' ? node.style.width : moduleCardWidth(node.data);
+    const w = width ?? (typeof node.style?.width === 'number' ? node.style.width : moduleCardWidth(node.data));
     if (node.data.expanded && typeof node.style?.height === 'number') return { w, h: node.style.height };
     const measured = moduleCardHeight(node.data, w);
     return { w, h: typeof node.style?.height === 'number'
       ? Math.max(node.style.height, measured) : measured };
   }
+  const w = width ?? layerCardWidth(node.data);
   return {
-    w: layerCardWidth(node.data),
+    w,
     h: node.type === 'inputNode' || node.type === 'outputNode'
-      ? ioCardHeight(node.data, node.type === 'outputNode' ? 'output' : 'input', layerCardWidth(node.data)) : layerCardHeight(node.data),
+      ? ioCardHeight(node.data, node.type === 'outputNode' ? 'output' : 'input', w) : layerCardHeight(node.data, w),
   };
 }
 
@@ -81,16 +86,22 @@ export const layerSummaryShown = (data: Partial<ModelNodeData>): boolean => Bool
 export function moduleCardHeader(data: ModelNodeData, width = moduleCardWidth(data)) {
   const title = String(data.moduleTemplateId || data.parameters?.name || data.parameters?._class || data.layerType?.name || 'Module').split('::').pop()!;
   const subtitle = (data.sourceReplacement ? data.captureLabel : data.review?.summary) ?? data.captureLabel ?? data.moduleInstanceId;
-  return { title, subtitle, ...cardHeaderLayout(title, subtitle, width, true) };
+  const layout = cardHeaderLayout(title, subtitle, width, moduleContents(data).canExpand);
+  return { title, subtitle, ...layout, height: Math.max(56, layout.height) };
+}
+
+/** Expanded frames reserve their author/source row before positioning children. */
+export function moduleExpandedHeaderHeight(data: ModelNodeData, width: number): number {
+  return moduleCardHeader(data, width).height + (typeof data.parameters?._defined_in === 'string'
+    ? definitionLinkLayout(data.parameters._defined_in, width).height : 0);
 }
 
 /** Module tiles reserve only their visible content, including every boundary row. */
 export function moduleCardHeight(data: ModelNodeData, width = moduleCardWidth(data)): number {
   const header = moduleCardHeader(data, width);
   if (data.capturePassThrough) return header.height + 32;
-  const boundary = moduleBoundaryRows(data);
-  const rowsHeight = boundary.reduce((sum, row) => sum + (compactBoundaryLabel(row.label) ? BOUNDARY_ROW_COMPACT : BOUNDARY_ROW_FULL), 0);
-  const captured = Boolean(data.captureRef);
+  const boundary = moduleBoundaryLayout(data, width);
+  const rowsHeight = boundary.reduce((sum, row) => sum + row.height + 4, 0);
   // 56px header, 2px border, 10px + 12px body padding. Each section below adds its
   // height plus the body's 8px gap above it (6px above the source line); the first
   // section has no gap above it. Sections are listed in their DOM order.
@@ -103,17 +114,16 @@ export function moduleCardHeight(data: ModelNodeData, width = moduleCardWidth(da
   if (paramRows) sections.push([paramRows * 20, 8]);
   // Each boundary row carries its own 4px trailing gap; the last one does not show.
   if (boundary.length) sections.push([rowsHeight - 4, 8]);
-  // A source module always draws its pill row (layer count, repeat and status); a
-  // captured tile draws one only for evidence or a problem, and repeats separately.
-  if (!captured || moduleEvidenceLabel(data) !== '' || issues.length || status !== 'ok') sections.push([27, 8]);
-  if (captured && (data.repeatCount || 0) > 1) sections.push([21, 8]);
+  const evidence = moduleEvidenceLabel(data);
+  // Empty source cards carry a quiet header icon, not an empty body row.
+  if (moduleContents(data).label || (data.repeatCount || 0) > 1 || evidence || issues.length || status !== 'ok') sections.push([27, 8]);
   if (data.sourceReplacement) sections.push([data.sourceReplacement.coverage === 'partial' ? 28 : 14, 8]);
-  if (data.sourceLocation) sections.push([18, 6]);
-  if (data.parameters?._defined_in) sections.push([15, 8]);
+  if (data.sourceLocation) sections.push([sourceLinkLayout(data.sourceLocation, width).height, 6]);
+  if (data.parameters?._defined_in) sections.push([definitionLinkLayout(String(data.parameters._defined_in), width).height, 8]);
   if (data.moduleEntryNodeId && data.moduleExitNodeId) sections.push([14, 8]);
   if (data.modulePreviewNodes?.length) sections.push([42, 8]);
   const content = sections.reduce((sum, [height, gap], index) => sum + height + (index ? gap : 0), 0);
-  return portCardHeight(data, header.height + 24 + content);
+  return portCardHeight(data, header.height + (sections.length ? 24 + content : 2));
 }
 
 export function layerCardHeight(rawData: {
@@ -135,18 +145,14 @@ export function layerCardHeight(rawData: {
   shapeEvidence?: ModelNodeData['shapeEvidence'];
   debugEvidence?: ModelNodeData['debugEvidence'];
   outputTensor?: ModelNodeData['outputTensor'];
-}): number {
+}, width?: number): number {
   const display = operationGroupCard(rawData as ModelNodeData);
   const data = { ...display, ...tensorShapes({ ...display, parameters: display.parameters ?? {} } as ModelNodeData) };
-  const header = layerCardHeader(data as Partial<ModelNodeData>);
+  const header = layerCardHeader(data as Partial<ModelNodeData>, width);
   if (!data.review && !data.sourceAssignment) {
-    const operationRows = operationTensorRows(data);
-    const shapes = Number(Boolean(data.inputShape)) + Number(Boolean(data.outputShape));
     const summary = layerSummaryShown(data as Partial<ModelNodeData>);
     let height = header.height + 2;
-    if (summary) height += 24 + (operationRows !== undefined ? Math.max(16, operationRows.length * 27 - 6)
-      : shapes ? 16 + 7 + shapes * 27 - 6 : 45);
-    if (data.error) height += 7 + Math.max(30, 12 + nodeFailureLines({ ...data, error: String(data.error) }).length * 16);
+    if (summary) height += tensorSummaryData(data as ModelNodeData, width ?? layerCardWidth(data)).height;
     if (data.debugChanges?.length) height += 38;
     if (data.operationGroup && data.operationGroup.kind !== 'slice') height += 30;
     if (customCardModel(data.layerType?.id, data.parameters)?.projectExpandable) height += 28;
@@ -156,7 +162,9 @@ export function layerCardHeight(rawData: {
   const operationRows = operationTensorRows(data);
   if (operationRows !== undefined) {
     // 51px header, borders/body padding, 21px tensor rows with 6px gaps.
-    let height = header.height + 26 + Math.max(21, operationRows.length * 27 - 6);
+    const rowsHeight = operationRows.reduce((sum, row) => sum + tensorRowLayout(row.label, row.value, width ?? layerCardWidth(data)).height, 0)
+      + Math.max(0, operationRows.length - 1) * 6;
+    let height = header.height + 26 + Math.max(21, rowsHeight);
     if (data.debugChanges?.length) height += 38;
     if (data.error) height += 7 + Math.max(30, 12 + nodeFailureLines({ ...data, error: String(data.error) }).length * 16);
     return portCardHeight(data, Math.max(120, height));
@@ -231,19 +239,25 @@ type IoCardData = Pick<Partial<ModelNodeData>, 'layerType' | 'parameters' | 'inp
 
 /** Root interfaces reserve only the rows they actually draw. An absent output
  *  has no body; an explicitly empty recorded interface keeps its evidence row. */
-export function ioCardContent(data: IoCardData | undefined, kind: 'input' | 'output' = data?.layerType?.id === 'output' ? 'output' : 'input') {
+export function ioCardContent(data: IoCardData | undefined, kind: 'input' | 'output' = data?.layerType?.id === 'output' ? 'output' : 'input', width = 200) {
   const captured = data?.capturePorts !== undefined;
   const name = !captured && typeof data?.parameters?.name === 'string' && data.parameters.name.trim()
     ? data.parameters.name : undefined;
   const provenance = !captured && kind === 'input' ? inputProvenanceNote(data?.parameters) : undefined;
   const shape = !captured && (kind === 'input' || Array.isArray(data?.outputShape));
   const rowCount = captured ? Math.max(1, data?.capturePorts?.length ?? 0) : Number(shape) + Number(Boolean(name)) + Number(Boolean(provenance));
-  const rowHeight = captured && data?.capturePorts?.length ? 36 : 16.5;
-  const rowsHeight = rowCount ? rowCount * rowHeight + (rowCount - 1) * 4 : 0;
-  const errorLines = data?.error ? wrapCardText(data.error, 146, 11) : [];
+  const shapeValue = shape ? (kind === 'input' ? displayInputShape(data?.parameters?.shape ?? data?.inputShape) ?? 'Not recorded'
+    : `(${data?.outputShape?.join(', ')})`) : undefined;
+  const values = { ...(shapeValue ? { shape: ioValueLayout(shapeValue, width) } : {}),
+    ...(name ? { name: ioValueLayout(name, width) } : {}),
+    ...(provenance ? { provenance: ioValueLayout(provenance.label, width) } : {}) };
+  const rowsHeight = captured && data?.capturePorts?.length ? data.capturePorts.reduce((sum, port, index) =>
+    sum + boundaryTextLayout(portLabel(port, index), portType(port), width, false, true).height, 0) + (rowCount - 1) * 4
+    : rowCount ? (captured ? 16.5 : Object.values(values).reduce((sum, row) => sum + row.height, 0)) + (rowCount - 1) * 4 : 0;
+  const errorLines = data?.error ? wrapCardText(data.error, width - 54, 11) : [];
   const errorHeight = errorLines.length ? Math.max(30, 12 + errorLines.length * 16) : 0;
   const bodyHeight = rowsHeight + (errorHeight ? (rowCount ? 7 : 0) + errorHeight : 0);
-  return { captured, name, provenance, shape, rowCount, errorLines, errorHeight, bodyHeight: bodyHeight ? bodyHeight + 16 : 0 };
+  return { captured, name, provenance, shape, rowCount, values, errorLines, errorHeight, bodyHeight: bodyHeight ? bodyHeight + 16 : 0 };
 }
 
 /** A bare input's truthful unknown-shape row, with header and borders. */
@@ -251,5 +265,5 @@ export const IO_CARD_HEIGHT = Math.ceil(cardHeaderLayout('Input').height + 2 + 1
 
 export function ioCardHeight(data: IoCardData | undefined, kind: 'input' | 'output' = data?.layerType?.id === 'output' ? 'output' : 'input', width = 200): number {
   const title = kind === 'output' ? 'Output' : 'Input';
-  return portCardHeight(data, Math.ceil(cardHeaderLayout(title, data?.captureLabel, width).height + 2 + ioCardContent(data, kind).bodyHeight));
+  return portCardHeight(data, Math.ceil(cardHeaderLayout(title, data?.captureLabel, width).height + 2 + ioCardContent(data, kind, width).bodyHeight));
 }

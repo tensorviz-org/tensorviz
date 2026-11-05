@@ -16,7 +16,7 @@
  * the manual Layout button — replacing three divergent code paths.
  */
 import dagre from 'dagre';
-import { nodeCardSize, moduleCardHeight, moduleCardHeader, moduleCardWidth } from '../canvas/cardMetrics';
+import { nodeCardSize, moduleCardHeight, moduleCardHeader, moduleCardWidth, moduleExpandedHeaderHeight } from '../canvas/cardMetrics';
 import { endpointOnSide } from '../canvas/capturePorts';
 import { skipEdgeIds } from '../canvas/edgeRouting';
 import type { LayoutDirection } from '../canvas/edgeAnchors';
@@ -324,10 +324,11 @@ function layoutChildren(
     positions.forEach(position => { position.x += shift; });
   }
   if (sideReserve && !preservePositions && row) positions.forEach(position => { position.y += sideReserve; });
-  const headerClearance = moduleData ? Math.max(0, moduleCardHeader(moduleData, width).height - MODULE_HEADER) : 0;
+  const headerHeight = moduleData ? moduleExpandedHeaderHeight(moduleData, width) : MODULE_HEADER;
+  const headerClearance = Math.max(0, headerHeight - MODULE_HEADER);
   const wrappedHeader = moduleData && moduleCardHeader(moduleData, width);
-  const neededClearance = preservePositions ? (positions.size && wrappedHeader && wrappedHeader.titleLines.length > 1
-    ? Math.max(0, wrappedHeader.height + MODULE_PAD - Math.min(...Array.from(positions.values()).map(position => position.y))) : 0) : headerClearance;
+  const neededClearance = preservePositions ? (positions.size && wrappedHeader && (wrappedHeader.titleLines.length > 1 || moduleData?.parameters?._defined_in)
+    ? Math.max(0, headerHeight + MODULE_PAD - Math.min(...Array.from(positions.values()).map(position => position.y))) : 0) : headerClearance;
   if (neededClearance) positions.forEach(position => { position.y += neededClearance; });
   return {
     positions,

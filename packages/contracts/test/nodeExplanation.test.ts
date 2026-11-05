@@ -1,7 +1,7 @@
 import * as assert from 'node:assert/strict';
 import {
   isNodeExplanation, isNodeExplanationCitation, isNodeExplanationState,
-  isNodeSourceDocumentation, type NodeSourceDocumentation,
+  isNodeSourceDocumentation, isModelExplanationState, type NodeSourceDocumentation,
   type NodeExplanation, type NodeExplanationCitation, type NodeExplanationState,
 } from '@tensorviz/contracts/nodeExplanation';
 import { isLocalBrowserMessage } from '@tensorviz/contracts/protocol';
@@ -85,6 +85,48 @@ suite('node explanation contract', () => {
       }
     });
   }
+
+  test('optional terminology remains bounded explanation data', () => {
+    const concept = { term: 'VAE', explanation: 'A variational autoencoder learns a latent representation.' };
+    assert.ok(isNodeExplanation(explanation({ concepts: [concept] })));
+    assert.ok(isNodeExplanation(explanation({ concepts: [] })));
+    assert.ok(isNodeExplanation(explanation({ concepts: Array(4).fill({ term: 'x'.repeat(80), explanation: 'x'.repeat(320) }) })));
+    for (const concepts of [null, 'text', Array(5).fill(concept), [{}], [{ ...concept, term: '' }],
+      [{ ...concept, term: 'x'.repeat(81) }], [{ ...concept, explanation: 'x'.repeat(321) }],
+      [{ ...concept, explanation: 'line\nbreak' }], [{ ...concept, command: 'execute' }]]) {
+      assert.equal(isNodeExplanation({ ...explanation(), concepts }), false, JSON.stringify(concepts));
+    }
+  });
+
+  test('model progress has bounded integral counts and explicit terminal states', () => {
+    const progress = { requestId: 'model-request', revision: 'revision', status: 'loading', completed: 0, total: 128 };
+    for (const status of ['loading', 'ready', 'unavailable', 'cancelled']) {
+      assert.ok(isModelExplanationState({ ...progress, status }));
+      assert.ok(isLocalBrowserMessage({ ...envelope, type: 'modelExplanation', state: { ...progress, status } }));
+    }
+    assert.ok(isModelExplanationState({ ...progress, completed: 10000, total: 10000, detail: 'x'.repeat(320) }));
+    for (const update of [{ completed: -1 }, { completed: 129 }, { completed: 0.5 }, { completed: true },
+      { completed: Number.NaN }, { total: 10001 }, { total: -1 }, { total: Infinity }, { total: 1.5 },
+      { requestId: '' }, { revision: '' }, { status: 'queued' }, { detail: '' }, { detail: 'x'.repeat(321) },
+      { command: 'execute' }]) {
+      assert.equal(isModelExplanationState({ ...progress, ...update }), false, JSON.stringify(update));
+      assert.equal(isLocalBrowserMessage({ ...envelope, type: 'modelExplanation', state: { ...progress, ...update } }), false);
+    }
+  });
+
+  test('model passes start with bounded distinct nodes and cancel by exact request identity', () => {
+    const request = { ...envelope, type: 'modelExplanationRequest', action: 'start', requestId: 'model-request', nodeIds: ['node'] };
+    assert.ok(isLocalBrowserMessage(request, 'session'));
+    assert.ok(isLocalBrowserMessage({ ...request, nodeIds: Array.from({ length: 128 }, (_, i) => `node-${i}`) }));
+    assert.ok(isLocalBrowserMessage({ ...request, action: 'cancel', nodeIds: [] }));
+    assert.equal(isLocalBrowserMessage(request, 'another-session'), false);
+    for (const update of [{ nodeIds: [] }, { nodeIds: ['node', 'node'] }, { nodeIds: [''] },
+      { nodeIds: ['n'.repeat(1025)] }, { nodeIds: Array.from({ length: 129 }, (_, i) => `node-${i}`) },
+      { nodeIds: [1] }, { nodeIds: null }, { action: 'cancel' }, { action: 'execute' }, { viewId: '' },
+      { target: null }, { requestId: '' }, { requestId: 'r'.repeat(129) }, { command: 'execute' }]) {
+      assert.equal(isLocalBrowserMessage({ ...request, ...update }), false, JSON.stringify(update));
+    }
+  });
 
   test('citation paths stay relative and spans identify real positive line ranges', () => {
     assert.ok(isNodeExplanationCitation(citation({ startLine: 1, endLine: 1 })));

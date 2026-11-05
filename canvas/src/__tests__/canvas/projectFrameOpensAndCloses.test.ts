@@ -63,7 +63,7 @@ describe('a project frame closes the way it opened', () => {
     // frame does not have.
     expect(source).toMatch(/\{!isProjectFrame && \(\s*statusBadge\s*\)\}/);
     expect(source).toContain('const canUngroup = !localBrowserMode() && !isProjectFrame && !graphIsReadOnly(editor);');
-    const guardedButtons = (text: string) => text.match(/\{!isProjectFrame && \(\s*(?:<CanvasTooltip\b[^>]*>\s*)?<button\s*className="expand-button"/g) || [];
+    const guardedButtons = (text: string) => text.match(/\{!isProjectFrame && contents\.canExpand && \(\s*(?:<CanvasTooltip\b[^>]*>\s*)?<button\s*className="expand-button"/g) || [];
     expect(guardedButtons(source)).toHaveLength(2);
     expect(guardedButtons(source.replaceAll('!isProjectFrame &&', 'true &&'))).toHaveLength(0);
   });

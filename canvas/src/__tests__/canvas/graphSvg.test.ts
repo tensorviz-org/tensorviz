@@ -73,10 +73,26 @@ describe('graphToSvg', () => {
       parameters: { _raw_call: `${callable}(candidates, question)`, _source_result_call: { name: 'compare_temporal_representations' } } };
     const svg = graphToSvg([node], []);
     const icon = svgDocument(svg).querySelector('[data-source-evidence="source"]');
-    expect(icon?.getAttribute('aria-label')).toBe('From source · shapes not recorded');
+    expect(icon?.getAttribute('aria-label')).toBe('Read from code · tensor shapes not recorded');
     expect(icon?.querySelector('path')).not.toBeNull();
     expect(subtitleTexts(svg)).toEqual([callable]);
     expect(svg).not.toContain('…');
+  });
+  it('exports explanations with the same enlarged hit bounds while keeping technical identity', () => {
+    const nodes = [layer('score', undefined, { x: 0, y: 0 }), layer('next', undefined, { x: 0, y: 100 })];
+    const before = JSON.stringify(nodes);
+    const options = { annotationsVisible: true, explanationStates: { score: { requestId: 'request', nodeId: 'score', revision: 'revision', status: 'ready' as const,
+      explanation: { title: 'Compare candidate representations', purpose: 'Compare candidate features against the question.',
+        inputs: ['Candidate features', 'Question features'], outputs: ['Raw candidate scores'], steps: [], uncertainties: [],
+        citations: [{ id: 'source', file: 'model.py', sourceDigest: 'a'.repeat(64), startLine: 10, endLine: 20 }] } } } };
+    const bounds = graphSvgBounds(nodes, options);
+    const svg = graphToSvg(nodes, [edge('flow', 'score', 'next')], options);
+    const document = svgDocument(svg);
+    expect(titleTexts(svg)).toContain('Conv2d');
+    expect(document.querySelector('[data-agent-interpretation]')!.textContent).toContain('Candidate features · Question features');
+    expect(bounds[1].y).toBeGreaterThanOrEqual(bounds[0].y + bounds[0].h + 24);
+    expect(bounds[0].h).toBeGreaterThan(graphSvgBounds(nodes)[0].h);
+    expect(JSON.stringify(nodes)).toBe(before);
   });
   it.each(['layerNode', 'inputNode', 'outputNode', 'moduleNode'])('exports %s with the same connection-only label and color', type => {
     const node = type === 'moduleNode' ? moduleNode('a') : { ...layer('a', undefined, { x: 0, y: 0 }), type };
@@ -210,9 +226,9 @@ describe('graphToSvg', () => {
     const svg = graphToSvg([node], []);
     expect(svg).not.toContain('in_features');
     expect(svg).not.toContain('out_features');
-    expect(svg).toContain('>In<');
+    expect(svg).toContain('>IN<');
     expect(svg).toContain('(3, 4)');
-    expect(svg).toContain('>Out<');
+    expect(svg).toContain('>OUT<');
   });
 
   it('keeps ordinary source expressions in selection details', () => {

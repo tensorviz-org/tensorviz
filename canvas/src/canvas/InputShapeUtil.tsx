@@ -80,7 +80,7 @@ const InputShapeCard = track(function InputShapeCard({ shape, editor }: { shape:
     const data = shape.props.nodeData;
     const isSelected = editor.getSelectedShapeIds().includes(shape.id);
     const header = cardHeaderLayout('Input', data.captureLabel, shape.props.w);
-    const content = ioCardContent(data, 'input');
+    const content = ioCardContent(data, 'input', shape.props.w);
 
     // Was `shapeStr.split(',')` with a catch that returned the raw value: given a list
     // it threw, fell through, and React rendered [1, 64, 48] as the string "16448" by
@@ -107,29 +107,29 @@ const InputShapeCard = track(function InputShapeCard({ shape, editor }: { shape:
           </div>
 
           {content.bodyHeight > 0 && <div className="ui2-node-body">
-            {data.capturePorts ? <CaptureBoundaryRows ports={data.capturePorts} /> : <div className="ui2-node-list">
-              <div className="ui2-node-shape-row">
+            {data.capturePorts ? <CaptureBoundaryRows ports={data.capturePorts} width={shape.props.w} /> : <div className="ui2-node-list">
+              <div className="ui2-node-shape-row" style={{ minHeight: content.values.shape?.height }}>
                 <LucideIcons.Layers size={11} />
                 <span>Shape</span>
-                <span className="ui2-node-shape">{formatShape(data.parameters.shape ?? data.inputShape) ?? 'Not recorded'}</span>
+                <span className="ui2-node-shape card-content-lines" title={formatShape(data.parameters.shape ?? data.inputShape) ?? 'Not recorded'}>{content.values.shape?.lines.map((line, index) => <span key={index}>{line}</span>)}</span>
               </div>
               {content.name && (
-                <div className="ui2-node-shape-row">
+                <div className="ui2-node-shape-row" style={{ minHeight: content.values.name?.height }}>
                   <LucideIcons.Tag size={12} />
                   <span>Name</span>
-                  <span className="ui2-node-shape">{content.name}</span>
+                  <span className="ui2-node-shape card-content-lines" title={content.name}>{content.values.name?.lines.map((line, index) => <span key={index}>{line}</span>)}</span>
                 </div>
               )}
               {provenanceNote && (
                 <div
                   className="ui2-node-shape-row"
                   data-testid="input-provenance"
-                  style={{ color: 'var(--ui2-orange)' }}
+                  style={{ color: 'var(--ui2-orange)', minHeight: content.values.provenance?.height }}
                 >
                   <LucideIcons.HelpCircle size={11} />
                   <span>Source</span>
-                  <span className="ui2-node-shape" style={{ color: 'var(--ui2-orange)' }}>
-                    {provenanceNote.label}
+                  <span className="ui2-node-shape card-content-lines" style={{ color: 'var(--ui2-orange)' }} title={provenanceNote.label}>
+                    {content.values.provenance?.lines.map((line, index) => <span key={index}>{line}</span>)}
                   </span>
                 </div>
               )}

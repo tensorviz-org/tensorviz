@@ -108,7 +108,7 @@ def _audiences(path: Path, index: int, text: str) -> list[str]:
     signature = text[before:before + 90] if before != -1 else ""
     rel = path.as_posix()
     if "registerCanvasCodeTools" in signature or path.name in {
-        "canvasAgentPermissionTools.ts", "canvasAgentProjectTools.ts", "canvasNodeExplanation.ts",
+        "canvasAgentPermissionTools.ts", "canvasAgentProjectTools.ts", "canvasNodeExplanation.ts", "canvasModelExplanation.ts",
     }:
         return ["canvas agent"]
     if rel.endswith("plugin/src/graphPanel.ts"):

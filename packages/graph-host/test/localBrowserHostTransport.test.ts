@@ -432,6 +432,29 @@ suite('localBrowserHostTransport', () => {
     transport.dispose();
   });
 
+  test('model explanation progress publishes and start/cancel reach the host without sequencing', async () => {
+    const { broker, transport, received } = makeTransport();
+    const connected = transport.connect();
+    broker.last.driverOpen(); broker.driverAcceptHost(broker.last); await connected;
+    try {
+      const state = { requestId: 'explain-model', revision: 'revision', status: 'loading' as const, completed: 0, total: 2 };
+      const published = transport.publish({ type: 'modelExplanation', viewId: 'canvas-1', target: TARGET, state });
+      assert.ok(published && published.type === 'modelExplanation');
+      assert.deepEqual(published.state, state);
+      assert.equal('hostSequence' in published, false);
+      assert.deepEqual(JSON.parse(broker.last.sent[1]), published);
+      const envelope = { protocolVersion: 1, workspaceSessionId: SESSION_ID, messageId: 'explain-start', viewId: 'canvas-1', target: TARGET, requestId: 'explain-model' };
+      const start = { ...envelope, type: 'modelExplanationRequest', action: 'start', nodeIds: ['encoder', 'head'] };
+      const cancel = { ...start, messageId: 'explain-cancel', action: 'cancel', nodeIds: [] };
+      broker.last.driverMessage(start); broker.last.driverMessage(cancel);
+      assert.deepEqual(received, [start, cancel]);
+      broker.last.driverMessage({ ...start, workspaceSessionId: 'another-session' });
+      broker.last.driverMessage({ ...start, nodeIds: ['encoder', 'encoder'] });
+      assert.deepEqual(received, [start, cancel]);
+      assert.equal(transport.protocolViolations, 2);
+    } finally { transport.dispose(); }
+  });
+
   test('MCP view discovery, selection and focus receipts reach the host registry', async () => {
     const { broker, transport, received } = makeTransport();
     const connected = transport.connect();

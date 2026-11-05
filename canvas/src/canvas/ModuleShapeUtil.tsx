@@ -9,7 +9,7 @@ import {
   Editor,
   track,
 } from 'tldraw';
-import { RefreshCcw, Minimize2, Maximize2, Layers, CornerDownRight, Ungroup, FileCode2 } from 'lucide-react';
+import { RefreshCcw, Minimize2, Maximize2, CornerDownRight, Ungroup, FileCode2 } from 'lucide-react';
 import type { ModuleShape } from './types';
 import { NodePorts } from './NodePort';
 import { currentProjection, localBrowserMode, reportNodeClick, reportProjectExpand, showingProjectGraph } from '../ide/projection';
@@ -22,6 +22,10 @@ import { classifyBlock } from './blockFamily';
 import { BlockIdentity } from './BlockIdentity';
 import { moduleCardHeader } from './cardMetrics';
 import { CardIdentity } from './NodeCardIdentity';
+import { NodeExplanationContext } from './NodeExplanationContext';
+import { NodeExplanationAnnotation } from './NodeExplanationAnnotation';
+import { nodeAnnotationLayout } from './nodeExplanationPresentation';
+import { definitionLinkLayout } from './cardContentLayout';
 import { graphIsReadOnly } from './graphAccess';
 import { NodeIssues } from './NodeIssues';
 import { NodeChanges } from './NodeChanges';
@@ -47,7 +51,7 @@ const statusLabel: Record<string, string> = {
 export function statusLabelForModule(status: string, data: ModelNodeData): string {
   const evidence = moduleEvidenceLabel(data);
   if (evidence !== undefined) return status === 'ok' ? evidence : [evidence, statusLabel[status] || statusLabel.ok].filter(Boolean).join(' · ');
-  if (status === 'ok' && localBrowserMode()) return 'Source-only';
+  if (status === 'ok' && localBrowserMode()) return '';
   return statusLabel[status] || statusLabel.ok;
 }
 
@@ -207,6 +211,11 @@ export class ModuleShapeUtil extends BaseBoxShapeUtil<ModuleShape> {
 }
 
 const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleShape; editor: Editor }) {
+    const explanations = React.useContext(NodeExplanationContext);
+    const explanationState = (explanations?.annotations ?? explanations?.states)?.[shapeIdToNodeId(shape.id)];
+    const explanation = explanations?.annotationsVisible && explanationState?.status === 'ready'
+      && !shape.props.nodeData.review && !shape.props.nodeData.sourceReplacement ? explanationState.explanation : undefined;
+    const annotationHeight = explanation ? nodeAnnotationLayout(explanation, shape.props.w).height : 0;
     const copySource = React.useContext(LocalBrowserContext)?.sourceAction === 'copy';
     const data = shape.props.nodeData;
     const isSelected = editor.getSelectedShapeIds().includes(shape.id);
@@ -229,6 +238,11 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
     const sourceNodeId = moduleDefinitionNodeId(data.moduleMembers, moduleInstanceId, shape.id);
     const issues = data.moduleDiagnostics ?? ownGraphIssues(shapeIdToNodeId(shape.id), data);
     const status = data.sourceReplacement ? 'Source assignment · Not run' : statusLabelForModule(moduleStatus, data);
+    const quietSource = !data.captureRef && !data.review && moduleStatus === 'ok' && !issues.length
+      && (data.debugEvidence === 'source' || (localBrowserMode() && moduleEvidenceLabel(data) === undefined));
+    const sourceEvidenceIcon = quietSource ? <span className="module-source-evidence" role="img"
+      aria-label="Read from code; tensor shapes have not been recorded."
+      title="Read from code; tensor shapes have not been recorded."><FileCode2 size={12} aria-hidden="true" /></span> : null;
     const statusBadge = issues.length ? <NodeIssues issues={issues} label={data.captureLabel ?? moduleInstanceId}
       className="module-pill status" style={{ borderColor: moduleColor, color: moduleColor }} />
       : status ? <span className="module-pill status" style={{ borderColor: moduleColor, color: moduleColor }}>{status}</span> : null;
@@ -241,6 +255,9 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
     const definitionFile = typeof data.parameters?._defined_in === 'string'
       ? data.parameters._defined_in
       : '';
+    const definition = definitionFile ? definitionLinkLayout(definitionFile, shape.props.w) : undefined;
+    const definitionText = definition?.lines.length === 1 ? definition.lines[0]
+      : definition?.lines.map((line, index) => <span key={index}>{line}</span>);
     // Only the active project projection owns host-controlled expansion. Class
     // modules also carry `_kind` metadata; that field alone cannot choose the
     // project command channel. Portable and class modules expand locally.
@@ -307,6 +324,7 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
               title={`Open source: ${path}`} aria-label={`Open source: ${path}`}
               {...canvasButtonHandlers(() => reportNodeClick(sourceNodeId))}><FileCode2 size={13} /></button>}
           </div>
+          <NodeExplanationAnnotation explanation={explanation} width={shape.props.w} />
           {data.review && data.review.status !== 'unchanged' ? <GraphReviewBadge review={data.review} />
             : <div className="passthrough-detail" title="This call returned the same tensor without recording tensor operations.">Input unchanged</div>}
           <NodePorts shape={shape} />
@@ -354,6 +372,7 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
               <NodeChanges data={data} compact />
               <GraphReviewBadge review={data.review} />
               <CardIdentity layout={header} title={header.title} subtitle={header.subtitle} module />
+              {sourceEvidenceIcon}
               {isRepeated && (
                 <span
                   className="module-pill repeat"
@@ -370,7 +389,7 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
               {!isProjectFrame && (
                 statusBadge
               )}
-              {!isProjectFrame && (
+              {!isProjectFrame && contents.canExpand && (
                 <CanvasTooltip text="Arrange the layers inside this module again. This changes canvas positions without running the model."><button
                   className="expand-button"
                   style={{ pointerEvents: 'auto' }}
@@ -400,16 +419,17 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
                 <Minimize2 size={13} />
               </button></CanvasTooltip>
             </div>
+            <NodeExplanationAnnotation explanation={explanation} width={shape.props.w} />
             {definitionFile && (
-              <div className="module-resolution-block">
+              <div className="module-resolution-block" style={{ height: definition?.height, flexShrink: 0 }}>
                 <button
                   type="button"
-                  className="module-source-link"
-                  style={{ pointerEvents: 'auto' }}
+                  className="module-source-link card-content-lines"
+                  style={{ pointerEvents: 'auto', height: definition?.height, font: '10px/15px var(--font-mono)' }}
                   {...canvasButtonHandlers(() => reportNodeClick(sourceNodeId))}
                   title={copySource ? `Copy ${definitionFile} source reference` : `Reveal ${definitionFile} in VS Code`}
                 >
-                  defined in {definitionFile}
+                  {definitionText}
                 </button>
               </div>
             )}
@@ -448,8 +468,9 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
                 : (data.sourceReplacement ? data.captureLabel : data.review?.summary) ?? data.captureLabel ?? (moduleInstanceId || 'module')}</div>
             </div> : <CardIdentity layout={header} title={header.title} subtitle={header.subtitle} module />}
             {!data.sourceReplacement && <div className="module-header-actions">
+              {sourceEvidenceIcon}
               <GraphReviewBadge review={data.review} />
-              {!isProjectFrame && (
+              {!isProjectFrame && contents.canExpand && (
                 <CanvasTooltip text="Arrange the layers inside this module again. This changes canvas positions without running the model."><button
                   className="expand-button"
                   style={{ pointerEvents: 'auto' }}
@@ -469,7 +490,7 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
                   <Ungroup size={13} />
                 </button>
               )}
-                <CanvasTooltip text={contents.canExpand ? 'Show the layers and operations inside this module. This only changes the view; no code runs.' : contents.detail || 'No internal operations are available to expand.'}><button
+                {(isProjectFrame || contents.canExpand) && <CanvasTooltip text="Show the layers and operations inside this module. This only changes the view; no code runs."><button
                   className="icon-button"
                   style={{ pointerEvents: 'auto' }}
                   {...toggleExpand}
@@ -478,14 +499,15 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
                   disabled={!isProjectFrame && !contents.canExpand}
                 >
                 <Maximize2 size={14} />
-              </button></CanvasTooltip>
+              </button></CanvasTooltip>}
             </div>}
           </div>
 
-          <div className="node-body" style={{ height: `calc(100% - ${header.height}px)` }}>
+          <NodeExplanationAnnotation explanation={explanation} width={shape.props.w} />
+          <div className="node-body" style={{ height: `calc(100% - ${header.height + annotationHeight}px)` }}>
             <NodeChanges data={data} />
             {data.review && <ModuleParameterGrid data={data} />}
-            {!isProjectFrame && <ModuleBoundaryRows data={data} />}
+            {!isProjectFrame && <ModuleBoundaryRows data={data} width={shape.props.w} />}
 
             {(contents.label || isRepeated || statusBadge) && <div className="module-pill-row">
               {contents.label && <span className="module-pill">{contents.label}</span>}
@@ -505,17 +527,17 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
               Affected calls unverified{data.sourceReplacement.coverage === 'partial' && <><br />Partial source coverage</>}
             </div>}
 
-            <NodeSourceLink nodeId={shapeIdToNodeId(shape.id)} data={data} />
+            <NodeSourceLink nodeId={shapeIdToNodeId(shape.id)} data={data} width={shape.props.w} />
 
             {definitionFile && (
               <button
                 type="button"
-                className="module-source-link"
-                style={{ pointerEvents: 'auto' }}
+                className="module-source-link card-content-lines"
+                style={{ pointerEvents: 'auto', height: definition?.height, flexShrink: 0, font: '10px/15px var(--font-mono)' }}
                 {...canvasButtonHandlers(() => reportNodeClick(sourceNodeId))}
                 title={copySource ? `Copy ${definitionFile} source reference` : `Reveal ${definitionFile} in VS Code`}
               >
-                defined in {definitionFile}
+                {definitionText}
               </button>
             )}
 
@@ -566,13 +588,6 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
                 ))}
               </div>
             )}
-
-            <div className="module-info">
-              <div className="module-stats">
-                <Layers size={12} />
-                <span>{contents.detail || 'Collapsed block view'}</span>
-              </div>
-            </div>
 
           </div>
         </div>

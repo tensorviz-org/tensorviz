@@ -19,6 +19,7 @@ export interface CanvasNodeExplanationOptions {
   runtime(tools: (owner: string) => HostToolset): { run(input: AgentRunInput, emit: (event: AgentRunEvent) => void, signal: AbortSignal): Promise<void>; clear(): void };
   publish(viewId: string, target: LocalBrowserTargetIdentity, state: NodeExplanationState): void;
   reveal(target: LocalBrowserTargetIdentity, citation: NodeExplanationCitation, current: () => boolean): Promise<void>;
+  cached?(selection: LocalBrowserViewSelectionMessage, ref: ModelRef, route: CanvasAgentRoute): NodeExplanation | undefined;
   debounceMs?: number;
 }
 interface Work {
@@ -45,9 +46,10 @@ interface DocumentationWork {
 }
 const digest = (source: string) => createHash('sha256').update(source).digest('hex');
 const string = (max: number) => z.string().trim().min(1).max(max).regex(/^[^\u0000-\u001f\u007f]+$/);
-const submission = {
+export const nodeExplanationSubmission = {
   title: string(80), purpose: string(320), inputs: z.array(string(160)).max(6), outputs: z.array(string(160)).max(4),
-  steps: z.array(string(320)).max(6), uncertainties: z.array(string(240)).max(4), citationIds: z.array(string(128)).min(1).max(8),
+  steps: z.array(string(320)).max(6), uncertainties: z.array(string(240)).max(4),
+  concepts: z.array(z.object({ term: string(80), explanation: string(320) }).strict()).max(4).optional(), citationIds: z.array(string(128)).min(1).max(8),
 };
 const routeKey = (route: CanvasAgentRoute) => JSON.stringify([route.provider, route.resolvedModel, route.settings, route.ready, route.busy]);
 const targetKey = (target: LocalBrowserTargetIdentity) => [target.workspaceFolder, target.file, target.cls, target.sourceDigest, target.documentVersion, target.backendRevision];
@@ -99,6 +101,26 @@ export class CanvasNodeExplanation {
     if (!this.options.current(this.selected, this.active?.ref?.revision)) { this.invalidate(); return; }
     const next = routeKey(this.options.route());
     if (next !== this.lastRoute) { this.cancel(); this.schedule(); }
+  }
+
+  /** Adopt a verified model-pass result for the current selection without starting another provider. */
+  async accept(viewId: string, target: LocalBrowserTargetIdentity, state: NodeExplanationState): Promise<void> {
+    const work = this.active;
+    if (!work || state.status !== 'ready' || !state.explanation || viewId !== work.selection.viewId
+      || JSON.stringify(targetKey(target)) !== JSON.stringify(targetKey(work.selection.target)) || state.nodeId !== work.state.nodeId
+      || state.revision !== work.ref?.revision || !this.current(work)) return;
+    if (!await this.validate(work, state.explanation) || !this.current(work)) return;
+    let documentation = work.state.documentation;
+    const incoming = state.documentation;
+    if (incoming && isNodeSourceDocumentation(incoming)) {
+      if (incoming.status === 'unavailable') documentation ??= incoming;
+      else {
+        const source = await this.source(work, incoming.citation.file);
+        if (source.digest === incoming.citation.sourceDigest && incoming.citation.endLine <= source.source.split('\n').length) documentation = structuredClone(incoming);
+      }
+    }
+    if (!this.current(work)) return;
+    work.state = { ...work.state, status: 'ready', explanation: structuredClone(state.explanation), ...(documentation ? { documentation } : {}), detail: undefined }; this.publish(work);
   }
 
   disconnect(viewId: string): void { if (this.selected?.viewId === viewId) this.invalidate(); }
@@ -171,6 +193,21 @@ export class CanvasNodeExplanation {
     this.active = work;
     const documentation = this.ensureDocumentation(selection, ref);
     if (documentation?.value) work.state.documentation = structuredClone(documentation.value);
+    const enriched = this.options.cached?.(selection, ref, route);
+    if (enriched) {
+      this.publish(work);
+      void (async () => {
+        try {
+          if (await this.validate(work, enriched) && this.current(work)) {
+            work.state = { ...work.state, status: 'ready', explanation: structuredClone(enriched) }; this.publish(work); return;
+          }
+        } catch { /* The graph may have changed while its evidence was read. */ }
+        if (this.current(work)) {
+          work.state = { ...work.state, status: 'unavailable', detail: 'The source explanation changed. Explain the current model again.' }; this.publish(work);
+        }
+      })();
+      return;
+    }
     if (!route.ready || route.busy) {
       work.state.status = 'unavailable'; work.state.detail = route.busy ? 'Available when the agent finishes its current task.' : 'Connect an agent in chat for a source explanation.';
       this.publish(work); return;
@@ -250,10 +287,10 @@ export class CanvasNodeExplanation {
       inputSchema: { file: z.string().min(1).max(512), startLine: z.number().int().min(1).optional(), maxLines: z.number().int().min(1).max(120).optional() }, annotations: read },
       handler: args => graphToolResult(async () => { this.check(work); if (++work.reads > 4) throw new GraphToolError('SOURCE_LIMIT', 'The source read limit is reached.'); return this.excerpt(work, args.file, args.startLine ?? 1, args.maxLines ?? 100); }) });
     tools.set('submit_node_explanation', { config: { description: 'Submit the single source-grounded explanation for this selected node, citing only evidence IDs actually read. Records presentation only; cannot execute, change source, select another node or grant permissions.',
-      inputSchema: submission, annotations: read }, handler: args => graphToolResult(async () => {
+      inputSchema: nodeExplanationSubmission, annotations: read }, handler: args => graphToolResult(async () => {
       this.check(work);
       if (work.result) throw new GraphToolError('ALREADY_SUBMITTED', 'The explanation is already submitted.');
-      const parsed = z.object(submission).strict().parse(args);
+      const parsed = z.object(nodeExplanationSubmission).strict().parse(args);
       if (new Set(parsed.citationIds).size !== parsed.citationIds.length || parsed.citationIds.some(id => !work.exposed.has(id))) throw new GraphToolError('INVALID_CITATION', 'Cite only distinct source evidence IDs returned for this request.');
       const { citationIds, ...generated } = parsed;
       const result = { ...generated, citations: citationIds.map(id => work.evidence.get(id)!) };
@@ -285,7 +322,7 @@ export class CanvasNodeExplanation {
       this.check(work);
       const key = work.key = JSON.stringify([work.selection.target.workspaceFolder, prepared.ref, work.selection.target.sourceDigest,
         work.state.nodeId, route.provider, route.resolvedModel, route.settings, CANVAS_AGENT_PROMPTS.node_explanation.version]);
-      const cached = this.cache.get(key);
+      const cached = this.options.cached?.(work.selection, prepared.ref, route) ?? this.cache.get(key);
       if (cached && await this.validate(work, cached)) {
         this.cache.delete(key); this.cache.set(key, cached); work.state = { ...work.state, status: 'ready', explanation: cached }; this.publish(work); return;
       }
@@ -316,11 +353,18 @@ export class CanvasNodeExplanation {
       if (this.documentation && !this.documentation.value) this.cancelDocumentation();
       this.cancel(); this.schedule(); return;
     }
-    const documentation = this.documentation;
-    if (documentation?.value?.status === 'resolved' && documentation.value.citation.id === message.citationId
-      && await this.validDocumentation(documentation, documentation.value)) {
-      if (!this.documentationCurrent(documentation) || this.active !== work) return;
-      await this.options.reveal(work.selection.target, documentation.value.citation, () => this.documentationCurrent(documentation) && this.active === work);
+    const documentation = work.state.documentation;
+    if (documentation?.status === 'resolved' && documentation.citation.id === message.citationId) {
+      // Literal source documentation survives a generation timeout or cancellation.
+      const current = () => !this.disposed && this.active === work && !!this.selected
+        && identity(this.selected) === identity(work.selection) && this.options.current(work.selection, work.ref?.revision)
+        && work.state.documentation?.status === 'resolved' && work.state.documentation.citation.id === documentation.citation.id;
+      if (!current()) return;
+      const source = await this.options.read(work.selection.target, documentation.citation.file);
+      if (current() && source.file === documentation.citation.file && digest(source.source) === source.digest
+        && source.digest === documentation.citation.sourceDigest && documentation.citation.endLine <= source.source.split('\n').length) {
+        await this.options.reveal(work.selection.target, documentation.citation, current);
+      }
       return;
     }
     const explanation = work.state.explanation;

@@ -99,13 +99,13 @@ it('expanded headers omit routine capture badges', () => {
 it('sizes captured cards for their content and reserves extra room for warnings and multiple ports', () => {
   const data = capturedModule();
   const height = moduleCardHeight(data);
-  // The complete wrapped identity, body padding, compact In/Out rows and source.
-  expect(height).toBe(moduleCardHeader(data).height + 96);
+  // Complete identity, body padding, wrapped tensor values and source.
+  expect(height).toBe(moduleCardHeader(data).height + 132);
   expect(moduleCardHeight({ ...data, shapeEvidence: 'stale' })).toBeGreaterThan(height);
-  expect(moduleCardHeight({ ...data, shapeEvidence: 'unknown' })).toBeGreaterThan(height);
+  expect(moduleCardHeight({ ...data, shapeEvidence: 'unknown' })).toBe(height);
   const ports = Array.from({ length: 12 }, (_, i) => boundaryPort(i < 6 ? 'in' : 'out', { id: `port-${i}` }));
-  // Unnamed interfaces use concise labels, so all twelve stay one compact line.
-  expect(moduleCardHeight({ ...data, capturePorts: ports })).toBe(height - 2 * 26 + 12 * 26);
+  // Unnamed interfaces use concise labels; full values wrap onto two lines.
+  expect(moduleCardHeight({ ...data, capturePorts: ports })).toBe(height - 2 * 44 + 12 * 44);
 });
 
 it.each([false, true])('leaves static-analysis notes to the source-notes list (expanded=%s)', expanded => {
@@ -126,7 +126,7 @@ it('shows readable names and reserves space for every boundary value', () => {
     boundaryPort('out', { id: 'states', paths: [['hidden', 'states']] }),
   ];
   const data = { ...capturedModule(), capturePorts: ports };
-  expect(moduleCardHeight(data)).toBe(moduleCardHeader(data).height + 176);
+  expect(moduleCardHeight(data)).toBe(moduleCardHeader(data).height + 212);
   renderCard(data);
   const rows = within(screen.getByRole('group', { name: 'Input and output shapes' }));
   for (const [label, path] of [['In x', 'x'], ['In context.tokens', 'context.tokens'], ['Out y', 'y'], ['Out hidden.states', 'hidden.states']]) {
@@ -340,12 +340,10 @@ it.each([false, true])(
   if (raw) expect(screen.queryByTitle('encoder.layers.0')).not.toBeInTheDocument();
   else expect(screen.getByTitle('blocks')).toHaveTextContent('blocks');
   expect(screen.getByText('Declared: 2 × Linear')).toBeInTheDocument();
-  expect(screen.getByText('Source-only')).toBeInTheDocument();
+  expect(screen.queryByText('Source-only')).not.toBeInTheDocument();
+  expect(screen.getByRole('img', { name: 'Read from code; tensor shapes have not been recorded.' })).toBeInTheDocument();
   expect(screen.queryByText(/captured layers/)).toBeNull();
-  const expand = screen.getByRole('button', { name: `Expand ${raw ? 'encoder.layers.0' : 'blocks'}` });
-  expect(expand).toBeDisabled();
-  fireEvent.click(expand);
-  fireEvent.pointerDown(expand);
+  expect(screen.queryByRole('button', { name: `Expand ${raw ? 'encoder.layers.0' : 'blocks'}` })).not.toBeInTheDocument();
   expect(onToggleExpand).not.toHaveBeenCalled();
   expect(reportProjectExpand).not.toHaveBeenCalled();
 });
@@ -355,13 +353,10 @@ it('renders the measured bounded card and refuses empty expansion', () => {
   renderCard({ ...graph().nodes[1].data, onToggleExpand });
   expect(screen.getByText('Depth-limited')).toBeInTheDocument();
   expect(screen.queryByText('Measured boundary')).not.toBeInTheDocument();
-  expect(screen.getByText(/Internal trace contents not captured at depth 2/)).toBeInTheDocument();
+  expect(screen.queryByText(/Internal trace contents not captured at depth 2/)).not.toBeInTheDocument();
   expect(screen.queryByText(/0 layers/)).toBeNull();
   expect(screen.queryByText('Source-only')).toBeNull();
-  const expand = screen.getByRole('button', { name: 'Expand encoder.layers.0' });
-  expect(expand).toBeDisabled();
-  fireEvent.click(expand);
-  fireEvent.pointerDown(expand);
+  expect(screen.queryByRole('button', { name: 'Expand encoder.layers.0' })).not.toBeInTheDocument();
   expect(onToggleExpand).not.toHaveBeenCalled();
   expect(reportProjectExpand).not.toHaveBeenCalled();
 });
@@ -376,7 +371,7 @@ it('still expands real captured contents as a local view', () => {
 });
 
 it.each([
-  [{ parameters: {} }, 'Source-only'],
+  [{ parameters: {} }, ''],
   [{ parameters: { _shape_provenance: 'unreached', _out_shape: '1x8' }, shapeEvidence: 'measured' }, 'Not observed'],
   [{ parameters: { _shape_provenance: 'declared', _out_shape: '1x8' } }, 'Declared shapes'],
   [{ parameters: { _shape_provenance: 'observed', _out_shape: '1x8' }, shapeEvidence: 'stale' }, 'Stale shapes'],
@@ -388,6 +383,35 @@ it.each([
 
 it('keeps warnings alongside measured evidence without certifying the module', () => {
   expect(statusLabelForModule('warning', graph().nodes[1].data)).toBe('Warnings');
+});
+
+it('keeps a source-only empty ModuleList compact without unavailable badges or dead controls', () => {
+  const data = { layerType: { id: 'modulelist', name: 'ModuleList' }, parameters: {}, moduleLayerCount: 0,
+    moduleTemplateId: 'ModuleList', debugEvidence: 'source' } as ModelNodeData;
+  const { container } = renderCard(data);
+  expect(container).not.toHaveTextContent(/Contents unavailable|Source-only|Source only|Collapsed block view|No internal contents/);
+  expect(screen.queryByRole('button', { name: /Expand|Reset module layout/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('img', { name: 'Read from code; tensor shapes have not been recorded.' })).toBeVisible();
+  expect(moduleCardHeight(data)).toBe(moduleCardHeader(data).height + 2);
+});
+
+it('grows for the full source filename and complete long boundary values', () => {
+  (currentProjection as jest.Mock).mockReset();
+  (currentProjection as jest.Mock).mockReturnValue({ spanmap: { 'encoder.layers.0': {} } });
+  const original = capturedModule();
+  const file = `models/${'long_source_filename_'.repeat(8)}.py`;
+  const data = { ...original, sourceLocation: { file, line: 127 }, capturePorts: [
+    boundaryPort('in', { paths: [['inputs', 'kwargs', 'audio_representations_for_cross_attention']],
+      shape: Array.from({ length: 20 }, (_, index) => index + 1) }),
+  ] };
+  expect(moduleCardHeight(data)).toBeGreaterThan(moduleCardHeight(original));
+  const { container } = renderCard(data);
+  const source = screen.getByRole('button', { name: `${file}:127` });
+  expect(source.textContent).toBe(`${file.split('/').pop()}:127`);
+  expect(parseFloat(source.style.height)).toBeGreaterThan(18);
+  const value = container.querySelector('.module-boundary-value')!;
+  expect(value.textContent).toBe(`(${data.capturePorts[0].shape!.join(', ')}) · float32`);
+  expect(container.querySelector('.module-boundary-row')!.getAttribute('style')).not.toContain('36px');
 });
 
 it('round trips bounds, repeats, custom Python identity and real topology; restored open state cannot expand nothing', () => {
@@ -426,8 +450,8 @@ it('keeps legacy empty traces bounded without guessing their capture depth', () 
   expect(block.data.expanded).toBe(false);
   expect(block.data.moduleCapture).toBeUndefined();
   renderCard(block.data);
-  expect(screen.getByText('No internal contents are available in this graph.')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Expand encoder.layers.0' })).toBeDisabled();
+  expect(screen.queryByText('No internal contents are available in this graph.')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Expand encoder.layers.0' })).not.toBeInTheDocument();
 });
 
 it('preserves closing an empty host-owned project frame', () => {

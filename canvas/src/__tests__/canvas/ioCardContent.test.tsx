@@ -78,7 +78,8 @@ it.each([0.2, 1, 3])('keeps the same output content at zoom %s', zoom => {
   const data = dataFor('output', { capturePorts: [port('a')] });
   const view = render(card('output', data, zoom));
   expect(view.container.querySelector('.output-node')).toHaveAttribute('data-detail', 'compact');
-  expect(screen.getByText('(2, 16)')).toBeVisible();
+  expect(screen.getByTitle('(2, 16) · float32')).toBeVisible();
+  expect(screen.getByTitle('(2, 16) · float32').textContent).toBe('(2, 16) · float32');
   expect(view.container.querySelectorAll('.capture-boundary-row')).toHaveLength(1);
 });
 

@@ -185,7 +185,7 @@ it('keeps technical card identity stable while a cached interpretation appears i
   expect(technical.querySelector('.ui2-node-subtitle')).toBeNull();
   expect(screen.getByText('Compare the representations.')).toBeVisible();
   expect(screen.getAllByText('Agent interpretation')[0]).toBeVisible();
-  expect(screen.getByRole('img', { name: 'Source only · shapes not recorded' })).toHaveAttribute('title', 'Source only · shapes not recorded');
+  expect(screen.getByRole('img', { name: 'Read from code; tensor shapes have not been recorded.' })).toHaveAttribute('title', 'Read from code; tensor shapes have not been recorded.');
   expect(technical.querySelector('.ui2-node-title')).toHaveAttribute('title', 'compare');
   expect(technical).not.toHaveTextContent('Compare the representations.');
   expect(technical).not.toHaveTextContent('scores = self.compare(features, question)');
@@ -215,7 +215,7 @@ describe.each(['overview', 'working', 'inspection'])('source notes at %s zoom', 
     const { container } = renderCard(new LayerShapeUtil(), data({ debugEvidence: 'source',
       resolutionCode: 'EXTERNAL_PACKAGE', resolutionSeverity: 'info', resolutionDetail: note }));
     expect(container).not.toHaveTextContent('external to the workspace');
-    expect(screen.getByRole('img', { name: 'Source only · shapes not recorded' })).toHaveAttribute('title', expect.stringContaining(note));
+    expect(screen.getByRole('img', { name: 'Read from code; tensor shapes have not been recorded.' })).toHaveAttribute('title', expect.stringContaining(note));
   });
 
   it('flags a resolution warning with the issue badge instead of a sentence', () => {

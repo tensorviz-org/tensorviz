@@ -70,6 +70,25 @@ suite('Source-only node explanations', () => {
     assert.deepEqual([...r.toolsets[0].keys()].sort(), ['query_source_context', 'read_model_source', 'submit_node_explanation']);
   });
 
+  test('model-enriched interpretations are reusable and revealable while foreground work is busy', async () => {
+    const explanation = { ...payload(), citations: [{ id: 'model-evidence', file: 'model.py', sourceDigest: hash(fixtureSource()), startLine: 1, endLine: 5 }] };
+    const { citationIds, ...cached } = explanation;
+    const r = rig(undefined, { cached: () => cached }); r.route = { ...r.route, busy: true }; r.start(); await r.done();
+    assert.equal(r.inputs.length, 0); assert.equal(r.states.at(-1)!.status, 'ready');
+    assert.equal(r.states.at(-1)!.explanation!.title, 'Score candidates'); await r.request('reveal', { citationId: 'model-evidence' }); assert.equal(r.reveals.length, 1);
+  });
+
+  test('a completed model batch updates an already-selected node without borrowing chat or regenerating', async () => {
+    const r = rig(); r.route = { ...r.route, busy: true }; r.start(); await r.done();
+    const { citationIds, ...generated } = payload();
+    const state: NodeExplanationState = { requestId: 'model-run', nodeId: 'node-one', revision: hash('revision-one'), status: 'ready', documentation: documentation(),
+      explanation: { ...generated, citations: [{ id: 'batch-evidence', file: 'model.py', sourceDigest: hash(fixtureSource()), startLine: 1, endLine: 5 }] } };
+    await r.service.accept(r.selection.viewId, r.selection.target, state);
+    assert.equal(r.states.at(-1)!.status, 'ready'); assert.equal(r.inputs.length, 0);
+    await r.request('reveal', { citationId: 'batch-evidence' }); assert.equal(r.reveals.length, 1);
+    assert.deepEqual(r.states.at(-1)!.documentation, documentation()); await r.request('reveal', { citationId: 'documentation-fixture' }); assert.equal(r.reveals.length, 2);
+  });
+
   test('literal source signatures load and reveal with no connected agent or while chat is busy', async () => {
     for (const availability of [{ ready: false, busy: false }, { ready: true, busy: true }]) {
       let calls = 0;

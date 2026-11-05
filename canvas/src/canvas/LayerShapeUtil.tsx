@@ -27,6 +27,8 @@ import { operationGroupCard } from '../services/operationGroups';
 import { classifyBlock } from './blockFamily';
 import { BlockIdentity } from './BlockIdentity';
 import { CardIdentity } from './NodeCardIdentity';
+import { NodeExplanationContext } from './NodeExplanationContext';
+import { NodeExplanationAnnotation } from './NodeExplanationAnnotation';
 import './nodeUnderstanding.css';
 
 import { assignmentEvidenceShown, layerCardHeader, layerSummaryShown } from './cardMetrics';
@@ -136,6 +138,10 @@ export class LayerShapeUtil extends BaseBoxShapeUtil<LayerShape> {
 }
 
 const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShape; editor: Editor }) {
+    const explanations = React.useContext(NodeExplanationContext);
+    const explanationState = (explanations?.annotations ?? explanations?.states)?.[shapeIdToNodeId(shape.id)];
+    const explanation = explanations?.annotationsVisible && explanationState?.status === 'ready'
+      && !shape.props.nodeData.review && !shape.props.nodeData.sourceAssignment ? explanationState.explanation : undefined;
     const display = operationGroupCard(shape.props.nodeData);
     const data = { ...display, ...tensorShapes(display) };
     const evidence = tensorEvidence(data);
@@ -297,7 +303,7 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
           data-node-id={nodeId}
           data-search={searchState}
           data-source-assignment={data.sourceAssignment ? '' : undefined}
-          data-empty-body={!data.review && !data.sourceAssignment && !layerSummaryShown(data) && !data.debugChanges?.length && !custom?.projectExpandable ? '' : undefined}
+          data-empty-body={!explanation && !data.review && !data.sourceAssignment && !layerSummaryShown(data) && !data.debugChanges?.length && !custom?.projectExpandable ? '' : undefined}
           data-block={block.kind}
           style={{ width: shape.props.w, height: shape.props.h }}
         >
@@ -313,11 +319,13 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
             : issues.length ?<NodeIssues issues={issues} label={data.captureLabel ?? nodeId} className="graph-state-badge"
               style={{ color: statusAccent, background: 'transparent', border: 0 }}><LucideIcons.AlertTriangle size={13} /></NodeIssues>
             : <span className="graph-state-badge" data-state={data.error || resolutionSeverity === 'error' ? 'error' : poisoned || resolutionSeverity === 'warning' ? 'warning' : evidence}
-              role={quietSource ? 'img' : undefined} aria-label={quietSource ? 'Source only · shapes not recorded' : badgeDetail}
-              title={quietSource ? `Source only · shapes not recorded${resolutionDetail ? `\n${resolutionDetail}` : ''}` : badgeDetail}>
+              role={quietSource ? 'img' : undefined} aria-label={quietSource ? 'Read from code; tensor shapes have not been recorded.' : badgeDetail}
+              title={quietSource ? `Read from code; tensor shapes have not been recorded.${resolutionDetail ? `\n${resolutionDetail}` : ''}` : badgeDetail}>
               {data.error || poisoned || resolutionSeverity === 'warning' || resolutionSeverity === 'error' ? <LucideIcons.AlertTriangle size={13} /> : data.debugEvidence === 'previous' ? 'Previous run' : quietSource ? <LucideIcons.FileCode2 size={11} aria-hidden="true" /> : data.diffStatus || (evidence === 'stale' ? evidence : coverageLabel(data, true) || (measuredRows && evidence !== 'measured' ? evidence : ''))}
             </span>}
           </div>
+
+          <NodeExplanationAnnotation explanation={explanation} width={shape.props.w} />
 
           {data.operationGroup && data.operationGroup.kind !== 'slice' && <button type="button" className="node-operation-group"
             style={{ pointerEvents: 'auto' }} onPointerDown={claim}
@@ -363,7 +371,7 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
                 where it is computed (ModelBuilder.triggerShapeInference): a card
                 that hid measured shapes to avoid invented ones threw away the
                 answer along with the guess. */}
-            {operationRows !== undefined && <OperationTensorRows data={data} />}
+            {operationRows !== undefined && <OperationTensorRows data={data} width={shape.props.w} />}
             {((operationRows === undefined && measuredRows) ||
               actStats ||
               gradStats ||
@@ -467,7 +475,7 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
               </div>
             )}
           </div>) : <>
-            {layerSummaryShown(data) && <TensorSummary data={data} />}
+            {layerSummaryShown(data) && <TensorSummary data={data} width={shape.props.w} />}
             <NodeChanges data={data} />
             {custom?.projectExpandable && <button type="button" className="ui2-node-expand-row node-compact-expand"
               style={rowButtonStyle} onPointerDown={claim} onClick={() => reportProjectExpand(nodeId, true)}>

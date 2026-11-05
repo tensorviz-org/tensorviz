@@ -18,7 +18,12 @@ packaged. Build first: [docs/plugin-build.md](../../docs/plugin-build.md).
 
 1. Build the source-development archive (`npm run package:source-development --prefix plugin`). It writes `plugin/dist/tensorviz-<version>.tar.gz` and `plugin/dist/tensorviz-cursor-<version>.tar.gz`, each with a `.sha256` file.
 2. Extract the archive you need and check the `.sha256` file.
-3. From your model checkout, run `sh /path/to/release/plugins/tensorviz/scripts/install.sh`.
+3. From your model checkout, run `node "/path/to/release/plugins/tensorviz/scripts/install.cjs"`.
+
+Source-built managed runtimes are pinned for macOS arm64, Linux x64, and
+Windows x64. Intel macOS and Linux arm64 capture are unsupported. MCP launches
+through Node.js 22+ directly; Windows does not need Unix `sh`. Live Windows and
+macOS runs remain untested for these platform changes.
 
 That installs the plugin for the agent user profile. Keep one tensorViz host
 enabled per agent. Start a new chat and ask the agent to open the model.

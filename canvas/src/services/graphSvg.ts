@@ -37,10 +37,11 @@ import { edgeControlPoints } from '../canvas/edgeCurve';
 import { graphReviewLabel } from '../ide/graphReviewLabels';
 import { BlockKind, classifyNode, isBlockFamily } from '../canvas/blockFamily';
 import { blockGlyphSvg } from '../canvas/blockGlyphs';
-import type { NodeExplanation, NodeExplanationState } from '../ide/nodeExplanation.generated';
+import type { ModelExplanationState, NodeExplanation, NodeExplanationState } from '../ide/nodeExplanation.generated';
 import { explainedGraphPresentation, nodeAnnotation, nodeAnnotationLayout } from '../canvas/nodeExplanationPresentation';
 import { boundaryTextLayout, ioValueLayout } from '../canvas/cardContentLayout';
 import { tensorSummaryData } from '../canvas/tensorSummaryData';
+import { applicableViewExplanation, viewExplanationConnection, viewConnectionLabelLayout } from '../canvas/viewExplanationPresentation';
 
 export interface GraphSvgOptions {
   padding?: number;
@@ -50,6 +51,7 @@ export interface GraphSvgOptions {
   direction?: LayoutDirection;
   explanationStates?: Readonly<Record<string, NodeExplanationState>>;
   annotationsVisible?: boolean;
+  viewExplanation?: ModelExplanationState;
 }
 
 const ROW_PITCH = 20.5;
@@ -192,13 +194,22 @@ function annotationSvg(explanation: NodeExplanation | undefined, box: Box, heade
   const layout = nodeAnnotationLayout(explanation, box.w);
   const parts = [`<g data-agent-interpretation="true"><title>${escapeXml(explanation.purpose)}</title>`,
     `<line x1="${box.x}" x2="${box.x + box.w}" y1="${box.y + headerHeight}" y2="${box.y + headerHeight}" stroke="${COLOR.cardStroke}"/>`];
-  let y = box.y + headerHeight + 22;
-  layout.titleLines.forEach(line => { parts.push(text(box.x + 24, y, line, COLOR.text, 12, 550)); y += 16; });
+  let y = box.y + headerHeight + 10;
+  layout.titleLines.forEach((line, index) => { parts.push(text(box.x + 24, y + 12 + index * 16, line, COLOR.text, 12, 550)); });
+  y += layout.titleLines.length * 16;
+  if (layout.purposeLines.length) {
+    y += 6;
+    layout.purposeLines.forEach((line, index) => parts.push(text(box.x + 12, y + 13 + index * 17, line, COLOR.muted, 12)));
+    y += layout.purposeLines.length * 17;
+  }
   for (const [label, lines] of [['In', layout.inputLines], ['Out', layout.outputLines]] as const) {
     if (!lines.length) continue;
     y += label === 'In' ? 6 : 4;
-    parts.push(text(box.x + 12, y, label, COLOR.muted, 10));
-    for (const line of lines) { parts.push(text(box.x + 40, y, line, COLOR.muted, 11)); y += 15; }
+    parts.push(text(box.x + 12, y + 11, label, COLOR.muted, 10));
+    for (const [index, line] of lines.entries()) {
+      parts.push(text(box.x + 40, y + 11 + index * 15, line, COLOR.muted, 11));
+    }
+    y += lines.length * 15;
   }
   parts.push('</g>'); return parts.join('');
 }
@@ -390,6 +401,7 @@ export function graphToSvg(sourceNodes: ModelNode[], edges: ModelEdge[], options
   const background = options.background ?? COLOR.background;
   const positions = absolutePositions(nodes);
   const visible = nodes.filter((node) => !node.hidden && positions.has(node.id));
+  const viewExplanation = applicableViewExplanation(options.viewExplanation, options.annotationsVisible, nodes);
   const boxes = new Map(visible.map((node) => [node.id, boxOf(node, positions.get(node.id)!, presentation.sizes.get(node.id))] as const));
   const router = createEdgeRouter(nodes, edges, options.direction);
   const routes = edges.flatMap(edge => {
@@ -430,6 +442,13 @@ export function graphToSvg(sourceNodes: ModelNode[], edges: ModelEdge[], options
           : edge.data?.role === 'residual' ? COLOR.residual : COLOR.edge;
     const dashed = edge.data?.role === 'residual' ? ' stroke-dasharray="1 6" stroke-linecap="round"' : edge.data?.debugPrevious || (edge.data?._relationship && !isFlowEdge(edge)) ? ' stroke-dasharray="6 5"' : '';
     edgePaths.push(`<path d="M ${start.x} ${start.y} C ${c1x} ${c1y} ${c2x} ${c2y} ${end.x} ${end.y}" fill="none" stroke="${stroke}" stroke-width="1.4" opacity="0.85" marker-end="url(#tv-arrow)"${dashed}/>`);
+    const meaning = viewExplanationConnection(viewExplanation, edge.source, edge.target);
+    if (meaning) {
+      const layout = viewConnectionLabelLayout(meaning.label, Math.abs(end.x - start.x) - 24);
+      const x = (start.x + 3 * c1x + 3 * c2x + end.x) / 8;
+      const y = (start.y + 3 * c1y + 3 * c2y + end.y) / 8 + 18;
+      edgePaths.push(`<g data-agent-connection="true"><title>${escapeXml(meaning.label + (meaning.detail ? `. ${meaning.detail}` : ''))}</title>${layout.lines.map((line, index) => `<text x="${x}" y="${y + index * 15}" text-anchor="middle" fill="${COLOR.muted}" ${FONT} font-size="11" paint-order="stroke" stroke="${COLOR.background}" stroke-width="5" stroke-linejoin="round">${escapeXml(line)}</text>`).join('')}</g>`);
+    }
   }
   parts.push(`<g>${edgePaths.join('')}</g>`);
 
@@ -518,10 +537,10 @@ export function graphToSvg(sourceNodes: ModelNode[], edges: ModelEdge[], options
     const rows = !isIo && (data.review || data.sourceAssignment) ? cardRows(node) : compactRows(node);
     if (isIo && data.capturePorts?.length) {
       const boundary = fullBoundarySvg(data.capturePorts.map((port, index) => ({ label: portLabel(port, index), value: portType(port) })),
-        box, header.height + (reviewLabel ? 20 : 0), COLOR, true);
+        box, header.height + annotationHeight + (reviewLabel ? 20 : 0), COLOR, true);
       cards.push(boundary.svg);
     } else if (isIo) {
-      let y = box.y + header.height + 10;
+      let y = box.y + header.height + annotationHeight + 10;
       for (const row of rows) {
         const value = row.right ?? row.left, layout = ioValueLayout(value, box.w);
         const rowY = y;

@@ -15,7 +15,7 @@ it.each([false, true])('starts the visible graph request without selecting a nod
   const listener = jest.fn();
   window.addEventListener('builder-command', listener);
   mount(value(), compact);
-  fireEvent.click(screen.getByRole('button', { name: 'Explain model' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Explain this view' }));
   expect(listener.mock.calls[0][0].detail).toEqual({ command: 'explain-model', payload: undefined });
   window.removeEventListener('builder-command', listener);
 });
@@ -23,28 +23,33 @@ it.each([false, true])('starts the visible graph request without selecting a nod
 it('shows real progress and lets the user stop without losing completed work', () => {
   const context = value({ state: { requestId: 'run', revision: 'revision', status: 'loading', completed: 3, total: 7 } });
   mount(context, true);
-  expect(screen.getByRole('button', { name: 'Explaining model · 3/7' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Explaining view · 3/7' })).toBeDisabled();
   expect(screen.getByRole('status')).toHaveTextContent('3 of 7');
-  fireEvent.click(screen.getByRole('button', { name: 'Stop explaining model' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Stop explaining view' }));
   expect(context.model!.cancel).toHaveBeenCalledTimes(1);
 });
 
-it('toggles cached annotations after success and keeps explanatory depth available', () => {
+it('explains the current viewport again after success and keeps hiding separate', () => {
   const context = value({ state: { requestId: 'run', revision: 'revision', status: 'ready', completed: 7, total: 7 } });
   mount(context);
-  fireEvent.click(screen.getByRole('button', { name: 'Explanations' }));
-  expect(context.model!.toggle).toHaveBeenCalledTimes(1);
-  expect(context.model!.start).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Model explanation details' }));
+  const listener = jest.fn();
+  window.addEventListener('builder-command', listener);
+  fireEvent.click(screen.getByRole('button', { name: 'Explain this view' }));
+  expect(listener.mock.calls[0][0].detail.command).toBe('explain-model');
+  window.removeEventListener('builder-command', listener);
+  expect(context.model!.toggle).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'View explanation details' }));
   expect(screen.getByRole('status')).toHaveTextContent('7 of 7 components explained');
   expect(screen.getByRole('button', { name: 'Explain current view' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Hide explanations' }));
+  expect(context.model!.toggle).toHaveBeenCalledTimes(1);
 });
 
 it('retains partial results and exposes the actual failure and retry path', () => {
   mount(value({ state: { requestId: 'run', revision: 'revision', status: 'unavailable', completed: 2, total: 7,
     detail: 'Connect an agent in chat to explain this model.' } }));
-  expect(screen.getByRole('button', { name: 'Explanations' })).toHaveAttribute('aria-pressed', 'true');
-  fireEvent.click(screen.getByRole('button', { name: 'Model explanation details' }));
+  expect(screen.getByRole('button', { name: 'Retry explanations' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'View explanation details' }));
   expect(screen.getByText('Connect an agent in chat to explain this model.')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Open agent chat' })).toBeVisible();
@@ -57,7 +62,7 @@ it('shows the reason for a failed start instead of a misleading zero-completed c
   fireEvent.focus(trigger.parentElement!);
   expect(screen.getByRole('tooltip')).toHaveTextContent(detail);
   fireEvent.blur(trigger.parentElement!);
-  fireEvent.click(screen.getByRole('button', { name: 'Model explanation details' }));
+  fireEvent.click(screen.getByRole('button', { name: 'View explanation details' }));
   expect(screen.getByRole('alert')).toHaveTextContent(detail);
   expect(screen.queryByText('0 of 2 components explained.')).not.toBeInTheDocument();
   expect(screen.queryByText(/Up to 128 visible components/)).not.toBeInTheDocument();
@@ -68,7 +73,7 @@ it('does not offer unsupported hosts an action and explains why a disconnected v
   const view = mount(null);
   expect(screen.queryByRole('button')).toBeNull();
   view.rerender(<NodeExplanationContext.Provider value={value({ disabledReason: 'Reconnect to the graph host first.' })}><ModelExplanationControl compact={false} /></NodeExplanationContext.Provider>);
-  expect(screen.getByRole('button', { name: 'Explain model' })).toBeDisabled();
-  fireEvent.focus(screen.getByRole('button', { name: 'Explain model' }).parentElement!);
+  expect(screen.getByRole('button', { name: 'Explain this view' })).toBeDisabled();
+  fireEvent.focus(screen.getByRole('button', { name: 'Explain this view' }).parentElement!);
   expect(screen.getByRole('tooltip')).toHaveTextContent('Reconnect to the graph host first.');
 });

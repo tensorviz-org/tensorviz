@@ -14,6 +14,8 @@ import { GraphReviewBadge } from './GraphReviewChanges';
 import { cardHeaderLayout } from './cardIdentity';
 import { CardIdentity } from './NodeCardIdentity';
 import { ioCardContent } from './cardMetrics';
+import { NodeExplanationContext } from './NodeExplanationContext';
+import { NodeExplanationAnnotation } from './NodeExplanationAnnotation';
 
 export class OutputShapeUtil extends BaseBoxShapeUtil<OutputShape> {
   static override type = 'output-node' as const;
@@ -77,6 +79,10 @@ export class OutputShapeUtil extends BaseBoxShapeUtil<OutputShape> {
 
 const OutputShapeCard = track(function OutputShapeCard({ shape, editor }: { shape: OutputShape; editor: Editor }) {
     const data = shape.props.nodeData;
+    const explanations = React.useContext(NodeExplanationContext);
+    const explanationState = (explanations?.annotations ?? explanations?.states)?.[shapeIdToNodeId(shape.id)];
+    const explanation = explanations?.annotationsVisible && explanationState?.status === 'ready'
+      && !data.review && !data.sourceAssignment && !data.sourceReplacement ? explanationState.explanation : undefined;
     const isSelected = editor.getSelectedShapeIds().includes(shape.id);
     const header = cardHeaderLayout('Output', data.captureLabel, shape.props.w);
     const content = ioCardContent(data, 'output', shape.props.w);
@@ -96,6 +102,8 @@ const OutputShapeCard = track(function OutputShapeCard({ shape, editor }: { shap
             <CardIdentity layout={header} title="Output" subtitle={data.captureLabel} />
             {data.review ? <GraphReviewBadge review={data.review} /> : data.diffStatus && <span className="ui2-node-badge">{data.diffStatus}</span>}
           </div>
+
+          <NodeExplanationAnnotation explanation={explanation} width={shape.props.w} />
 
           {content.bodyHeight > 0 && <div className="ui2-node-body">
             {data.capturePorts ? <CaptureBoundaryRows ports={data.capturePorts} width={shape.props.w} /> : content.rowCount > 0 && <div className="ui2-node-list">

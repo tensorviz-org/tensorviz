@@ -10,18 +10,20 @@ function roleSummary(values: readonly string[]): string | undefined {
 
 export function nodeAnnotationLayout(explanation: NodeExplanation, width: number) {
   const titleLines = wrapCardText(explanation.title, Math.max(80, width - 48), 12);
+  const purposeLines = wrapCardText(explanation.purpose, Math.max(60, width - 24), 12);
   const input = roleSummary(explanation.inputs), output = roleSummary(explanation.outputs);
   const inputLines = input ? wrapCardText(input, Math.max(60, width - 64), 11) : [];
   const outputLines = output ? wrapCardText(output, Math.max(60, width - 64), 11) : [];
-  return { titleLines, input, output, inputLines, outputLines,
-    height: 21 + titleLines.length * 16 + (inputLines.length ? 6 + inputLines.length * 15 : 0)
+  return { titleLines, purposeLines, input, output, inputLines, outputLines,
+    height: 21 + titleLines.length * 16 + (purposeLines.length ? 6 + purposeLines.length * 17 : 0)
+      + (inputLines.length ? 6 + inputLines.length * 15 : 0)
       + (outputLines.length ? 4 + outputLines.length * 15 : 0) };
 }
 
 export function nodeAnnotation(node: ModelNode, states: Readonly<Record<string, NodeExplanationState>>, visible: boolean) {
   const state = states[node.id];
   return visible && !node.hidden && !node.data.review && !node.data.sourceAssignment && !node.data.sourceReplacement
-    && node.type !== 'inputNode' && node.type !== 'outputNode' && state?.status === 'ready' ? state.explanation : undefined;
+    && state?.status === 'ready' ? state.explanation : undefined;
 }
 
 export interface ExplainedGraphPresentation {

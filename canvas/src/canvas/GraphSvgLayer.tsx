@@ -56,8 +56,9 @@ export default function GraphSvgLayer({ nodes, edges, direction, selectedIds, on
   editor: Editor | null;
 }) {
   const explanations = React.useContext(NodeExplanationContext);
-  const explanationOptions = React.useMemo(() => ({ explanationStates: explanations?.annotations ?? explanations?.states, annotationsVisible: explanations?.annotationsVisible }),
-    [explanations?.annotations, explanations?.states, explanations?.annotationsVisible]);
+  const explanationOptions = React.useMemo(() => ({ explanationStates: explanations?.annotations ?? explanations?.states,
+    annotationsVisible: explanations?.annotationsVisible, viewExplanation: explanations?.model?.state }),
+    [explanations?.annotations, explanations?.states, explanations?.annotationsVisible, explanations?.model?.state]);
   const bounds = React.useMemo(() => graphSvgBounds(nodes, explanationOptions), [nodes, explanationOptions]);
   const changedNodes = React.useMemo(() => new Map(nodes.filter(node => node.data.diffStatus).map(node => [node.id, node.data])), [nodes]);
   const theme = useCanvasTheme();

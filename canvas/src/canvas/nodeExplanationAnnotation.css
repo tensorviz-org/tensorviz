@@ -11,7 +11,8 @@
 .node-explanation-role { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; line-height: 16px; color: var(--tv-text, var(--text-primary)); }
 .node-explanation-role > svg { flex: 0 0 11px; margin-top: 2px; color: var(--tv-accent, var(--accent)); }
 .node-explanation-role strong { min-width: 0; font-weight: 550; }
-.node-explanation-role strong > span, .node-explanation-flow > span:last-child > span { display: block; white-space: pre; }
+.node-explanation-role strong > span, .node-explanation-purpose > span, .node-explanation-flow > span:last-child > span { display: block; white-space: pre; }
+.node-explanation-purpose { margin: 6px 0 0; font-size: 12px; line-height: 17px; color: var(--tv-text-2, var(--text-secondary)); }
 .node-explanation-flow { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 4px; margin-top: 6px; font-size: 11px; line-height: 15px; }
 .node-explanation-flow + .node-explanation-flow { margin-top: 4px; }
 .node-explanation-flow > span:first-child { color: var(--tv-text-3, var(--text-muted)); font-size: 10px; }

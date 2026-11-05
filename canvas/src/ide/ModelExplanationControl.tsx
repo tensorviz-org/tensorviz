@@ -6,7 +6,7 @@ import CanvasPopover from './CanvasPopover';
 import CanvasTooltip from '../components/CanvasTooltip';
 import './modelExplanation.css';
 
-/** One model-wide action; node inspection continues in the existing details. */
+/** Each explicit click explains the visible scope; stored annotations can be hidden separately. */
 export default function ModelExplanationControl({ compact }: { compact: boolean }) {
   const context = React.useContext(NodeExplanationContext);
   const model = context?.model;
@@ -17,28 +17,31 @@ export default function ModelExplanationControl({ compact }: { compact: boolean 
   const settled = !!state && !loading;
   const failed = state?.status === 'unavailable' || state?.status === 'cancelled';
   const canToggle = settled && completed > 0;
-  const label = loading ? `Explaining model · ${completed}/${state.total}`
-    : canToggle ? 'Explanations' : failed ? 'Retry explanations' : 'Explain model';
+  const label = loading ? `Explaining view · ${completed}/${state.total}`
+    : failed ? 'Retry explanations' : 'Explain this view';
   const help = model.disabledReason ?? (loading ? state.detail ?? `${completed} of ${state.total} components explained. You can keep exploring or stop.`
     : failed && !canToggle && state?.detail ? state.detail
-      : canToggle ? `${context.annotationsVisible ? 'Hide' : 'Show'} the generated purpose and flow labels. Full explanations stay in node details.`
-        : 'Explain component roles and data flow using this graph and its source. Uses your configured agent.');
+      : 'Explain the nodes visible now, including inputs, outputs and their connections. Uses your configured agent; collapsed children stay untouched.');
   const start = () => dispatchBuilderCommand('explain-model');
   return <div className="model-explanation-control">
     <CanvasTooltip text={help}><button type="button" className="local-canvas-control"
-      aria-label={label} aria-pressed={canToggle ? !!context.annotationsVisible : undefined}
+      aria-label={label}
       disabled={!!model.disabledReason || loading} title={help}
-      onClick={canToggle ? model.toggle : start}>
+      onClick={start}>
       {loading ? <LoaderCircle size={15} className="model-explanation-spinner" aria-hidden="true" /> : <Sparkles size={15} aria-hidden="true" />}
       <span className="local-canvas-control-label">{loading ? `${completed}/${state.total}` : compact && !canToggle && !failed ? 'Explain' : label}</span>
     </button></CanvasTooltip>
     {loading && <CanvasTooltip text="Stop generating. Completed explanations stay available."><button type="button" className="local-canvas-control"
-      aria-label="Stop explaining model" title="Stop explaining model" onClick={model.cancel}><X size={14} aria-hidden="true" /></button></CanvasTooltip>}
-    {settled && <CanvasPopover label="Model explanation details" title="Model explanations"
+      aria-label="Stop explaining view" title="Stop explaining view" onClick={model.cancel}><X size={14} aria-hidden="true" /></button></CanvasTooltip>}
+    {settled && <CanvasPopover label="View explanation details" title="View explanations"
       trigger={failed ? <CircleAlert size={14} aria-hidden="true" /> : <span>{completed}/{state.total}</span>}>
       {close => <div className="model-explanation-details">
         {completed > 0 && <p role="status">{state.status === 'cancelled' ? 'Stopped. ' : ''}{completed} of {state.total} components explained.</p>}
         {state.detail && <p role={failed ? 'alert' : undefined}>{state.detail}</p>}
+        {canToggle && <button type="button" className="local-canvas-menu-item" aria-pressed={!!context.annotationsVisible}
+          onClick={() => { model.toggle(); close(); }}>
+          <Sparkles size={14} aria-hidden="true" /><span>{context.annotationsVisible ? 'Hide explanations' : 'Show explanations'}</span>
+        </button>}
         <button type="button" className="local-canvas-menu-item" onClick={() => { start(); close(); }} disabled={!!model.disabledReason}>
           <Sparkles size={14} aria-hidden="true" /><span>{failed ? 'Try again' : 'Explain current view'}</span>
         </button>

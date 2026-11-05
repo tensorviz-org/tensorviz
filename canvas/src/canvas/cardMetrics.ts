@@ -66,7 +66,7 @@ export const assignmentEvidenceShown = (data: { sourceAssignment?: unknown; revi
 
 export const STAT_KEYS =['_act_stats', '_grad_stats'] as const;
 
-/** Card identity stays technical and stable while explanations live in selection. */
+/** Technical identity stays stable; generated annotations are measured separately. */
 export function layerCardHeader(data: Partial<ModelNodeData>, width = layerCardWidth(data)) {
   const normalized = operationGroupCard({ ...data, parameters: data.parameters ?? {}, layerType: {
     id: '', name: '', displayName: '', category: 'misc', ...data.layerType,

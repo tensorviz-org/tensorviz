@@ -77,6 +77,8 @@ import {
 } from '../canvas/connectivity';
 import { LocalBrowserContext } from '../ide/localBrowserContext';
 import { NodeExplanationContext } from '../canvas/NodeExplanationContext';
+import { nodeIdToShapeId } from '../canvas/canvasShapeId';
+import { visibleExplanationNodeIds } from '../canvas/visibleExplanationScope';
 import { ValidationSweepOverlay } from '../canvas/ValidationSweepOverlay';
 import { deriveInputShapes, healEdgesAfterDeletion } from '../services/graphTopology';
 import { graphDocumentV2ToModelGraph } from '../services/graphDocumentAdapter';
@@ -2704,8 +2706,16 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
       }
       if (command === 'explain-model') {
         reportSelection();
-        explanationContextRef.current?.model?.start(moduleFocusRef.current.graphRef.current.nodes
-          .filter(node => !node.hidden && node.type !== 'inputNode' && node.type !== 'outputNode').map(node => node.id));
+        const editor = editorRef.current;
+        if (!editor) return;
+        const graph = moduleFocusRef.current.graphRef.current;
+        const explanation = explanationContextRef.current;
+        const boxes = new Map(graphSvgBounds(graph.nodes, {
+          explanationStates: explanation?.annotations ?? explanation?.states, annotationsVisible: explanation?.annotationsVisible,
+        }).map(box => [box.id, box]));
+        const ids = visibleExplanationNodeIds(graph.nodes, editor.getViewportPageBounds(), id =>
+          editor.getShapePageBounds(nodeIdToShapeId(id)) ?? boxes.get(id));
+        explanation?.model?.start(ids);
         return;
       }
       if (command === 'select-mode') {
@@ -2921,7 +2931,8 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
           const displayed = moduleFocusRef.current.graphRef.current;
           if (displayed.nodes.length) {
             const svg = graphToSvg(displayed.nodes, displayed.edges, { theme: getCanvasTheme(), direction: layoutDirection,
-              explanationStates: explanationContextRef.current?.annotations ?? explanationContextRef.current?.states, annotationsVisible: explanationContextRef.current?.annotationsVisible });
+              explanationStates: explanationContextRef.current?.annotations ?? explanationContextRef.current?.states, annotationsVisible: explanationContextRef.current?.annotationsVisible,
+              viewExplanation: explanationContextRef.current?.model?.state });
             if (save) hostServices.saveFile('graph.svg', new Blob([svg], { type: 'image/svg+xml' }));
             else void hostServices.copyText(svg);
             report({ ok: true, message: save ? 'Saved the SVG.' : 'Copied the SVG.' });

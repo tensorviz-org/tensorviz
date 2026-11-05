@@ -39,7 +39,7 @@ call snippets and validation explanations live in the existing selection details
 Technical names wrap in shared explicit lines; deterministic widths and header
 heights are reused by layout, hit bounds, connection anchors and SVG. Longer names
 can grow layer cards to 320px and module cards to 340px. Names are never shortened
-with an ellipsis. Agent interpretations stay in selection instead of renaming cards.
+with an ellipsis. Technical names remain intact; explicit view explanations add readable purposes to cards.
 The full parameter list, including structured values and source expressions, grows
 with its content. Signatures, docstrings and connections also use the outer selection
 panel's scroll area rather than nested height limits. Review/source-assignment cards
@@ -51,10 +51,31 @@ Native sidebar requests relay through the same explanation controller as browser
 views. Delivery and inactivity deadlines settle missing replies, retain available
 documentation and annotations, and reject late progress for expired work. Optional
 documentation reads have their own deadline and do not block agent generation.
-Explain model discovers the saved provider independently of chat visibility, without
+Explain this view discovers the saved provider independently of chat visibility, without
 warming a chat session or changing its provider/model settings. Connection and
 source-reading phases renew the inactivity deadline once per distinct phase;
 replayed phases cannot keep a stalled request alive.
+
+
+**Explain this view** captures the nonhidden nodes intersecting the current viewport,
+including boundary inputs/outputs without individual source spans. The renderer sends
+only known graph IDs; the host rechecks them against the authoritative projection.
+Boundary explanations use explicitly contextual neighboring or entry-source evidence.
+Camera movement and component expansion do not start additional generation.
+
+The typed result contains a full requested node snapshot, a shared summary, bounded
+callouts and labels for existing directed graph connections. Host validation rejects
+out-of-scope references, invented edges and citations not actually supplied. Generated
+callouts select existing nodes; source controls select a proof-bearing component before
+revealing its current verified source. A source-structure connection never proves an
+observed tensor dependency. View results remain presentation-only, separate from model
+records, saved layout and capture evidence.
+
+Node purposes and I/O role labels use measured wrapping in live cards and SVG export.
+Connection meanings are available on their arrows and in the collapsible view overview.
+The main action always explains the current viewport; hide/show is in its details menu.
+Scope-specific view and node caches reduce repeated source/model requests. Up to 128
+visible IDs are requested per explicit pass; a larger viewport reports its bounded scope.
 
 The model title opens a searchable project model catalogue backed by the existing
 AST class index. It lists discovered PyTorch model classes without importing or

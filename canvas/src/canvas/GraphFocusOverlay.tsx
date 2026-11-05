@@ -13,6 +13,7 @@ import { nodePresentation } from './nodePresentation';
 import { NodeExplanationContext } from './NodeExplanationContext';
 import { NodeUnderstanding } from './NodeUnderstanding';
 import { nodeIdToShapeId } from './canvasShapeId';
+import { ViewExplanationOverview } from './ViewExplanationOverview';
 
 /** Optional surface navigation shares the query's flow instead of covering it. */
 export const GraphNavigationContext = React.createContext<React.ReactNode>(null);
@@ -54,6 +55,11 @@ export const GraphFocusOverlay = track(function GraphFocusOverlay() {
       <span>Canvas keys: [ / ] select a layer · Enter opens it · Esc clears focus.</span>
     </details>}
     <FamilyLegend nodes={graphNodes.get()} />
+    <ViewExplanationOverview key={explanations?.model?.state?.requestId} nodes={graphNodes.get()} focused={focus.active}
+      selectedNodeIds={focus.selected} onNavigate={id => {
+        const shape = editor.getShape(nodeIdToShapeId(id));
+        if (shape) editor.select(shape.id);
+      }} />
     {!local && zoom < .55 && <button className="graph-readable" onClick={readable}>Zoom to readable detail ↗</button>}
     {focus.active && <section className="graph-focus-controls" aria-label="Connection focus">
       <div className="graph-focus-caption"><strong>{focus.selected.length === 1 ? label(focus.selected[0]) : `${focus.selected.length} layers`}</strong><span>{focus.edgeIds.size} connections{focus.truncated ? ' · limit reached' : ''}</span></div>

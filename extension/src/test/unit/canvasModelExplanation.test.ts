@@ -2,7 +2,7 @@ import * as assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mock } from 'node:test';
 import { z } from 'zod';
-import { CanvasModelExplanation, modelExplanationNodeContext, type CanvasModelExplanationOptions } from '../../canvasModelExplanation';
+import { CanvasModelExplanation, modelExplanationNodeContext, modelExplanationScope, type CanvasModelExplanationOptions } from '../../canvasModelExplanation';
 import type { CanvasAgentRoute, AgentRunInput } from '../../canvasAgent';
 import type { HostToolset } from '../../mcpHost';
 import type { LocalBrowserModelExplanationRequest, LocalBrowserViewSelectionMessage } from '@tensorviz/contracts/protocol';
@@ -62,6 +62,78 @@ suite('Explicit model explanation', () => {
     assert.deepEqual(prepared.context.node.outputPorts, ['latents']); assert.equal((prepared.context.node.source as any).file, 'model.py');
     assert.deepEqual(prepared.context.edges.map(edge => [edge.sourceNodeId, edge.targetNodeId, edge.sourcePort, edge.targetPort]), [['input', 'encoder', 'samples', 'audio'], ['encoder', 'decoder', 'latents', 'features']]);
     assert.deepEqual(prepared.context.neighbors.map(node => [node.nodeId, node.operation]), [['input', 'Input'], ['decoder', 'Decoder']]); assert.equal(prepared.context.connectionsLimited, false);
+  });
+
+
+  test('view results explain only the supplied snapshot, validate real edges and retain source-linked callouts', async () => {
+    const scope = { parent: { file: 'model.py', cls: 'Model' }, nodes: [{ nodeId: 'encoder', kind: 'layer', operation: 'Encoder' }, { nodeId: 'decoder', kind: 'layer', operation: 'Decoder' }], connections: [{ sourceNodeId: 'encoder', targetNodeId: 'decoder' }] };
+    const r = rig(async (tools, input) => {
+      const context = JSON.parse(input.context);
+      assert.deepEqual(context.view, scope); assert.deepEqual(context.requestedNodeIds, ['encoder', 'decoder']);
+      const evidenceId = context.nodes[0].evidenceId;
+      const nodes = context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId]));
+      const view = { summary: 'The visible components turn audio samples into learned features and reconstruct audio.',
+        connections: [{ sourceNodeId: 'encoder', targetNodeId: 'decoder', label: 'Learned audio features', detail: 'Features provide the representation consumed by the decoder.', citationIds: [evidenceId] }],
+        callouts: [{ title: 'A compact audio representation', body: 'The encoder represents the audio with learned features that the decoder consumes.', nodeIds: ['encoder', 'decoder'], citationIds: [evidenceId] }] };
+      for (const invalid of [
+        { ...view, connections: [{ ...view.connections[0], sourceNodeId: 'decoder', targetNodeId: 'encoder' }] },
+        { ...view, callouts: [{ ...view.callouts[0], nodeIds: ['hidden-child'] }] },
+        { ...view, connections: [{ ...view.connections[0], citationIds: ['invented'] }] },
+      ]) assert.equal((await call(tools, 'submit_model_explanations', { nodes, view: invalid })).isError, true);
+      assert.equal((await call(tools, 'submit_model_explanations', { nodes })).isError, true);
+      assert.equal((await call(tools, 'submit_model_explanations', { nodes, view })).isError, undefined);
+    }, { scope: () => scope });
+    r.start(); await r.done();
+    const view = r.states.at(-1)!.view!; assert.equal(r.states.at(-1)!.status, 'ready');
+    assert.deepEqual(view.nodeIds, ['encoder', 'decoder']); assert.equal(view.connections[0].label, 'Learned audio features');
+    assert.equal(view.callouts[0].citations[0].file, 'model.py'); assert.equal(view.callouts[0].citations[0].sourceDigest, r.request.target.sourceDigest);
+    assert.match(r.inputs[0].messages[0].text, /visible view/);
+    r.start({ requestId: 'same-view' }); await until(() => r.states.at(-1)!.requestId === 'same-view' && r.states.at(-1)!.status === 'ready');
+    assert.equal(r.inputs.length, 1); assert.deepEqual(r.states.at(-1)!.view, view);
+  });
+
+  test('a changed visible scope reuses existing node explanations and generates a new view story', async () => {
+    const r = rig(async (tools, input) => {
+      const context = JSON.parse(input.context);
+      await call(tools, 'submit_model_explanations', { nodes: context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId])),
+        view: { summary: `Explain ${context.requestedNodeIds.length} visible nodes.`, connections: [], callouts: [] } });
+    }, { scope: request => ({ parent: { file: 'model.py', cls: 'Model' }, nodes: request.nodeIds.map(nodeId => ({ nodeId, kind: 'layer', operation: nodeId })), connections: [] }) });
+    r.start(); await r.done();
+    r.start({ requestId: 'smaller-view', nodeIds: ['decoder'] });
+    await until(() => r.states.at(-1)!.requestId === 'smaller-view' && r.states.at(-1)!.status === 'ready');
+    assert.equal(r.inputs.length, 2); assert.deepEqual(r.states.at(-1)!.view!.nodeIds, ['decoder']);
+    assert.equal(r.states.at(-1)!.completed, 1); assert.equal(JSON.parse(r.inputs[1].context).nodes.length, 1);
+  });
+
+  test('view summaries merge across bounded batches and added citation links never double-count ready nodes', async () => {
+    const ids = Array.from({ length: 8 }, (_, index) => `n${index}`);
+    const r = rig(async (tools, input) => {
+      const context = JSON.parse(input.context), first = context.nodes[0];
+      await call(tools, 'submit_model_explanations', { nodes: context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId])),
+        view: { summary: 'A single story for this visible view.', connections: [], callouts: [{ title: first.nodeId, body: 'A source-backed relationship in the current view.', nodeIds: ['n0', first.nodeId].filter((value, index, all) => all.indexOf(value) === index), citationIds: [first.evidenceId] }] } });
+    }, { scope: () => ({ parent: { file: 'model.py', cls: 'Model' }, nodes: ids.map(nodeId => ({ nodeId, kind: 'layer', operation: nodeId })), connections: [] }) });
+    r.start({ nodeIds: ids }); await r.done();
+    assert.equal(r.states.at(-1)!.status, 'ready'); assert.equal(r.states.at(-1)!.completed, 8);
+    assert.deepEqual(r.states.at(-1)!.view!.nodeIds, ids); assert.equal(r.states.at(-1)!.view!.callouts.length, 2);
+    assert.ok(r.states.every(state => state.completed <= state.total));
+  });
+
+  test('boundary inputs and outputs use explicit neighboring source context without inventing a call span', () => {
+    const model: McpModel = { current: true, target: { workspaceFolder: '/fixture', file: 'model.py', cls: 'Model', sourceDigest: hash('source'), documentVersion: 1, backendRevision: 0 },
+      projection: { traced: false, spanmap: { decoder: { file: 'model.py', start: [20, 0], end: [20, 30] } }, document: { semantic: {
+        nodes: [{ node_id: 'condition', kind: 'input', op: 'Input', params: {} }, { node_id: 'decoder', kind: 'layer', op: 'Decoder', params: {} }, { node_id: 'audio', kind: 'output', op: 'Output', params: {} }, { node_id: 'hidden', kind: 'layer', op: 'Hidden', params: {} }],
+        edges: [{ edge_id: 'condition-edge', source_node_id: 'condition', target_node_id: 'decoder', source_port: 'index', target_port: 'condition' }, { edge_id: 'audio-edge', source_node_id: 'decoder', target_node_id: 'audio', source_port: 'samples', target_port: 'result' }, { edge_id: 'hidden-edge', source_node_id: 'decoder', target_node_id: 'hidden' }],
+      } } } as unknown as ProjectionPayload };
+    const graph = new McpGraphService('fixture-host', () => model), ref = graph.reference(model);
+    for (const nodeId of ['condition', 'audio']) {
+      const prepared = modelExplanationNodeContext(model, graph.inspectNodes(ref, [nodeId]), nodeId);
+      assert.deepEqual(prepared.source, { file: 'model.py', startLine: 20 });
+      assert.equal(prepared.context.node.source, null); assert.equal(prepared.context.node.sourceMapping, 'neighbor_or_entry_context');
+    }
+    assert.throws(() => modelExplanationNodeContext(model, graph.inspectNodes(ref, ['hidden']), 'hidden'), /No source mapping/);
+    const scope = modelExplanationScope(model, ['condition', 'decoder', 'audio']);
+    assert.deepEqual(scope.nodes.map(node => node.nodeId), ['condition', 'decoder', 'audio']); assert.equal(scope.connections.length, 2);
+    assert.ok(scope.connections.every(edge => edge.sourceNodeId !== 'hidden' && edge.targetNodeId !== 'hidden'));
   });
 
   test('resolved signatures and authored docs arrive before inference once per implementation and can be cited', async () => {

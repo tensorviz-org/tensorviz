@@ -267,6 +267,29 @@ describe('LocalBrowserApp', () => {
     } finally { jest.useRealTimers(); }
   });
 
+  it('retains visible semantic input/output IDs without their own source spans and does not expand scope', async () => {
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => 'visible-boundaries' } });
+    try {
+      const document = { view: {}, semantic: { nodes: ['input', 'decoder', 'output', 'collapsed-child'].map(node_id => ({ node_id })) } };
+      const rig = readyValidationPage(netProjection({ document, spanmap: { decoder: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+      (rig.transport as { session: unknown }).session = { viewId: 'boundary-view', capabilities: {} };
+      await act(async () => mockCapturedExplanationContext?.model?.start(['input', 'decoder', 'output', 'forged-node']));
+      const request = (rig.transport.send as jest.Mock).mock.calls.map(([message]) => message)
+        .find(message => message.type === 'modelExplanationRequest' && message.action === 'start');
+      expect(request.nodeIds).toEqual(['input', 'decoder', 'output']);
+      const view = { summary: 'Decode the supplied representation into output.', nodeIds: request.nodeIds, connections: [], callouts: [] };
+      await act(async () => rig.emit(hostMessage('modelExplanation', { viewId: 'boundary-view', target: netTarget(), state: {
+        requestId: request.requestId, revision: 'current-graph-revision', status: 'ready', completed: 3, total: 3, view } })));
+      expect(mockCapturedExplanationContext?.model?.state?.view).toEqual(view);
+      expect((rig.transport.send as jest.Mock).mock.calls.filter(([message]) => message.type === 'modelExplanationRequest' && message.action === 'start')).toHaveLength(1);
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+      else Reflect.deleteProperty(globalThis, 'crypto');
+    }
+  });
+
   it('recovers a lost model start, cancels it once and ignores late pass replies', async () => {
     jest.useFakeTimers();
     (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');

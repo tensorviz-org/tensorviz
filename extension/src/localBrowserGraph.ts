@@ -2,7 +2,7 @@ import { ExecutionReview } from '@tensorviz/graph-host/executionReview';
 import { executionResources } from './executionResources';
 import { unsupportedRemote } from './remoteSupport';
 import { CanvasAgent, type CanvasAgentOptions } from './canvasAgent';
-import { CanvasModelExplanation, modelExplanationNodeContext } from './canvasModelExplanation';
+import { CanvasModelExplanation, modelExplanationNodeContext, modelExplanationScope } from './canvasModelExplanation';
 import { CanvasModelCatalog, type IndexedModelClass } from './canvasModelCatalog';
 import { CanvasNodeExplanation, nodeSourceDocumentationSymbol, type CanvasNodeExplanationOptions } from './canvasNodeExplanation';
 import { isHostFile, matchesHostFile } from './workspaceFiles';
@@ -535,6 +535,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
           return { ref: options.agent!.reference!(model), detail };
         },
         reference: request => { if (!modelCurrent(request)) throw new Error('The graph changed.'); return options.agent!.reference!(this.mcpModel!); },
+        scope: request => { if (!modelCurrent(request)) throw new Error('The graph changed.'); return modelExplanationScope(this.mcpModel!, request.nodeIds); },
         prepare: async (request, nodeId, signal) => {
           signal.throwIfAborted(); if (!modelCurrent(request)) throw new Error('The graph changed.');
           const model = this.mcpModel!, ref = options.agent!.reference!(model);

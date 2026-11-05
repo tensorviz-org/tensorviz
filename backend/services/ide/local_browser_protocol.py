@@ -168,15 +168,59 @@ def _node_explanation_state(value: Any) -> bool:
             and (_node_explanation(value.get("explanation")) if value["status"] == "ready" else "explanation" not in value))
 
 
+def _view_explanation_node_ids(value: Any) -> bool:
+    return (isinstance(value, list) and 1 <= len(value) <= 128
+            and all(_node_explanation_text(node_id, 1024) for node_id in value)
+            and len(set(value)) == len(value))
+
+
+def _view_explanation_citations(value: Any) -> bool:
+    return (isinstance(value, list) and 1 <= len(value) <= 8
+            and all(_node_explanation_citation(citation) for citation in value)
+            and len({citation["id"] for citation in value}) == len(value))
+
+
+def _view_explanation(value: Any) -> bool:
+    if (not isinstance(value, dict) or set(value) != {"summary", "nodeIds", "connections", "callouts"}
+            or not _node_explanation_text(value["summary"], 640) or not _view_explanation_node_ids(value["nodeIds"])
+            or not isinstance(value["connections"], list) or len(value["connections"]) > 128
+            or not isinstance(value["callouts"], list) or len(value["callouts"]) > 6):
+        return False
+    nodes = set(value["nodeIds"])
+    connections = set()
+    for connection in value["connections"]:
+        if (not isinstance(connection, dict)
+                or not {"sourceNodeId", "targetNodeId", "label", "citations"} <= set(connection)
+                or not set(connection) <= {"sourceNodeId", "targetNodeId", "label", "detail", "citations"}
+                or not _node_explanation_text(connection["sourceNodeId"], 1024)
+                or not _node_explanation_text(connection["targetNodeId"], 1024)
+                or connection["sourceNodeId"] not in nodes or connection["targetNodeId"] not in nodes
+                or not _node_explanation_text(connection["label"], 120)
+                or "detail" in connection and not _node_explanation_text(connection["detail"], 320)
+                or not _view_explanation_citations(connection["citations"])):
+            return False
+        pair = (connection["sourceNodeId"], connection["targetNodeId"])
+        if pair in connections:
+            return False
+        connections.add(pair)
+    return all(isinstance(callout, dict) and set(callout) == {"title", "body", "nodeIds", "citations"}
+               and _node_explanation_text(callout["title"], 80) and _node_explanation_text(callout["body"], 480)
+               and _view_explanation_node_ids(callout["nodeIds"])
+               and all(node_id in nodes for node_id in callout["nodeIds"])
+               and _view_explanation_citations(callout["citations"]) for callout in value["callouts"])
+
+
 def _model_explanation_state(value: Any) -> bool:
     return (isinstance(value, dict)
-            and set(value) <= {"requestId", "revision", "status", "completed", "total", "detail"}
+            and set(value) <= {"requestId", "revision", "status", "completed", "total", "detail", "view"}
             and _node_explanation_text(value.get("requestId"), 128)
             and _node_explanation_text(value.get("revision"), 256)
             and isinstance(value.get("status"), str) and value["status"] in ("loading", "ready", "unavailable", "cancelled")
             and _is_non_negative_integer(value.get("completed")) and _is_non_negative_integer(value.get("total"))
             and value["completed"] <= value["total"] <= 10000
-            and ("detail" not in value or _node_explanation_text(value["detail"], 320)))
+            and ("detail" not in value or _node_explanation_text(value["detail"], 320))
+            and ("view" not in value or _view_explanation(value["view"])
+                 and len(value["view"]["nodeIds"]) == value["total"]))
 
 
 def _model_catalog(value: Any) -> bool:

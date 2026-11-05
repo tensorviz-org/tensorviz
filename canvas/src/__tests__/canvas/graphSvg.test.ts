@@ -90,9 +90,28 @@ describe('graphToSvg', () => {
     const document = svgDocument(svg);
     expect(titleTexts(svg)).toContain('Conv2d');
     expect(document.querySelector('[data-agent-interpretation]')!.textContent).toContain('Candidate features · Question features');
+    expect(Array.from(document.querySelectorAll('[data-agent-interpretation] text')).map(element => element.textContent).join(''))
+      .toContain(options.explanationStates.score.explanation.purpose);
     expect(bounds[1].y).toBeGreaterThanOrEqual(bounds[0].y + bounds[0].h + 24);
     expect(bounds[0].h).toBeGreaterThan(graphSvgBounds(nodes)[0].h);
     expect(JSON.stringify(nodes)).toBe(before);
+  });
+  it.each(['inputNode', 'outputNode'])('exports %s purposes above preserved boundary values', type => {
+    const node = { ...layer('boundary', undefined, { x: 0, y: 0 }), type,
+      data: { ...layer('boundary', undefined, { x: 0, y: 0 }).data, parameters: { name: 'sr_cond' }, inputShape: [2], outputShape: [2] } };
+    const explanation = { title: 'Select a sample-rate bucket', purpose: 'Select conditioning for the audio decoder.',
+      inputs: [], outputs: ['Bucket index'], steps: [], uncertainties: [],
+      citations: [{ id: 'source', file: 'audio_vae_v2.py', sourceDigest: 'a'.repeat(64), startLine: 321, endLine: 330 }] };
+    const options = { annotationsVisible: true, explanationStates: { boundary: { requestId: 'request', nodeId: 'boundary',
+      revision: 'revision', status: 'ready' as const, explanation } } };
+    const document = svgDocument(graphToSvg([node], [], options));
+    const annotation = document.querySelector('[data-agent-interpretation]')!;
+    const annotationText = Array.from(annotation.querySelectorAll('text'));
+    expect(annotationText.map(element => element.textContent).join('')).toContain(explanation.purpose);
+    const lastAnnotationY = Math.max(...annotationText.map(element => Number(element.getAttribute('y'))));
+    const boundaryName = Array.from(document.querySelectorAll('text')).find(element => element.textContent === 'sr_cond')!;
+    expect(Number(boundaryName.getAttribute('y'))).toBeGreaterThan(lastAnnotationY);
+    expect(graphSvgBounds([node], options)[0].h).toBeGreaterThan(graphSvgBounds([node])[0].h);
   });
   it.each(['layerNode', 'inputNode', 'outputNode', 'moduleNode'])('exports %s with the same connection-only label and color', type => {
     const node = type === 'moduleNode' ? moduleNode('a') : { ...layer('a', undefined, { x: 0, y: 0 }), type };

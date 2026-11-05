@@ -33,6 +33,25 @@ function renderCard(util: InputShapeUtil | OutputShapeUtil | LayerShapeUtil, nod
   return render(util.component({ id: 'shape:tile', props: { nodeData, w: 240, h: 140 } } as any));
 }
 
+it.each([InputShapeUtil, OutputShapeUtil])('explains a boundary without hiding its technical input/output evidence (%p)', Util => {
+  const util = new Util();
+  (util as any).editor = { getSelectedShapeIds: () => [], getHoveredShapeId: () => null };
+  const state: NodeExplanationState = { requestId: 'view', nodeId: 'tile', revision: 'source-a', status: 'ready', explanation: {
+    title: 'Select sample-rate conditioning', purpose: 'This bucket selects how the decoder adapts its audio features.',
+    inputs: [], outputs: ['Sample-rate bucket index'], steps: [], uncertainties: [],
+    citations: [{ id: 'source', file: 'audio_vae_v2.py', sourceDigest: 'a'.repeat(64), startLine: 321, endLine: 330 }],
+  } };
+  const card = util.component({ id: 'shape:tile', props: { nodeData: data({ parameters: { name: 'sr_cond' } }), w: 280, h: 300 } } as any);
+  const context = { states: { tile: state }, annotationsVisible: true, retry: jest.fn(), reveal: jest.fn() };
+  const view = render(<NodeExplanationContext.Provider value={context}>{card}</NodeExplanationContext.Provider>);
+  expect(view.container.querySelector('.node-explanation-purpose')).toHaveTextContent(state.explanation!.purpose);
+  expect(view.container.querySelector('.ui2-node-title')).toHaveTextContent(Util === InputShapeUtil ? 'Input' : 'Output');
+  expect(view.container).toHaveTextContent('sr_cond');
+  view.rerender(<NodeExplanationContext.Provider value={{ ...context, annotationsVisible: false }}>{card}</NodeExplanationContext.Provider>);
+  expect(view.container.querySelector('.node-explanation-annotation')).toBeNull();
+  expect(view.container).toHaveTextContent('sr_cond');
+});
+
 describe.each(['overview', 'working', 'inspection'])('%s zoom', detail => {
   beforeEach(() => { mockDetail = detail; });
 

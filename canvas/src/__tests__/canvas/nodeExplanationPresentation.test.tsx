@@ -46,11 +46,16 @@ it('reserves annotation clearance inside expanded frames and grows around enrich
   expect(nodes[1].position.y).toBe(80);
 });
 
-it('keeps review and interface cards free of generated interpretations', () => {
+it('keeps review cards free of generated interpretations while explaining input and output boundaries', () => {
   const review = { ...node('review'), data: { ...node('review').data, review: { status: 'unchanged', params: {} } } } as ModelNode;
-  const input = { ...node('input'), type: 'inputNode' };
-  const nodes = [review, input];
-  expect(explainedGraphPresentation(nodes, { review: state('review'), input: state('input') }, true).nodes).toBe(nodes);
+  expect(explainedGraphPresentation([review], { review: state('review') }, true).nodes[0]).toBe(review);
+  for (const type of ['inputNode', 'outputNode']) {
+    const boundary = { ...node('boundary'), type };
+    const shown = explainedGraphPresentation([boundary], { boundary: state('boundary') }, true);
+    const size = shown.sizes.get('boundary')!;
+    expect(size.h).toBe(nodeCardSize(boundary, size.w).h + nodeAnnotationLayout(explanation, size.w).height);
+    expect(shown.nodes[0].data).toBe(boundary.data);
+  }
 });
 
 it('wraps complete generated titles and shows compact flow with full values available', () => {
@@ -63,8 +68,19 @@ it('wraps complete generated titles and shows compact flow with full values avai
   expect(within(screen.getByLabelText('Agent interpretation')).getByText('In')).toBeVisible();
   expect(screen.getByTitle(value.inputs.join(' · '))).toBeInTheDocument();
   expect(screen.getByTitle(value.purpose)).toBeInTheDocument();
+  expect(container.querySelector('.node-explanation-purpose')).toBeVisible();
+  expect(container.querySelector('.node-explanation-purpose')!.textContent).toBe(value.purpose);
   expect(layout.inputLines.join('')).toBe(value.inputs.join(' · '));
   expect(container.querySelector('strong')!.textContent).toBe(value.title);
+});
+
+it('reserves every line of a long purpose at the actual card width', () => {
+  const value = { ...explanation, title: 'Select sample-rate conditioning',
+    purpose: 'Use the sample-rate bucket to select learned scaling and bias values that adapt each decoder block before it transforms the audio features.' };
+  const narrow = nodeAnnotationLayout(value, 200), wide = nodeAnnotationLayout(value, 420);
+  expect(narrow.purposeLines.join('')).toBe(value.purpose);
+  expect(narrow.purposeLines.length).toBeGreaterThan(wide.purposeLines.length);
+  expect(narrow.height).toBeGreaterThan(wide.height);
 });
 
 it('measures long root names and high-rank shapes at the actual card width', () => {

@@ -19,6 +19,7 @@ import { ModelGraph, ModelNode } from '../../types';
 import type { ProjectionPayload } from '../../ide/protocol.generated';
 import metricFixtures from '../../test/fixtures/metricProjections.json';
 import { graphNodes } from '../../canvas/graphQueryState';
+import { NodeExplanationContext } from '../../canvas/NodeExplanationContext';
 import captureDocument from '../../test/fixtures/canvas/capture-document.json';
 import { graphDocumentV2ToModelGraph } from '../../services/graphDocumentAdapter';
 
@@ -122,6 +123,29 @@ it('keeps a draft change readable instead of replacing explicit focus with the p
   // An explicit Fit still remains available after a focused draft opens.
   command('fit-view');
   expect(mockEditor.zoomToFit).toHaveBeenCalledTimes(1);
+});
+it('explains only the clicked viewport including boundaries, and camera movement does not start generation', () => {
+  act(() => receiveProjection(projection(goodNet())));
+  let viewport = { x: 0, y: 0, w: 400, h: 300 };
+  const bounds = new Map<string, { x: number; y: number; w: number; h: number }>([
+    [nodeIdToShapeId('input'), { x: 0, y: 20, w: 100, h: 80 }],
+    [nodeIdToShapeId('fc1'), { x: 120, y: 20, w: 100, h: 80 }],
+    [nodeIdToShapeId('output'), { x: 250, y: 20, w: 100, h: 80 }],
+    [nodeIdToShapeId('relu'), { x: 800, y: 20, w: 100, h: 80 }],
+    [nodeIdToShapeId('fc2'), { x: 1100, y: 20, w: 100, h: 80 }],
+  ]);
+  Object.assign(mockEditor, { getViewportPageBounds: () => viewport, getShapePageBounds: (id: string) => bounds.get(id) });
+  const start = jest.fn();
+  render(<NodeExplanationContext.Provider value={{ states: {}, retry: jest.fn(), reveal: jest.fn(),
+    model: { start, cancel: jest.fn(), toggle: jest.fn() } }}><ModelBuilder enableExternalCommands /></NodeExplanationContext.Provider>);
+  settle();
+  command('explain-model');
+  expect(start).toHaveBeenLastCalledWith(['input', 'fc1', 'output']);
+  viewport = { x: 750, y: 0, w: 250, h: 300 };
+  settle();
+  expect(start).toHaveBeenCalledTimes(1);
+  command('explain-model');
+  expect(start).toHaveBeenLastCalledWith(['relu']);
 });
 it('opens a double-clicked layer\'s source only with Code focus on, wherever Code focus is offered', () => {
   const reveal = jest.fn();

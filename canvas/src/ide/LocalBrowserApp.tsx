@@ -975,10 +975,14 @@ export default function LocalBrowserApp({
     if (standalone || !transport || !target || !viewId || !scope || !projection || reviewRef.current.state || pageRef.current.greyed
       || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') return;
     const states = nodeAnnotations.scope === scope ? nodeAnnotations.states : {};
-    const ids = [...new Set(nodeIds)].filter(id => Object.prototype.hasOwnProperty.call(projection.spanmap, id));
+    const semantic = (projection.document as Partial<GraphDocumentV2> | undefined)?.semantic;
+    const semanticNodes = semantic?.nodes;
+    const knownIds = new Set([...Object.keys(projection.spanmap), ...(Array.isArray(semanticNodes) ? semanticNodes.map(node => node.node_id) : [])]);
+    const ids = [...new Set(nodeIds)].filter(id => knownIds.has(id));
     // Cover unexplained components first on later passes through a large view.
     ids.sort((left, right) => Number(states[left]?.status === 'ready') - Number(states[right]?.status === 'ready'));
     const bounded = ids.slice(0, 128);
+    if (ids.length > bounded.length) setSourceNotice(`Explaining ${bounded.length} of ${ids.length} visible nodes. Zoom into a smaller area to explain the rest.`);
     const request = { scope, requestId: crypto.randomUUID() };
     const previous = modelExplanationRequestRef.current;
     if (previous?.scope === scope) transport.send({ type: 'modelExplanationRequest', viewId, target,
@@ -989,7 +993,7 @@ export default function LocalBrowserApp({
       if (modelExplanationRequestRef.current !== request || explanationScopeRef.current !== scope || transportRef.current !== transport
         || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') return;
       const state: ModelExplanationState = { requestId: request.requestId, revision, status: bounded.length ? 'loading' : 'unavailable',
-        completed: 0, total: bounded.length, ...(bounded.length ? {} : { detail: 'No source-mapped components in this view. Open or expand a model first.' }) };
+        completed: 0, total: bounded.length, ...(bounded.length ? {} : { detail: 'No model nodes are visible. Move to a model component, then explain this view.' }) };
       setModelExplanation({ scope, state, visible: true });
       if (bounded.length) {
         explanationWatchdog.observe('model', request.requestId, 'loading', { timeoutMs: EXPLANATION_ACK_TIMEOUT_MS,

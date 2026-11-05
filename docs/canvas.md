@@ -14,7 +14,7 @@ Start with a model open in TensorViz. The Canvas lets you explore its structure 
 | See the captured operations | **All operations** |
 | Look inside a module | Expand it, or enter it and use the breadcrumb to go back |
 | Find a layer | **Find a layer** or **⌘/Ctrl+P** |
-| Explain the visible components and flow | **Explain model** (uses your connected agent) |
+| Explain the visible components and flow | **Explain this view** (uses your configured agent) |
 | Change the example inputs | **Inputs** |
 | Capture again | **Run model** / **Run again** |
 | See more controls | **Expand toolbar** |
@@ -61,24 +61,32 @@ source-based explanation in the selection panel. Graph cards retain their techni
 Open **More details** for the complete call, steps, uncertainties and linked sources.
 **Discuss in chat** opens the existing chat with the current selection available.
 
-Choose **Explain model** in the toolbar to add generated purpose labels and input/output
-roles directly to the visible cards. Technical names remain complete. The pass reads
-bounded batches of graph facts, neighboring components and source excerpts; it never
-runs the model or changes its wiring. Progress shows completed components, with a stop
-button. Completed work remains available after a partial result or cancellation.
-The action checks your configured agent directly, even if chat has not been opened.
-It preserves your saved provider and model; no chat turn or forward pass is needed.
-Select a component for the full explanation, actual upstream/downstream links, steps,
-source citations and expandable concepts. General concepts are agent interpretations,
-not evidence of a particular implementation's behavior.
+Choose **Explain this view** in the toolbar to explain the nodes currently visible in
+the Canvas, including input and output boundaries. The click captures a scope; panning,
+zooming and opening a component do not recursively request more explanations. Click
+again to explain the new view. Collapsed and off-camera nodes stay outside that pass.
+Readable roles, a short purpose sentence and input/output meanings appear directly on
+the cards, while technical names and tensor evidence remain available.
 
-Afterward, **Explanations** shows or hides the card annotations without another agent
-call. Its details control offers **Explain current view** for newly opened components
-or another pass. Each pass covers up to 128 visible source-mapped components, prioritizing
-those not yet explained. Unchanged node explanations are reused for the same revision,
-agent and model. Source/capture/provider changes invalidate reuse; a source or capture
-change also removes the old annotations. Saved graph files keep technical source facts.
-Image exports include visible annotations when enabled, marked as agent interpretations.
+A collapsible **This view** explanation describes how the displayed components work
+together. Source-linked callouts explain shared behavior such as conditioning, default
+values or branches and select their existing components. Connection labels explain
+existing directed relationships; generated content cannot create graph edges or model
+operations. Source structure remains distinct from observed tensor flow. Follow a
+callout source link to select its component and reveal the matching verified source.
+
+The pass reads bounded batches of graph facts and shared source excerpts; it never
+runs the model or changes its wiring. Progress shows completed components with a stop
+button. Completed work remains after partial results or cancellation. The configured
+agent is checked directly without opening or warming chat. Select a component for
+implementation steps, actual upstream/downstream links, source citations and concepts.
+
+The details control offers **Hide explanations** / **Show explanations** without an
+agent call. Each pass covers up to 128 visible nodes, with a notice for larger views.
+Unchanged node interpretations and complete view explanations are reused for the same
+revision, agent and model; a changed scope can require a shared view explanation.
+Source/capture/provider changes invalidate reuse. Saved graph files retain technical
+source facts; image exports include enabled node interpretations and connection labels.
 
 Card dimensions follow their wrapped content, including long input/output names,
 tensor shapes and source links. Missing internal details do not produce a

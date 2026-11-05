@@ -46,7 +46,32 @@ export interface NodeExplanationState {
   documentation?: NodeSourceDocumentation;
 }
 
-/** Progress for an explicit, bounded pass over the current graph. */
+/** Meaning attached to an existing directed connection, never a new model edge. */
+export interface ViewExplanationConnection {
+  sourceNodeId: string;
+  targetNodeId: string;
+  label: string;
+  detail?: string;
+  citations: NodeExplanationCitation[];
+}
+
+/** Source-grounded commentary linked to the requested visible components. */
+export interface ViewExplanationCallout {
+  title: string;
+  body: string;
+  nodeIds: string[];
+  citations: NodeExplanationCitation[];
+}
+
+/** Presentation for an explicit snapshot of the visible graph, not a recursive pass. */
+export interface ViewExplanation {
+  summary: string;
+  nodeIds: string[];
+  connections: ViewExplanationConnection[];
+  callouts: ViewExplanationCallout[];
+}
+
+/** Progress for an explicit, bounded pass over the current view. */
 export interface ModelExplanationState {
   requestId: string;
   revision: string;
@@ -54,6 +79,7 @@ export interface ModelExplanationState {
   completed: number;
   total: number;
   detail?: string;
+  view?: ViewExplanation;
 }
 
 const record = (value: unknown): value is Record<string, unknown> =>
@@ -115,11 +141,40 @@ export function isNodeExplanationState(value: unknown): value is NodeExplanation
     && (value.status === 'ready' ? isNodeExplanation(value.explanation) : value.explanation === undefined);
 }
 
+const distinctNodeIds = (value: unknown): value is string[] => list(value, 128, 1024)
+  && value.length > 0 && new Set(value).size === value.length;
+const citations = (value: unknown): value is NodeExplanationCitation[] => Array.isArray(value)
+  && value.length >= 1 && value.length <= 8 && value.every(isNodeExplanationCitation)
+  && new Set(value.map(citation => citation.id)).size === value.length;
+
+export function isViewExplanation(value: unknown): value is ViewExplanation {
+  if (!record(value) || !keys(value, ['summary', 'nodeIds', 'connections', 'callouts'])
+    || !text(value.summary, 640) || !distinctNodeIds(value.nodeIds)
+    || !Array.isArray(value.connections) || value.connections.length > 128
+    || !Array.isArray(value.callouts) || value.callouts.length > 6) return false;
+  const nodes = new Set(value.nodeIds);
+  const connections = new Set<string>();
+  for (const connection of value.connections) {
+    if (!record(connection) || !keys(connection, ['sourceNodeId', 'targetNodeId', 'label', 'detail', 'citations'])
+      || !text(connection.sourceNodeId, 1024) || !text(connection.targetNodeId, 1024)
+      || !nodes.has(connection.sourceNodeId) || !nodes.has(connection.targetNodeId)
+      || !text(connection.label, 120) || (connection.detail !== undefined && !text(connection.detail, 320))
+      || !citations(connection.citations)) return false;
+    const pair = JSON.stringify([connection.sourceNodeId, connection.targetNodeId]);
+    if (connections.has(pair)) return false;
+    connections.add(pair);
+  }
+  return value.callouts.every(callout => record(callout) && keys(callout, ['title', 'body', 'nodeIds', 'citations'])
+    && text(callout.title, 80) && text(callout.body, 480) && distinctNodeIds(callout.nodeIds)
+    && callout.nodeIds.every(nodeId => nodes.has(nodeId)) && citations(callout.citations));
+}
+
 export function isModelExplanationState(value: unknown): value is ModelExplanationState {
-  return record(value) && keys(value, ['requestId', 'revision', 'status', 'completed', 'total', 'detail'])
+  return record(value) && keys(value, ['requestId', 'revision', 'status', 'completed', 'total', 'detail', 'view'])
     && text(value.requestId, 128) && text(value.revision, 256)
     && typeof value.status === 'string' && ['loading', 'ready', 'unavailable', 'cancelled'].includes(value.status)
     && Number.isSafeInteger(value.completed) && Number.isSafeInteger(value.total)
     && Number(value.completed) >= 0 && Number(value.total) <= 10000 && Number(value.completed) <= Number(value.total)
-    && (value.detail === undefined || text(value.detail, 320));
+    && (value.detail === undefined || text(value.detail, 320))
+    && (value.view === undefined || (isViewExplanation(value.view) && value.view.nodeIds.length === value.total));
 }

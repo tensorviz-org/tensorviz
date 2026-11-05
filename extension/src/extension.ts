@@ -1355,7 +1355,7 @@ async function startBackend(
   const interpreter = await vscode.window.withProgress(
     {
       location,
-      title: 'Checking prerequisites…',
+      title: 'Setting up tensorViz…',
       cancellable: true,
     },
     (progress, token) =>

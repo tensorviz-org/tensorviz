@@ -41,6 +41,13 @@ PYTHON=./venv/bin/python npm run validation:check
 `PATH` is often not the virtualenv that has the backend dependencies, so set
 `PYTHON` to `./venv/bin/python`.
 
+MCP tool changes also affect discovery and the generated tool reference. For
+shared tools, run `npm test --prefix plugin` as well as the extension checks.
+After changing tool registrations or the extension manifest, regenerate the
+reference with `python3 tooling/docs/generate_reference.py`, then run
+`python3 tooling/docs/check_links.py` (or `make docs-links`). This verifies the
+committed reference against the actual registrations, including host-specific tools.
+
 A local VSIX needs the webview first. `npm run vsix --prefix extension` builds
 it; otherwise run `npm run build:webview --prefix extension` before packaging.
 

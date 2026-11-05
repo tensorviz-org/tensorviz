@@ -25,10 +25,22 @@ test('a copied plugin discovers tools with no checkout, VS Code, Python, or PATH
     assert.deepEqual(tools.map(tool => tool.name).sort(), ['list_models', 'get_graph', 'inspect_nodes', 'get_selection',
       'focus_view', 'open_graph_view', 'open_graph', 'get_execution_environment', 'list_captures', 'inspect_capture',
       'get_model_context', 'find_computation', 'query_computation', 'analyze_computation_change',
-      'get_graph_setup', 'suggest_graph_inputs', 'configure_graph_setup',
+      'get_graph_setup', 'suggest_graph_inputs', 'configure_graph_setup', 'configure_graph_environment',
       'validate_model', 'get_run', 'inspect_run', 'cancel_run', 'compare_runs', 'open_graph_diff',
       'open_graph_panel', 'graph_panel_read', 'graph_panel_exchange', 'detach_graph_panel', 'close_graph_panel'].sort());
     assert.equal(tools.find(tool => tool.name === 'list_models').annotations.readOnlyHint, true);
+    for (const name of ['get_pending_permission', 'present_permission', 'get_machine_info',
+      'read_project_file', 'request_project_command', 'get_project_command']) {
+      assert.equal(tools.some(tool => tool.name === name), false, `${name} belongs only to the private Canvas agent endpoint`);
+    }
+    const environment = tools.find(tool => tool.name === 'configure_graph_environment');
+    assert.equal(environment.annotations.readOnlyHint, false);
+    assert.equal(environment.annotations.destructiveHint, true);
+    assert.equal(environment.annotations.openWorldHint, true);
+    const unopenedEnvironment = await client.callTool({ name: 'configure_graph_environment', arguments: {
+      openingId: 'unopened', sourceDigest: 'a'.repeat(64), action: 'select_environment', candidateId: 'unselected',
+    } });
+    assert.equal(unopenedEnvironment.structuredContent.error.code, 'NO_MODEL', 'environment configuration requires an existing opening and must not provision during discovery');
     for (const [name, query] of [
       ['get_model_context', { revision: 'a'.repeat(64) }],
       ['find_computation', { text: 'Linear' }],

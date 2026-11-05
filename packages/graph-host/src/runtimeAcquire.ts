@@ -45,6 +45,19 @@ export const DOWNLOAD_ATTEMPTS = 3;
 
 /** No data for this long means the connection is dead, whatever TCP thinks. */
 const IDLE_TIMEOUT_MS = 120_000;
+const PROGRESS_BYTES = 1024 * 1024;
+const PROGRESS_INTERVAL_MS = 1000;
+
+function downloadProgress(received: number, total?: number): string {
+  const bytes = (value: number): string => value >= 1_000_000
+    ? `${(value / 1_000_000).toFixed(1)} MB`
+    : value >= 1000 ? `${(value / 1000).toFixed(1)} KB` : `${value} B`;
+  // Content-Length is a progress hint, never a substitute for the pinned checksum.
+  // Stop displaying it if the response sends more than it announced.
+  const count = total !== undefined && received <= total
+    ? `${bytes(received)} / ${bytes(total)}` : bytes(received);
+  return `Downloading the tensorViz runtime… ${count}`;
+}
 
 /** user-agent exists because some CDNs 403 a bare Node client string. */
 function httpsTransport(url: string, signal?: AbortSignal): Promise<TransportResponse> {
@@ -254,7 +267,9 @@ async function download(options: DownloadOptions): Promise<DownloadResult> {
       );
     }
 
-    const streamed = await streamToPart(response.stream, part, options, (m) => options.report?.(m));
+    const total = declared !== undefined && Number.isSafeInteger(declared) && declared > 0
+      ? declared : undefined;
+    const streamed = await streamToPart(response.stream, part, options, (m) => options.report?.(m), total);
     if (!streamed.ok) {
       abandon();
       return streamed.cancelled
@@ -288,14 +303,25 @@ function streamToPart(
   part: string,
   options: DownloadOptions,
   report: (message: string) => void,
+  total?: number,
 ): Promise<StreamOutcome> {
   return new Promise<StreamOutcome>((resolve) => {
     const hash = createHash('sha256');
     const file = fs.createWriteStream(part);
     let received = 0;
     let lastReported = 0;
+    let lastReportedAt = Date.now();
     let settled = false;
     let idle: NodeJS.Timeout | undefined;
+
+    const reportProgress = (force = false): void => {
+      const now = Date.now();
+      if (!force && received - lastReported < PROGRESS_BYTES
+        && now - lastReportedAt < PROGRESS_INTERVAL_MS) return;
+      report(downloadProgress(received, total));
+      lastReported = received;
+      lastReportedAt = now;
+    };
 
     const finish = (result: StreamOutcome): void => {
       if (settled) {
@@ -380,10 +406,7 @@ function streamToPart(
         stream.pause();
         file.once('drain', () => stream.resume());
       }
-      if (received - lastReported >= 8 * 1024 * 1024) {
-        lastReported = received;
-        report(`Downloading the tensorViz runtime… ${Math.floor(received / (1024 * 1024))} MB`);
-      }
+      reportProgress();
       arm();
     });
     options.signal?.addEventListener('abort', abort, { once: true });
@@ -392,10 +415,12 @@ function streamToPart(
       if (settled) {
         return;
       }
+      reportProgress(true);
       file.end(() =>
         finish({ ok: true, sha256: hash.digest('hex'), bytes: received }),
       );
     });
+    reportProgress(true);
   });
 }
 

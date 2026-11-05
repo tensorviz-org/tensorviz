@@ -311,6 +311,81 @@ suite('runtimeAcquire.downloadVerified', () => {
     assert.equal(calls.length, 1);
   });
 
+  test('reports the total and throttled progress before eight MiB, then the final byte count', async () => {
+    const chunk = Buffer.alloc(64 * 1024, 'r');
+    const chunks = Array.from({ length: 48 }, () => chunk);
+    const payload = Buffer.concat(chunks);
+    const progress: string[] = [];
+    const result = await downloadVerified({
+      url: GOOD, sha256: createHash('sha256').update(payload).digest('hex'),
+      maxBytes: payload.length, destPath: destPath(), report: message => progress.push(message),
+      transport: async () => ({ status: 200,
+        headers: { 'content-length': String(payload.length) }, stream: Readable.from(chunks) }),
+    });
+    assert.equal(result.ok, true);
+    const counts = progress.filter(message => message.startsWith('Downloading the tensorViz runtime…'));
+    assert.equal(counts[0], 'Downloading the tensorViz runtime… 0 B / 3.1 MB');
+    assert.ok(counts.some(message => /… [12]\.\d MB \/ 3\.1 MB$/.test(message)),
+      'the user sees intermediate progress for a download smaller than eight MiB');
+    assert.equal(counts.at(-1), 'Downloading the tensorViz runtime… 3.1 MB / 3.1 MB');
+    assert.ok(counts.length < chunks.length / 2, 'progress is throttled rather than emitted for every chunk');
+    assert.equal(progress.at(-1), 'Download verified (sha256 ok).');
+  });
+
+  for (const [label, length] of [
+    ['missing', undefined], ['malformed', 'not-a-size'], ['zero', '0'],
+    ['negative', '-17'], ['multiple', ['17', '17']],
+  ] as [string, string | string[] | undefined][]) {
+    test(`reports received bytes without inventing a total for a ${label} Content-Length`, async () => {
+      const progress: string[] = [];
+      const result = await downloadVerified({ url: GOOD, sha256: PINNED, maxBytes: 1024,
+        destPath: destPath(), report: message => progress.push(message),
+        transport: async () => ({ status: 200,
+          headers: { 'content-length': length },
+          stream: Readable.from([Buffer.from('the runtime bytes')]) }),
+      });
+      assert.equal(result.ok, true);
+      assert.deepEqual(progress.filter(message => message.startsWith('Downloading the tensorViz runtime…')), [
+        'Downloading the tensorViz runtime… 0 B',
+        'Downloading the tensorViz runtime… 17 B',
+      ]);
+    });
+  }
+
+  test('stops displaying an announced total when more bytes actually arrive', async () => {
+    const progress: string[] = [];
+    const result = await downloadVerified({ url: GOOD, sha256: PINNED, maxBytes: 1024,
+      destPath: destPath(), report: message => progress.push(message),
+      transport: async () => ({ status: 200, headers: { 'content-length': '10' },
+        stream: Readable.from([Buffer.from('the runtime bytes')]) }),
+    });
+    assert.equal(result.ok, true);
+    assert.ok(progress.includes('Downloading the tensorViz runtime… 0 B / 10 B'));
+    assert.ok(progress.includes('Downloading the tensorViz runtime… 17 B'));
+  });
+
+  test('reports slow transfers while fewer than one MiB have arrived', async function () {
+    this.timeout(5000);
+    const payload = Buffer.alloc(2048, 'r');
+    const progress: { message: string; transferring: boolean }[] = [];
+    let transferring = true;
+    const result = await downloadVerified({
+      url: GOOD, sha256: createHash('sha256').update(payload).digest('hex'),
+      maxBytes: payload.length, destPath: destPath(),
+      report: message => progress.push({ message, transferring }),
+      transport: async () => ({ status: 200, headers: { 'content-length': String(payload.length) },
+        stream: Readable.from((async function* () {
+          yield payload.subarray(0, 1024);
+          await new Promise(resolve => setTimeout(resolve, 1100));
+          yield payload.subarray(1024);
+          transferring = false;
+        })()) }),
+    });
+    assert.equal(result.ok, true);
+    assert.ok(progress.some(item => item.transferring
+      && item.message === 'Downloading the tensorViz runtime… 2.0 KB / 2.0 KB'));
+  });
+
   test('a checksum mismatch deletes everything and prints both digests', async () => {
     const { transport, calls } = fakeTransport({ [GOOD]: () => body('swapped bytes') });
     const dest = destPath();

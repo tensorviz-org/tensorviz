@@ -34,6 +34,10 @@ Search by a name such as `conv1`, a type such as `type=Conv2d`, or a shape such 
 
 ## Ask for a change
 
+The VS Code live-model Canvas is read-only: the Blocks palette is hidden and the inspector shows recorded values. Change the Python source or ask the agent to propose an edit. The website builder supports direct graph editing.
+
+Successful captures with the same source digest as the previous capture do not show capture-to-capture change badges.
+
 Select the relevant layers and describe your change in Canvas chat. Choose your agent, model, and supported effort in chat settings; start a new chat to switch agents. [Review the proposed Python changes](source-editing.md) before applying them.
 
 After a matching capture, native and ACP Canvas agents automatically receive [compact model context](model-context.md). Current facts can be reused without another capture; missing measurements and stale source stay explicit.

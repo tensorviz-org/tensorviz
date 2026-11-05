@@ -70,7 +70,16 @@ using a connection name from the preflight report.
 Source-built managed tool-service and CPU environments use the pinned runtimes
 for macOS arm64, Linux x64, and Windows x64. Capture availability follows those
 pins even when you select an existing model Python, because capture also needs
-the managed tool service.
+the managed tool service. Intel macOS (`darwin-x64`) and Linux arm64 are
+unsupported for capture. These pins describe runtime availability, not verified
+end-to-end support: live Windows and macOS runs remain untested for these changes.
+
+Source-package MCP manifests invoke `node scripts/launch.cjs` directly, without
+a Unix shell. On Windows, run the installer with
+`node "C:\path to\tensorviz\plugins\tensorviz\scripts\install.cjs" --apply --host plugin`.
+Node.js 22+ must be on the coding client's PATH. The published compiled preview
+uses a separate Darwin-arm64-only launcher (`plugin/integration/launch.sh`);
+it does not provide Windows, Linux, or Intel macOS capture.
 
 The installer needs the Node.js version in the [versions table](../local-setup.md#versions). It refuses to run against a bare git checkout
 that has not been packaged, because the packaged host is not in `plugins/tensorviz/`
@@ -117,8 +126,8 @@ it with any existing servers:
 {
   "mcpServers": {
     "tensorviz": {
-      "command": "sh",
-      "args": ["/absolute/path/to/install/tensorviz-cursor-<version>/plugins/tensorviz/scripts/launch.sh"]
+      "command": "node",
+      "args": ["/absolute/path/to/install/tensorviz-cursor-<version>/plugins/tensorviz/scripts/launch.cjs"]
     }
   }
 }

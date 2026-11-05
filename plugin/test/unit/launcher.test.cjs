@@ -45,7 +45,7 @@ test('installer shell entry explains missing Node and incomplete packages before
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
 
-test('manifest shell launcher discovers tools from a copied plugin whose path contains spaces', async () => {
+test('manifest Node launcher discovers tools from a copied plugin whose path contains spaces', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-launcher-'));
   const plugin = path.join(root, 'plugin with spaces');
   const client = new Client({ name: 'launcher-test', version: '1' });
@@ -55,6 +55,11 @@ test('manifest shell launcher discovers tools from a copied plugin whose path co
     const metadata = JSON.parse(await fs.readFile(path.join(plugin, 'plugin.json'), 'utf8'));
     await fs.writeFile(path.join(plugin, 'plugin.json'), JSON.stringify({ ...metadata, version: pluginVersion() }));
     const manifest = JSON.parse(await fs.readFile(path.join(plugin, '.mcp.json'), 'utf8')).mcpServers.tensorviz;
+    assert.equal(manifest.command, 'node');
+    assert.deepEqual(manifest.args, ['${CLAUDE_PLUGIN_ROOT}/scripts/launch.cjs']);
+    const portable = JSON.parse(await fs.readFile(path.join(plugin, 'mcp.json'), 'utf8')).mcpServers.tensorviz;
+    assert.equal(portable.command, 'node');
+    assert.deepEqual(portable.args, ['${PLUGIN_ROOT}/scripts/launch.cjs']);
     await client.connect(new StdioClientTransport({ command: manifest.command,
       args: manifest.args.map(arg => arg.replaceAll('${CLAUDE_PLUGIN_ROOT}', plugin)), cwd: root,
       env: { PATH: path.dirname(process.execPath) }, stderr: 'inherit' }));

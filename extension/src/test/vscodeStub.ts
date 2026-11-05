@@ -239,7 +239,7 @@ export class EventEmitter<T> {
 }
 
 export const window = {
-  tabGroups: { activeTabGroup: { activeTab: undefined as { input: unknown } | undefined } },
+  tabGroups: { activeTabGroup: { activeTab: undefined as { input: unknown } | undefined }, all: [] },
   registerWebviewViewProvider(id: string, provider: import('vscode').WebviewViewProvider, options?: unknown): { dispose(): void } {
     if (webviewState.providers.has(id)) throw new Error(`Duplicate webview provider: ${id}`);
     webviewState.providers.set(id, provider);
@@ -766,6 +766,7 @@ Object.defineProperty(window, 'visibleTextEditors', {
  *  `activeTextEditor.selection`, and a test moves the caret by assigning it.
  *  Accessor for the same freezing reason as `visibleTextEditors` above. */
 Object.defineProperty(window, 'activeTextEditor', {
+  configurable: true,
   get: () => editorState.visibleTextEditors[editorState.visibleTextEditors.length - 1],
 });
 

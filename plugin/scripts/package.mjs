@@ -45,10 +45,10 @@ export async function verifyRelease(directory) {
     const cursor = await json(path.join(directory, 'plugins/tensorviz/.cursor-plugin/plugin.json'));
     const mcp = await json(path.join(directory, 'plugins/tensorviz/mcp.json'));
     const catalog = await json(path.join(directory, '.cursor-plugin/marketplace.json'));
-    if (cursor.mcpServers !== './mcp.json' || mcp.mcpServers.tensorviz.args[0] !== '${CURSOR_PLUGIN_ROOT}/scripts/launch.sh'
+    if (cursor.mcpServers !== './mcp.json' || mcp.mcpServers.tensorviz.command !== 'node' || mcp.mcpServers.tensorviz.args[0] !== '${CURSOR_PLUGIN_ROOT}/scripts/launch.cjs'
       || catalog.plugins?.[0]?.source !== 'plugins/tensorviz') throw new Error('Invalid Cursor plugin path contract.');
   }
-  for (const file of ['runtime/host.cjs', 'runtime/permissions.cjs', 'backend/standalone_server.py', 'browser/index.html', 'browser/panel.html', 'scripts/launch.sh', 'scripts/install.cjs', 'scripts/install.sh', 'scripts/codex-config.cjs', 'scripts/codex-connections.cjs', 'scripts/permissions.cjs', 'scripts/codex-permissions.cjs', 'LICENSE', 'DEPENDENCY_NOTICES.md', 'licenses/tldraw-5.0.1.md']) {
+  for (const file of ['runtime/host.cjs', 'runtime/permissions.cjs', 'backend/standalone_server.py', 'browser/index.html', 'browser/panel.html', 'scripts/launch.sh', 'scripts/launch.cjs', 'scripts/install.cjs', 'scripts/install.sh', 'scripts/codex-config.cjs', 'scripts/codex-connections.cjs', 'scripts/permissions.cjs', 'scripts/codex-permissions.cjs', 'LICENSE', 'DEPENDENCY_NOTICES.md', 'licenses/tldraw-5.0.1.md']) {
     if (!manifest.files[`plugins/tensorviz/${file}`]) throw new Error(`Required release file missing: ${file}`);
   }
   return manifest;
@@ -203,7 +203,7 @@ async function pack({ release = false } = {}) {
       logo: portable.extensions['com.openai'].interface.logo,
       skills: './skills/', mcpServers: './mcp.json' }, null, 2) + '\n');
     const mcp = await json(path.join(cursorPlugin, 'mcp.json'));
-    mcp.mcpServers.tensorviz.args = ['${CURSOR_PLUGIN_ROOT}/scripts/launch.sh'];
+    mcp.mcpServers.tensorviz.args = ['${CURSOR_PLUGIN_ROOT}/scripts/launch.cjs'];
     await fs.writeFile(path.join(cursorPlugin, 'mcp.json'), JSON.stringify(mcp, null, 2) + '\n');
     await fs.mkdir(path.join(cursorRoot, '.cursor-plugin'), { recursive: true });
     await fs.writeFile(path.join(cursorRoot, '.cursor-plugin/marketplace.json'), JSON.stringify({ name: 'tensorviz-standalone',

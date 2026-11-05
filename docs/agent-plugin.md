@@ -26,6 +26,12 @@ claude plugin install tensorviz@tensorviz-standalone --scope user
 
 Cursor: follow [Install in Cursor](https://github.com/tensorviz-org/tensorviz-plugins#install-in-cursor).
 
+For a local source archive, see [Codex and Cursor local installation](reference/agent-plugin.md#install).
+Non-interactive Codex installation needs
+`sh /path/to/tensorviz/plugins/tensorviz/scripts/install.sh --apply --host plugin`.
+To keep a current connection, use `--apply --host existing --connection NAME`
+with a name from the installer preflight.
+
 T3 Code uses your Codex profile. See the [public catalog](https://github.com/tensorviz-org/tensorviz-plugins).
 
 Start a new chat afterward. Platform limits and source builds are on the [Install](install.md) page.

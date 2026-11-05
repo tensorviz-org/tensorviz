@@ -55,7 +55,7 @@ async function start(): Promise<void> {
   }, (args, extra) => result(async () => {
     await host.checkFreshness(true);
     return { ...host.graph.list(), host: { kind: 'standalone', version, protocolVersion: 1 },
-      capabilities: { capture: true, retainedRuns: true, compareRuns: true, localGraphDiff: true, sourceProposals: false,
+      capabilities: { capture: host.runtime.availability().available, retainedRuns: true, compareRuns: true, localGraphDiff: true, sourceProposals: false,
         training: false, nativeEditor: false, browser: true, graphPanel: true, analytics: false },
       workspaceSelectionRequired: !host.workspace, ...(host.workspace ? { workspaceRoot: host.workspace } : {}),
       ...(args.workspaceRoot ? { discovery: await host.discoverModels(args.workspaceRoot, args.offset, args.limit, extra.signal) } : {}) };

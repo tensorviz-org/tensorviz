@@ -15,14 +15,14 @@ export function blockIdentity(data: ModelNodeData): string | undefined {
 }
 
 /** Family glyph and name, exact class, and a composite's verified composition. */
-export function BlockSummary({ node, nodes, edges }: { node: ModelNode; nodes: readonly ModelNode[]; edges: readonly ModelEdge[] }) {
+export function BlockSummary({ node, nodes, edges, showIdentity = true }: { node: ModelNode; nodes: readonly ModelNode[]; edges: readonly ModelEdge[]; showIdentity?: boolean }) {
   const block = classifyNode(node);
   const identity = block.kind === 'input' || block.kind === 'output' ? undefined : blockIdentity(node.data);
   const composition = block.kind === 'composite' || block.kind === 'container'
     ? moduleComposition(node.id, [...nodes], [...edges]) : [];
   return <div className="graph-block-summary" data-block={block.kind}>
     <span className="graph-block-family"><BlockGlyph kind={block.kind} size={14} />{blockTitle(block)}</span>
-    {identity && <code className="graph-block-class" title={identity}>{identity}</code>}
+    {showIdentity && identity && <code className="graph-block-class" title={identity}>{identity}</code>}
     {composition.length > 0 && <span className="graph-block-composition" title="From the child blocks recorded in this graph">
       {composition.map((kind, index) => <React.Fragment key={`${kind}-${index}`}>{index > 0 && <span aria-hidden="true"> → </span>}
         <span className="graph-block-step"><BlockGlyph kind={kind} size={12} />{BLOCK_LABELS[kind]}</span></React.Fragment>)}

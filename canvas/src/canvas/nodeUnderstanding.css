@@ -1,0 +1,41 @@
+.node-understanding { display: flex; flex-direction: column; gap: 7px; min-width: 0; color: var(--tv-text-2); font: 12px/17px var(--font-ui); }
+.node-understanding-evidence { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--tv-text-3); font-size: 11px; }
+.node-understanding-callable { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 11px/16px var(--font-mono); }
+.node-understanding p { margin: 0; color: var(--tv-text); }
+.node-understanding .node-source-location { align-self: flex-start; }
+.node-understanding-interpretation { display: flex; flex-direction: column; gap: 6px; }
+.node-understanding-attribution { display: inline-flex; align-items: center; gap: 5px; color: var(--tv-text-3); font-size: 10.5px; }
+.node-understanding-io { display: flex; align-items: center; gap: 9px; margin: 0; min-width: 0; }
+.node-understanding-io > div { flex: 1; min-width: 0; }
+.node-understanding-io dt { color: var(--tv-text-3); font-size: 10.5px; }
+.node-understanding-io dd { margin: 0; overflow-wrap: anywhere; }
+.node-understanding-details { border-top: 1px solid var(--tv-hairline); padding-top: 7px; }
+.tldraw-canvas-wrapper .graph-focus-controls .node-understanding-details { max-height: none; overflow: visible; }
+.node-understanding-details summary { cursor: pointer; color: var(--tv-text-2); }
+.node-understanding-detail-body { display: flex; flex-direction: column; gap: 10px; padding-top: 9px; }
+.node-understanding-detail-label { display: block; margin-bottom: 3px; color: var(--tv-text-3); font-size: 11px; }
+.node-understanding pre { margin: 0; padding: 7px; background: var(--tv-face-hi); border-radius: 5px; white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/16px var(--font-mono); }
+.node-understanding-facts { display: flex; flex-direction: column; gap: 5px; margin: 0; }
+.node-understanding-facts > div { display: grid; grid-template-columns: minmax(55px, auto) minmax(0, 1fr); gap: 8px; }
+.node-understanding-facts dt { color: var(--tv-text-3); }
+.node-understanding-facts dd { margin: 0; overflow-wrap: anywhere; }
+.node-understanding-facts code { font: 11px/16px var(--font-mono); }
+.node-understanding ol, .node-understanding ul { margin: 0; padding-left: 19px; }
+.node-understanding li + li { margin-top: 5px; }
+.node-understanding-sources { display: flex; flex-wrap: wrap; gap: 4px; }
+.tldraw-canvas-wrapper .graph-focus-controls .node-understanding-sources button { height: auto; min-height: 26px; padding: 3px 5px; text-align: left; overflow-wrap: anywhere; font: 11px/16px var(--font-mono); }
+.node-understanding-unavailable { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; font-size: 11px; color: var(--tv-text-3); }
+.node-understanding-unavailable > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.node-understanding summary:focus-visible { outline: 2px solid var(--tv-focus-ring); outline-offset: 3px; border-radius: 3px; }
+.tldraw-canvas-wrapper .graph-focus-controls .node-understanding-discuss { align-self: flex-start; padding-left: 0; }
+.node-understanding-loading { animation: node-understanding-spin 1s linear infinite; flex: none; }
+.node-interpretation-title { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; }
+.node-interpretation-title > span { overflow: hidden; text-overflow: ellipsis; }
+.node-interpretation-title svg { flex: none; color: var(--tv-text-3); }
+/* Quiet evidence shares the callable line, leaving the title's full width.
+   The existing 51px header and card/port geometry remain unchanged. */
+.tldraw-canvas-wrapper .ui2-node-header[data-source-only] { position: relative; }
+.tldraw-canvas-wrapper .ui2-node-header[data-source-only] > .graph-state-badge { position: absolute; right: 6px; bottom: 9px; display: flex; align-items: center; }
+.tldraw-canvas-wrapper .ui2-node-header[data-source-only] .ui2-node-subtitle { padding-right: 17px; }
+@keyframes node-understanding-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .node-understanding-loading { animation: none; } }

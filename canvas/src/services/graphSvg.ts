@@ -23,7 +23,7 @@ import { customCardModel } from '../canvas/customCard';
 import { isFlowEdge } from './canvasLayout';
 import { ModelEdge, ModelNode } from '../types';
 import { operationGroupCard } from './operationGroups';
-import { operationDisplayName } from '../canvas/operationDisplayName';
+import { nodePresentation } from '../canvas/nodePresentation';
 import { isFailingPort, nodeFailureLines } from '../canvas/graphIssues';
 import { AnchorSide, LayoutDirection, NodePortSides, portAnchorPoint } from '../canvas/edgeAnchors';
 import { displayedPorts } from '../canvas/capturePorts';
@@ -349,12 +349,11 @@ export function graphToSvg(nodes: ModelNode[], edges: ModelEdge[], options: Grap
     if (node.type === 'moduleNode') continue;
     const box = boxes.get(node.id)!;
     const data = operationGroupCard(node.data);
-    const custom = customCardModel(data.layerType.id, data.parameters);
     const isIo = node.type === 'inputNode' || node.type === 'outputNode';
-    const operationName = operationDisplayName(data);
-    const title = clip(String(custom?.title ?? operationName ?? data.parameters?.name ?? data.layerType?.displayName ?? data.layerType?.name ?? node.id), 24);
+    const presentation = nodePresentation(data, node.id);
+    const title = clip(presentation.title, 24);
     const subtitle = data.debugEvidence === 'previous' ? 'Previous run' : data.debugEvidence === 'source' ? 'Source only'
-      : clip(String(custom?.callable ?? data.captureLabel ?? (isIo ? (node.type === 'inputNode' ? 'Input' : 'Output') : `#${data.parentId ?? 'root'}`)), 26);
+      : clip(presentation.subtitle ?? (isIo ? (node.type === 'inputNode' ? 'Input' : 'Output') : ''), 26);
     const stroke = data.error ? COLOR.error
       : data.diffStatus === 'added' ? COLOR.added
         : data.diffStatus === 'removed' ? COLOR.removed
@@ -364,7 +363,7 @@ export function graphToSvg(nodes: ModelNode[], edges: ModelEdge[], options: Grap
     cards.push(text(box.x + 36, box.y + 22, title, COLOR.text, 14, 600));
     const reviewLabel = data.review ? graphReviewLabel(data.review) : data.diffStatus;
     if (reviewLabel) cards.push(text(box.x + 36, box.y + 38, reviewLabel, reviewInk(data.diffStatus, data.diffStatus ? COLOR[data.diffStatus] : COLOR.muted), 9.5, 600));
-    else if (!operationName || data.debugEvidence === 'previous' || data.debugEvidence === 'source') cards.push(text(box.x + 36, box.y + 38, subtitle, COLOR.muted, 9.5));
+    else if (subtitle) cards.push(text(box.x + 36, box.y + 38, subtitle, COLOR.muted, 9.5));
     cards.push(renderCardRows(box, cardRows(node), COLOR));
     cards.push(renderPorts(node, box, router.sides.get(node.id)!, COLOR));
   }

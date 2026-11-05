@@ -10,6 +10,7 @@
  * host/worker-only: it can contain private argv and literals. */
 import type { components as ValidationComponents } from './validationContracts.generated';
 import type { components as SemanticComponents } from '../types/semanticContracts.generated';
+import { isNodeExplanationState, type NodeExplanationState } from './nodeExplanation.generated';
 export type LiteralEditCapability = SemanticComponents['schemas']['LiteralEditCapability'];
 export type SetLiteralEdit = SemanticComponents['schemas']['SetLiteralEdit'];
 export type ActivationEditCapability = SemanticComponents['schemas']['ActivationEditCapability'];
@@ -912,6 +913,12 @@ export type CanvasAgentAction =
       target: LocalBrowserTargetIdentity; nodeIds: string[]; draftId?: string };
 export type LocalBrowserAgentRequest = LocalBrowserEnvelope<'agentRequest'> & { viewId: string } & CanvasAgentAction;
 export type LocalBrowserAgentState = LocalBrowserEnvelope<'agentState'> & { viewId: string; state: CanvasAgentState };
+export type LocalBrowserNodeExplanation = LocalBrowserEnvelope<'nodeExplanation'> & {
+  viewId: string; target: LocalBrowserTargetIdentity; state: NodeExplanationState;
+};
+export type LocalBrowserNodeExplanationRequest = LocalBrowserEnvelope<'nodeExplanationRequest'> & {
+  viewId: string; target: LocalBrowserTargetIdentity; nodeId: string; requestId: string;
+} & ({ action: 'retry' } | { action: 'reveal'; citationId: string });
 
 export function isCanvasAgentSettings(value: unknown): value is CanvasAgentSettings {
   return isRecord(value) && Object.keys(value).every(key => ['model', 'effort'].includes(key))
@@ -1007,6 +1014,7 @@ export function isCanvasAgentState(value: unknown): value is CanvasAgentState {
 export type LocalBrowserMessage =
   | CodeFocusRequest | CodeFocusState
   | LocalBrowserAgentRequest | LocalBrowserAgentState
+  | LocalBrowserNodeExplanation | LocalBrowserNodeExplanationRequest
   | GraphReviewRequest | GraphReviewMessage | GraphReviewFocus | GraphReviewApplied
   | LocalBrowserGraphOpeningMessage
   | LocalBrowserGraphSetupRequestMessage
@@ -1053,7 +1061,7 @@ export type LocalBrowserMessage =
 
 export const LOCAL_BROWSER_MESSAGE_TYPES = [
   'codeFocusRequest', 'codeFocusState',
-  'agentRequest', 'agentState',
+  'agentRequest', 'agentState', 'nodeExplanation', 'nodeExplanationRequest',
   'graphReviewRequest', 'graphReviewState', 'graphReviewFocus', 'graphReviewApplied',
   'graphOpening', 'graphSetupRequest',
   'captureExportRequest', 'captureExportCancel', 'captureExportResult',
@@ -1905,6 +1913,15 @@ export function isLocalBrowserMessage(
     }
     case 'agentState':
       return Object.keys(record).length === 6 && isBoundedString(record.viewId, 128) && isCanvasAgentState(record.state);
+    case 'nodeExplanation':
+      return Object.keys(record).length === 7 && isBoundedString(record.viewId, 128)
+        && isLocalBrowserTarget(record.target) && isNodeExplanationState(record.state);
+    case 'nodeExplanationRequest':
+      return Object.keys(record).length === (record.action === 'reveal' ? 10 : 9)
+        && Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'target', 'nodeId', 'requestId', 'action', 'citationId'].includes(key))
+        && isBoundedString(record.viewId, 128) && isLocalBrowserTarget(record.target)
+        && isBoundedString(record.nodeId, 1024) && isBoundedString(record.requestId, 128)
+        && (record.action === 'retry' || (record.action === 'reveal' && isBoundedString(record.citationId, 128)));
     case 'graphReviewApplied':
       return Object.keys(record).length === 7 && isBoundedString(record.reviewId, 128)
         && isBoundedString(record.viewId, 128) && ['before', 'diff', 'after'].includes(String(record.mode));

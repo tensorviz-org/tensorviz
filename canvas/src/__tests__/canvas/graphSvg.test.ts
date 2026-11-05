@@ -54,6 +54,15 @@ describe('graphToSvg', () => {
     expect(svg).toContain('>torch.where<');
     expect(svg).not.toContain('>Python<');
   });
+  it('keeps exact source identity without exposing an internal Python node id', () => {
+    const node = layer('python@Model#4', undefined, { x: 0, y: 0 });
+    node.data = { ...node.data, layerType: { ...node.data.layerType, id: 'python', name: 'Python', displayName: 'Python' },
+      captureLabel: 'python@Model#4', parameters: { _raw_call: 'self.compare(features, question)', _source_result_call: { name: 'compare' } } };
+    const svg = graphToSvg([node], []);
+    expect(svg).toContain('>compare<');
+    expect(svg).toContain('>self.compare<');
+    expect(svg).not.toContain('python@Model#4');
+  });
   it.each(['layerNode', 'inputNode', 'outputNode', 'moduleNode'])('exports %s with the same connection-only label and color', type => {
     const node = type === 'moduleNode' ? moduleNode('a') : { ...layer('a', undefined, { x: 0, y: 0 }), type };
     node.data = { ...node.data, diffStatus: 'rewired', review: { status: 'rewired', params: {}, inputChanges: { added: 1, removed: 1 } } };
@@ -153,7 +162,7 @@ describe('graphToSvg', () => {
     node.data.outputShape = [1, 1280];
     const svg = graphToSvg([node], []);
     expect(svg).toContain(`>${title}<`);
-    expect(svg).not.toContain(target);
+    expect(svg).toContain(`>${target}<`);
     expect(svg).toContain('(1, 1280)');
   });
 

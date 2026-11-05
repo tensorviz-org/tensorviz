@@ -32,6 +32,22 @@ A captured graph describes the inputs and path from that run. Expanding, searchi
 
 Search by a name such as `conv1`, a type such as `type=Conv2d`, or a shape such as `shape=256`. Choose a result to jump to it. Hits inside a collapsed module stay grouped there until you open it.
 
+## Understand a node
+
+Select a node to see its callable, source and available inputs and outputs. Standard
+layers also show their reference description. **From source** means the call was
+found in code; tensor shapes remain unknown until recorded by a capture.
+
+With an agent connected in chat, selecting one node automatically requests a short
+source-based explanation. Its purpose-based title keeps the exact callable visible.
+**Agent interpretation** distinguishes that explanation from recorded graph facts.
+Open **More details** for the complete call, steps, uncertainties and linked sources.
+**Discuss in chat** opens the existing chat with the current selection available.
+
+Explanations read source without running the model or changing your files. They are
+local to the current session and refresh after source or capture changes. Saved graph
+files and SVG exports retain deterministic technical names.
+
 ## Ask for a change
 
 Select the relevant layers and describe your change in Canvas chat. Choose your agent, model, and supported effort in chat settings; start a new chat to switch agents. [Review the proposed Python changes](source-editing.md) before applying them.

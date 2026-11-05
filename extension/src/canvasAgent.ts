@@ -16,13 +16,20 @@ export interface AgentRunInput {
   selectionEvidence?: Record<string, unknown>;
   messages: CanvasAgentTurn[];
   settings?: CanvasAgentSettings;
-  intent?: 'open_graph';
+  intent?: 'open_graph' | 'node_explanation';
 }
 export type AgentWarmInput = Omit<AgentRunInput, 'messages' | 'context'> & { context?: string; preparation?: { context: string } };
 export type AgentRunEvent = { kind: 'text'; text: string } | { kind: 'activity'; text: string }
   | { kind: 'opened_graph'; text: string; target: LocalBrowserTargetIdentity }
   | { kind: 'setup_evidence'; opening: GraphOpeningState };
 export type CanvasAgentPermissionRequester = (request: CanvasAgentPermissionRequest, signal: AbortSignal) => Promise<boolean | undefined>;
+export interface CanvasAgentRoute {
+  provider: CanvasAgentProvider;
+  settings: CanvasAgentSettings;
+  resolvedModel?: string;
+  ready: boolean;
+  busy: boolean;
+}
 export interface CanvasAgentOptions {
   prepare(target: LocalBrowserTargetIdentity, nodeIds: string[], draftId: string | undefined, signal: AbortSignal, intent?: 'open_graph', viewId?: string): Promise<{ cwd: string; context: string; selectionEvidence?: Record<string, unknown> }>;
   prepareWarm?(viewId: string, signal: AbortSignal): Promise<{ cwd: string; context: string } | undefined>;
@@ -85,6 +92,14 @@ export class CanvasAgent {
   }
 
   disconnect(viewId: string): void { this.views.delete(viewId); }
+
+  /** Read account routing without changing settings, discovering or starting a chat. */
+  routing(): CanvasAgentRoute {
+    const provider = this.state.provider, availability = this.state.agents?.[provider];
+    const settings = this.runSettings(provider, this.state.selections?.[provider] ?? {});
+    return { provider, settings: { ...settings }, resolvedModel: settings.model ?? availability?.defaultModel,
+      ready: !this.disposed && availability?.status === 'ready', busy: !!this.active || !!this.warming || !!this.discovery };
+  }
 
   /** Tool authority is captured from the active host turn, never supplied by model arguments. */
   captureOperation(): { target: LocalBrowserTargetIdentity; signal: AbortSignal; approve: CanvasAgentPermissionRequester; current(): boolean } {

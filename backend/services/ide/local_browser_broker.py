@@ -130,7 +130,7 @@ _BROKER_OWNED_TYPES = frozenset(
 _HOST_TO_ALL_VIEWS = frozenset(
     {"graphReviewState", "graphReviewFocus", "activeTarget", "projection", "projectIndex", "projectDocument", "syncState", "staleState", "focusNode", "validationState", "graphOpening", "ack", "error"}
 )
-_VIEW_TO_HOST = frozenset({"agentRequest", "codeFocusRequest", "graphReviewRequest", "graphReviewApplied", "graphSetupRequest", "projectFocus", "projectExpand", "projectDeclare", "viewSelection", "viewFocusResult", "snapshotRequest", "revealNode", "sourceEditRequest", "sourceEditCancel", "candidateRequest", "validateRequest", "validateCancel", "captureInspectRequest", "captureInspectCancel", "captureExportRequest", "captureExportCancel", "ack", "error"})
+_VIEW_TO_HOST = frozenset({"agentRequest", "nodeExplanationRequest", "codeFocusRequest", "graphReviewRequest", "graphReviewApplied", "graphSetupRequest", "projectFocus", "projectExpand", "projectDeclare", "viewSelection", "viewFocusResult", "snapshotRequest", "revealNode", "sourceEditRequest", "sourceEditCancel", "candidateRequest", "validateRequest", "validateCancel", "captureInspectRequest", "captureInspectCancel", "captureExportRequest", "captureExportCancel", "ack", "error"})
 
 #: Terminal source-edit and validation results. Not ordered state, so these never carry
 #: ``hostSequence`` and never enter ``_SEQUENCED_HOST_TYPES``.
@@ -494,7 +494,7 @@ class LocalBrowserBroker:
         self, session: _Session, connection: _Connection, message: dict[str, Any]
     ) -> None:
         message_type = message["type"]
-        if message_type in {"candidateResult", "codeFocusState", "agentState"}:
+        if message_type in {"candidateResult", "codeFocusState", "agentState", "nodeExplanation"}:
             view = next((item for item in session.views.values() if str(item.connection_id) == message["viewId"]), None)
             if view is not None and not await self._send(view, message):
                 await self._drop_connection(session, view)
@@ -536,7 +536,7 @@ class LocalBrowserBroker:
         if message_type not in _VIEW_TO_HOST:
             await self._send_error(connection, session, "INVALID_MESSAGE")
             return
-        if message_type in {"agentRequest", "codeFocusRequest", "graphReviewApplied", "viewSelection", "viewFocusResult", "candidateRequest"} or (message_type == "sourceEditRequest" and "viewId" in message):
+        if message_type in {"agentRequest", "nodeExplanationRequest", "codeFocusRequest", "graphReviewApplied", "viewSelection", "viewFocusResult", "candidateRequest"} or (message_type == "sourceEditRequest" and "viewId" in message):
             if not session.view_control or message["viewId"] != str(connection.connection_id):
                 await self._send_error(connection, session, "INVALID_MESSAGE")
                 return

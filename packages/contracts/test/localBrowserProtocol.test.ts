@@ -184,7 +184,7 @@ suite('local browser protocol', () => {
     assert.deepEqual(LOCAL_BROWSER_ROLES, ['host', 'view']);
     assert.deepEqual(LOCAL_BROWSER_MESSAGE_TYPES, [
       'codeFocusRequest', 'codeFocusState',
-      'agentRequest', 'agentState',
+      'agentRequest', 'agentState', 'nodeExplanation', 'nodeExplanationRequest',
       'graphReviewRequest', 'graphReviewState', 'graphReviewFocus', 'graphReviewApplied',
       'graphOpening', 'graphSetupRequest',
       'captureExportRequest', 'captureExportCancel', 'captureExportResult',

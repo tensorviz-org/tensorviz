@@ -23,7 +23,11 @@ import deepDeclarationFixture from '../../test/fixtures/canvas/deepDeclarationRe
 import React from 'react';
 import { execFileSync } from 'child_process';
 import * as path from 'path';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
+import type { NodeExplanationContextValue } from '../../canvas/NodeExplanationContext';
+import { nodeExplanationRevision } from '../../ide/nodeExplanationRevision';
+
+jest.mock('../../ide/nodeExplanationRevision', () => ({ nodeExplanationRevision: jest.fn(async () => 'current-graph-revision') }));
 
 import LocalBrowserApp from '../../ide/LocalBrowserApp';
 import * as bridge from '../../ide/bridge';
@@ -44,18 +48,21 @@ beforeAll(() => { global.ResizeObserver = class { observe() {} unobserve() {} di
 
 /** Capture the graph controls supplied to the canvas subtree. */
 let mockCapturedLocalContext: LocalBrowserContextValue | null = null;
+let mockCapturedExplanationContext: NodeExplanationContextValue | null = null;
 
 jest.mock('../../App', () => { throw new Error('Canvas must not load hosted or saved-graph routes'); });
 
 jest.mock('../../components/ui2/BuilderPageV2', () => {
   const actualReact = jest.requireActual<typeof import('react')>('react');
   const contextModule = jest.requireActual<typeof import('../../ide/localBrowserContext')>('../../ide/localBrowserContext');
+  const explanationModule = jest.requireActual<typeof import('../../canvas/NodeExplanationContext')>('../../canvas/NodeExplanationContext');
   // Render the actual navigation so tests exercise the portals and host requests.
   const navigation = jest.requireActual<typeof import('../../ide/LocalCanvasNavigation')>('../../ide/LocalCanvasNavigation').default;
   return {
     __esModule: true,
     default: () => {
       mockCapturedLocalContext = actualReact.useContext(contextModule.LocalBrowserContext);
+      mockCapturedExplanationContext = actualReact.useContext(explanationModule.NodeExplanationContext);
       const verdict = mockCapturedLocalContext?.validation?.lastResult ?? null;
       return actualReact.createElement(
         'div',
@@ -191,6 +198,57 @@ function validationRequest(rig: TransportRig): { requestId: string; target: Loca
 }
 
 describe('LocalBrowserApp', () => {
+  it('accepts only current revision explanations for this view, echoes the request, and drops state on capture changes', async () => {
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const rig = readyValidationPage();
+    (rig.transport as { session: unknown }).session = { viewId: 'node-view', workspaceSessionId: 'ws-test', capabilities: {} };
+    const state = { requestId: 'node-request', nodeId: 'python@Net:328', revision: 'current-graph-revision', status: 'unavailable' as const, detail: 'Retry source explanation.' };
+    const message = (extra = {}) => hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state, ...extra });
+    await act(async () => {
+      rig.emit(message({ viewId: 'another-view' }));
+      rig.emit(message({ target: { ...netTarget(), documentVersion: 99 } }));
+      rig.emit(message({ state: { ...state, revision: 'previous-capture' } }));
+    });
+    expect(mockCapturedExplanationContext?.states).toEqual({});
+    await act(async () => { rig.emit(message()); });
+    await waitFor(() => expect(mockCapturedExplanationContext?.states[state.nodeId]).toEqual(state));
+    act(() => mockCapturedExplanationContext?.retry(state));
+    expect(rig.transport.send).toHaveBeenLastCalledWith({ type: 'nodeExplanationRequest', viewId: 'node-view', target: netTarget(), nodeId: state.nodeId, requestId: state.requestId, action: 'retry' });
+    act(() => rig.emit(hostMessage('projection', { target: netTarget(), projection: netProjection({ projectionDigest: 'new-capture' }), traced: false, greyed: false })));
+    expect(mockCapturedExplanationContext?.states).toEqual({});
+    const count = (rig.transport.send as jest.Mock).mock.calls.length;
+    act(() => mockCapturedExplanationContext?.retry(state));
+    expect(rig.transport.send).toHaveBeenCalledTimes(count);
+  });
+
+  it('rejects an explanation that completes revision verification after disconnect and reconnect', async () => {
+    const rig = readyValidationPage();
+    (rig.transport as { session: unknown }).session = { viewId: 'node-view', workspaceSessionId: 'ws-test', capabilities: {} };
+    let resolve!: (revision: string) => void;
+    (nodeExplanationRevision as jest.Mock).mockImplementationOnce(() => new Promise<string>(done => { resolve = done; }));
+    act(() => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state: { requestId: 'late', nodeId: 'n', revision: 'current-graph-revision', status: 'loading' } })));
+    act(() => {
+      rig.setStatus({ phase: 'reconnecting', hostLink: 'disconnected', error: null });
+      rig.setStatus({ phase: 'connected', hostLink: 'connected', error: null });
+    });
+    await act(async () => resolve('current-graph-revision'));
+    expect(mockCapturedExplanationContext?.states).toEqual({});
+  });
+
+  it('keeps the latest request when older verification finishes later for the same node and revision', async () => {
+    const rig = readyValidationPage();
+    (rig.transport as { session: unknown }).session = { viewId: 'node-view', workspaceSessionId: 'ws-test', capabilities: {} };
+    let resolve!: (revision: string) => void;
+    (nodeExplanationRevision as jest.Mock)
+      .mockImplementationOnce(() => new Promise<string>(done => { resolve = done; }))
+      .mockResolvedValueOnce('current-graph-revision');
+    const state = { requestId: 'older-request', nodeId: 'n', revision: 'current-graph-revision', status: 'unavailable' as const };
+    act(() => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state })));
+    await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state: { ...state, requestId: 'new-request' } })));
+    await act(async () => resolve('current-graph-revision'));
+    expect(mockCapturedExplanationContext?.states.n.requestId).toBe('new-request');
+  });
+
   it.each([true, false])('shows input evidence only for the reviewed saved profile (matching=%s)', matching => {
     const rig = readyValidationPage();
     const execution = { id: 'reviewed', phase: 'review', kind: 'capture', device: 'cpu', configuredDevice: 'cpu', profileName: 'actual',

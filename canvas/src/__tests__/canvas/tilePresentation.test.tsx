@@ -6,6 +6,8 @@ import { LayerShapeUtil } from '../../canvas/LayerShapeUtil';
 import { layerCardHeight } from '../../canvas/cardMetrics';
 import { CapturePort, ModelNodeData } from '../../types';
 import fixture from '../../test/fixtures/canvas/capture-document.json';
+import { NodeExplanationContext } from '../../canvas/NodeExplanationContext';
+import type { NodeExplanationState } from '../../ide/nodeExplanation.generated';
 
 jest.mock('tldraw', () => ({
   BaseBoxShapeUtil: class {}, HTMLContainer: ({ children }: any) => <div>{children}</div>,
@@ -136,7 +138,7 @@ describe.each(['overview', 'working', 'inspection'])('%s zoom', detail => {
       captureRef: { kind: 'operation' } as ModelNodeData['captureRef'], captureLabel: target,
     }));
     expect(container.querySelector('.ui2-node-title')).toHaveTextContent(title);
-    expect(screen.queryByText(target)).not.toBeInTheDocument();
+    expect(container.querySelector('.ui2-node-subtitle')).toHaveTextContent(target);
     expect(container.querySelector('.ui2-node-expr')).toBeNull();
   });
 
@@ -155,8 +157,33 @@ describe.each(['overview', 'working', 'inspection'])('%s zoom', detail => {
       layerType: { ...data().layerType, name: target, displayName: target },
     }));
     expect(container.querySelector('.ui2-node-title')).toHaveTextContent('Max pool 2D');
-    expect(screen.queryByText(target)).not.toBeInTheDocument();
+    expect(container.querySelector('.ui2-node-subtitle')).toHaveTextContent(target);
   });
+});
+
+it('uses a cached interpretation only for presentation and retains the exact callable and evidence', () => {
+  const nodeData = data({ layerType: { ...data().layerType, id: 'python', name: 'Python', displayName: 'Python' },
+    shapeEvidence: 'unknown', debugEvidence: 'source', inputShape: undefined, outputShape: undefined,
+    captureLabel: 'python@Model#4', parameters: { _raw_call: 'scores = self.compare(features, question)', _source_result_call: { name: 'compare' } } });
+  const state: NodeExplanationState = { requestId: 'request', nodeId: 'tile', revision: 'source-a', status: 'ready', explanation: {
+    title: 'Compare representations', purpose: 'Compare the representations.', inputs: [], outputs: [], steps: [], uncertainties: [],
+    citations: [{ id: 'source', file: 'model.py', sourceDigest: 'a'.repeat(64), startLine: 3, endLine: 4 }],
+  } };
+  const util = new LayerShapeUtil();
+  (util as any).editor = { getSelectedShapeIds: () => [], getHoveredShapeId: () => null };
+  const card = util.component({ id: 'shape:tile', props: { nodeData, w: 200, h: layerCardHeight(nodeData) } } as any);
+  const before = JSON.stringify(nodeData);
+  const view = render(<NodeExplanationContext.Provider value={{ states: { tile: state }, retry: jest.fn(), reveal: jest.fn() }}>{card}</NodeExplanationContext.Provider>);
+  expect(view.container.querySelector('.ui2-node-title')).toHaveTextContent('Compare representations');
+  expect(screen.getByRole('img', { name: 'Agent interpretation' })).toBeInTheDocument();
+  expect(view.container.querySelector('.ui2-node-subtitle')).toHaveTextContent('self.compare');
+  expect(screen.getByRole('img', { name: 'Source only · shapes not recorded' })).toHaveAttribute('title', 'Source only · shapes not recorded');
+  expect(view.container.querySelector('.ui2-node-title')).toHaveAttribute('title', 'Agent interpretation · Compare representations');
+  expect(view.container).not.toHaveTextContent('python@Model#4');
+  expect(JSON.stringify(nodeData)).toBe(before);
+  view.rerender(<NodeExplanationContext.Provider value={null}>{card}</NodeExplanationContext.Provider>);
+  expect(view.container.querySelector('.ui2-node-title')).toHaveTextContent('compare');
+  expect(screen.queryByText('Compare representations')).not.toBeInTheDocument();
 });
 
 it('retains stale attribution on an overview operation without drawing its source note', () => {
@@ -177,7 +204,7 @@ describe.each(['overview', 'working', 'inspection'])('source notes at %s zoom', 
     const { container } = renderCard(new LayerShapeUtil(), data({ debugEvidence: 'source',
       resolutionCode: 'EXTERNAL_PACKAGE', resolutionSeverity: 'info', resolutionDetail: note }));
     expect(container).not.toHaveTextContent('external to the workspace');
-    expect(container.querySelector(`[title="${note}"]`)).toHaveTextContent('Source only');
+    expect(screen.getByRole('img', { name: 'Source only · shapes not recorded' })).toHaveAttribute('title', expect.stringContaining(note));
   });
 
   it('flags a resolution warning with the issue badge instead of a sentence', () => {

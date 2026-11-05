@@ -30,7 +30,7 @@ test('a copied plugin discovers tools with no checkout, VS Code, Python, or PATH
       'open_graph_panel', 'graph_panel_read', 'graph_panel_exchange', 'detach_graph_panel', 'close_graph_panel'].sort());
     assert.equal(tools.find(tool => tool.name === 'list_models').annotations.readOnlyHint, true);
     for (const name of ['get_pending_permission', 'present_permission', 'get_machine_info',
-      'read_project_file', 'request_project_command', 'get_project_command']) {
+      'read_project_file', 'request_project_command', 'get_project_command', 'submit_node_explanation']) {
       assert.equal(tools.some(tool => tool.name === name), false, `${name} belongs only to the private Canvas agent endpoint`);
     }
     const environment = tools.find(tool => tool.name === 'configure_graph_environment');

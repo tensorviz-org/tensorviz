@@ -19,6 +19,7 @@ For the short walkthrough, see [the user guide](../canvas.md). This page keeps t
   - [Active toolbar layout](#active-toolbar-layout)
 - [Controls](#controls)
 - [Module tiles](#module-tiles)
+- [Node understanding](#node-understanding)
 - [Source controls](#source-controls)
 - [Canvas appearance](#canvas-appearance)
 - [Search](#search)
@@ -30,6 +31,32 @@ For the short walkthrough, see [the user guide](../canvas.md). This page keeps t
 The sidebar Canvas, then navigation, search, overlays, and appearance. Opening a model is [open a graph](../graph-opening.md).
 
 The persistent **Canvas** receives **Open as Graph**, per-class CodeLens, and Models selections in the `tensorviz.sidebarCanvas` webview, initially in the `tensorviz-canvas` secondary-sidebar container. The editor version is in the [versions table](../local-setup.md#versions). The view stays wherever you move it.
+
+## Node understanding
+
+The existing selection panel shows deterministic node identity, catalogue descriptions
+where available, source controls and known graph inputs/outputs. Internal Python graph
+IDs are omitted from card labels. Full calls and further details are expandable.
+
+An already connected agent can interpret a settled single-node selection in an isolated,
+read-only task. It uses the existing provider adapters with a versioned `node_explanation`
+prompt in `extension/src/canvasAgentPrompts.ts`, independently of chat history. The only
+tools available are bounded source reads, source-context queries and the private typed
+`submit_node_explanation` result tool. Selection never starts sign-in, environment setup,
+commands, model execution or source proposals. Foreground chat takes priority.
+
+The host issues citation IDs for inspected source ranges, validates source digests again
+before publication/navigation, and accepts only a bounded structured result. An
+interpretation never supplies graph shapes, capture evidence or permission authority.
+The UI marks generated purpose and meaning as **Agent interpretation** and keeps exact
+callables and graph evidence accessible. Unknown domain meaning remains explicit.
+
+Successful explanations use a bounded in-memory cache keyed by model/graph revision,
+node, provider, model, effort and prompt version. Source/capture changes, stale graphs,
+review, selection changes, disconnects and provider changes cancel obsolete work.
+The renderer independently checks the current view, complete target and graph revision.
+Generated text is neither persisted into graph metadata nor included in portable graph
+files or SVG exports; those retain deterministic technical names.
 
 ## Automatic readiness and one starting screen
 

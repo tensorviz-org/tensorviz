@@ -34,6 +34,9 @@ import { ProjectStatusBar } from './ProjectStatusBar';
 import { ProjectSuggestions, inferredEdgesOf } from './ProjectSuggestions';
 import { receiveProjection, setBrowserRevealNodeSink, setBrowserProjectExpandSink } from './projection';
 import { LocalBrowserContext } from './localBrowserContext';
+import { NodeExplanationContext, type NodeExplanationContextValue } from '../canvas/NodeExplanationContext';
+import type { NodeExplanationState } from './nodeExplanation.generated';
+import { nodeExplanationRevision } from './nodeExplanationRevision';
 import { CandidateReviewPanel } from './CandidateReviewPanel';
 import { createLocalBrowserCaptureClient, LocalBrowserCaptureClient } from './localBrowserCaptureClient';
 import { createLocalBrowserSourceEditClient, LocalBrowserSourceEditClient } from './localBrowserSourceEditClient';
@@ -148,6 +151,7 @@ export default function LocalBrowserApp({
   const standalone = hostKind === 'standalone';
   const [sourceNotice, setSourceNotice] = React.useState<string | null>(null);
   const [codeFocus, setCodeFocus] = React.useState<CodeFocusState | null>(null);
+  const [nodeExplanations, setNodeExplanations] = React.useState<{ scope: string; states: Record<string, NodeExplanationState> }>({ scope: '', states: {} });
   const [page, dispatch] = React.useReducer(
     reduceLocalBrowserViewMessage,
     EMPTY_LOCAL_BROWSER_PAGE_STATE,
@@ -174,6 +178,14 @@ export default function LocalBrowserApp({
     void navigator.clipboard.writeText(reference).then(() => setSourceNotice(`Copied ${reference}`), () => setSourceNotice(reference));
   }, []);
   pageRef.current = page;
+  const explanationScope = !page.greyed && !review && page.activeTarget && page.projection
+    ? JSON.stringify([page.activeTarget, page.projection.projectionDigest]) : '';
+  const explanationScopeRef = React.useRef(explanationScope);
+  explanationScopeRef.current = explanationScope;
+  const explanationStatesRef = React.useRef(nodeExplanations);
+  const explanationConnection = React.useRef(0);
+  explanationStatesRef.current = nodeExplanations;
+  React.useEffect(() => { setNodeExplanations({ scope: explanationScope, states: {} }); }, [explanationScope]);
   const reviewRef = React.useRef({ state: review, presentation: reviewPresentation, mode: reviewMode, index: reviewIndex });
   const focusedReview = React.useRef<string | null>(null);
   const acceptedFocus = React.useRef<{ workspaceFolder?: string; file: string; cls: string; sourceDigest: string; nodeIds: string[] } | null>(null);
@@ -311,7 +323,32 @@ export default function LocalBrowserApp({
     setCaptures(captureClient);
     const portableClient = standalone ? null : createLocalBrowserPortableClient(transport, () => targetRef.current);
     setPortableExports(portableClient);
+    const explanationArrivals = new Map<string, number>();
+    let explanationArrival = 0;
     const offMessage = transport.onMessage(message => {
+      if (message.type === 'nodeExplanation' && message.viewId === transport.session?.viewId
+        && !standalone && !reviewRef.current.state && !pageRef.current.greyed
+        && sameValidationTarget(message.target, pageRef.current.activeTarget)) {
+        const scope = explanationScopeRef.current;
+        const connection = explanationConnection.current;
+        const arrival = ++explanationArrival;
+        explanationArrivals.set(message.state.nodeId, arrival);
+        const projection = pageRef.current.projection;
+        if (scope && projection) void nodeExplanationRevision(message.target, projection.projectionDigest).then(revision => {
+          if (scope !== explanationScopeRef.current || connection !== explanationConnection.current || transportRef.current !== transport
+            || explanationArrivals.get(message.state.nodeId) !== arrival
+            || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected'
+            || message.state.revision !== revision) return;
+          setNodeExplanations(previous => {
+            const states = previous.scope === scope ? previous.states : {};
+            const before = states[message.state.nodeId];
+            if (before?.requestId === message.state.requestId && before.status === 'ready' && message.state.status !== 'ready') return previous;
+            const bounded = { ...states, [message.state.nodeId]: message.state };
+            while (Object.keys(bounded).length > 64) delete bounded[Object.keys(bounded)[0]];
+            return { scope, states: bounded };
+          });
+        }).catch(() => { /* Unsupported cryptography cannot weaken revision checks. */ });
+      }
       if (message.type === 'codeFocusState' && message.viewId === transport.session?.viewId
         && targetRef.current && sameValidationTarget(message.target, targetRef.current)) setCodeFocus(message);
       dispatch(message);
@@ -375,7 +412,13 @@ export default function LocalBrowserApp({
       }
     };
     window.addEventListener('tensorviz-projection-rendered', reviewRendered);
-    const offStatus = transport.onStatusChange(setStatus);
+    const offStatus = transport.onStatusChange(next => {
+      setStatus(next);
+      if (next.phase !== 'connected' || next.hostLink !== 'connected') {
+        explanationConnection.current += 1;
+        setNodeExplanations({ scope: '', states: {} });
+      }
+    });
     // Cursor focus from the editor focuses the node here — through the same
     // builder-command bus the framed bridge dispatches on (bridge.ts), so the
     // canvas never knows which surface it lives in. The bus itself cannot
@@ -766,6 +809,22 @@ export default function LocalBrowserApp({
   const summary = diagnosticSummary(diagnostics);
   const selectedEnvironment = page.opening?.environment?.reason === 'ready'
     ? page.opening.environment.candidates.find(candidate => candidate.id === page.opening?.environment?.selectedId) : undefined;
+  const explanationRequest = (state: NodeExplanationState, citationId?: string) => {
+    const transport = transportRef.current, target = targetRef.current, viewId = transport?.session?.viewId;
+    const current = explanationStatesRef.current;
+    if (standalone || !viewId || !target || !transport || !explanationScopeRef.current
+      || current.scope !== explanationScopeRef.current || current.states[state.nodeId]?.requestId !== state.requestId
+      || reviewRef.current.state || pageRef.current.greyed
+      || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') return;
+    const request = { type: 'nodeExplanationRequest' as const, viewId, target, nodeId: state.nodeId, requestId: state.requestId };
+    if (citationId) transport.send({ ...request, action: 'reveal', citationId });
+    else transport.send({ ...request, action: 'retry' });
+  };
+  const explanationContext: NodeExplanationContextValue | null = standalone ? null : {
+    states: nodeExplanations.scope === explanationScope ? nodeExplanations.states : {},
+    retry: state => explanationRequest(state),
+    reveal: (state, citationId) => explanationRequest(state, citationId),
+  };
   if (!review && nativeCanvasMode() && page.activeTarget === null && page.projectIndex === null) {
     if (status?.phase !== 'connected' || status.hostLink !== 'connected') {
       return <CanvasStateScreen title={status?.phase === 'connected' ? 'Reconnect to Canvas'
@@ -858,6 +917,7 @@ export default function LocalBrowserApp({
         onChange={changeReview}
         onRefresh={refreshReview} />}
       <LocalBrowserContext.Provider value={localContext}>
+      <NodeExplanationContext.Provider value={explanationContext}>
         {sourceNotice && <div role="status" className="local-browser-saved-profile"><span>{sourceNotice}</span><button type="button" onClick={() => setSourceNotice(null)}>Dismiss</button></div>}
         {!standalone && (!review || review.proposal?.canRevise === false) && <CandidateReviewPanel />}
         {!review && !executionPending && openingView.compact && <GraphRunNotice page={page} standalone={standalone} connected={status?.phase === 'connected' && status.hostLink === 'connected'} onAction={openingAction} />}
@@ -980,6 +1040,7 @@ export default function LocalBrowserApp({
             draftReview={review?.proposal ? { id: review.proposal.id, stale: review.stale, canRevise: review.proposal.canRevise } : undefined}
             connected={status?.phase === 'connected' && status.hostLink === 'connected'} />}
         </div>
+      </NodeExplanationContext.Provider>
       </LocalBrowserContext.Provider>
       <footer className="local-browser-footer" aria-label="Canvas status and navigation">
         <div className="local-browser-status">

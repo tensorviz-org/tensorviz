@@ -754,7 +754,7 @@ export function activate(context: vscode.ExtensionContext): { __test: TestApi } 
     } catch (error) { channel.appendLine(`Agent recording could not start: ${String(error)}`); }
   }
   const observeAgent = agentRecording ? (event: Record<string, unknown>) => agentRecording!.record(event) : undefined;
-  const canvasAgent = new CanvasAgentRuntime({ tools: owner => windowTools(owner, true), release: releaseMcpOwner, observe: observeAgent,
+  const createAgentRuntime = (tools: (owner: string) => HostToolset) => new CanvasAgentRuntime({ tools, release: releaseMcpOwner, observe: observeAgent,
     pipeline: () => vscode.workspace.getConfiguration('tensorviz').inspect<'native' | 'acp'>('agent.pipeline')?.globalValue ?? 'native',
     acpAdapter: async provider => {
       const configured = vscode.workspace.getConfiguration('tensorviz').inspect<string>(`agent.${provider}AcpPath`)?.globalValue;
@@ -762,9 +762,10 @@ export function activate(context: vscode.ExtensionContext): { __test: TestApi } 
       return agentExecutable(provider, configured);
     },
     executable: provider => agentExecutable(provider, vscode.workspace.getConfiguration('tensorviz').get<string>(`agent.${provider}Path`, '')) });
+  const canvasAgent = createAgentRuntime(owner => windowTools(owner, true));
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(event => {
     if (['agent.codexPath', 'agent.claudePath', 'agent.pipeline', 'agent.codexAcpPath', 'agent.claudeAcpPath']
-      .some(setting => event.affectsConfiguration(`tensorviz.${setting}`))) canvasAgent.invalidate();
+      .some(setting => event.affectsConfiguration(`tensorviz.${setting}`))) { canvasAgent.invalidate(); browserGraph?.invalidateNodeExplanations(); }
   }));
   browserGraph = new LocalBrowserGraph({
     observeAgent,
@@ -778,6 +779,7 @@ export function activate(context: vscode.ExtensionContext): { __test: TestApi } 
       selection: (reference, nodeIds) => windowGraph().inspectNodes(reference, nodeIds),
       graph: (reference, maxBytes) => agentGraphContext(windowGraph(), reference, maxBytes),
       modelContext: reference => getModelContext(windowGraph(), browserGraph!.captureInspector, reference),
+      explanation: { runtime: createAgentRuntime, tools: owner => windowTools(owner, false) },
       inspect: (provider, refresh, signal) => {
         if (!vscode.workspace.isTrusted) return Promise.resolve({ status: 'error' as const, detail: 'Trust this workspace in VS Code before connecting a coding agent.', models: [] });
         return canvasAgent.inspect(provider, browserGraph?.target?.workspaceFolder ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? homedir(), refresh, signal);

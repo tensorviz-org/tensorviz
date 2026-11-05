@@ -23,6 +23,8 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { nodePresentation } from '../../canvas/nodePresentation';
+import type { ModelNodeData } from '../../types';
 
 const MODULE_SHAPE = path.join(__dirname, '../..', 'canvas', 'ModuleShapeUtil.tsx');
 const source = fs.readFileSync(MODULE_SHAPE, 'utf8');
@@ -107,13 +109,17 @@ describe('the outline a reader sees is the card’s own', () => {
 
   it('titles a child from the document when the catalogue has no name for its op', () => {
     // `ModuleList` has no catalogue display name, and that card came out blank.
-    expect(layer).toContain("(operationName || layerType.displayName || (data as { label?: string }).label || nodeId)");
+    const data = { layerType: { id: 'modulelist', name: 'ModuleList', displayName: '' }, parameters: {}, label: 'Encoder stages' } as unknown as ModelNodeData;
+    expect(nodePresentation(data, 'child').title).toBe('Encoder stages');
+    expect(nodePresentation({ ...data, layerType: { ...data.layerType, displayName: 'ModuleList' } }, 'child').title).toBe('ModuleList');
   });
 
   it('never titles a step "Custom Code" when the document named it', () => {
     // A function frame's step is op custom_code with no `_class`, so the custom
     // branch answers its placeholder. The step's name is the whole reason to draw
     // it: `F.cross_entropy → loss`.
-    expect(layer).toContain("(custom.title === 'Custom Code' && (data as { label?: string }).label) || custom.title");
+    const data = { layerType: { id: 'custom_code', name: 'Custom Code', displayName: 'Custom Code' }, parameters: {}, label: 'F.cross_entropy → loss' } as unknown as ModelNodeData;
+    expect(nodePresentation(data, 'function.step').title).toBe('F.cross_entropy → loss');
+    expect(nodePresentation({ ...data, parameters: { _class: 'Criterion' } }, 'function.step').title).toBe('Criterion');
   });
 });

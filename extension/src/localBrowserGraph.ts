@@ -2,6 +2,7 @@ import { ExecutionReview } from '@tensorviz/graph-host/executionReview';
 import { executionResources } from './executionResources';
 import { unsupportedRemote } from './remoteSupport';
 import { CanvasAgent, type CanvasAgentOptions } from './canvasAgent';
+import { CanvasNodeExplanation, type CanvasNodeExplanationOptions } from './canvasNodeExplanation';
 import { isHostFile, matchesHostFile } from './workspaceFiles';
 import { GraphReview, type GraphReviewSpec } from './graphReview';
 import { SourceDrafts } from './sourceDraft';
@@ -116,6 +117,7 @@ export interface LocalBrowserGraphOptions {
     selection?(reference: ModelRef, nodeIds: string[]): JsonObject;
     graph?(reference: ModelRef, maxBytes?: number): JsonObject;
     modelContext?(reference: ModelRef): JsonObject;
+    explanation?: Pick<CanvasNodeExplanationOptions, 'runtime' | 'tools'>;
   };
   rememberOpen?(record: { workspaceFolder: string; file: string; cls: string }): void;
   channel: { appendLine(line: string): void };
@@ -160,6 +162,7 @@ export interface LocalBrowserGraphOptions {
 }
 
 export class LocalBrowserGraph implements vscode.Disposable {
+  private nodeExplanation?: CanvasNodeExplanation;
   private readonly validationSummaries = new ValidationSummaryStore(summary => {
     if (summary.status === 'passed' && summary.evidence?.origin === 'automatic'
       && summary.projectionRevision !== undefined && this.sync.currentTarget()?.backendRevision === summary.projectionRevision) {
@@ -235,6 +238,8 @@ export class LocalBrowserGraph implements vscode.Disposable {
         && matchesHostFile(document.uri, path.join(operation.target.workspaceFolder, operation.target.file))) };
   }
 
+  invalidateNodeExplanations(): void { this.nodeExplanation?.invalidate(); }
+
   constructor(private readonly options: LocalBrowserGraphOptions) {
     this.executionReview = new ExecutionReview({
       current: target => this.openingSourceCurrent(target),
@@ -302,7 +307,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
     this.mcpViews = new McpViewRegistry(() => this.mcpModel, message => this.publish(message));
     const agentOptions: CanvasAgentOptions | undefined = options.agent ? {
       ...options.agent,
-      publish: (viewId, state) => this.publish({ type: 'agentState', viewId, state }),
+      publish: (viewId, state) => { this.publish({ type: 'agentState', viewId, state }); this.nodeExplanation?.refresh(); },
       finishTurn: signal => this.mcpProposals.endRevision(signal),
       openingPending: target => {
         const state = this.opening?.state;
@@ -426,6 +431,47 @@ export class LocalBrowserGraph implements vscode.Disposable {
         return agentOptions.prepare(model.target, selected.nodeIds, undefined, signal, undefined, viewId);
       };
       this.agent = new CanvasAgent(agentOptions);
+    }
+    if (this.agent && options.agent?.explanation) {
+      const current: CanvasNodeExplanationOptions['current'] = (selection, revision) => {
+        const model = this.mcpModel;
+        if (!vscode.workspace.isTrusted || !model?.current || this.reviewState || this.busy
+          || !sameTargetIdentity(model.target, selection.target)
+          || revision && options.agent?.reference?.(model).revision !== revision) return false;
+        try {
+          const selected = this.mcpViews.selection(selection.viewId, selection.target);
+          return !selected.tooLarge && selected.nodeIds.length === 1 && !selected.edgeIds.length
+            && selected.nodeIds[0] === selection.nodeIds[0];
+        } catch { return false; }
+      };
+      this.nodeExplanation = new CanvasNodeExplanation({ ...options.agent.explanation,
+        route: () => this.agent!.routing(), current,
+        reference: selection => {
+          if (!current(selection)) throw new Error('The selected graph is no longer current.');
+          return options.agent!.reference!(this.mcpModel!);
+        },
+        prepare: async (selection, signal) => {
+          signal.throwIfAborted();
+          if (!current(selection)) throw new Error('The selected graph is no longer current.');
+          const model = this.mcpModel!, ref = options.agent!.reference!(model);
+          const nodeId = selection.nodeIds[0], inspection = options.agent!.selection!(ref, [nodeId]);
+          const span = model.projection.spanmap[nodeId] as { file?: unknown; start?: unknown } | undefined;
+          if (!span || typeof span.file !== 'string' || !Array.isArray(span.start) || !Number.isSafeInteger(span.start[0]) || span.start[0] < 1
+            || Buffer.byteLength(JSON.stringify(inspection)) > 24 * 1024) throw new Error('Bounded source context is unavailable for this node.');
+          return { ref, context: { target: model.target, ...ref, nodeId, selectionInspection: inspection },
+            source: { file: span.file, startLine: span.start[0] } };
+        },
+        read: (target, file) => this.sourceEdits.readModelSource(target, file),
+        publish: (viewId, target, state) => this.publish({ type: 'nodeExplanation', viewId, target, state }),
+        reveal: async (target, citation, current) => {
+          const read = await this.sourceEdits.readModelSource(target, citation.file);
+          if (!current() || read.digest !== citation.sourceDigest) return;
+          const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(target.workspaceFolder, citation.file)));
+          if (!current() || document.isDirty || createHash('sha256').update(document.getText()).digest('hex') !== citation.sourceDigest) return;
+          const range = new vscode.Range(citation.startLine - 1, 0, citation.endLine - 1, 0);
+          await vscode.window.showTextDocument(document, { selection: range, preserveFocus: false, preview: true });
+        },
+      });
     }
     this.project = new ProjectSync({
       index: (folder) =>
@@ -671,7 +717,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
   }
 
   setCanvasView(viewId: string, connected: boolean): void {
-    if (!connected) this.agent?.disconnect(viewId);
+    if (!connected) { this.agent?.disconnect(viewId); this.nodeExplanation?.disconnect(viewId); }
     if (this.canvasViewId && this.canvasViewId !== viewId) {
       this.mcpViews.connection(this.canvasViewId, false);
       this.codeFocus.clear(this.canvasViewId);
@@ -695,8 +741,8 @@ export class LocalBrowserGraph implements vscode.Disposable {
     }
     // A displayed source draft is a graph review; like Git review, it clears code focus.
     if (['activeTarget', 'projection', 'staleState'].includes(message.type)
-      || (message.type === 'graphReviewState' && message.state)) this.codeFocus?.clear();
-    if (message.type === 'focusView' || message.type === 'codeFocusState' || message.type === 'agentState') {
+      || (message.type === 'graphReviewState' && message.state)) { this.codeFocus?.clear(); this.nodeExplanation?.invalidate(); }
+    if (message.type === 'focusView' || message.type === 'codeFocusState' || message.type === 'agentState' || message.type === 'nodeExplanation') {
       // A native receipt cannot be satisfied by another browser tab (or vice versa).
       return message.viewId === this.canvasViewId
         ? this.canvasPost?.(message) : this.host?.transport.publish(message);
@@ -1459,7 +1505,8 @@ export class LocalBrowserGraph implements vscode.Disposable {
       if (this.options.observeAgent) this.observeAgent({ kind: 'agent_request', message });
       this.agent?.handle(message); return;
     }
-    if (message.type === 'viewState' && 'viewId' in message && !message.connected) this.agent?.disconnect(message.viewId);
+    if (message.type === 'nodeExplanationRequest') { void this.nodeExplanation?.request(message).catch(() => {}); return; }
+    if (message.type === 'viewState' && 'viewId' in message && !message.connected) { this.agent?.disconnect(message.viewId); this.nodeExplanation?.disconnect(message.viewId); }
     const transport = this.host?.transport;
     const reply = publish ?? ((message: LocalBrowserHostPublish) => transport?.publish(message));
     const reviews = native ? this.canvasReviews : this.browserReviews;
@@ -1527,6 +1574,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
       return;
     }
     this.mcpViews.handle(message);
+    if (message.type === 'viewSelection') this.nodeExplanation?.select(message);
     if (message.type === 'viewState' && 'viewId' in message && !message.connected) this.codeFocus.clear(message.viewId);
     if (message.type === 'viewSelection' && this.mcpViews.displays(message.viewId, message.target)) {
       void this.codeFocus.select(message);
@@ -1673,6 +1721,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
   }
 
   dispose(): void {
+    this.nodeExplanation?.dispose();
     this.cancelSavedRun();
     this.saveRunEnabled = false;
     this.executionReview.cancel();

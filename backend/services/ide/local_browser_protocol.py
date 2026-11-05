@@ -34,7 +34,7 @@ LocalBrowserErrorCode = Literal[
 LOCAL_BROWSER_ROLES: Final[frozenset[str]] = frozenset({"host", "view"})
 LOCAL_BROWSER_MESSAGE_TYPES: Final[frozenset[str]] = frozenset(
     {
-        "agentRequest", "agentState",
+        "agentRequest", "agentState", "nodeExplanation", "nodeExplanationRequest",
         "graphReviewRequest", "graphReviewState", "graphReviewFocus", "graphReviewApplied",
         "graphOpening", "graphSetupRequest",
         "connected",
@@ -93,6 +93,52 @@ def _is_non_empty_string(value: Any) -> bool:
 
 def _is_bounded_string(value: Any, max_length: int) -> bool:
     return _is_non_empty_string(value) and len(value) <= max_length
+
+
+def _node_explanation_text(value: Any, maximum: int) -> bool:
+    # Match JavaScript string ceilings, including astral characters as two units.
+    whitespace = "\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
+    return (isinstance(value, str) and bool(value)
+            and len(value.encode("utf-16-le", "surrogatepass")) // 2 <= maximum
+            and value.strip(whitespace) == value and re.search(r"[\x00-\x1f\x7f]", value) is None)
+
+
+def _node_explanation_citation(value: Any) -> bool:
+    if not isinstance(value, dict) or set(value) != {"id", "file", "sourceDigest", "startLine", "endLine"}:
+        return False
+    file, start, end = value["file"], value["startLine"], value["endLine"]
+    return (_node_explanation_text(value["id"], 128) and _node_explanation_text(file, 4096)
+            and re.match(r"^(?:/|\\|[A-Za-z][A-Za-z0-9+.-]*:)", file) is None
+            and ".." not in re.split(r"[/\\]", file)
+            and isinstance(value["sourceDigest"], str) and _SOURCE_DIGEST.fullmatch(value["sourceDigest"]) is not None
+            and _is_non_negative_integer(start) and 1 <= start <= 9007199254740991
+            and _is_non_negative_integer(end) and start <= end <= 9007199254740991)
+
+
+def _node_explanation(value: Any) -> bool:
+    if not isinstance(value, dict) or set(value) != {"title", "purpose", "inputs", "outputs", "steps", "uncertainties", "citations"}:
+        return False
+    def items(field, count, length):
+        entries = value[field]
+        return isinstance(entries, list) and len(entries) <= count and all(_node_explanation_text(item, length) for item in entries)
+    citations = value["citations"]
+    return (_node_explanation_text(value["title"], 80) and _node_explanation_text(value["purpose"], 320)
+            and items("inputs", 6, 160) and items("outputs", 4, 160)
+            and items("steps", 6, 320) and items("uncertainties", 4, 240)
+            and isinstance(citations, list) and 1 <= len(citations) <= 8
+            and all(_node_explanation_citation(item) for item in citations)
+            and len({item["id"] for item in citations}) == len(citations))
+
+
+def _node_explanation_state(value: Any) -> bool:
+    return (isinstance(value, dict)
+            and set(value) <= {"requestId", "nodeId", "revision", "status", "detail", "explanation"}
+            and _node_explanation_text(value.get("requestId"), 128)
+            and _node_explanation_text(value.get("nodeId"), 1024)
+            and _node_explanation_text(value.get("revision"), 256)
+            and isinstance(value.get("status"), str) and value["status"] in ("queued", "loading", "ready", "unavailable")
+            and ("detail" not in value or _node_explanation_text(value["detail"], 320))
+            and (_node_explanation(value.get("explanation")) if value["status"] == "ready" else "explanation" not in value))
 
 
 def _is_non_negative_integer(value: Any) -> bool:
@@ -621,6 +667,16 @@ def is_local_browser_message(value: Any, expected_workspace_session_id: str | No
 
     message_type = value["type"]
 
+    if message_type == "nodeExplanation":
+        return (len(value) == 7 and _is_bounded_string(value.get("viewId"), 128)
+                and _target_is_valid(value.get("target")) and _node_explanation_state(value.get("state")))
+    if message_type == "nodeExplanationRequest":
+        action = value.get("action")
+        return (len(value) == (10 if action == "reveal" else 9)
+                and set(value) <= {"type", "protocolVersion", "workspaceSessionId", "messageId", "viewId", "target", "nodeId", "requestId", "action", "citationId"}
+                and _is_bounded_string(value.get("viewId"), 128) and _target_is_valid(value.get("target"))
+                and _is_bounded_string(value.get("nodeId"), 1024) and _is_bounded_string(value.get("requestId"), 128)
+                and (action == "retry" or action == "reveal" and _is_bounded_string(value.get("citationId"), 128)))
     if message_type == "agentRequest":
         if not _is_bounded_string(value.get("viewId"), 128):
             return False

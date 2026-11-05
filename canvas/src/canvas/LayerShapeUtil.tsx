@@ -2,7 +2,6 @@ import { GraphReviewBadge, GraphReviewValue } from './GraphReviewChanges';
 import { shapeIdToNodeId } from './canvasShapeId';
 import { operationTensorRows } from './operationTensorData';
 import { OperationTensorRows } from './OperationTensorRows';
-import { scopedNodeLabel } from './nodeScope';
 import { graphSearchResult, searchStateFor } from './graphQueryState';
 /**
  * LayerShapeUtil renders layer and operation cards on the shared tldraw canvas.
@@ -28,6 +27,9 @@ import { NodeSourceLink } from './NodeSourceControls';
 import { operationGroupCard } from '../services/operationGroups';
 import { classifyBlock } from './blockFamily';
 import { BlockIdentity } from './BlockIdentity';
+import { NodeExplanationContext } from './NodeExplanationContext';
+import { nodePresentation } from './nodePresentation';
+import './nodeUnderstanding.css';
 
 import { assignmentEvidenceShown } from './cardMetrics';
 export { layerCardHeight, IO_CARD_HEIGHT } from './cardMetrics';
@@ -136,6 +138,7 @@ export class LayerShapeUtil extends BaseBoxShapeUtil<LayerShape> {
 }
 
 const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShape; editor: Editor }) {
+    const explanations = React.useContext(NodeExplanationContext);
     const display = operationGroupCard(shape.props.nodeData);
     const data = { ...display, ...tensorShapes(display) };
     const zoomDetail = useGraphDetail(editor);
@@ -225,7 +228,13 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
     // the ordinary card below is unchanged.
     const custom = customCardModel(layerType.id, data.parameters);
     const nodeId = shapeIdToNodeId(shape.id);
+    const presentation = nodePresentation(data, nodeId);
+    const explanationState = explanations?.states[nodeId];
+    const interpretation = !data.review && !data.sourceAssignment && explanationState?.status === 'ready' ? explanationState.explanation : undefined;
+    const subtitle = assignmentTarget ?? (interpretation ? presentation.callable : presentation.subtitle);
     const issues = ownGraphIssues(nodeId, data);
+    const quietSource = data.debugEvidence === 'source' && !issues.length && !data.error && !poisoned && !['warning', 'error'].includes(resolutionSeverity ?? '');
+    const badgeDetail = data.error || resolutionDetail || (poisoned ? 'Non-finite activation or gradient values' : evidence === 'stale' ? 'Tensor shapes: stale' : coverage || `Tensor shapes: ${evidence}`);
     const searchState = searchStateFor(nodeId, graphSearchResult.get());
     // The statistics are rendered as their own row, not as parameters: they are
     // objects, and `+2 more params` counting them would also desynchronise
@@ -302,24 +311,24 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
           data-block={block.kind}
           style={{ width: shape.props.w, height: shape.props.h }}
         >
-          <div className="ui2-node-header">
+          <div className="ui2-node-header" data-source-only={quietSource ? '' : undefined}>
             <BlockIdentity block={block} />
             <div className="ui2-node-title-wrap">
               {/* The catalogue names a Linear and an Embedding; it has no name for a
                   `ModuleList`, and a frame child titled from the catalogue alone came
                   out blank. The document always supplies a label, so it is the next
                   thing asked before falling back to the id. */}
-              <div className="ui2-node-title">
+              <div className="ui2-node-title" title={interpretation ? `Agent interpretation · ${interpretation.title}` : presentation.title}>
                 {/* A placeholder never beats a real name. The custom-code branch
                     titles a card `_class || 'Custom Code'`, and a function frame's
                     step has no class — its name is the document's label,
                     `F.cross_entropy → loss`, which is the whole reason to draw it. */}
-                {data.review?.beforeName ? <GraphReviewValue before={data.review.beforeName} after={operationName || layerType.displayName || layerType.name} /> : custom
-                  ? (custom.title === 'Custom Code' && (data as { label?: string }).label) || custom.title
-                  : (operationName || layerType.displayName || (data as { label?: string }).label || nodeId)}
+                {data.review?.beforeName ? <GraphReviewValue before={data.review.beforeName} after={operationName || layerType.displayName || layerType.name} />
+                  : interpretation ? <span className="node-interpretation-title" title={`Agent interpretation · ${interpretation.title}`}>
+                    <LucideIcons.Sparkles size={10} role="img" aria-label="Agent interpretation" /><span>{interpretation.title}</span>
+                  </span> : presentation.title}
               </div>
-              {!operationName && <div className="ui2-node-subtitle" title={assignmentTarget}>{assignmentTarget
-                ?? custom?.callable ?? data.captureLabel ?? `#${scopedNodeLabel(shapeIdToNodeId(shape.id), data.parentId)}`}</div>}
+              {subtitle && <div className="ui2-node-subtitle" title={subtitle}>{subtitle}</div>}
             </div>
             {/* The assignment's "not run" is a body row: as a header badge it took the
                 width the exact target needs. */}
@@ -327,9 +336,9 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
             : issues.length ?<NodeIssues issues={issues} label={data.captureLabel ?? nodeId} className="graph-state-badge"
               style={{ color: statusAccent, background: 'transparent', border: 0 }}><LucideIcons.AlertTriangle size={13} /></NodeIssues>
             : <span className="graph-state-badge" data-state={data.error || resolutionSeverity === 'error' ? 'error' : poisoned || resolutionSeverity === 'warning' ? 'warning' : evidence}
-              aria-label={data.error || resolutionDetail || (poisoned ? 'Non-finite activation or gradient values' : evidence === 'stale' ? 'Tensor shapes: stale' : coverage || `Tensor shapes: ${evidence}`)}
-              title={data.error || resolutionDetail || (poisoned ? 'Non-finite activation or gradient values' : evidence === 'stale' ? 'Tensor shapes: stale' : coverage || `Tensor shapes: ${evidence}`)}>
-              {data.error || poisoned || resolutionSeverity === 'warning' || resolutionSeverity === 'error' ? <LucideIcons.AlertTriangle size={13} /> : data.debugEvidence === 'previous' ? 'Previous run' : data.debugEvidence === 'source' ? 'Source only' : data.diffStatus || (evidence === 'stale' ? evidence : coverageLabel(data, true) || (measuredRows && evidence !== 'measured' ? evidence : ''))}
+              role={quietSource ? 'img' : undefined} aria-label={quietSource ? 'Source only · shapes not recorded' : badgeDetail}
+              title={quietSource ? `Source only · shapes not recorded${resolutionDetail ? `\n${resolutionDetail}` : ''}` : badgeDetail}>
+              {data.error || poisoned || resolutionSeverity === 'warning' || resolutionSeverity === 'error' ? <LucideIcons.AlertTriangle size={13} /> : data.debugEvidence === 'previous' ? 'Previous run' : quietSource ? <LucideIcons.FileCode2 size={11} aria-hidden="true" /> : data.diffStatus || (evidence === 'stale' ? evidence : coverageLabel(data, true) || (measuredRows && evidence !== 'measured' ? evidence : ''))}
             </span>}
           </div>
 

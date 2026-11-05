@@ -52,6 +52,8 @@ release publication are not in this tree.
 
 ## Unreleased
 
+- Explain selected nodes with compact source facts, standard-layer descriptions and optional source-grounded agent interpretations. Keep exact callables, execution evidence and linked sources inspectable; invalidate explanations when source, capture or agent settings change.
+
 - Show runtime download totals when available, update transferred bytes during smaller downloads, and use an accurate setup progress title. Keep cancellation and download verification unchanged.
 
 - Refresh plugin discovery expectations and the generated tool reference after the new setup and private Canvas tools; replace obsolete Get Started tour copy.

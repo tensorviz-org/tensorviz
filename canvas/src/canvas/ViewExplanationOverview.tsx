@@ -18,7 +18,7 @@ export function ViewExplanationOverview({ nodes, focused, selectedNodeIds = [], 
   const state = context?.model?.state;
   const view = applicableViewExplanation(state, context?.annotationsVisible, nodes);
   const [expanded, setExpanded] = React.useState(!focused);
-  const [pending, setPending] = React.useState<{ nodeId: string; citation: NodeExplanationCitation; requestId: string } | null>(null);
+  const [pending, setPending] = React.useState<{ nodeId: string; citation: NodeExplanationCitation; requestId: string; previousNodeRequestId?: string } | null>(null);
   const bodyId = React.useId();
   React.useEffect(() => { if (focused) setExpanded(false); }, [focused]);
   React.useEffect(() => {
@@ -26,7 +26,10 @@ export function ViewExplanationOverview({ nodes, focused, selectedNodeIds = [], 
     if (!view || !context || state?.requestId !== pending.requestId) { setPending(null); return; }
     if (!selectedNodeIds.includes(pending.nodeId)) return;
     const match = viewCitationState(pending.citation, state.revision, [context.states], [pending.nodeId]);
-    if (match?.state.nodeId === pending.nodeId) {
+    // Local selection precedes the host's debounced selection work. A retained
+    // batch/previous-selection result is proof, but cannot authorize a reveal
+    // for the new selection until the host issues its current request.
+    if (match?.state.nodeId === pending.nodeId && match.state.requestId !== pending.previousNodeRequestId) {
       setPending(null); context.reveal(match.state, match.citationId);
     }
   }, [pending, state, view, context, selectedNodeIds]);
@@ -49,10 +52,12 @@ export function ViewExplanationOverview({ nodes, focused, selectedNodeIds = [], 
     const label = `${citation.file}:${lines}`;
     return <button type="button" key={citation.id} className="view-explanation-source" title={label} aria-label={`Open ${label}`}
       onClick={() => {
-        if (selectedNodeIds.includes(match.state.nodeId) && context.states[match.state.nodeId] === match.state) {
+        if (selectedNodeIds.includes(match.state.nodeId) && context.states[match.state.nodeId] === match.state
+          && match.state.requestId !== state.requestId) {
           context.reveal(match.state, match.citationId);
         } else {
-          setPending({ nodeId: match.state.nodeId, citation, requestId: state.requestId });
+          setPending({ nodeId: match.state.nodeId, citation, requestId: state.requestId,
+            previousNodeRequestId: context.states[match.state.nodeId]?.requestId ?? match.state.requestId });
           onNavigate(match.state.nodeId);
         }
       }}><FileCode2 size={12} aria-hidden="true" /><span>{citation.file.split(/[\\/]/).pop()}:{lines}</span></button>;
@@ -65,14 +70,17 @@ export function ViewExplanationOverview({ nodes, focused, selectedNodeIds = [], 
     </button>
     {expanded && <div id={bodyId} className="view-explanation-body">
       <p className="view-explanation-summary">{view.summary}</p>
-      {view.callouts.map((callout, index) => <article className="view-explanation-callout" key={`${callout.title}-${index}`}>
-        <h3>{callout.title}</h3><p>{callout.body}</p>
-        <div className="view-explanation-node-links" aria-label={`Components for ${callout.title}`}>
-          {callout.nodeIds.map(id => <button type="button" key={id} title={identity(id)} aria-label={`Select ${identity(id)}`}
-            onClick={() => onNavigate(id)}>{identity(id)}</button>)}
+      {view.callouts.map((callout, index) => <details className="view-explanation-callout" key={`${callout.title}-${index}`}>
+        <summary><span>{callout.title}</span><ChevronDown size={13} aria-hidden="true" /></summary>
+        <div className="view-explanation-callout-body">
+          <p>{callout.body}</p>
+          <div className="view-explanation-node-links" aria-label={`Components for ${callout.title}`}>
+            {callout.nodeIds.map(id => <button type="button" key={id} title={identity(id)} aria-label={`Select ${identity(id)}`}
+              onClick={() => onNavigate(id)}>{identity(id)}</button>)}
+          </div>
+          <div className="view-explanation-sources">{sources(callout.citations, callout.nodeIds)}</div>
         </div>
-        <div className="view-explanation-sources">{sources(callout.citations, callout.nodeIds)}</div>
-      </article>)}
+      </details>)}
       {view.connections.length > 0 && <details className="view-explanation-connections">
         <summary>Connection meanings</summary>
         <ol>{view.connections.map(connection => <li key={JSON.stringify([connection.sourceNodeId, connection.targetNodeId])}>

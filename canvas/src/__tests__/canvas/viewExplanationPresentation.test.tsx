@@ -67,11 +67,34 @@ describe('visible-view explanation presentation', () => {
     const overview = screen.getByLabelText('Explanation of this view');
     expect(within(overview).getByText(progress.view!.summary)).toBeVisible();
     expect(screen.getByText('Why this branch exists')).toBeVisible();
+    expect(screen.getByText(progress.view!.callouts[0].body)).not.toBeVisible();
+    expect(screen.getByRole('button', { name: 'Select sr_cond' })).not.toBeVisible();
+    fireEvent.click(screen.getByText('Why this branch exists'));
+    expect(screen.getByText(progress.view!.callouts[0].body)).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Select sr_cond' }));
     expect(navigate).toHaveBeenCalledWith('sr_cond');
     fireEvent.click(screen.getByText('Connection meanings'));
     expect(screen.getByText('Sample-rate conditioning')).toBeVisible();
     expect(screen.getByText(progress.view!.connections[0].detail!)).toBeVisible();
+  });
+
+  it('keeps each callout closed until requested and expands independently without hiding the summary', () => {
+    const value = context();
+    const another = { ...progress.view!.callouts[0], title: 'How the stage is called', body: 'The surrounding loop executes each stored stage.' };
+    value.model!.state = { ...progress, view: { ...progress.view!, callouts: [...progress.view!.callouts, another] } };
+    render(tree(value));
+    const first = screen.getByText('Why this branch exists').closest('details')!;
+    const second = screen.getByText(another.title).closest('details')!;
+    expect(first).not.toHaveAttribute('open');
+    expect(second).not.toHaveAttribute('open');
+    fireEvent.click(screen.getByText(another.title));
+    expect(first).not.toHaveAttribute('open');
+    expect(second).toHaveAttribute('open');
+    expect(screen.getByText(another.body)).toBeVisible();
+    expect(screen.getByText(progress.view!.summary)).toBeVisible();
+    fireEvent.click(screen.getByText(another.title));
+    expect(second).not.toHaveAttribute('open');
+    expect(screen.getByText(another.body)).not.toBeVisible();
   });
 
   it('collapses while inspecting a node and keeps an explicit way to reopen the overview', () => {
@@ -90,6 +113,7 @@ describe('visible-view explanation presentation', () => {
       parameters: { _class: 'ModuleList' }, moduleInstanceId: index ? 'sr_cond_model' : 'model' } }));
     const navigate = jest.fn();
     render(tree(context(), { nodes: containers, onNavigate: navigate }));
+    fireEvent.click(screen.getByText('Why this branch exists'));
     expect(screen.getByRole('button', { name: 'Select ModuleList · model' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Select ModuleList · sr_cond_model' }));
     expect(navigate).toHaveBeenCalledWith('CausalDecoder');
@@ -99,6 +123,7 @@ describe('visible-view explanation presentation', () => {
     const value = context(), navigate = jest.fn();
     value.states = {};
     const rendered = render(tree(value, { onNavigate: navigate }));
+    fireEvent.click(screen.getByText('Why this branch exists'));
     fireEvent.click(screen.getAllByRole('button', { name: 'Open layers/audio_vae_v2.py:316–330' })[0]);
     expect(navigate).toHaveBeenCalledWith('CausalDecoder');
     expect(value.reveal).not.toHaveBeenCalled();
@@ -111,14 +136,37 @@ describe('visible-view explanation presentation', () => {
     expect(value.reveal).toHaveBeenCalledWith(selected, 'node-proof');
   });
 
+  it('waits for a new host selection request instead of revealing retained ready batch evidence', () => {
+    const value = context(), navigate = jest.fn();
+    const retained = { ...ready, requestId: progress.requestId };
+    value.states = { CausalDecoder: retained };
+    value.annotations = { CausalDecoder: retained };
+    const rendered = render(tree(value, { onNavigate: navigate }));
+    fireEvent.click(screen.getByText('Why this branch exists'));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open layers/audio_vae_v2.py:316–330' })[0]);
+    expect(navigate).toHaveBeenCalledWith('CausalDecoder');
+    // Canvas selection is immediate; the host still owns the old batch proof.
+    rendered.rerender(tree(value, { focused: true, selectedNodeIds: ['CausalDecoder'], onNavigate: navigate }));
+    expect(value.reveal).not.toHaveBeenCalled();
+    const queued = { ...ready, requestId: 'host-selection', status: 'queued' as const, explanation: undefined };
+    rendered.rerender(tree({ ...value, states: { CausalDecoder: queued } }, { focused: true, selectedNodeIds: ['CausalDecoder'], onNavigate: navigate }));
+    expect(value.reveal).not.toHaveBeenCalled();
+    const selected = { ...ready, requestId: 'host-selection' };
+    rendered.rerender(tree({ ...value, states: { CausalDecoder: selected } }, { focused: true, selectedNodeIds: ['CausalDecoder'], onNavigate: navigate }));
+    expect(value.reveal).toHaveBeenCalledTimes(1);
+    expect(value.reveal).toHaveBeenCalledWith(selected, 'node-proof');
+  });
+
   it('reveals immediately for a current selected owner and retires pending links when the view changes', () => {
     const value = context();
     const rendered = render(tree(value, { selectedNodeIds: ['CausalDecoder'] }));
+    fireEvent.click(screen.getByText('Why this branch exists'));
     fireEvent.click(screen.getAllByRole('button', { name: 'Open layers/audio_vae_v2.py:316–330' })[0]);
     expect(value.reveal).toHaveBeenCalledWith(ready, 'node-proof');
     rendered.unmount();
     const other = context(); other.states = {};
     const waiting = render(tree(other));
+    fireEvent.click(screen.getByText('Why this branch exists'));
     fireEvent.click(screen.getAllByRole('button', { name: 'Open layers/audio_vae_v2.py:316–330' })[0]);
     const changed = { ...other, model: { ...other.model!, state: { ...progress, requestId: 'different-view' } } };
     waiting.rerender(tree(changed));

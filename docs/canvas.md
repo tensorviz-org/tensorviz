@@ -69,8 +69,9 @@ Readable roles, a short purpose sentence and input/output meanings appear direct
 the cards, while technical names and tensor evidence remain available.
 
 A collapsible **This view** explanation describes how the displayed components work
-together. Source-linked callouts explain shared behavior such as conditioning, default
-values or branches and select their existing components. Connection labels explain
+together. Source-linked callouts start as compact, expandable titles and explain shared
+behavior such as conditioning, default values or branches and select their existing
+components. Connection labels explain
 existing directed relationships; generated content cannot create graph edges or model
 operations. Source structure remains distinct from observed tensor flow. Follow a
 callout source link to select its component and reveal the matching verified source.

@@ -9,7 +9,7 @@ import {
   Editor,
   track,
 } from 'tldraw';
-import { RefreshCcw, Minimize2, Maximize2, Layers, CornerDownRight, Ungroup } from 'lucide-react';
+import { RefreshCcw, Minimize2, Maximize2, Layers, CornerDownRight, Ungroup, FileCode2 } from 'lucide-react';
 import type { ModuleShape } from './types';
 import { NodePorts } from './NodePort';
 import { currentProjection, localBrowserMode, reportNodeClick, reportProjectExpand, showingProjectGraph } from '../ide/projection';
@@ -20,7 +20,8 @@ import { moduleDefinitionNodeId } from './moduleSourceTarget';
 import { shapeIdToNodeId } from './canvasShapeId';
 import { classifyBlock } from './blockFamily';
 import { BlockIdentity } from './BlockIdentity';
-import { useGraphDetail } from './graphDetail';
+import { moduleCardHeader } from './cardMetrics';
+import { CardIdentity } from './NodeCardIdentity';
 import { graphIsReadOnly } from './graphAccess';
 import { NodeIssues } from './NodeIssues';
 import { NodeChanges } from './NodeChanges';
@@ -208,7 +209,6 @@ export class ModuleShapeUtil extends BaseBoxShapeUtil<ModuleShape> {
 const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleShape; editor: Editor }) {
     const copySource = React.useContext(LocalBrowserContext)?.sourceAction === 'copy';
     const data = shape.props.nodeData;
-    const detail = useGraphDetail(editor);
     const isSelected = editor.getSelectedShapeIds().includes(shape.id);
     const isHovered = editor.getHoveredShapeId() === shape.id;
     const projectKind = typeof data.parameters?._kind === 'string' ? data.parameters._kind : '';
@@ -224,6 +224,7 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
     const moduleTemplateId = data.moduleTemplateId || data.parameters.name || data.parameters._class || data.layerType?.name || 'module';
     const moduleTitle = String(moduleTemplateId).split('::').pop();
     const moduleInstanceId = data.moduleInstanceId || shapeIdToNodeId(shape.id);
+    const header = moduleCardHeader(data, shape.props.w);
     const previousCall = data.sourceReplacement ? data.captureLabel?.match(/^(.*) · call (.+)$/) : undefined;
     const sourceNodeId = moduleDefinitionNodeId(data.moduleMembers, moduleInstanceId, shape.id);
     const issues = data.moduleDiagnostics ?? ownGraphIssues(shapeIdToNodeId(shape.id), data);
@@ -292,18 +293,20 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
 
     if (data.capturePassThrough) {
       const path = data.captureLabel || moduleInstanceId;
-      const shortName = path.split(' · ')[0].split('.').pop();
-      const title = `${shortName} · ${moduleTitle}`;
       const hasSource = localBrowserMode() && Boolean(currentProjection()?.spanmap?.[sourceNodeId]);
       return <HTMLContainer style={{ pointerEvents: 'none' }}>
         <div className={`module-node passthrough-node${isSelected ? ' selected' : ''}${isHovered ? ' hovered' : ''}${data.diffStatus ? ` diff-${data.diffStatus}` : ''}`}
           data-node-id={shapeIdToNodeId(shape.id)} data-pass-through="true"
           data-error={moduleStatus === 'error'}
           style={{ width: shape.props.w, height: shape.props.h }}>
-          {hasSource ? <button className="passthrough-title" title={`Open source: ${path}`}
-            {...canvasButtonHandlers(() => reportNodeClick(sourceNodeId))}>{title}</button>
-            : <div className="passthrough-title" title={localBrowserMode() ? `${path} · Source location not mapped` : path}>{title}</div>}
-          <div className="passthrough-path" title={path}>{path}</div>
+          <div className="node-header module-header" style={{ height: header.height }}
+            title={!hasSource && localBrowserMode() ? `${path} · Source location not mapped` : undefined}>
+            <BlockIdentity block={block} className="node-icon" size={16} />
+            <CardIdentity layout={header} title={header.title} subtitle={header.subtitle} module />
+            {hasSource && <button type="button" className="icon-button" style={{ pointerEvents: 'auto' }}
+              title={`Open source: ${path}`} aria-label={`Open source: ${path}`}
+              {...canvasButtonHandlers(() => reportNodeClick(sourceNodeId))}><FileCode2 size={13} /></button>}
+          </div>
           {data.review && data.review.status !== 'unchanged' ? <GraphReviewBadge review={data.review} />
             : <div className="passthrough-detail" title="This call returned the same tensor without recording tensor operations.">Input unchanged</div>}
           <NodePorts shape={shape} />
@@ -336,6 +339,8 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
               className="module-container-header"
               style={{
                 display: 'flex',
+                minHeight: header.height,
+                flexShrink: 0,
                 alignItems: 'center',
                 gap: 8,
                 padding: '6px 10px',
@@ -348,17 +353,7 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
               <BlockIdentity block={block} className="module-frame-glyph" size={15} />
               <NodeChanges data={data} compact />
               <GraphReviewBadge review={data.review} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, lineHeight: '18px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  <span title={String(moduleTemplateId)}>{moduleTitle}</span>
-                </div>
-                <div style={{ display: 'flex', gap: 8, minWidth: 0, fontSize: 11, lineHeight: '14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {data.captureLabel ?? (moduleInstanceId || 'module')}{data.review?.summary ? ` · ${data.review.summary}` : contents.label && ` · ${contents.label}`}
-                  </span>
-                  {detail === 'inspection' && <NodeSourceLink nodeId={shapeIdToNodeId(shape.id)} data={data} />}
-                </div>
-              </div>
+              <CardIdentity layout={header} title={header.title} subtitle={header.subtitle} module />
               {isRepeated && (
                 <span
                   className="module-pill repeat"
@@ -433,7 +428,7 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
           data-node-id={shapeIdToNodeId(shape.id)}
           data-block={block.kind}
           data-error={moduleStatus === 'error'}
-          data-detail={detail}
+          data-detail="inspection"
           style={{ width: shape.props.w, height: shape.props.h,
             borderColor: moduleStatus === 'error' ? 'var(--error)' : isSelected ? accent : 'var(--border-color)',
             boxShadow: isSelected
@@ -441,9 +436,9 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
               : 'var(--shadow-sm)',
           }}
         >
-          <div className="node-header module-header">
+          <div className="node-header module-header" style={{ height: header.height }}>
             <BlockIdentity block={block} className="node-icon" size={16} />
-            <div className="node-title">
+            {data.sourceReplacement ? <div className="node-title">
               {/* A replaced call names the source callable, never an observed class, and
                   keeps its captured path and call ordinal. */}
               <div className="layer-name" title={data.sourceReplacement ? `Previous run: ${data.sourceReplacement.capturedType}. Source assigns ${moduleTemplateId} at ${data.sourceReplacement.target}. ${data.sourceReplacement.coverage === 'partial' ? 'Dependency coverage is partial; ' : ''}which calls change is unverified until validation.` : String(moduleTemplateId)}>
@@ -451,7 +446,7 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
               <div className={`layer-id${previousCall ? ' source-call-label' : ''}`}>{previousCall
                 ? <><span className="source-call-path">{previousCall[1]}</span><span> · previous call {previousCall[2]}</span></>
                 : (data.sourceReplacement ? data.captureLabel : data.review?.summary) ?? data.captureLabel ?? (moduleInstanceId || 'module')}</div>
-            </div>
+            </div> : <CardIdentity layout={header} title={header.title} subtitle={header.subtitle} module />}
             {!data.sourceReplacement && <div className="module-header-actions">
               <GraphReviewBadge review={data.review} />
               {!isProjectFrame && (
@@ -487,9 +482,9 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
             </div>}
           </div>
 
-          <div className="node-body">
+          <div className="node-body" style={{ height: `calc(100% - ${header.height}px)` }}>
             <NodeChanges data={data} />
-            <ModuleParameterGrid data={data} />
+            {data.review && <ModuleParameterGrid data={data} />}
             {!isProjectFrame && <ModuleBoundaryRows data={data} />}
 
             {(contents.label || isRepeated || statusBadge) && <div className="module-pill-row">
@@ -510,7 +505,7 @@ const ModuleCard = track(function ModuleCard({ shape, editor }: { shape: ModuleS
               Affected calls unverified{data.sourceReplacement.coverage === 'partial' && <><br />Partial source coverage</>}
             </div>}
 
-            {detail === 'inspection' && <NodeSourceLink nodeId={shapeIdToNodeId(shape.id)} data={data} />}
+            <NodeSourceLink nodeId={shapeIdToNodeId(shape.id)} data={data} />
 
             {definitionFile && (
               <button

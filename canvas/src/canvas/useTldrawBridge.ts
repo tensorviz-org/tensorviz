@@ -20,7 +20,7 @@ import { EDGE_SHAPE_TYPE, isManagedCanvasShape, isModelShape } from './canvasSha
 import { cameraDuration } from './reducedMotion';
 import { createEdgeRouter, routedShapeGeometry } from './edgeRouting';
 import { shouldCarryModuleChildren } from './dragCarry';
-import { layerCardHeight, ioCardHeight } from './cardMetrics';
+import { layerCardHeight, ioCardHeight, nodeCardSize } from './cardMetrics';
 import { AnchorBox, LayoutDirection } from './edgeAnchors';
 import { portSides } from './portLayout';
 import { localBrowserMode } from '../ide/projection';
@@ -443,12 +443,7 @@ export function useTldrawBridge({
         // reconciler rewrites style.width/height), so w/h belong in the UPDATE
         // partial too — set only at create time, an expanded module keeps its
         // collapsed frame and its children render outside it.
-        const moduleSize = isModule
-          ? {
-            w: typeof node.style?.width === 'number' ? node.style.width : 240,
-            h: typeof node.style?.height === 'number' ? node.style.height : 160,
-          }
-          : null;
+        const moduleSize = isModule ? nodeCardSize(node) : null;
 
         // A tldraw shape's TYPE is immutable: `updateShape` keeps the original
         // ShapeUtil, so a node whose type flips goes on rendering as whatever it
@@ -472,7 +467,7 @@ export function useTldrawBridge({
           // updating every shape's props re-runs every card.
           const current = existing as any;
           const desiredH = node.type === 'inputNode' || node.type === 'outputNode'
-            ? ioCardHeight(node.data)
+            ? ioCardHeight(node.data, node.type === 'outputNode' ? 'output' : 'input', layerCardWidth(node.data))
             : layerCardHeight(node.data || {});
           const moved = Math.abs(current.x - pos.x) > 0.01 || Math.abs(current.y - pos.y) > 0.01;
           const resized = isModule
@@ -506,12 +501,10 @@ export function useTldrawBridge({
               // just its top 120px.
               h: moduleSize
                 ? moduleSize.h
-                // Input/Output cards render a FIXED two rows (Shape, Name)
-                // regardless of how many keys data.parameters holds, so they take
-                // the measured constant rather than the formula: header 51 +
-                // 2px borders + 16px body padding + two 16.5 rows and a 4px gap.
+                // Root interfaces reserve their actual content; an empty output
+                // is header-only while an explicitly empty capture retains evidence.
                 : (node.type === 'inputNode' || node.type === 'outputNode'
-                  ? ioCardHeight(node.data)
+                  ? ioCardHeight(node.data, node.type === 'outputNode' ? 'output' : 'input', layerCardWidth(node.data))
                   : layerCardHeight(node.data || {})),
               nodeData: node.data,
             },

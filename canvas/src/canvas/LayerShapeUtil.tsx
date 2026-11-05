@@ -17,7 +17,6 @@ import { operationDisplayName } from './operationDisplayName';
 import { cardParams } from '../ide/cardParams';
 import { customCardModel } from './customCard';
 import { reportNodeClick, reportProjectExpand } from '../ide/projection';
-import { useGraphDetail } from './graphDetail';
 import { TensorSummary } from './TensorSummary';
 import { changedDimensions, tensorEvidence, tensorShapes, coverageLabel } from './graphSemantics';
 import { ownGraphIssues, nodeFailureLines } from './graphIssues';
@@ -27,11 +26,10 @@ import { NodeSourceLink } from './NodeSourceControls';
 import { operationGroupCard } from '../services/operationGroups';
 import { classifyBlock } from './blockFamily';
 import { BlockIdentity } from './BlockIdentity';
-import { NodeExplanationContext } from './NodeExplanationContext';
-import { nodePresentation } from './nodePresentation';
+import { CardIdentity } from './NodeCardIdentity';
 import './nodeUnderstanding.css';
 
-import { assignmentEvidenceShown } from './cardMetrics';
+import { assignmentEvidenceShown, layerCardHeader, layerSummaryShown } from './cardMetrics';
 export { layerCardHeight, IO_CARD_HEIGHT } from './cardMetrics';
 
 /** One tensor's numbers, as the trace worker measured them (task.md §6.1, M8). */
@@ -138,13 +136,8 @@ export class LayerShapeUtil extends BaseBoxShapeUtil<LayerShape> {
 }
 
 const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShape; editor: Editor }) {
-    const explanations = React.useContext(NodeExplanationContext);
     const display = operationGroupCard(shape.props.nodeData);
     const data = { ...display, ...tensorShapes(display) };
-    const zoomDetail = useGraphDetail(editor);
-    // A source assignment has no tensors to summarise at low zoom: its body is
-    // the value, the line and "not run", so it keeps that body at every tier.
-    const detail = data.review || data.sourceAssignment ? 'inspection' : zoomDetail;
     const evidence = tensorEvidence(data);
     const coverage = coverageLabel(data);
     const layerType = data.layerType as LayerType;
@@ -202,7 +195,6 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
     // Expand CTA unusable, so cards display and the Inspector edits.
     const summary = opSummary(layerType.id, data.parameters);
     const operationName = operationDisplayName(data);
-    const assignmentTarget = data.sourceAssignment && `sets ${data.sourceAssignment.target}${data.sourceAssignment.conditional ? ' · conditional' : ''}`;
 
     // What the run actually measured, if the graph was traced with --capture
     // (task.md M8). Shapes say the model is wired; these say it is working.
@@ -228,10 +220,7 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
     // the ordinary card below is unchanged.
     const custom = customCardModel(layerType.id, data.parameters);
     const nodeId = shapeIdToNodeId(shape.id);
-    const presentation = nodePresentation(data, nodeId);
-    const explanationState = explanations?.states[nodeId];
-    const interpretation = !data.review && !data.sourceAssignment && explanationState?.status === 'ready' ? explanationState.explanation : undefined;
-    const subtitle = assignmentTarget ?? (interpretation ? presentation.callable : presentation.subtitle);
+    const header = layerCardHeader(data, shape.props.w);
     const issues = ownGraphIssues(nodeId, data);
     const quietSource = data.debugEvidence === 'source' && !issues.length && !data.error && !poisoned && !['warning', 'error'].includes(resolutionSeverity ?? '');
     const badgeDetail = data.error || resolutionDetail || (poisoned ? 'Non-finite activation or gradient values' : evidence === 'stale' ? 'Tensor shapes: stale' : coverage || `Tensor shapes: ${evidence}`);
@@ -304,32 +293,20 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
       <HTMLContainer style={{ pointerEvents: 'none', overflow: 'visible' }}>
         <div
           className={nodeClass}
-          data-detail={detail}
+          data-detail="inspection"
           data-node-id={nodeId}
           data-search={searchState}
           data-source-assignment={data.sourceAssignment ? '' : undefined}
+          data-empty-body={!data.review && !data.sourceAssignment && !layerSummaryShown(data) && !data.debugChanges?.length && !custom?.projectExpandable ? '' : undefined}
           data-block={block.kind}
           style={{ width: shape.props.w, height: shape.props.h }}
         >
-          <div className="ui2-node-header" data-source-only={quietSource ? '' : undefined}>
+          <div className="ui2-node-header" style={{ height: header.height }} data-source-only={quietSource ? '' : undefined}>
             <BlockIdentity block={block} />
-            <div className="ui2-node-title-wrap">
-              {/* The catalogue names a Linear and an Embedding; it has no name for a
-                  `ModuleList`, and a frame child titled from the catalogue alone came
-                  out blank. The document always supplies a label, so it is the next
-                  thing asked before falling back to the id. */}
-              <div className="ui2-node-title" title={interpretation ? `Agent interpretation · ${interpretation.title}` : presentation.title}>
-                {/* A placeholder never beats a real name. The custom-code branch
-                    titles a card `_class || 'Custom Code'`, and a function frame's
-                    step has no class — its name is the document's label,
-                    `F.cross_entropy → loss`, which is the whole reason to draw it. */}
-                {data.review?.beforeName ? <GraphReviewValue before={data.review.beforeName} after={operationName || layerType.displayName || layerType.name} />
-                  : interpretation ? <span className="node-interpretation-title" title={`Agent interpretation · ${interpretation.title}`}>
-                    <LucideIcons.Sparkles size={10} role="img" aria-label="Agent interpretation" /><span>{interpretation.title}</span>
-                  </span> : presentation.title}
-              </div>
-              {subtitle && <div className="ui2-node-subtitle" title={subtitle}>{subtitle}</div>}
-            </div>
+            {data.review?.beforeName ? <div className="ui2-node-title-wrap">
+              <div className="ui2-node-title"><GraphReviewValue before={data.review.beforeName} after={operationName || layerType.displayName || layerType.name} /></div>
+              {header.subtitle && <div className="ui2-node-subtitle">{header.subtitle}</div>}
+            </div> : <CardIdentity layout={header} title={header.title} subtitle={header.subtitle} />}
             {/* The assignment's "not run" is a body row: as a header badge it took the
                 width the exact target needs. */}
             {data.review && data.review.status !== 'unchanged' ? <GraphReviewBadge review={data.review} /> : data.sourceAssignment ? null
@@ -348,7 +325,7 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
             Show {data.operationGroup.members.length} operations <LucideIcons.ChevronDown size={12} />
           </button>}
 
-          {detail === 'inspection' ? (<div className="ui2-node-body">
+          {data.review || data.sourceAssignment ? (<div className="ui2-node-body">
             {summary && <div className="ui2-node-expr">{summary}</div>}
 
             {(paramEntries.length > 0 || custom?.snippet || contents) && (
@@ -489,7 +466,14 @@ const LayerCard = track(function LayerCard({ shape, editor }: { shape: LayerShap
                 )}
               </div>
             )}
-          </div>) : <TensorSummary data={data} compact={shape.props.h < 170} />}
+          </div>) : <>
+            {layerSummaryShown(data) && <TensorSummary data={data} />}
+            <NodeChanges data={data} />
+            {custom?.projectExpandable && <button type="button" className="ui2-node-expand-row node-compact-expand"
+              style={rowButtonStyle} onPointerDown={claim} onClick={() => reportProjectExpand(nodeId, true)}>
+              <LucideIcons.ChevronRight size={12} /><span>Expand</span>
+            </button>}
+          </>}
         </div>
         <NodePorts shape={shape} />
       </HTMLContainer>

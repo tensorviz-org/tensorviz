@@ -7,26 +7,31 @@
  * CSS-culls), the whole diagram becomes a single `<img>` whose vector source is
  * this string. Nothing here imports React or tldraw, so it is cheap and testable.
  *
- * The card bodies deliberately reuse the SAME text sources the interactive card
- * uses — `cardParams`, `opSummary`, `customCardModel`, `STAT_KEYS` — so the
- * overview says what the canvas says instead of a title-only summary.
+ * Cards reuse the interactive card's compact identity and tensor evidence.
+ * Source parameters stay in selection details rather than enlarging the graph.
  *
  * Geometry mirrors the bridge/layout: a module child's position is relative to
  * its module, so absolute positions are resolved first; card heights come from the
  * same `layerCardHeight` / `ioCardHeight` the shape box uses, and rows stop before
  * the card's own reserved height so nothing overflows.
  */
-import { nodeCardSize, STAT_KEYS } from '../canvas/cardMetrics';
+import { nodeCardSize, layerCardHeader, layerSummaryShown, moduleCardHeader, STAT_KEYS } from '../canvas/cardMetrics';
+import { cardHeaderLayout } from '../canvas/cardIdentity';
 import { cardParams } from '../ide/cardParams';
 import { opSummary } from '../canvas/opSummary';
 import { customCardModel } from '../canvas/customCard';
 import { isFlowEdge } from './canvasLayout';
 import { ModelEdge, ModelNode } from '../types';
 import { operationGroupCard } from './operationGroups';
-import { nodePresentation } from '../canvas/nodePresentation';
+import { nodeEvidenceLabel } from '../canvas/nodePresentation';
+import { tensorShapes } from '../canvas/graphSemantics';
+import { operationTensorRows } from '../canvas/operationTensorData';
+import { moduleBoundaryRows, moduleContents, moduleEvidenceLabel } from './modulePresentation';
 import { isFailingPort, nodeFailureLines } from '../canvas/graphIssues';
 import { AnchorSide, LayoutDirection, NodePortSides, portAnchorPoint } from '../canvas/edgeAnchors';
-import { displayedPorts } from '../canvas/capturePorts';
+import { displayedPorts, portLabel, portType } from '../canvas/capturePorts';
+import { displayInputShape } from '../utils/inputShape';
+import { inputProvenanceNote } from '../ide/cardParams';
 import { createEdgeRouter } from '../canvas/edgeRouting';
 import { edgeControlPoints } from '../canvas/edgeCurve';
 import { graphReviewLabel } from '../ide/graphReviewLabels';
@@ -41,8 +46,6 @@ export interface GraphSvgOptions {
   direction?: LayoutDirection;
 }
 
-const HEADER = 51;
-const BODY_TOP = HEADER + 2 + 8;
 const ROW_PITCH = 20.5;
 
 const INK = {
@@ -110,6 +113,27 @@ const clip = (value: string, length: number): string =>
 const text = (x: number, y: number, value: string, fill: string, size: number, weight = 400, mono = false): string =>
   `<text x="${x}" y="${y}" fill="${fill}" ${mono ? MONO : FONT} font-size="${size}" font-weight="${weight}">${escapeXml(value)}</text>`;
 
+/** Explicit shared lines preserve the entire name in both paint and textContent. */
+function identityText(box: Box, layout: ReturnType<typeof cardHeaderLayout>, COLOR: Palette): string {
+  const x = box.x + 52;
+  const lines = (values: string[], y: number, step: number, size: number, mono = false) => values.length
+    ? `<text data-card-${mono ? 'subtitle' : 'title'}="true" fill="${mono ? COLOR.muted : COLOR.text}" ${mono ? MONO : FONT} font-size="${size}" font-weight="${mono ? 400 : 600}">${values.map((line, index) => `<tspan x="${x}" y="${y + index * step}">${escapeXml(line)}</tspan>`).join('')}</text>` : '';
+  return lines(layout.titleLines, box.y + 24, 18, 14)
+    + lines(layout.subtitleLines, box.y + 24 + (layout.titleLines.length - 1) * 18 + 14, 14, 11, true);
+}
+
+/** Keep evidence beside the identity without consuming its wrapped text column. */
+function sourceEvidence(node: ModelNode, box: Box, COLOR: Palette): string {
+  const previous = node.data.debugEvidence === 'previous';
+  if (!previous && node.data.debugEvidence !== 'source') return '';
+  const label = nodeEvidenceLabel(node.data);
+  const x = box.x + box.w - 23, y = box.y + 14;
+  const path = previous
+    ? 'M2 5a5 5 0 1 1 0 4M2 1v4h4M7 3v4l2 1'
+    : 'M3 1h5l3 3v8H3zM8 1v4h3M5 8h4M5 10h3';
+  return `<g data-source-evidence="${previous ? 'previous' : 'source'}" role="img" aria-label="${escapeXml(label)}"><title>${escapeXml(label)}</title><path d="${path}" transform="translate(${x} ${y})" fill="none" stroke="${COLOR.muted}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+}
+
 interface Box { x: number; y: number; w: number; h: number }
 
 function absolutePositions(nodes: ModelNode[]): Map<string, { x: number; y: number }> {
@@ -168,7 +192,7 @@ const statsText = (value: { nan: number; inf: number; mean?: number; std?: numbe
     ? [value.nan > 0 ? `${value.nan} NaN` : '', value.inf > 0 ? `${value.inf} Inf` : ''].filter(Boolean).join(' · ')
     : `μ ${value.mean ?? 0} σ ${value.std ?? 0}`;
 
-/** The same rows the interactive card renders at its 'inspection' tier. */
+/** Explicit source-review cards retain their change evidence at every scale. */
 function cardRows(node: ModelNode): Row[] {
   const data = operationGroupCard(node.data);
   const layerType = data.layerType || ({} as ModelNode['data']['layerType']);
@@ -193,14 +217,53 @@ function cardRows(node: ModelNode): Row[] {
     rows.push({ left: custom.validatable.state === 'ready' ? 'Ready to validate' : 'Cannot validate', tone: 'muted' });
   }
   if (custom?.projectExpandable) rows.push({ left: 'Expand', tone: 'muted' });
+  if (data.sourceAssignment && (!data.review || data.review.status === 'unchanged')) rows.push({ left: 'Set in source · not run', tone: 'muted' });
   if (data.debugChanges?.length) rows.push({ left: `Changed · ${data.debugChanges[0]}`, tone: 'warning' });
   for (const line of nodeFailureLines(data)) rows.push({ left: line, tone: 'error' });
   return rows;
 }
 
-function renderCardRows(box: Box, rows: Row[], COLOR: Palette): string {
+/** Match the ordinary card's stable overview; unknown shapes never become zeros. */
+function compactRows(node: ModelNode): Row[] {
+  const data = operationGroupCard(node.data);
+  const rows: Row[] = [];
+  if (node.type === 'inputNode' || node.type === 'outputNode') {
+    if (data.capturePorts) {
+      data.capturePorts.forEach((port, index) => rows.push({ left: portLabel(port, index), right: portType(port), tone: 'shape' }));
+      if (!data.capturePorts.length) rows.push({ left: 'No boundary value recorded', tone: 'muted' });
+    } else {
+      if (node.type === 'inputNode') rows.push({ left: 'Shape', right: displayInputShape(data.parameters.shape ?? data.inputShape) ?? 'Not recorded', tone: 'shape' });
+      else if (data.outputShape) rows.push({ left: 'Shape', right: formatShape(data.outputShape), tone: 'shape' });
+      if (data.parameters.name) rows.push({ left: 'Name', right: String(data.parameters.name), tone: 'muted' });
+      const provenance = node.type === 'inputNode' && inputProvenanceNote(data.parameters);
+      if (provenance) rows.push({ left: 'Source', right: provenance.label, tone: 'warning' });
+    }
+  } else {
+    if (data.operationGroup && data.operationGroup.kind !== 'slice') rows.push({ left: `Show ${data.operationGroup.members.length} operations`, tone: 'hint' });
+    const measured = { ...data, ...tensorShapes(data) };
+    const operation = operationTensorRows(measured);
+    if (operation !== undefined) {
+      operation.forEach(row => rows.push({ left: row.label, right: row.value, tone: 'shape' }));
+      if (!operation.length) rows.push({ left: 'No tensor shapes recorded', tone: 'muted' });
+    } else if (measured.inputShape || measured.outputShape) {
+      if (measured.inputShape) rows.push({ left: 'In', right: formatShape(measured.inputShape), tone: 'shape' });
+      if (measured.outputShape) rows.push({ left: 'Out', right: formatShape(measured.outputShape), tone: 'shape' });
+    } else if (layerSummaryShown(measured)) {
+      const feature = data.layerType.id === 'linear';
+      const before = data.parameters[feature ? 'in_features' : 'in_channels'];
+      const after = data.parameters[feature ? 'out_features' : 'out_channels'];
+      if (typeof before === 'number' && typeof after === 'number') rows.push({ left: feature ? 'Features' : 'Channels', right: `${before} → ${after}`, tone: 'shape' });
+    }
+    if (customCardModel(data.layerType.id, data.parameters)?.projectExpandable) rows.push({ left: 'Expand', tone: 'muted' });
+    if (data.debugChanges?.length) rows.push({ left: `Changed · ${data.debugChanges[0]}`, tone: 'warning' });
+  }
+  for (const line of nodeFailureLines(data)) rows.push({ left: line, tone: 'error' });
+  return rows;
+}
+
+function renderCardRows(box: Box, rows: Row[], COLOR: Palette, headerHeight: number): string {
   const parts: string[] = [];
-  let y = box.y + BODY_TOP;
+  let y = box.y + headerHeight + 10;
   const limit = box.y + box.h - 4;
   for (const row of rows) {
     if (y + 14 > limit) break;
@@ -310,35 +373,49 @@ export function graphToSvg(nodes: ModelNode[], edges: ModelEdge[], options: Grap
   const moduleRects: string[] = [];
   for (const node of modules) {
     const box = boxes.get(node.id)!;
-    const title = clip(String(node.data?.parameters?.name ?? node.data?.layerType?.displayName ?? node.data?.layerType?.name ?? node.id), 34);
+    const header = moduleCardHeader(node.data, box.w);
     const count = node.data?.moduleLayerCount;
-    const expandable = node.data?.expandable;
     const collapsed = !node.data?.expanded;
     const status = node.data?.moduleDiagnosticStatus ?? (node.data?.error ? 'error' : node.data?.moduleStatus);
     const diffColor = node.data.diffStatus && COLOR[node.data.diffStatus];
     const stroke = status === 'error' ? COLOR.error : diffColor || COLOR.moduleStroke;
     const statusDot = status === 'error' ? COLOR.error : status === 'warning' ? COLOR.warning : undefined;
     moduleRects.push(`<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="8" fill="${COLOR.moduleFill}" stroke="${stroke}" stroke-width="${diffColor ? 2 : 1.5}"${!diffColor || node.data.diffStatus === 'removed' ? ' stroke-dasharray="5 4"' : ''}/>`);
-    moduleRects.push(`<rect x="${box.x}" y="${box.y}" width="${box.w}" height="34" rx="8" fill="${diffColor || COLOR.moduleHeader}"${diffColor ? ' fill-opacity="0.12"' : ''}/>`);
+    moduleRects.push(`<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${header.height}" rx="8" fill="${diffColor || COLOR.moduleHeader}"${diffColor ? ' fill-opacity="0.12"' : ''}/>`);
     moduleRects.push(glyph(node, box.x + 6, box.y + 5));
     if (statusDot) moduleRects.push(`<circle cx="${box.x + box.w - 14}" cy="${box.y + 17}" r="4" fill="${statusDot}"/>`);
-    moduleRects.push(text(box.x + 36, box.y + 22, `${title}${count ? `  ×${count}` : ''}`, COLOR.text, 12, 600));
+    moduleRects.push(identityText(box, header, COLOR));
+    moduleRects.push(sourceEvidence(node, box, COLOR));
+    const moduleRows: Row[] = [];
     if (node.data.review && node.data.review.status !== 'unchanged') {
-      moduleRects.push(text(box.x + 36, box.y + 40, graphReviewLabel(node.data.review), reviewInk(node.data.diffStatus, diffColor || COLOR.muted), 9.5));
+      moduleRects.push(text(box.x + 12, box.y + header.height + 16, graphReviewLabel(node.data.review), reviewInk(node.data.diffStatus, diffColor || COLOR.muted), 9.5));
     } else if (node.data.debugEvidence === 'previous' || node.data.debugChanges?.length) {
-      moduleRects.push(text(box.x + 36, box.y + 40, node.data.debugEvidence === 'previous' ? 'Previous run'
-        : `Changed · ${node.data.debugChanges![0]}`, node.data.debugEvidence === 'previous' ? COLOR.muted : COLOR.warning, 9.5));
-    } else if (expandable && count) {
-      moduleRects.push(text(box.x + 36, box.y + 40, collapsed ? `${count} layers · collapsed` : `${count} layers · expanded`, COLOR.muted, 9.5));
+      moduleRows.push({ left: node.data.debugEvidence === 'previous' ? 'Previous run'
+        : `Changed · ${node.data.debugChanges![0]}`, tone: node.data.debugEvidence === 'previous' ? 'muted' : 'warning' });
+    } else if (count) {
+      moduleRows.push({ left: `${count} layers · ${collapsed ? 'collapsed' : 'expanded'}`, tone: 'muted' });
+    }
+    if (collapsed) {
+      moduleBoundaryRows(node.data).forEach(row => moduleRows.push({ left: row.label, right: row.value, tone: 'shape' }));
+      const evidence = moduleEvidenceLabel(node.data);
+      if (evidence) moduleRows.push({ left: evidence, tone: 'muted' });
+      const contents = moduleContents(node.data);
+      if (!count && contents.label) moduleRows.push({ left: contents.label, tone: 'muted' });
+      if (node.data.capturePassThrough) moduleRows.push({ left: 'Input unchanged', tone: 'muted' });
+      moduleRects.push(renderCardRows(box, moduleRows, COLOR, header.height + (node.data.review && node.data.review.status !== 'unchanged' ? 20 : 0)));
+    } else if (moduleRows.length) {
+      // Expanded frames reserve their body for children; structural context is a quiet caption.
+      moduleRects.push(text(box.x + 12, box.y + header.height + 16, moduleRows[0].left, COLOR.muted, 9.5));
     }
     if (collapsed && Array.isArray(node.data?.modulePreviewNodes)) {
       const preview = node.data.modulePreviewNodes.slice(0, 24);
-      const span = { w: box.w - 40, h: box.h - 74 };
+      const top = header.height + moduleRows.length * ROW_PITCH + 20;
+      const span = { w: box.w - 40, h: Math.max(0, box.h - top - 20) };
       const xs = preview.map((entry) => entry.x), ys = preview.map((entry) => entry.y);
       const minX = Math.min(...xs, 0), minY = Math.min(...ys, 0);
       const scaleX = xs.length ? span.w / Math.max(1, Math.max(...xs) - minX || 1) : 1;
       const scaleY = ys.length ? span.h / Math.max(1, Math.max(...ys) - minY || 1) : 1;
-      preview.forEach((entry) => moduleRects.push(`<rect x="${box.x + 20 + (entry.x - minX) * scaleX}" y="${box.y + 54 + (entry.y - minY) * scaleY}" width="24" height="10" rx="2" fill="${COLOR.moduleHeader}" stroke="${COLOR.cardStroke}"/>`));
+      if (span.h > 0) preview.forEach((entry) => moduleRects.push(`<rect x="${box.x + 20 + (entry.x - minX) * scaleX}" y="${box.y + top + (entry.y - minY) * scaleY}" width="24" height="10" rx="2" fill="${COLOR.moduleHeader}" stroke="${COLOR.cardStroke}"/>`));
     }
   }
   for (const node of modules) moduleRects.push(renderPorts(node, boxes.get(node.id)!, router.sides.get(node.id)!, COLOR));
@@ -350,21 +427,20 @@ export function graphToSvg(nodes: ModelNode[], edges: ModelEdge[], options: Grap
     const box = boxes.get(node.id)!;
     const data = operationGroupCard(node.data);
     const isIo = node.type === 'inputNode' || node.type === 'outputNode';
-    const presentation = nodePresentation(data, node.id);
-    const title = clip(presentation.title, 24);
-    const subtitle = data.debugEvidence === 'previous' ? 'Previous run' : data.debugEvidence === 'source' ? 'Source only'
-      : clip(presentation.subtitle ?? (isIo ? (node.type === 'inputNode' ? 'Input' : 'Output') : ''), 26);
+    const header = isIo ? cardHeaderLayout(node.type === 'inputNode' ? 'Input' : 'Output', data.captureLabel, box.w)
+      : layerCardHeader(data, box.w);
     const stroke = data.error ? COLOR.error
       : data.diffStatus === 'added' ? COLOR.added
         : data.diffStatus === 'removed' ? COLOR.removed
           : data.diffStatus === 'modified' ? COLOR.modified : data.diffStatus === 'rewired' ? COLOR.rewired : COLOR.cardStroke;
     cards.push(`<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="6" fill="${COLOR.cardFill}" stroke="${stroke}" stroke-width="1.5"/>`);
     cards.push(glyph(node, box.x + 6, box.y + 7));
-    cards.push(text(box.x + 36, box.y + 22, title, COLOR.text, 14, 600));
+    cards.push(identityText(box, header, COLOR));
+    cards.push(sourceEvidence(node, box, COLOR));
     const reviewLabel = data.review ? graphReviewLabel(data.review) : data.diffStatus;
-    if (reviewLabel) cards.push(text(box.x + 36, box.y + 38, reviewLabel, reviewInk(data.diffStatus, data.diffStatus ? COLOR[data.diffStatus] : COLOR.muted), 9.5, 600));
-    else if (subtitle) cards.push(text(box.x + 36, box.y + 38, subtitle, COLOR.muted, 9.5));
-    cards.push(renderCardRows(box, cardRows(node), COLOR));
+    if (reviewLabel) cards.push(text(box.x + 12, box.y + header.height + 16, reviewLabel, reviewInk(data.diffStatus, data.diffStatus ? COLOR[data.diffStatus] : COLOR.muted), 9.5, 600));
+    const rows = !isIo && (data.review || data.sourceAssignment) ? cardRows(node) : compactRows(node);
+    cards.push(renderCardRows(box, rows, COLOR, header.height + (reviewLabel ? 20 : 0)));
     cards.push(renderPorts(node, box, router.sides.get(node.id)!, COLOR));
   }
   parts.push(`<g>${cards.join('')}</g>`);

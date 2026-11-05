@@ -6,7 +6,8 @@ import { createGraphFile, parseGraphFile } from '../../services/graphFile';
 import { initialGraphFileView, restoreGraphFileView } from '../../viewer/graphFileView';
 import { modelGraphToDocumentV2, graphDocumentV2ToModelGraph } from '../../services/graphDocumentAdapter';
 import { CapturePort, ModelGraph, ModelNodeData } from '../../types';
-import { moduleCardHeight } from '../../canvas/cardMetrics';
+import { moduleCardHeader, moduleCardHeight, moduleCardWidth } from '../../canvas/cardMetrics';
+import { NodeUnderstanding } from '../../canvas/NodeUnderstanding';
 import captureDocument from '../../test/fixtures/canvas/capture-document.json';
 import { currentProjection, reportProjectExpand, reportNodeClick, showingProjectGraph } from '../../ide/projection';
 
@@ -48,7 +49,13 @@ const graph = (): ModelGraph => ({
 function renderCard(data: ModelNodeData) {
   const util = new ModuleShapeUtil();
   (util as any).editor = { getSelectedShapeIds: () => [], getHoveredShapeId: () => null };
-  return render(util.component({ id: 'shape:encoder.layers.0', props: { nodeData: data, w: 250, h: 240 } } as any));
+  return render(util.component({ id: 'shape:encoder.layers.0', props: { nodeData: data, w: moduleCardWidth(data), h: moduleCardHeight(data) } } as any));
+}
+
+function inspectParameters(data: ModelNodeData) {
+  render(<NodeUnderstanding node={{ id: 'encoder.layers.0', type: 'moduleNode', position: { x: 0, y: 0 }, data }} />);
+  fireEvent.click(screen.getByText('More details'));
+  return within(screen.getByRole('region', { name: 'Parameter values' }));
 }
 
 const boundaryPort = (direction: 'in' | 'out', extra: Partial<CapturePort> = {}): CapturePort => ({
@@ -92,8 +99,8 @@ it('expanded headers omit routine capture badges', () => {
 it('sizes captured cards for their content and reserves extra room for warnings and multiple ports', () => {
   const data = capturedModule();
   const height = moduleCardHeight(data);
-  // 56px header, body padding, compact In/Out rows and source, without a footer button.
-  expect(height).toBe(152);
+  // The complete wrapped identity, body padding, compact In/Out rows and source.
+  expect(height).toBe(moduleCardHeader(data).height + 96);
   expect(moduleCardHeight({ ...data, shapeEvidence: 'stale' })).toBeGreaterThan(height);
   expect(moduleCardHeight({ ...data, shapeEvidence: 'unknown' })).toBeGreaterThan(height);
   const ports = Array.from({ length: 12 }, (_, i) => boundaryPort(i < 6 ? 'in' : 'out', { id: `port-${i}` }));
@@ -119,7 +126,7 @@ it('shows readable names and reserves space for every boundary value', () => {
     boundaryPort('out', { id: 'states', paths: [['hidden', 'states']] }),
   ];
   const data = { ...capturedModule(), capturePorts: ports };
-  expect(moduleCardHeight(data)).toBe(232);
+  expect(moduleCardHeight(data)).toBe(moduleCardHeader(data).height + 176);
   renderCard(data);
   const rows = within(screen.getByRole('group', { name: 'Input and output shapes' }));
   for (const [label, path] of [['In x', 'x'], ['In context.tokens', 'context.tokens'], ['Out y', 'y'], ['Out hidden.states', 'hidden.states']]) {
@@ -136,59 +143,78 @@ it('does not invent constructor arguments from capture metadata or tensor dimens
   expect(screen.queryByText('out features')).not.toBeInTheDocument();
 });
 
-it('shows actual constructor values and retains unevaluated source expressions', () => {
-  renderCard({ ...capturedModule(), parameters: { ...capturedModule().parameters,
+it('keeps actual constructor values and unevaluated source expressions in selection details', () => {
+  const data = { ...capturedModule(), parameters: { ...capturedModule().parameters,
     in_features: 8, out_features: 16, bias: false, activation: null,
-    _source_arguments: { out_features: 'cfg.width' } } });
-  const grid = within(screen.getByLabelText('Constructor arguments'));
-  expect(grid.getByTitle('in_features')).toHaveTextContent('in features8');
-  expect(grid.getByTitle('out_features')).toHaveTextContent('out featurescfg.width');
-  expect(grid.getByTitle('bias')).toHaveTextContent('biasFalse');
-  expect(grid.getByTitle('activation')).toHaveTextContent('activationNone');
-  expect(grid.queryByText('_shape_provenance')).not.toBeInTheDocument();
+    _source_arguments: { out_features: 'cfg.width' } } };
+  renderCard(data);
+  expect(screen.queryByLabelText('Constructor arguments')).not.toBeInTheDocument();
+  const values = inspectParameters(data);
+  expect(values.getByText('in_features').parentElement).toHaveTextContent('in_features8');
+  expect(values.getByText('out_features').parentElement).toHaveTextContent('out_featurescfg.width');
+  expect(values.getByText('bias').parentElement).toHaveTextContent('biasfalse');
+  expect(values.getByText('activation').parentElement).toHaveTextContent('activationnull');
+  expect(values.queryByText('_shape_provenance')).not.toBeInTheDocument();
 });
 
 it('retains a source constructor argument named name rather than treating it as a display label', () => {
-  renderCard({ ...capturedModule(), moduleTemplateId: 'NamedBlock', parameters: {
-    ...capturedModule().parameters, _source_arguments: { name: "'stem'" } } });
-  const grid = within(screen.getByLabelText('Constructor arguments'));
-  expect(grid.getByTitle('name')).toHaveTextContent("name'stem'");
+  const data = { ...capturedModule(), moduleTemplateId: 'NamedBlock', parameters: {
+    ...capturedModule().parameters, _source_arguments: { name: "'stem'" } } };
+  renderCard(data);
+  expect(screen.queryByLabelText('Constructor arguments')).not.toBeInTheDocument();
+  const values = inspectParameters(data);
+  expect(values.getByText('name').parentElement).toHaveTextContent("name'stem'");
 });
 
-it('keeps the grid bounded and reports how many actual arguments are omitted', () => {
+it('keeps every source argument available in selection without adding an argument grid to the card', () => {
   const parameters = Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`arg_${i}`, i + 1]));
   const data = { ...capturedModule(), parameters: { ...capturedModule().parameters, ...parameters } };
   renderCard(data);
+  expect(screen.queryByLabelText('Constructor arguments')).not.toBeInTheDocument();
+  const values = inspectParameters(data);
+  for (const [key, value] of Object.entries(parameters)) expect(values.getByText(key).parentElement).toHaveTextContent(`${key}${value}`);
+  expect(values.queryByText(/more/)).not.toBeInTheDocument();
+  expect(data.parameters).toMatchObject(parameters);
+});
+
+it('retains the bounded constructor comparison grid on review cards', () => {
+  const parameters = Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`arg_${i}`, i + 1]));
+  renderCard({ ...capturedModule(), parameters: { ...capturedModule().parameters, ...parameters },
+    review: { status: 'modified', params: { arg_0: { before: 0, after: 1 } } } });
   const grid = screen.getByLabelText('Constructor arguments');
   expect(grid.children).toHaveLength(4);
   expect(within(grid).getByText('+4 more')).toBeInTheDocument();
   for (const key of ['arg_0', 'arg_1', 'arg_2']) expect(within(grid).getByTitle(key)).toBeInTheDocument();
   expect(within(grid).queryByTitle('arg_3')).not.toBeInTheDocument();
-  expect(data.parameters).toMatchObject(parameters);
+  expect(grid.querySelector('del')).toHaveTextContent('0');
+  expect(grid.querySelector('ins')).toHaveTextContent('1');
 });
 
 it.each([[1, 28], [2, 28], [3, 48], [4, 48], [7, 48]])(
-  'reserves the displayed grid rows for %i actual arguments without growing for hidden arguments',
+  'keeps %i arguments out of ordinary card geometry while reserving their review rows',
   (count, addedHeight) => {
     const data = capturedModule();
     const parameters = Object.fromEntries(Array.from({ length: count }, (_, i) => [`arg_${i}`, i]));
     expect(moduleCardHeight({ ...data, parameters: { ...data.parameters, ...parameters } }))
-      .toBe(moduleCardHeight(data) + addedHeight);
+      .toBe(moduleCardHeight(data));
+    const review = { status: 'modified' as const, params: {} };
+    expect(moduleCardHeight({ ...data, review, parameters: { ...data.parameters, ...parameters } }))
+      .toBe(moduleCardHeight({ ...data, review }) + addedHeight);
   },
 );
 
-it('keeps the issue row alongside the constructor grid; older timing adds no row', () => {
+it('keeps issue evidence visible while constructor details move to selection; older timing adds no row', () => {
   const data = { ...capturedModule(), parameters: { ...capturedModule().parameters, in_features: 8, out_features: 16 } };
   const diagnostic: ModelNodeData['moduleDiagnostics'] = [{ id: 'shape', nodeId: 'encoder.layers.0',
     label: 'CustomBlock', severity: 'error', message: 'Expected the recorded input width.' }];
   const warning = { ...data, moduleDiagnosticStatus: 'error' as const, moduleDiagnostics: diagnostic };
   const timed = { ...warning, moduleLatency: { cpuTotalUs: [10, 20, 30], cpuSelfUs: [1, 2, 3],
     deviceTotalUs: null, deviceMethod: null } };
-  expect(moduleCardHeight(data)).toBe(180);
-  expect(moduleCardHeight(warning)).toBe(215);
-  expect(moduleCardHeight(timed)).toBe(215);
+  expect(moduleCardHeight(data)).toBe(moduleCardHeight(capturedModule()));
+  expect(moduleCardHeight(warning)).toBe(moduleCardHeight(data) + 35);
+  expect(moduleCardHeight(timed)).toBe(moduleCardHeight(warning));
   renderCard(timed);
-  expect(screen.getByLabelText('Constructor arguments')).toBeInTheDocument();
+  expect(screen.queryByLabelText('Constructor arguments')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: '1 error in encoder.layers.0' })).toBeInTheDocument();
   expect(screen.queryByLabelText(/Module latency/)).toBeNull();
 });
@@ -200,7 +226,7 @@ it('reserves a current-run change note alongside constructor values and measured
   renderCard(changed);
   expect(screen.getByText('Changed')).toBeInTheDocument();
   expect(screen.getByText('Output values changed')).toBeInTheDocument();
-  expect(screen.getByLabelText('Constructor arguments')).toBeInTheDocument();
+  expect(screen.queryByLabelText('Constructor arguments')).not.toBeInTheDocument();
   expect(screen.getByRole('group', { name: 'Input and output shapes' })).toBeInTheDocument();
 });
 
@@ -286,11 +312,11 @@ test('an unchanged call has a compact contextual name, source navigation and no 
   const data = { ...graph().nodes[1].data, moduleTemplateId: 'Identity', captureLabel: 'blocks.0.ls1',
     capturePassThrough: { valueId: 'v', inputPortId: 'in', sourceNodeId: 'producer', sourcePortId: 'out' } };
   renderCard(data);
-  expect(screen.getByText('ls1 · Identity')).toBeInTheDocument();
+  expect(screen.getByTitle('Identity')).toHaveTextContent('Identity');
   expect(screen.getByText('blocks.0.ls1')).toBeInTheDocument();
   expect(screen.getByText('Input unchanged')).toBeInTheDocument();
   expect(screen.queryByText('Contents unavailable')).not.toBeInTheDocument();
-  fireEvent.pointerDown(screen.getByRole('button', { name: 'ls1 · Identity' }));
+  fireEvent.pointerDown(screen.getByRole('button', { name: 'Open source: blocks.0.ls1' }));
   expect(reportNodeClick).toHaveBeenCalledWith('encoder.layers.0');
 });
 
@@ -311,7 +337,8 @@ it.each([false, true])(
     ...(!raw ? { moduleInstanceId: 'blocks', moduleTemplateId: 'ModuleList', moduleLayerCount: 0, moduleMembers: [] } : {}),
     expanded: true, onToggleExpand } as ModelNodeData);
   expect(screen.getByText('ModuleList')).toBeInTheDocument();
-  expect(screen.getByText(raw ? 'encoder.layers.0' : 'blocks')).toBeInTheDocument();
+  if (raw) expect(screen.queryByTitle('encoder.layers.0')).not.toBeInTheDocument();
+  else expect(screen.getByTitle('blocks')).toHaveTextContent('blocks');
   expect(screen.getByText('Declared: 2 × Linear')).toBeInTheDocument();
   expect(screen.getByText('Source-only')).toBeInTheDocument();
   expect(screen.queryByText(/captured layers/)).toBeNull();

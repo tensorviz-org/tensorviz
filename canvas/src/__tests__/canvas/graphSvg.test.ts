@@ -23,6 +23,8 @@ const rects = (svg: string) => Array.from(svgDocument(svg).querySelectorAll('rec
 const glyphs = (svg: string) => Array.from(svgDocument(svg).querySelectorAll('g[data-block]'));
 const stroke = (glyph: Element) => glyph.querySelector('g')!.getAttribute('stroke');
 const tile = (glyph: Element) => glyph.querySelector('rect')!.getAttribute('fill');
+const titleTexts = (svg: string) => Array.from(svgDocument(svg).querySelectorAll('[data-card-title]'), element => element.textContent);
+const subtitleTexts = (svg: string) => Array.from(svgDocument(svg).querySelectorAll('[data-card-subtitle]'), element => element.textContent);
 
 describe('graphToSvg', () => {
   it('draws labels as SVG text rather than foreignObject HTML', () => {
@@ -50,8 +52,8 @@ describe('graphToSvg', () => {
     node.data.parameters = { _raw_call: 'torch.where(masks.unsqueeze(-1), token.to(x.dtype).unsqueeze(0), x)',
       _source_result_call: { name: 'where', target: 'torch.where' } };
     const svg = graphToSvg([node], []);
-    expect(svg).toContain('>Select by condition<');
-    expect(svg).toContain('>torch.where<');
+    expect(titleTexts(svg)).toContain('Select by condition');
+    expect(subtitleTexts(svg)).toContain('torch.where');
     expect(svg).not.toContain('>Python<');
   });
   it('keeps exact source identity without exposing an internal Python node id', () => {
@@ -59,9 +61,22 @@ describe('graphToSvg', () => {
     node.data = { ...node.data, layerType: { ...node.data.layerType, id: 'python', name: 'Python', displayName: 'Python' },
       captureLabel: 'python@Model#4', parameters: { _raw_call: 'self.compare(features, question)', _source_result_call: { name: 'compare' } } };
     const svg = graphToSvg([node], []);
-    expect(svg).toContain('>compare<');
-    expect(svg).toContain('>self.compare<');
+    expect(titleTexts(svg)).toContain('compare');
+    expect(subtitleTexts(svg)).not.toContain('self.compare');
     expect(svg).not.toContain('python@Model#4');
+  });
+  it('keeps source-only evidence in a separate quiet icon beside the complete callable', () => {
+    const node = layer('source', undefined, { x: 0, y: 0 });
+    const callable = 'self.candidate_scorer.compare_temporal_representations';
+    node.data = { ...node.data, debugEvidence: 'source', shapeEvidence: 'unknown',
+      layerType: { ...node.data.layerType, id: 'python', name: 'Python', displayName: 'Python' },
+      parameters: { _raw_call: `${callable}(candidates, question)`, _source_result_call: { name: 'compare_temporal_representations' } } };
+    const svg = graphToSvg([node], []);
+    const icon = svgDocument(svg).querySelector('[data-source-evidence="source"]');
+    expect(icon?.getAttribute('aria-label')).toBe('From source · shapes not recorded');
+    expect(icon?.querySelector('path')).not.toBeNull();
+    expect(subtitleTexts(svg)).toEqual([callable]);
+    expect(svg).not.toContain('…');
   });
   it.each(['layerNode', 'inputNode', 'outputNode', 'moduleNode'])('exports %s with the same connection-only label and color', type => {
     const node = type === 'moduleNode' ? moduleNode('a') : { ...layer('a', undefined, { x: 0, y: 0 }), type };
@@ -102,10 +117,10 @@ describe('graphToSvg', () => {
     expect(glyphs(svg).map(glyph => glyph.getAttribute('data-block'))).toEqual(['composite', 'convolution']);
   });
 
-  it('draws a module title with its layer count', () => {
+  it('draws a module title with its structural layer count', () => {
     const svg = graphToSvg([moduleNode('m')], []);
     expect(svg).toContain('Block');
-    expect(svg).toContain('×5');
+    expect(svg).toContain('5 layers');
   });
 
   it.each([true, false])('highlights changed module frames in SVG with expanded=%s without moving them', expanded => {
@@ -147,9 +162,11 @@ describe('graphToSvg', () => {
 
   it('escapes node labels', () => {
     const node = layer('a', undefined, { x: 0, y: 0 });
-    node.data.parameters = { ...node.data.parameters, name: 'A & B <x>' };
+    node.data.layerType = { ...node.data.layerType, displayName: 'A & B <x>' };
     const svg = graphToSvg([node], []);
-    expect(svg).toContain('A &amp; B &lt;x&gt;');
+    expect(titleTexts(svg)).toContain('A & B <x>');
+    expect(svg).toContain('&amp;');
+    expect(svg).not.toContain('A & B <x>');
   });
 
   it.each([['aten.mean.dim', 'Mean'], ['aten.view.default', 'Reshape'], ['aten.bmm.default', 'Batch matrix multiply']])
@@ -161,8 +178,8 @@ describe('graphToSvg', () => {
     node.data.parameters = {};
     node.data.outputShape = [1, 1280];
     const svg = graphToSvg([node], []);
-    expect(svg).toContain(`>${title}<`);
-    expect(svg).toContain(`>${target}<`);
+    expect(titleTexts(svg)).toContain(title);
+    expect(subtitleTexts(svg)).toContain(target);
     expect(svg).toContain('(1, 1280)');
   });
 
@@ -172,8 +189,8 @@ describe('graphToSvg', () => {
     node.data.layerType = { id: target, name: target, displayName: target } as ModelNode['data']['layerType'];
     const before = JSON.stringify(node);
     const svg = graphToSvg([node], []);
-    expect(svg).toContain('>Batch norm<');
-    expect(svg).not.toContain(target);
+    expect(titleTexts(svg)).toContain('Batch norm');
+    expect(subtitleTexts(svg)).toContain(target);
     expect(JSON.stringify(node)).toBe(before);
   });
 
@@ -185,24 +202,73 @@ describe('graphToSvg', () => {
     expect(hiddenEdge).not.toContain('marker-end="url(#tv-arrow)"');
   });
 
-  it('renders the same parameter and shape rows the interactive card shows', () => {
+  it('keeps tensor evidence while leaving the constructor list in selection details', () => {
     const node = layer('linear1', undefined, { x: 0, y: 0 });
     node.data.parameters = { in_features: 4, out_features: 2 };
     node.data.inputShape = [3, 4];
     node.data.outputShape = [3, 2];
     const svg = graphToSvg([node], []);
-    expect(svg).toContain('in_features');
-    expect(svg).toContain('out_features');
+    expect(svg).not.toContain('in_features');
+    expect(svg).not.toContain('out_features');
     expect(svg).toContain('>In<');
     expect(svg).toContain('(3, 4)');
     expect(svg).toContain('>Out<');
   });
 
-  it('renders the derived op-summary line', () => {
+  it('keeps ordinary source expressions in selection details', () => {
     const node = layer('slice', undefined, { x: 0, y: 0 });
     node.data.layerType = { id: 'narrow', name: 'Narrow' } as any;
     node.data.parameters = { dim: 1, start: 0, length: 16 };
-    expect(graphToSvg([node], [])).toContain('x[');
+    expect(graphToSvg([node], [])).not.toContain('x[');
+  });
+
+  it('wraps complete callable and class names in the same bounds used for hit testing', () => {
+    const title = 'WNCausalConvolutionWithAdaptiveTemporalPadding';
+    const callable = `video.audio.${title}`;
+    const node = layer('custom', undefined, { x: 30, y: 40 });
+    node.data.layerType = { ...node.data.layerType, id: 'custom_code', name: title, displayName: title };
+    node.data.parameters = { _class: title, _raw_call: `${callable}(x)` };
+    const svg = graphToSvg([node], []);
+    const document = svgDocument(svg);
+    expect(titleTexts(svg)).toEqual([title]);
+    expect(subtitleTexts(svg)).toEqual([callable]);
+    expect(document.querySelectorAll('[data-card-title] tspan').length).toBeGreaterThan(1);
+    expect(svg).not.toContain('…');
+    const bounds = graphSvgBounds([node])[0];
+    const lineYs = Array.from(document.querySelectorAll('[data-card-title] tspan, [data-card-subtitle] tspan'), span => Number(span.getAttribute('y')));
+    expect(Math.max(...lineYs)).toBeLessThan(bounds.y + bounds.h);
+  });
+
+  it('does not grow ordinary exported cards when a callable takes hundreds of parameters', () => {
+    const base = layer('custom', undefined, { x: 0, y: 0 });
+    base.data.layerType = { ...base.data.layerType, id: 'custom_code', name: 'MyBlock', displayName: 'MyBlock' };
+    base.data.parameters = { _class: 'MyBlock' };
+    const busy = { ...base, data: { ...base.data, parameters: { ...base.data.parameters,
+      ...Object.fromEntries(Array.from({ length: 200 }, (_, index) => [`option_${index}`, index])) } } };
+    expect(graphSvgBounds([busy])).toEqual(graphSvgBounds([base]));
+    expect(graphToSvg([busy], [])).not.toContain('option_');
+  });
+
+  it('also preserves a complete custom module class and captured path', () => {
+    const title = 'AsymmetricVideoMemoryWithConditionalTemporalScoring';
+    const path = 'encoder.temporal_blocks.14.candidate_scorer';
+    const node = moduleNode('custom-module', undefined, { expanded: false, moduleTemplateId: title, captureLabel: path });
+    node.style = { width: 250, height: 300 };
+    const svg = graphToSvg([node], []);
+    expect(titleTexts(svg)).toEqual([title]);
+    expect(subtitleTexts(svg)).toEqual([path]);
+    expect(svg).not.toContain('…');
+  });
+
+  it('exports a header-only output without an invented blank body', () => {
+    const node = { ...layer('out', undefined, { x: 0, y: 0 }), type: 'outputNode', data: {
+      layerType: { id: 'output', name: 'Output' }, parameters: {}, captureLabel: 'To Module',
+    } } as unknown as ModelNode;
+    const svg = graphToSvg([node], []);
+    expect(titleTexts(svg)).toEqual(['Output']);
+    expect(subtitleTexts(svg)).toEqual(['To Module']);
+    expect(graphSvgBounds([node])[0].h).toBeLessThan(80);
+    expect(svg).not.toContain('Not recorded');
   });
 
   it('draws a tick per declared port', () => {

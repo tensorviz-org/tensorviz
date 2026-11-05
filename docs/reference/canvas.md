@@ -34,6 +34,16 @@ The persistent **Canvas** receives **Open as Graph**, per-class CodeLens, and Mo
 
 ## Node understanding
 
+Graph cards use one compact presentation at every zoom. Ordinary parameter grids,
+call snippets and validation explanations live in the existing selection details.
+Technical names wrap in shared explicit lines; deterministic widths and header
+heights are reused by layout, hit bounds, connection anchors and SVG. Longer names
+can grow layer cards to 320px and module cards to 340px. Names are never shortened
+with an ellipsis. Agent interpretations stay in selection instead of renaming cards.
+The full parameter list, including structured values and source expressions, is
+scrollable with keyboard access. Review/source-assignment cards retain their evidence.
+Root I/O height follows actual rows; an output without boundary data has no body.
+
 The existing selection panel shows deterministic node identity, source documentation,
 source controls and known graph inputs/outputs. Internal Python graph
 IDs are omitted from card labels. Full calls and further details are expandable.
@@ -181,7 +191,7 @@ revision. An external browser connection change cannot cancel a native export.
 
 ## Module input and output shapes
 
-At inspection zoom, collapsed model module cards show **In** and **Out** rows
+At every zoom, collapsed model module cards show **In** and **Out** rows
 below their capture/evidence badges. For example, the TinyTransformer `encoder`
 and `norm` cards show the captured `(1, 10, 32)` shape and `float32` dtype in
 both directions. These rows also appear in the ReactFlow module renderer.

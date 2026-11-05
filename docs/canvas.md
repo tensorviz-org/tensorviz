@@ -34,6 +34,11 @@ Search by a name such as `conv1`, a type such as `type=Conv2d`, or a shape such 
 
 ## Understand a node
 
+Cards keep the same content at every zoom level. Full class and function names wrap;
+long names can use a wider card. Click a node to inspect it without changing the camera.
+Constructor arguments stay in **More details**, where the full list can be scrolled.
+Input and Output cards reserve only their visible rows; an empty output is header-only.
+
 Select a node to see its callable, source and available inputs and outputs. When the
 declaration can be resolved, its author's docstring appears as **Source documentation**.
 **More details** includes the declared signature and complete available docstring.
@@ -42,7 +47,7 @@ standard-layer reference descriptions are a fallback. **From source** means the 
 found in code; tensor shapes remain unknown until recorded by a capture.
 
 With an agent connected in chat, selecting one node automatically requests a short
-source-based explanation. Its purpose-based title keeps the exact callable visible.
+source-based explanation in the selection panel. Graph cards retain their technical names.
 **Agent interpretation** distinguishes that explanation from recorded graph facts.
 Open **More details** for the complete call, steps, uncertainties and linked sources.
 **Discuss in chat** opens the existing chat with the current selection available.

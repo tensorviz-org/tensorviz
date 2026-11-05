@@ -46,8 +46,8 @@
 .tldraw-canvas-wrapper .graph-focus-controls { display: flex; flex-direction: column; gap: 8px; background: var(--tv-popover); border: 0; border-radius: 12px; padding: 10px; box-shadow: var(--tv-popover-shadow); max-width: 100%; box-sizing: border-box; }
 .tldraw-canvas-wrapper .graph-focus-overlay[data-local='true'] { top: auto; bottom: 12px; left: 12px; max-width: min(380px, calc(100% - 24px)); pointer-events: none; }
 .tldraw-canvas-wrapper .graph-focus-overlay[data-local='true'] .graph-focus-controls { pointer-events: auto; max-height: calc(100vh - 180px); overflow: auto; }
-.tldraw-canvas-wrapper .graph-focus-controls strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 13px/18px var(--font-ui); }
-.tldraw-canvas-wrapper .graph-focus-caption { display: flex; align-items: baseline; gap: 10px; }
+.tldraw-canvas-wrapper .graph-focus-controls strong { min-width: 0; overflow-wrap: anywhere; white-space: normal; font: 600 13px/18px var(--font-ui); }
+.tldraw-canvas-wrapper .graph-focus-caption { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
 .tldraw-canvas-wrapper .graph-focus-caption span { color: var(--tv-text-3); white-space: nowrap; }
 .tldraw-canvas-wrapper .graph-focus-controls [role='group'] { display: inline-flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--tv-seg-track); box-shadow: inset 0 0 0 1px var(--tv-hairline); align-self: flex-start; }
 .tldraw-canvas-wrapper .graph-focus-controls button { display: inline-flex; align-items: center; gap: 6px; height: 26px; border: 0; border-radius: 8px; padding: 0 9px; background: transparent; color: var(--tv-text-2); cursor: pointer; font: 500 12.5px/1 var(--font-ui); transition: background-color var(--tv-quick) var(--tv-ease), color var(--tv-quick) var(--tv-ease); }

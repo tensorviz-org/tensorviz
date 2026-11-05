@@ -171,12 +171,6 @@
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .module-route { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10px; color: var(--graph-muted); margin: 0; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .module-mini-map { padding: 0; background: transparent; border: 0; margin: 0; height: 42px; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .module-sublayer-list { display: none; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .module-source-link,
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .module-route,
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .module-mini-map,
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .module-header-actions .expand-button { display: none; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .layer-name { font-size: 20px; letter-spacing: -.017em; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .module-pill { font-size: 16px; }
 .tldraw-canvas-wrapper button:focus-visible { outline: 2px solid var(--tv-focus-ring); outline-offset: 2px; }
 .node-source-location { display: flex; align-items: center; gap: 5px; max-width: 100%; min-height: 17px; padding: 0; background: transparent; border: 0; color: var(--graph-muted); font: 10px/15px var(--font-mono); cursor: pointer; pointer-events: auto; text-align: left; }
 .node-source-location span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -391,11 +385,17 @@
   color: var(--graph-diff-ink); background: color-mix(in srgb, var(--graph-diff-color) 14%, transparent);
 }
 
-/* Detail tiers: overview drops shadows, ports and secondary text; outline and title remain. */
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.ui2-node-card, .module-node)[data-detail='overview']:not(.selected) { box-shadow: none !important; }
-.tldraw-canvas-wrapper :is(.ui2-node-card, .module-node)[data-detail='overview'] ~ .model-node-port { display: none; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] :is(.module-param-grid, .layer-id) { visibility: hidden; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .layer-id.source-call-label { visibility: visible; }
+/* Zoom only scales cards. Exact identity and structure keep the same home. */
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .ui2-node-header { display: grid; grid-template-columns: 30px minmax(0, 1fr) 24px; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.ui2-node-title, .ui2-node-subtitle, .module-node .layer-name, .module-node .layer-id) {
+  white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
+}
+.tldraw-canvas-wrapper .node-identity-line { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .ui2-node-header > .graph-state-badge { justify-self: end; max-width: 24px; overflow-wrap: anywhere; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .ui2-node-card[data-empty-body] .ui2-node-header { border-bottom: 0; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .node-compact-expand { padding: 6px 12px !important; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .passthrough-node { padding: 0; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .passthrough-node > .passthrough-detail { margin: 0; padding: 7px 12px; }
 
 @media (prefers-reduced-motion: reduce) {
   .tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.ui2-node-card, .module-node.collapsed, .passthrough-node) { transition: none; }

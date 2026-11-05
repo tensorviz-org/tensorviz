@@ -27,6 +27,20 @@ const documentation: Extract<NodeSourceDocumentation, { status: 'resolved' }> = 
   truncated: false, citation: { id: 'definition', file: 'models/spectral.py', sourceDigest: 'b'.repeat(64), startLine: 40, endLine: 61 },
 };
 
+it('keeps every parameter and the full technical identity available in the selection details', () => {
+  const callable = 'research.experimental.video_question_answering.ExtremelyLongCandidateRepresentationScoringHead';
+  const parameters = Object.fromEntries(Array.from({ length: 200 }, (_, index) => [`candidate_projection_parameter_${index}`, { dimensions: [2, 32], enabled: true }]));
+  const selected = { ...node, data: { ...node.data, layerType: { ...node.data.layerType, id: 'custom_code' }, parameters: { ...parameters, _class: callable } } };
+  render(<NodeUnderstanding node={selected} />);
+  expect(screen.getByLabelText('Parameter values')).not.toBeVisible();
+  fireEvent.click(screen.getByText('More details'));
+  expect(screen.getByText(callable, { exact: true })).toBeVisible();
+  const region = screen.getByRole('region', { name: 'Parameter values' });
+  expect(region).toHaveAttribute('tabindex', '0');
+  expect(within(region).getByText('candidate_projection_parameter_199')).toBeVisible();
+  expect(region.querySelectorAll('dt')).toHaveLength(200);
+});
+
 it('keeps source-only meaning unknown while exposing the exact call and graph names', () => {
   const view = render(<NodeUnderstanding node={node} />);
   expect(screen.getByText('From source · shapes not recorded')).toBeVisible();

@@ -40,7 +40,8 @@ export function nodePresentation(data: ModelNodeData, nodeId: string) {
     || custom?.title || operation || publicLabel(data.layerType?.displayName)
     || publicLabel((data as { label?: string }).label) || publicLabel(data.captureLabel) || publicLabel(data.layerType?.name) || publicLabel(nodeId) || 'Python call';
   const path = publicLabel(data.captureLabel);
-  const subtitle = callable && callable !== title ? callable : path && path !== title ? path : undefined;
+  const subtitle = callable && callable !== title && callable.replace(/^(?:self|cls)\./, '') !== title
+    ? callable : path && path !== title && path !== callable ? path : undefined;
   // Catalogue descriptions are reference information, not model-specific intent.
   const purpose = custom || !data.layerType?.id || data.layerType.id === 'module' ? undefined : text(getLayerByType(data.layerType.id)?.description);
   return { title, callable, subtitle, rawCall, purpose };

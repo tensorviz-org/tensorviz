@@ -16,11 +16,11 @@
  * the manual Layout button — replacing three divergent code paths.
  */
 import dagre from 'dagre';
-import { nodeCardSize, moduleCardHeight } from '../canvas/cardMetrics';
+import { nodeCardSize, moduleCardHeight, moduleCardHeader, moduleCardWidth } from '../canvas/cardMetrics';
 import { endpointOnSide } from '../canvas/capturePorts';
 import { skipEdgeIds } from '../canvas/edgeRouting';
 import type { LayoutDirection } from '../canvas/edgeAnchors';
-import { CapturePort, ModelNode, ModelEdge } from '../types';
+import { CapturePort, ModelNode, ModelEdge, ModelNodeData } from '../types';
 import { graphNodeOrigin } from './graphOverview';
 import { getLayerByType } from '../data/layerTypes';
 import { passThroughConnections, passThroughHidden } from './passThroughPresentation';
@@ -274,6 +274,7 @@ function layoutChildren(
   preservePositions = false,
   sideReserve = 0,
   direction?: LayoutDirection,
+  moduleData?: ModelNodeData,
 ): ChildLayout {
   if (children.length === 0) {
     return { positions: new Map(), width: MODULE_COLLAPSED_W, height: MODULE_COLLAPSED_H };
@@ -306,7 +307,7 @@ function layoutChildren(
   for (const id of ids) {
     const p = local.get(id) || { x: MODULE_PAD, y: MODULE_PAD };
     const saved = preservePositions ? children.find(child => child.id === id)?.position : undefined;
-    const placed = saved ?? { x: p.x + MODULE_PAD, y: p.y + MODULE_HEADER };
+    const placed = saved ? { ...saved } : { x: p.x + MODULE_PAD, y: p.y + MODULE_HEADER };
     positions.set(id, placed);
     const sz = childSizes.get(id) || CHILD_SIZE;
     maxRight = Math.max(maxRight, placed.x + sz.w);
@@ -323,11 +324,16 @@ function layoutChildren(
     positions.forEach(position => { position.x += shift; });
   }
   if (sideReserve && !preservePositions && row) positions.forEach(position => { position.y += sideReserve; });
+  const headerClearance = moduleData ? Math.max(0, moduleCardHeader(moduleData, width).height - MODULE_HEADER) : 0;
+  const wrappedHeader = moduleData && moduleCardHeader(moduleData, width);
+  const neededClearance = preservePositions ? (positions.size && wrappedHeader && wrappedHeader.titleLines.length > 1
+    ? Math.max(0, wrappedHeader.height + MODULE_PAD - Math.min(...Array.from(positions.values()).map(position => position.y))) : 0) : headerClearance;
+  if (neededClearance) positions.forEach(position => { position.y += neededClearance; });
   return {
     positions,
     // Floor the expanded width so the module header fits without truncating.
     width,
-    height: Math.max(MODULE_COLLAPSED_H, maxBottom + MODULE_PAD + (row ? reserve : 0)),
+    height: Math.max(MODULE_COLLAPSED_H, maxBottom + MODULE_PAD + (row ? reserve : 0) + neededClearance),
   };
 }
 
@@ -603,7 +609,7 @@ export function reconcileModuleView(
     // (i.e. every expand/collapse) paid ~80 dagre runs for nothing.
     const moduleNode = byId.get(id)!;
     if (!expandedOf(id) || !ancestorsExpanded(moduleNode)) {
-      moduleSize.set(id, { w: MODULE_COLLAPSED_W, h: moduleCardHeight(moduleNode.data) });
+      moduleSize.set(id, { w: moduleCardWidth(moduleNode.data), h: moduleCardHeight(moduleNode.data) });
       continue;
     }
     if (opts.skipChildLayout) continue;
@@ -612,7 +618,7 @@ export function reconcileModuleView(
     const internalEdges = internalByModule.get(id) || [];
     const layout = layoutChildren(canonical, internalEdges, moduleSize,
       opts.preserveChildPositions && (!opts.relayout || moduleNode.data.moduleLayoutState === 'custom'),
-      laneFrames.has(id) ? SKIP_LANE_RESERVE : 0, opts.direction);
+      laneFrames.has(id) ? SKIP_LANE_RESERVE : 0, opts.direction, moduleNode.data);
     childLayouts.set(id, layout);
     moduleSize.set(id, { w: layout.width, h: layout.height });
   }
@@ -705,8 +711,7 @@ export function reconcileModuleView(
         extent: 'parent',
         expandParent: (expanded && !repeatHidden) || undefined,
         hidden,
-        position: opts.preserveChildPositions && !opts.relayout
-          ? child.position : layout?.positions.get(child.id) || child.position || { x: MODULE_PAD, y: MODULE_HEADER },
+        position: layout?.positions.get(child.id) || child.position || { x: MODULE_PAD, y: MODULE_HEADER },
         ...(childModuleSize
           ? { style: { ...(child.style || {}), width: childModuleSize.w, height: childModuleSize.h } }
           : {}),

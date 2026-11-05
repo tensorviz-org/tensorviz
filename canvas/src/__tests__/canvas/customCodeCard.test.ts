@@ -84,76 +84,48 @@ describe('what a custom-code card says', () => {
   });
 });
 
-describe('cardMetrics counts the rows the custom card draws', () => {
+describe('cardMetrics keeps ordinary custom cards compact', () => {
   const custom = { layerType: { id: 'custom_code' }, parameters: BLOCK };
 
-  it('does not measure the provenance keys as parameter rows, on ANY card', () => {
-    // This used to assert that an ORDINARY card is taller, because it drew the six
-    // `_` keys as six rows while the custom card did not. That was the bug, not the
-    // contract: `_source_file` and `_class` are not constructor arguments, and a
-    // parsed model in the IDE showed them on every card — six rows plus "+12 more
-    // params" on a Module. The rule now lives once, in `cardParams`, and applies to
-    // both, so the honest assertion is that NEITHER counts them.
-    // Shapes on every variant: layerCardHeight has a 120px floor, and a comparison
-    // down there would pass whatever this function counted.
-    const height = (parameters: Record<string, unknown>) =>
-      layerCardHeight({
-        layerType: { id: 'linear' },
-        parameters,
-        inputShape: [2, 8],
-        outputShape: [2, 8],
-      });
-    expect(height(BLOCK)).toBe(height({}));
-
-    // And a real constructor argument still counts, so this cannot pass by measuring
-    // nothing at all.
-    expect(height({ ...BLOCK, out_features: 128 })).toBeGreaterThan(height({}));
+  it('keeps internal metadata and constructor arguments out of the card footprint', () => {
+    const height = (parameters: Record<string, unknown>) => layerCardHeight({
+      layerType: { id: 'linear', name: 'Linear' }, parameters,
+      inputShape: [2, 8], outputShape: [2, 8],
+    });
+    const baseline = { ...BLOCK, in_features: 8, out_features: 8 };
+    expect(height({ ...baseline, _params_M: 12, _source_digest: 'revision' })).toBe(height(baseline));
+    expect(height({ ...baseline, uncommon_option: 128 })).toBe(height(baseline));
   });
 
-  it('adds a row for the snippet, the "defined in" affordance and expand', () => {
-    // Shapes on every variant, because layerCardHeight has a 120px floor ("never
-    // shorter than the old constant") and a bare custom card sits under it — a
-    // comparison down there would pass whatever this function counted.
-    const shaped = (parameters: Record<string, unknown>) =>
-      layerCardHeight({
-        layerType: { id: 'custom_code' },
-        parameters,
-        inputShape: [2, 8],
-        outputShape: [2, 8],
-      });
+  it('keeps source snippets and locations in inspection details without adding card rows', () => {
+    const shaped = (parameters: Record<string, unknown>) => layerCardHeight({
+      layerType: { id: 'custom_code' }, parameters,
+      inputShape: [2, 8], outputShape: [2, 8],
+    });
+    const named = { _class: 'MyBlock', _raw_call: 'h = self.blk(h)' };
+    const located = { ...named, _source_file: 'models/blocks.py', _source_line: 5 };
+    expect(shaped(located)).toBe(shaped(named));
+    expect(shaped({ ...located, _raw_call: 'h = self.blk(h, context=question)' })).toBe(shaped(located));
 
-    const named = shaped({ _class: 'MyBlock' });
-    const located = shaped({ _class: 'MyBlock', _source_file: 'models/blocks.py', _source_line: 5 });
-    const snippeted = shaped(BLOCK);
-    expect(located).toBeGreaterThan(named);
-    expect(snippeted).toBeGreaterThan(located);
-
-    // Retiring the retrace button must not leave an invisible row in card sizing.
     const asWeb = shaped(BLOCK);
     (window as { __TENSORVIZ_IDE__?: boolean }).__TENSORVIZ_IDE__ = true;
-    try {
-      expect(shaped(BLOCK)).toBe(asWeb);
-    } finally {
-      delete (window as { __TENSORVIZ_IDE__?: boolean }).__TENSORVIZ_IDE__;
-    }
+    try { expect(shaped(BLOCK)).toBe(asWeb); }
+    finally { delete (window as { __TENSORVIZ_IDE__?: boolean }).__TENSORVIZ_IDE__; }
   });
 
-  it('still counts the constructor arguments a class was given', () => {
-    const withArgs = layerCardHeight({
-      layerType: { id: 'custom_code' },
-      parameters: { ...BLOCK, width: 16, depth: 2 },
-    });
-    expect(withArgs).toBeGreaterThan(layerCardHeight(custom));
+  it('does not grow a custom card when its constructor has hundreds of arguments', () => {
+    const parameters = { ...BLOCK, ...Object.fromEntries(Array.from({ length: 200 }, (_, index) => [`argument_${index}`, index])) };
+    const original = JSON.stringify(parameters);
+    expect(layerCardHeight({ ...custom, parameters })).toBe(layerCardHeight(custom));
+    expect(JSON.stringify(parameters)).toBe(original);
   });
 
-  it('leaves an ordinary layer card exactly where it was', () => {
-    expect(layerCardHeight({ parameters: { in_features: 8, out_features: 4 } })).toBe(
-      layerCardHeight({
-        layerType: { id: 'linear' },
-        parameters: { in_features: 8, out_features: 4 },
-      }),
-    );
-    expect(layerCardHeight({})).toBe(120);
+  it('uses a header-only footprint when no summary facts are available', () => {
+    expect(layerCardHeight({})).toBe(53);
+    const ordinary = { layerType: { id: 'linear', name: 'Linear' } };
+    expect(layerCardHeight(ordinary)).toBe(53);
+    // A known feature pair is a compact fact, rather than an arbitrary argument list.
+    expect(layerCardHeight({ ...ordinary, parameters: { in_features: 8, out_features: 4 } })).toBeGreaterThan(layerCardHeight(ordinary));
   });
 });
 
@@ -339,7 +311,7 @@ describe('the Validate row', () => {
     );
   });
 
-  it('a drawn row makes the card taller, so its lower half stays clickable', () => {
+  it('keeps validation availability in inspection without growing an ordinary card', () => {
     const ready = {
       ...RESEARCH,
       _validatable: { state: 'ready', detail: '', remedy: '' },
@@ -352,10 +324,10 @@ describe('the Validate row', () => {
       layerType: { id: 'custom_code' },
       parameters: RESEARCH,
     } as never);
-    expect(taller).toBeGreaterThan(plain);
+    expect(taller).toBe(plain);
   });
 
-  it('a refusal reserves room for its sentence as well as its row', () => {
+  it('keeps validation refusal details out of the ordinary card footprint', () => {
     const needs = {
       ...RESEARCH,
       _validatable: { state: 'needs', detail: 'GPT needs `config`.', remedy: 'x' },
@@ -363,7 +335,7 @@ describe('the Validate row', () => {
     const ready = { ...RESEARCH, _validatable: { state: 'ready', detail: '', remedy: '' } };
     expect(
       layerCardHeight({ layerType: { id: 'custom_code' }, parameters: needs } as never),
-    ).toBeGreaterThan(
+    ).toBe(
       layerCardHeight({ layerType: { id: 'custom_code' }, parameters: ready } as never),
     );
   });

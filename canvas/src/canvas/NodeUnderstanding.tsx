@@ -2,11 +2,12 @@ import React from 'react';
 import { FileText, LoaderCircle, MessageCircle, Sparkles } from 'lucide-react';
 import type { ModelNode } from '../types';
 import type { NodeExplanationCitation, NodeExplanationState, NodeSourceDocumentation } from '../ide/nodeExplanation.generated';
-import { cardParams } from '../ide/cardParams';
+import { sourceParameterValues } from '../ide/cardParams';
 import { LocalBrowserContext } from '../ide/localBrowserContext';
 import { NodeExplanationContext } from './NodeExplanationContext';
 import { nodeEvidenceLabel, nodeInputOutput, nodePresentation, sourceDocumentationSummary } from './nodePresentation';
 import { NodeSourceLink } from './NodeSourceControls';
+import { customCardModel } from './customCard';
 import './nodeUnderstanding.css';
 
 function InputOutput({ inputs, outputs, label }: { inputs: string[]; outputs: string[]; label: string }) {
@@ -52,8 +53,9 @@ export function NodeUnderstanding({ node }: { node: ModelNode }) {
   const source = documentation?.status === 'resolved' ? documentation : undefined;
   const sourceSummary = sourceDocumentationSummary(source?.docstring);
   const facts = nodePresentation(node.data, node.id);
+  const custom = customCardModel(node.data.layerType?.id, node.data.parameters);
   const io = nodeInputOutput(node.data);
-  const params = cardParams(node.data.parameters).entries;
+  const params = Object.entries(sourceParameterValues(node.data.parameters ?? {})).filter(([name]) => !name.startsWith('_'));
   const loading = state?.status === 'queued' || state?.status === 'loading';
   const unavailableNotice = state?.status === 'unavailable' && <div className="node-understanding-unavailable">
     <span title={state.detail}>{state.detail || 'Explanation unavailable.'}</span>
@@ -103,11 +105,23 @@ export function NodeUnderstanding({ node }: { node: ModelNode }) {
           {node.data.captureLabel && node.data.captureLabel !== facts.callable && !/^#?python@/.test(node.data.captureLabel)
             && <div><dt>Graph path</dt><dd><code>{node.data.captureLabel}</code></dd></div>}
         </dl>
-        {facts.rawCall && <div><span className="node-understanding-detail-label">Source call</span><pre>{facts.rawCall}</pre></div>}
+        {(facts.rawCall || custom?.snippet) && <div><span className="node-understanding-detail-label">Source call</span><pre>{facts.rawCall || custom?.snippet}</pre></div>}
         {explanation && <div><span className="node-understanding-detail-label">Graph evidence</span><InputOutput {...io} label="Graph inputs and outputs" /></div>}
-        {params.length > 0 && <dl className="node-understanding-facts" aria-label="Parameters">
-          {params.map(([name, value]) => <div key={name}><dt>{name}</dt><dd><code>{format(value)}</code></dd></div>)}
-        </dl>}
+        {params.length > 0 && <section aria-label="Parameters">
+          <span className="node-understanding-detail-label">Parameters · {params.length}</span>
+          <div className="node-understanding-parameters" role="region" aria-label="Parameter values" tabIndex={0} onKeyDown={sourceScrollKey}>
+            <dl className="node-understanding-facts">
+              {params.map(([name, value]) => <div key={name}><dt>{name}</dt><dd><code>{format(value)}</code></dd></div>)}
+            </dl>
+          </div>
+        </section>}
+        {custom?.validatable && custom.validatable.state !== 'unsupported' && <section aria-label="Validation">
+          <span className="node-understanding-detail-label">Validation</span>
+          <p>{custom.validatable.detail || (custom.validatable.state === 'ready' ? 'Ready to validate' : 'Cannot validate')}</p>
+          {custom.validatable.remedy && <pre>{custom.validatable.remedy}</pre>}
+        </section>}
+        {(['_act_stats', '_grad_stats'] as const).map((key, index) => node.data.parameters?.[key]
+          ? <section key={key}><span className="node-understanding-detail-label">{index === 0 ? 'Activation' : 'Gradient'} statistics</span><pre>{format(node.data.parameters[key])}</pre></section> : null)}
         {documentation && unavailableNotice}
         {explanation && state && <div className="node-understanding-interpretation">
           <span className="node-understanding-attribution"><Sparkles size={12} aria-hidden="true" />Agent interpretation</span>

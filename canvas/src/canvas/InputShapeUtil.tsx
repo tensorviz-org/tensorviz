@@ -9,11 +9,12 @@ import React from 'react';
 import * as LucideIcons from 'lucide-react';
 import { InputShape } from './types';
 import { displayInputShape } from '../utils/inputShape';
-import { inputProvenanceNote } from '../ide/cardParams';
 import { NodePorts } from './NodePort';
-import { useGraphDetail } from './graphDetail';
 import { CaptureBoundaryRows } from './CaptureBoundaryRows';
 import { GraphReviewBadge } from './GraphReviewChanges';
+import { cardHeaderLayout } from './cardIdentity';
+import { CardIdentity } from './NodeCardIdentity';
+import { IO_CARD_HEIGHT, ioCardContent } from './cardMetrics';
 
 export class InputShapeUtil extends BaseBoxShapeUtil<InputShape> {
   static override type = 'input-node' as const;
@@ -27,7 +28,7 @@ export class InputShapeUtil extends BaseBoxShapeUtil<InputShape> {
   getDefaultProps(): InputShape['props'] {
     return {
       w: 200,
-      h: 100,
+      h: IO_CARD_HEIGHT,
       nodeData: {
         layerType: {
           id: 'input',
@@ -77,8 +78,9 @@ export class InputShapeUtil extends BaseBoxShapeUtil<InputShape> {
 
 const InputShapeCard = track(function InputShapeCard({ shape, editor }: { shape: InputShape; editor: Editor }) {
     const data = shape.props.nodeData;
-    const detail = useGraphDetail(editor);
     const isSelected = editor.getSelectedShapeIds().includes(shape.id);
+    const header = cardHeaderLayout('Input', data.captureLabel, shape.props.w);
+    const content = ioCardContent(data, 'input');
 
     // Was `shapeStr.split(',')` with a catch that returned the raw value: given a list
     // it threw, fell through, and React rendered [1, 64, 48] as the string "16448" by
@@ -93,32 +95,29 @@ const InputShapeCard = track(function InputShapeCard({ shape, editor }: { shape:
     // Every shape downstream of this card was measured on this one tensor. When the
     // backend picked it rather than the user, the card says so — otherwise a search
     // result reads exactly like a `# tensorviz: input=` the user wrote.
-    const provenanceNote = inputProvenanceNote(data.parameters);
+    const provenanceNote = content.provenance;
 
     return (
       <HTMLContainer style={{ pointerEvents: 'none', overflow: 'visible' }}>
-        <div className={`${nodeClass} ui2-node-card`} data-detail={detail} data-node-id={shapeIdToNodeId(shape.id)} data-block="input" style={{ width: shape.props.w, height: shape.props.h }}>
-          <div className="ui2-node-header">
+        <div className={`${nodeClass} ui2-node-card`} data-detail="compact" data-node-id={shapeIdToNodeId(shape.id)} data-block="input" style={{ width: shape.props.w, height: shape.props.h }}>
+          <div className="ui2-node-header" style={{ height: header.height }}>
             <BlockIdentity block={{ kind: 'input', label: 'Input' }} />
-            <div className="ui2-node-title-wrap">
-              <div className="ui2-node-title">Input</div>
-              <div className="ui2-node-subtitle">{data.captureLabel ?? `#${shapeIdToNodeId(shape.id)}`}</div>
-            </div>
+            <CardIdentity layout={header} title="Input" subtitle={data.captureLabel} />
             {data.review ? <GraphReviewBadge review={data.review} /> : data.diffStatus && <span className="ui2-node-badge">{data.diffStatus}</span>}
           </div>
 
-          <div className="ui2-node-body">
+          {content.bodyHeight > 0 && <div className="ui2-node-body">
             {data.capturePorts ? <CaptureBoundaryRows ports={data.capturePorts} /> : <div className="ui2-node-list">
               <div className="ui2-node-shape-row">
                 <LucideIcons.Layers size={11} />
                 <span>Shape</span>
                 <span className="ui2-node-shape">{formatShape(data.parameters.shape ?? data.inputShape) ?? 'Not recorded'}</span>
               </div>
-              {data.parameters.name && (
+              {content.name && (
                 <div className="ui2-node-shape-row">
                   <LucideIcons.Tag size={12} />
                   <span>Name</span>
-                  <span className="ui2-node-shape">{data.parameters.name}</span>
+                  <span className="ui2-node-shape">{content.name}</span>
                 </div>
               )}
               {provenanceNote && (
@@ -135,9 +134,11 @@ const InputShapeCard = track(function InputShapeCard({ shape, editor }: { shape:
                 </div>
               )}
             </div>}
-
-
-          </div>
+            {content.errorLines.length > 0 && <div className="ui2-node-error" style={{ height: content.errorHeight, boxSizing: 'border-box' }}>
+              <LucideIcons.AlertTriangle size={12} />
+              <span className="graph-failure-facts">{content.errorLines.map((line, index) => <span key={index}>{line}</span>)}</span>
+            </div>}
+          </div>}
         </div>
         <NodePorts shape={shape} />
       </HTMLContainer>

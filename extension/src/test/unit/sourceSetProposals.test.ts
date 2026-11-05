@@ -219,7 +219,20 @@ suite('reviewed source-set proposals', () => {
     } finally { vscode.workspace.applyEdit = originalApply; }
   });
 
-  for (const change of ['configBytes', 'configVersion', 'modelBytes', 'inventory', 'trust', 'token', 'target', 'cancel', 'symlink', 'inode', 'capture', 'plan', 'captureConditions', 'planContents']) {
+  for (const unavailableContext of [false, true]) test(`source set applies after identical-byte version drift; unavailable context=${unavailableContext}`, async () => {
+    review = async (_title, _files, _signal, _candidate, shown) => {
+      shown?.(async () => {}, () => {});
+      editorState.versions.set(path.join(root, 'model.py'), 7);
+      editorState.versions.set(path.join(root, 'config.py'), 3);
+      if (unavailableContext) current = false;
+      return true;
+    };
+    const outcome = await propose();
+    assert.equal(outcome.status, 'applied', outcome.detail);
+    assert.equal(editorState.appliedEdits.length, 1);
+  });
+
+  for (const change of ['configBytes', 'modelBytes', 'inventory', 'trust', 'token', 'cancel', 'symlink', 'inode', 'capture', 'plan', 'captureConditions', 'planContents']) {
     test(`the complete source set refuses Apply after ${change} changes`, async () => {
       const controller = new AbortController(), value = edit();
       value.capture = { captureId: capture.id, sourceId: capture.source.id };
@@ -227,12 +240,10 @@ suite('reviewed source-set proposals', () => {
         shown?.(async () => {}, () => {});
         const file = path.join(root, 'config.py');
         if (change === 'configBytes') editorState.documents.set(file, '# changed');
-        if (change === 'configVersion') editorState.versions.set(file, 2);
         if (change === 'modelBytes') editorState.documents.set(path.join(root, 'model.py'), '# changed');
         if (change === 'inventory') dependencies.set('new.py', '0'.repeat(64));
         if (change === 'trust') state.isTrusted = false;
         if (change === 'token') token = 'another-backend';
-        if (change === 'target') current = false;
         if (change === 'cancel') controller.abort();
         if (change === 'symlink' || change === 'inode') {
           fs.renameSync(file, path.join(root, 'original.py'));

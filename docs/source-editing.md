@@ -22,7 +22,7 @@ Background preparation can use your agent’s provider before Send.
 - Grouping layers can change parameter paths and checkpoint keys.
 - A source review does not prove that the changed model will run with your inputs.
 
-A stale proposal must be reviewed again after its source or dependencies change. TensorViz does not silently apply an old proposal.
+Apply rechecks every reviewed file against its original digest. Reopening a file or changing its editor version without changing its bytes does not block acceptance. If reviewed source bytes change, Apply keeps the draft open, clears the pending Accept indicator, and shows the refusal reason. Review the proposal again after its source or dependencies change.
 
 ## Source positions and review limits
 

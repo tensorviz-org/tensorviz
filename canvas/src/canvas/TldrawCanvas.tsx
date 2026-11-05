@@ -168,7 +168,7 @@ const SelectionWatcher = track(function SelectionWatcher({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest('input, textarea, select, button, [contenteditable="true"]') || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (target?.closest('input, textarea, select, button, summary, pre[tabindex], [contenteditable="true"]') || event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.key === 'Escape') {
         setTraceDirection(editor, 'local'); selectedEdgeId.set(null); closeNodeParameters();
       } else if (event.key === 'Enter' && editor.getSelectedShapeIds().length === 1) {

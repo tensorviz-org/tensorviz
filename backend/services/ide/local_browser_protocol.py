@@ -95,12 +95,14 @@ def _is_bounded_string(value: Any, max_length: int) -> bool:
     return _is_non_empty_string(value) and len(value) <= max_length
 
 
+_NODE_EXPLANATION_WHITESPACE = "\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
+
+
 def _node_explanation_text(value: Any, maximum: int) -> bool:
     # Match JavaScript string ceilings, including astral characters as two units.
-    whitespace = "\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
     return (isinstance(value, str) and bool(value)
             and len(value.encode("utf-16-le", "surrogatepass")) // 2 <= maximum
-            and value.strip(whitespace) == value and re.search(r"[\x00-\x1f\x7f]", value) is None)
+            and value.strip(_NODE_EXPLANATION_WHITESPACE) == value and re.search(r"[\x00-\x1f\x7f]", value) is None)
 
 
 def _node_explanation_citation(value: Any) -> bool:
@@ -130,14 +132,33 @@ def _node_explanation(value: Any) -> bool:
             and len({item["id"] for item in citations}) == len(citations))
 
 
+def _node_source_documentation(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    if value.get("status") == "unavailable":
+        return (set(value) == {"status", "reason"} and isinstance(value.get("reason"), str)
+                and value["reason"] in ("ambiguous", "dynamic_binding", "decorated", "unresolved_import", "unresolved_symbol", "unsupported_callable", "analysis_limit"))
+    docstring = value.get("docstring")
+    return (value.get("status") == "resolved"
+            and set(value) <= {"status", "qualifiedName", "kind", "signature", "docstring", "truncated", "citation"}
+            and _node_explanation_text(value.get("qualifiedName"), 512)
+            and _node_explanation_text(value.get("signature"), 2048)
+            and isinstance(value.get("kind"), str) and value["kind"] in ("function", "method", "class")
+            and isinstance(value.get("truncated"), bool) and _node_explanation_citation(value.get("citation"))
+            and ("docstring" not in value or isinstance(docstring, str) and bool(docstring)
+                 and len(docstring.encode("utf-16-le", "surrogatepass")) // 2 <= 4096 and docstring.strip(_NODE_EXPLANATION_WHITESPACE) == docstring
+                 and all(ord(character) >= 32 and ord(character) != 127 or character in "\t\n\r" for character in docstring)))
+
+
 def _node_explanation_state(value: Any) -> bool:
     return (isinstance(value, dict)
-            and set(value) <= {"requestId", "nodeId", "revision", "status", "detail", "explanation"}
+            and set(value) <= {"requestId", "nodeId", "revision", "status", "detail", "explanation", "documentation"}
             and _node_explanation_text(value.get("requestId"), 128)
             and _node_explanation_text(value.get("nodeId"), 1024)
             and _node_explanation_text(value.get("revision"), 256)
             and isinstance(value.get("status"), str) and value["status"] in ("queued", "loading", "ready", "unavailable")
             and ("detail" not in value or _node_explanation_text(value["detail"], 320))
+            and ("documentation" not in value or _node_source_documentation(value["documentation"]))
             and (_node_explanation(value.get("explanation")) if value["status"] == "ready" else "explanation" not in value))
 
 

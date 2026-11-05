@@ -18,6 +18,20 @@ export interface NodeExplanation {
   citations: NodeExplanationCitation[];
 }
 
+export const SOURCE_DOCUMENTATION_REASONS = ['ambiguous', 'dynamic_binding', 'decorated', 'unresolved_import',
+  'unresolved_symbol', 'unsupported_callable', 'analysis_limit'] as const;
+
+/** Author-written documentation and a static declaration, never a live Python signature. */
+export type NodeSourceDocumentation = {
+  status: 'resolved';
+  qualifiedName: string;
+  kind: 'function' | 'method' | 'class';
+  signature: string;
+  docstring?: string;
+  truncated: boolean;
+  citation: NodeExplanationCitation;
+} | { status: 'unavailable'; reason: typeof SOURCE_DOCUMENTATION_REASONS[number] };
+
 export interface NodeExplanationState {
   requestId: string;
   nodeId: string;
@@ -26,6 +40,7 @@ export interface NodeExplanationState {
   status: 'queued' | 'loading' | 'ready' | 'unavailable';
   detail?: string;
   explanation?: NodeExplanation;
+  documentation?: NodeSourceDocumentation;
 }
 
 const record = (value: unknown): value is Record<string, unknown> =>
@@ -37,6 +52,22 @@ const text = (value: unknown, max: number): value is string => typeof value === 
   && Array.from(value).every(character => { const code = character.charCodeAt(0); return code >= 32 && code !== 127; });
 const list = (value: unknown, maxItems: number, maxLength: number): value is string[] =>
   Array.isArray(value) && value.length <= maxItems && value.every(item => text(item, maxLength));
+
+export function isNodeSourceDocumentation(value: unknown): value is NodeSourceDocumentation {
+  if (!record(value)) return false;
+  if (value.status === 'unavailable') return Object.keys(value).length === 2 && keys(value, ['status', 'reason'])
+    && typeof value.reason === 'string' && (SOURCE_DOCUMENTATION_REASONS as readonly string[]).includes(value.reason);
+  const docstring = value.docstring;
+  return value.status === 'resolved'
+    && keys(value, ['status', 'qualifiedName', 'kind', 'signature', 'docstring', 'truncated', 'citation'])
+    && text(value.qualifiedName, 512) && text(value.signature, 2048)
+    && typeof value.kind === 'string' && ['function', 'method', 'class'].includes(value.kind)
+    && typeof value.truncated === 'boolean' && isNodeExplanationCitation(value.citation)
+    && (docstring === undefined || (typeof docstring === 'string' && docstring.length > 0 && docstring.length <= 4096
+      && docstring.trim() === docstring && Array.from(docstring).every(character => {
+        const code = character.charCodeAt(0); return (code >= 32 && code !== 127) || code === 9 || code === 10 || code === 13;
+      })));
+}
 
 export function isNodeExplanationCitation(value: unknown): value is NodeExplanationCitation {
   return record(value) && Object.keys(value).length === 5
@@ -60,9 +91,10 @@ export function isNodeExplanation(value: unknown): value is NodeExplanation {
 }
 
 export function isNodeExplanationState(value: unknown): value is NodeExplanationState {
-  return record(value) && keys(value, ['requestId', 'nodeId', 'revision', 'status', 'detail', 'explanation'])
+  return record(value) && keys(value, ['requestId', 'nodeId', 'revision', 'status', 'detail', 'explanation', 'documentation'])
     && text(value.requestId, 128) && text(value.nodeId, 1024) && text(value.revision, 256)
     && typeof value.status === 'string' && ['queued', 'loading', 'ready', 'unavailable'].includes(value.status)
     && (value.detail === undefined || text(value.detail, 320))
+    && (value.documentation === undefined || isNodeSourceDocumentation(value.documentation))
     && (value.status === 'ready' ? isNodeExplanation(value.explanation) : value.explanation === undefined);
 }

@@ -4,6 +4,15 @@
 .node-understanding p { margin: 0; color: var(--tv-text); }
 .node-understanding .node-source-location { align-self: flex-start; }
 .node-understanding-interpretation { display: flex; flex-direction: column; gap: 6px; }
+.node-source-documentation { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.node-source-summary { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.node-source-qualified-name { overflow-wrap: anywhere; font: 11px/16px var(--font-mono); }
+.node-source-documentation .node-understanding-detail-label { margin: 3px 0 -3px; }
+.node-understanding .node-source-signature { max-height: 144px; overflow: auto; }
+.node-understanding .node-source-docstring { max-height: 240px; overflow: auto; font: 12px/18px var(--font-ui); tab-size: 4; }
+.node-source-documentation pre:focus-visible { outline: 2px solid var(--tv-focus-ring); outline-offset: 2px; }
+.node-source-documentation-unavailable { color: var(--tv-text-3); font-size: 11px; }
+.node-source-documentation-unavailable p { color: inherit; }
 .node-understanding-attribution { display: inline-flex; align-items: center; gap: 5px; color: var(--tv-text-3); font-size: 10.5px; }
 .node-understanding-io { display: flex; align-items: center; gap: 9px; margin: 0; min-width: 0; }
 .node-understanding-io > div { flex: 1; min-width: 0; }

@@ -231,6 +231,10 @@
             "excerpt": "    def forward(self, x):\n        projected = x @ self.weight\n        split = projected.reshape(x.shape[0], self.heads, self.width // self.heads)\n        return split + split"
           }
         ],
+        "documentation": {
+          "status": "resolved", "qualifiedName": "Model.forward", "kind": "method", "signature": "def forward(self, x)", "truncated": false,
+          "declaration": {"file": "model.py", "digest": "f4211158a37022a364c1825bc972ed06789843acdf296be5b03101aeb644fc30", "startLine": 9, "startColumn": 4, "endLine": 12, "endColumn": 28, "scope": "Model.forward", "tokenDigest": "7794471e530333abc4f3a1475dc66183f6763f436b61e2c198157795a5c4cc0e"}
+        },
         "nextOffset": null
       }
     }

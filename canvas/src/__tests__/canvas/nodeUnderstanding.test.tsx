@@ -2,9 +2,9 @@ import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { NodeUnderstanding } from '../../canvas/NodeUnderstanding';
 import { NodeExplanationContext, type NodeExplanationContextValue } from '../../canvas/NodeExplanationContext';
-import { nodeEvidenceLabel, nodeInputOutput, nodePresentation } from '../../canvas/nodePresentation';
+import { nodeEvidenceLabel, nodeInputOutput, nodePresentation, sourceDocumentationSummary } from '../../canvas/nodePresentation';
 import type { ModelNode, ModelNodeData } from '../../types';
-import type { NodeExplanationState } from '../../ide/nodeExplanation.generated';
+import type { NodeExplanationState, NodeSourceDocumentation } from '../../ide/nodeExplanation.generated';
 
 jest.mock('../../ide/projection', () => ({ localBrowserMode: () => false }));
 
@@ -20,6 +20,12 @@ const ready: NodeExplanationState = { requestId: 'request', nodeId: node.id, rev
   citations: [{ id: 'source', file: 'model.py', sourceDigest: 'a'.repeat(64), startLine: 20, endLine: 26 }],
 } };
 const context = (state: NodeExplanationState): NodeExplanationContextValue => ({ states: { [node.id]: state }, retry: jest.fn(), reveal: jest.fn() });
+const documentation: Extract<NodeSourceDocumentation, { status: 'resolved' }> = {
+  status: 'resolved', kind: 'method', qualifiedName: 'models.spectral.SpectralMixer.blend',
+  signature: 'def blend(\n    self,\n    features: tuple[Tensor, Tensor],\n    *,\n    scale: float = 0.5,\n    labels: Mapping[str, int] | None = None,\n) -> dict[str, Tensor]:',
+  docstring: 'Blend the two feature streams using the declared scale.\n\nArgs:\n    features: A pair of feature tensors.\n    scale: The weighting applied to the second stream.\n\nReturns:\n    A dictionary containing the blended features.',
+  truncated: false, citation: { id: 'definition', file: 'models/spectral.py', sourceDigest: 'b'.repeat(64), startLine: 40, endLine: 61 },
+};
 
 it('keeps source-only meaning unknown while exposing the exact call and graph names', () => {
   const view = render(<NodeUnderstanding node={node} />);
@@ -101,4 +107,108 @@ it('opens chat with the current selection reported first, preserving the existin
   } finally {
     window.removeEventListener('builder-command', record); window.removeEventListener('tensorviz-agent-compose', record);
   }
+});
+
+it('makes author documentation useful without an available agent, preserving the full declared signature and citation', () => {
+  const state: NodeExplanationState = { ...ready, status: 'unavailable', explanation: undefined, detail: 'The agent is not signed in.', documentation };
+  const value = context(state);
+  render(<NodeExplanationContext.Provider value={value}><NodeUnderstanding node={node} /></NodeExplanationContext.Provider>);
+  const overview = screen.getByLabelText('Source documentation overview');
+  expect(overview).toHaveTextContent('Source documentation');
+  expect(overview).toHaveTextContent('Blend the two feature streams using the declared scale.');
+  expect(overview).not.toHaveTextContent('Args:');
+  expect(screen.getByText('The agent is not signed in.')).not.toBeVisible();
+  expect(screen.getByRole('button', { name: 'Retry explanation' })).not.toBeVisible();
+  fireEvent.click(within(overview).getByRole('button', { name: 'models/spectral.py:40–61' }));
+  expect(value.reveal).toHaveBeenCalledWith(state, 'definition');
+  fireEvent.click(screen.getByText('More details'));
+  const signature = screen.getByRole('region', { name: 'Declared signature' });
+  expect(signature.textContent).toBe(documentation.signature);
+  expect(signature).toHaveAttribute('tabindex', '0');
+  expect(screen.getByRole('region', { name: 'Full source documentation' }).textContent).toBe(documentation.docstring);
+  expect(screen.getByText(documentation.qualifiedName)).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Retry explanation' })).toBeVisible();
+});
+
+it('keeps source documentation distinct and inspectable alongside a ready agent interpretation', () => {
+  const value = context({ ...ready, documentation });
+  render(<NodeExplanationContext.Provider value={value}><NodeUnderstanding node={node} /></NodeExplanationContext.Provider>);
+  expect(screen.getByText(ready.explanation!.purpose)).toBeVisible();
+  expect(screen.queryByLabelText('Source documentation overview')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Source documentation details')).not.toBeVisible();
+  fireEvent.click(screen.getByText('More details'));
+  expect(screen.getByLabelText('Source documentation details')).toHaveTextContent('Source documentation');
+  expect(screen.getByRole('region', { name: 'Full source documentation' })).toBeVisible();
+  expect(screen.getByLabelText('Interpreted inputs and outputs')).toHaveTextContent('Candidate features');
+  expect(screen.getByLabelText('Graph inputs and outputs')).toHaveTextContent('candidates');
+  fireEvent.click(within(screen.getByLabelText('Source documentation details')).getByRole('button', { name: 'models/spectral.py:40–61' }));
+  expect(value.reveal).toHaveBeenCalledWith(value.states[node.id], 'definition');
+});
+
+it('shows a custom class declaration without inventing a forward signature or purpose when it has no docstring', () => {
+  const source: NodeSourceDocumentation = { ...documentation, kind: 'class', qualifiedName: 'models.spectral.OptionalSpectralMixer',
+    signature: 'class OptionalSpectralMixer(BaseMixer[Tensor]):', docstring: undefined };
+  const data: ModelNodeData = { ...node.data, layerType: { ...node.data.layerType, id: 'module', name: source.qualifiedName, displayName: 'OptionalSpectralMixer' }, parameters: {}, moduleTemplateId: 'OptionalSpectralMixer' };
+  render(<NodeExplanationContext.Provider value={context({ ...ready, status: 'unavailable', explanation: undefined, documentation: source })}>
+    <NodeUnderstanding node={{ ...node, data }} /></NodeExplanationContext.Provider>);
+  expect(screen.queryByLabelText('Source documentation overview')).not.toBeInTheDocument();
+  expect(screen.queryByText(/Custom module group/)).not.toBeInTheDocument();
+  expect(screen.queryByText(ready.explanation!.purpose)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText('More details'));
+  expect(screen.getByRole('region', { name: 'Class declaration' }).textContent).toBe(source.signature);
+  expect(screen.queryByRole('region', { name: 'Declared signature' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: 'Full source documentation' })).not.toBeInTheDocument();
+});
+
+it('shows unknown imported definitions quietly, without claiming a docstring or running a model', () => {
+  const state: NodeExplanationState = { ...ready, status: 'unavailable', explanation: undefined,
+    documentation: { status: 'unavailable', reason: 'unresolved_import' } };
+  render(<NodeExplanationContext.Provider value={context(state)}><NodeUnderstanding node={node} /></NodeExplanationContext.Provider>);
+  const reason = screen.getByText('The imported definition is unavailable in the current source.');
+  expect(reason).not.toBeVisible();
+  fireEvent.click(screen.getByText('More details'));
+  expect(reason).toBeVisible();
+  expect(screen.queryByRole('region', { name: 'Declared signature' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: 'Full source documentation' })).not.toBeInTheDocument();
+});
+
+it('keeps a resolved imported function declaration distinct from its local call alias', () => {
+  const imported: NodeSourceDocumentation = { ...documentation, kind: 'function', qualifiedName: 'research.ops.spectral.blend',
+    signature: 'def blend(features: Tensor, axes: tuple[int, ...] = (0, 2)) -> Tensor:',
+    docstring: 'Mix the selected axes in the frequency domain.' };
+  const importedNode: ModelNode = { ...node, data: { ...node.data, parameters: {
+    _raw_call: 'mixed = spectral_blend(features, axes=(0, 2))', _source_result_call: { name: 'spectral_blend' },
+  } } };
+  render(<NodeExplanationContext.Provider value={context({ ...ready, status: 'unavailable', explanation: undefined, documentation: imported })}>
+    <NodeUnderstanding node={importedNode} /></NodeExplanationContext.Provider>);
+  expect(screen.getByLabelText('Source documentation overview')).toHaveTextContent(imported.docstring!);
+  fireEvent.click(screen.getByText('More details'));
+  expect(screen.getByRole('region', { name: 'Declared signature' }).textContent).toBe(imported.signature);
+  expect(screen.getByText(imported.qualifiedName)).toBeVisible();
+  expect(screen.getByText('mixed = spectral_blend(features, axes=(0, 2))')).toBeVisible();
+});
+
+it('renders bounded source excerpts as plain text and identifies truncation', () => {
+  const docstring = 'Author description with <script>alert("source")</script>.\n\n' + 'Detailed source notes.\n'.repeat(100);
+  const source = { ...documentation, docstring, truncated: true };
+  const onKeyDown = jest.fn();
+  const view = render(<div onKeyDown={onKeyDown}><NodeExplanationContext.Provider value={context({ ...ready, documentation: source })}><NodeUnderstanding node={node} /></NodeExplanationContext.Provider></div>);
+  fireEvent.click(screen.getByText('More details'));
+  const full = screen.getByRole('region', { name: 'Full source documentation' });
+  expect(full.textContent).toBe(docstring);
+  expect(full).toHaveAttribute('tabindex', '0');
+  expect(view.container.querySelector('script')).toBeNull();
+  expect(screen.getByText('Source documentation was truncated.')).toBeVisible();
+  expect(fireEvent.keyDown(full, { key: 'PageDown' })).toBe(true);
+  expect(onKeyDown).not.toHaveBeenCalled();
+  fireEvent.keyDown(full, { key: 'Escape' });
+  expect(onKeyDown).toHaveBeenCalledTimes(1);
+});
+
+it('quotes only the opening source paragraph and bounds long summaries at a word boundary', () => {
+  expect(sourceDocumentationSummary('  First line\ncontinued here.\n\nArgs:\n    x: input')).toBe('First line continued here.');
+  expect(sourceDocumentationSummary(' \n\n ')).toBeUndefined();
+  const summary = sourceDocumentationSummary('LongDocumentation '.repeat(40))!;
+  expect(summary.length).toBeLessThanOrEqual(321);
+  expect(summary.endsWith('LongDocumentation…')).toBe(true);
 });

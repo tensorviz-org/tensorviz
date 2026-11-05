@@ -1,10 +1,10 @@
 import * as assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import { CanvasNodeExplanation, type CanvasNodeExplanationOptions } from '../../canvasNodeExplanation';
+import { CanvasNodeExplanation, nodeSourceDocumentationSymbol, type CanvasNodeExplanationOptions } from '../../canvasNodeExplanation';
 import type { CanvasAgentRoute, AgentRunInput } from '../../canvasAgent';
 import type { HostToolset } from '../../mcpHost';
-import type { NodeExplanationCitation, NodeExplanationState } from '@tensorviz/contracts/nodeExplanation';
+import type { NodeExplanationCitation, NodeExplanationState, NodeSourceDocumentation } from '@tensorviz/contracts/nodeExplanation';
 import type { LocalBrowserNodeExplanationRequest, LocalBrowserViewSelectionMessage } from '@tensorviz/contracts/protocol';
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -14,12 +14,15 @@ const until = async (condition: () => boolean) => {
 };
 const payload = (citationIds = ['evidence-1']) => ({ title: 'Score candidates', purpose: 'Compare candidate features with the question.',
   inputs: ['Candidate features', 'Question features'], outputs: ['Candidate scores'], steps: ['Batch candidates and queries', 'Apply the scoring head'], uncertainties: ['Tensor shapes have not been recorded.'], citationIds });
+const fixtureSource = () => Array.from({ length: 220 }, (_, index) => index === 149 ? 'def score(candidates, question): return head(candidates, question)' : `# source line ${index + 1}`).join('\n');
+const documentation = (): NodeSourceDocumentation => ({ status: 'resolved', qualifiedName: 'score', kind: 'function', signature: 'def score(candidates, question)', truncated: false,
+  citation: { id: 'documentation-fixture', file: 'model.py', sourceDigest: hash(fixtureSource()), startLine: 150, endLine: 150 } });
 
 suite('Source-only node explanations', () => {
   const services: CanvasNodeExplanation[] = [];
   teardown(() => { for (const service of services.splice(0)) service.dispose(); });
   function rig(run?: (tools: HostToolset, input: AgentRunInput, signal: AbortSignal) => Promise<void>, extras: Partial<CanvasNodeExplanationOptions> = {}) {
-    let source = Array.from({ length: 220 }, (_, index) => index === 149 ? 'def score(candidates, question): return head(candidates, question)' : `# source line ${index + 1}`).join('\n');
+    let source = fixtureSource();
     let valid = true, ref = { modelId: 'model-one', revision: hash('revision-one') };
     let route: CanvasAgentRoute = { provider: 'codex', settings: { model: 'fixture-model', effort: 'medium' }, resolvedModel: 'fixture-model', ready: true, busy: false };
     const target = { workspaceFolder: '/fixture', file: 'model.py', cls: 'Net', sourceDigest: hash(source), documentVersion: 1, backendRevision: 0 };
@@ -65,6 +68,99 @@ suite('Source-only node explanations', () => {
     assert.equal(r.inputs[0].cwd, '/fixture'); assert.deepEqual(r.inputs[0].settings, r.route.settings);
     assert.equal(r.states.at(-1)!.explanation!.citations[0].file, 'model.py'); assert.equal(r.clears, 1);
     assert.deepEqual([...r.toolsets[0].keys()].sort(), ['query_source_context', 'read_model_source', 'submit_node_explanation']);
+  });
+
+  test('literal source signatures load and reveal with no connected agent or while chat is busy', async () => {
+    for (const availability of [{ ready: false, busy: false }, { ready: true, busy: true }]) {
+      let calls = 0;
+      const r = rig(undefined, { documentation: async () => { calls++; return documentation(); } });
+      r.route = { ...r.route, ...availability }; r.start();
+      await until(() => r.states.at(-1)?.documentation?.status === 'resolved');
+      assert.equal(r.inputs.length, 0); assert.equal(calls, 1); assert.equal(r.states.at(-1)!.status, 'unavailable');
+      assert.deepEqual(r.states.at(-1)!.documentation, documentation());
+      await r.request('reveal', { citationId: 'documentation-fixture' });
+      assert.equal(r.reveals.length, 1); assert.equal(r.reveals[0].startLine, 150);
+    }
+  });
+
+  test('pending source documentation survives provider and availability changes', async () => {
+    let finish!: (value: NodeSourceDocumentation) => void, signal!: AbortSignal, calls = 0;
+    const r = rig(undefined, { documentation: async (_selection, sourceSignal) => { calls++; signal = sourceSignal; return new Promise(resolve => { finish = resolve; }); } });
+    r.route = { ...r.route, ready: false }; r.start(); await until(() => calls === 1);
+    r.route = { ...r.route, provider: 'claude', busy: true }; r.service.refresh();
+    assert.equal(signal.aborted, false); finish(documentation());
+    await until(() => r.states.at(-1)?.documentation?.status === 'resolved');
+    assert.equal(calls, 1); assert.equal(r.inputs.length, 0);
+    r.route = { ...r.route, busy: false }; r.service.refresh();
+    assert.deepEqual(r.states.at(-1)!.documentation, documentation()); assert.equal(calls, 1);
+  });
+
+  test('source documentation has a source-revision cache independent of agent routing', async () => {
+    let calls = 0;
+    const r = rig(undefined, { documentation: async () => { calls++; return documentation(); } });
+    r.route = { ...r.route, ready: false }; r.start(); await until(() => !!r.states.at(-1)?.documentation);
+    r.service.select({ ...r.selection, nodeIds: [] }); r.start(); await until(() => !!r.states.at(-1)?.documentation);
+    assert.equal(calls, 1);
+    r.revision = hash('new-source-graph'); r.start(); await until(() => !!r.states.at(-1)?.documentation);
+    assert.equal(calls, 2);
+  });
+
+  test('source documentation remains visible when generated interpretation fails or times out', async () => {
+    const failed = rig(async () => { throw new Error('Provider unavailable'); }, { documentation: async () => documentation() });
+    failed.start(); await failed.done(); assert.deepEqual(failed.states.at(-1)!.documentation, documentation());
+    const original = global.setTimeout;
+    global.setTimeout = ((handler: (...args: any[]) => void, delay?: number, ...args: any[]) => original(handler, delay === 45000 ? 8 : delay, ...args)) as typeof setTimeout;
+    try {
+      const timed = rig(async (_tools, _input, signal) => { await new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true })); }, { documentation: async () => documentation() });
+      timed.start(); await until(() => timed.clears === 1); assert.deepEqual(timed.states.at(-1)!.documentation, documentation());
+      await timed.request('reveal', { citationId: 'documentation-fixture' }); assert.equal(timed.reveals.length, 1);
+    } finally { global.setTimeout = original; }
+  });
+
+  test('source cancellation suppresses late documentation and aborts its reader without a provider', async () => {
+    let finish!: (value: NodeSourceDocumentation) => void, signal!: AbortSignal;
+    const r = rig(undefined, { documentation: async (_selection, sourceSignal) => { signal = sourceSignal; return new Promise(resolve => { finish = resolve; }); } });
+    r.route = { ...r.route, ready: false }; r.start(); await until(() => !!signal);
+    r.service.select({ ...r.selection, nodeIds: [] }); assert.equal(signal.aborted, true); finish(documentation());
+    await new Promise(resolve => setTimeout(resolve, 10)); assert.equal(r.states.some(state => state.documentation), false);
+  });
+
+  test('documentation source identity is rechecked before publication and reveal', async () => {
+    const changed = rig(undefined, { documentation: async () => { changed.source = 'changed declaration'; return documentation(); } });
+    changed.route = { ...changed.route, ready: false }; changed.start(); await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(changed.states.some(state => state.documentation), false);
+    const saved = rig(undefined, { documentation: async () => documentation() }); saved.route = { ...saved.route, ready: false };
+    saved.start(); await until(() => !!saved.states.at(-1)?.documentation); saved.source = 'changed after publication';
+    await saved.request('reveal', { citationId: 'documentation-fixture' }); assert.equal(saved.reveals.length, 0);
+  });
+
+  test('finite unavailable documentation evidence stays distinct from generated explanation failure', async () => {
+    const r = rig(undefined, { documentation: async () => ({ status: 'unavailable', reason: 'decorated' }) });
+    r.route = { ...r.route, ready: false }; r.start(); await until(() => !!r.states.at(-1)?.documentation);
+    assert.deepEqual(r.states.at(-1)!.documentation, { status: 'unavailable', reason: 'decorated' }); assert.equal(r.inputs.length, 0);
+  });
+
+  test('retry can recover a failed static parser request without connecting an agent', async () => {
+    let calls = 0;
+    const r = rig(undefined, { documentation: async () => { if (++calls === 1) throw new Error('Static parser unavailable'); return documentation(); } });
+    r.route = { ...r.route, ready: false }; r.start(); await until(() => calls === 1); await new Promise(resolve => setImmediate(resolve));
+    await r.request('retry'); await until(() => !!r.states.at(-1)?.documentation);
+    assert.equal(calls, 2); assert.equal(r.inputs.length, 0); assert.deepEqual(r.states.at(-1)!.documentation, documentation());
+  });
+
+  test('source selectors preserve literal callees and leave dynamic resolution to the parser', () => {
+    assert.equal(nodeSourceDocumentationSymbol({ _raw_call: 'return self._score_hidden(samples, candidates, queries, mask)' }), 'self._score_hidden');
+    assert.equal(nodeSourceDocumentationSymbol({ _raw_call: 'result = await helper(value)' }), 'helper');
+    assert.equal(nodeSourceDocumentationSymbol({ _raw_call: '结果 = 模型.评分(输入)' }), '模型.评分');
+    assert.equal(nodeSourceDocumentationSymbol({ _class: '模块.自定义层' }), '模块.自定义层');
+    assert.equal(nodeSourceDocumentationSymbol({ _source_result_call: { target: 'x'.repeat(257) } }), undefined);
+    assert.equal(nodeSourceDocumentationSymbol({ _raw_call: 'factory().score(value)', _source_result_call: { name: 'score', target: 'self.score' } }), 'self.score');
+    assert.equal(nodeSourceDocumentationSymbol({ _raw_call: 'factory().score(value)' }), undefined);
+    assert.equal(nodeSourceDocumentationSymbol({ _source_result_call: { name: 'score' } }), 'score');
+    assert.equal(nodeSourceDocumentationSymbol({ _class: 'layers.CustomLayer' }), 'layers.CustomLayer');
+    assert.equal(nodeSourceDocumentationSymbol({ _raw_call: '(lambda x: x)(value)' }), undefined);
+    assert.equal(nodeSourceDocumentationSymbol({ _raw_call: 'items[index](value)' }), undefined);
+    assert.equal(nodeSourceDocumentationSymbol({ label: 'Score candidates', operation: 'Linear' }), undefined);
   });
 
   test('unready or foreground-busy routes never start discovery or a background provider', async () => {

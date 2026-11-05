@@ -1,6 +1,7 @@
 import * as assert from 'node:assert/strict';
 import {
   isNodeExplanation, isNodeExplanationCitation, isNodeExplanationState,
+  isNodeSourceDocumentation, type NodeSourceDocumentation,
   type NodeExplanation, type NodeExplanationCitation, type NodeExplanationState,
 } from '@tensorviz/contracts/nodeExplanation';
 import { isLocalBrowserMessage } from '@tensorviz/contracts/protocol';
@@ -27,6 +28,36 @@ const requestMessage = (update: Record<string, unknown> = {}) => ({ ...envelope,
   nodeId: 'python@Model#0', requestId: 'request', action: 'retry', ...update });
 
 suite('node explanation contract', () => {
+  const documentation = (): Extract<NodeSourceDocumentation, { status: 'resolved' }> => ({
+    status: 'resolved', qualifiedName: 'CandidateScorer.compare', kind: 'method',
+    signature: 'def compare(self, candidates, /, query, *, normalize=False) -> Scores:',
+    docstring: 'Compare candidate representations.\n\nArgs:\n    candidates: Candidate features.',
+    truncated: false, citation: citation(),
+  });
+  test('source documentation is usable independently of an agent result', () => {
+    const docs = documentation();
+    assert.ok(isNodeSourceDocumentation(docs));
+    for (const status of ['queued', 'loading', 'ready', 'unavailable'] as const) {
+      const value = state({ status, documentation: docs, ...(status === 'ready' ? {} : { explanation: undefined }) });
+      assert.ok(isNodeExplanationState(value), status);
+      assert.ok(isLocalBrowserMessage(resultMessage(value)), status);
+    }
+    assert.ok(isNodeSourceDocumentation({ ...docs, docstring: undefined }));
+    assert.ok(isNodeSourceDocumentation({ status: 'unavailable', reason: 'ambiguous' }));
+  });
+  test('source documentation bounds content, citation authority and resolution shape', () => {
+    const docs = documentation();
+    for (const update of [{ qualifiedName: '' }, { signature: 'x'.repeat(2049) }, { signature: 'def f():\npass' },
+      { docstring: 'x'.repeat(4097) }, { docstring: 'text\u0000' }, { docstring: ' text' },
+      { kind: 'runtime' }, { truncated: 'false' }, { execute: 'python' },
+      { citation: { ...citation(), file: '/private.py' } }]) assert.equal(isNodeSourceDocumentation({ ...docs, ...update }), false);
+    for (const invalid of [{ status: 'unavailable', reason: 'guess' },
+      { status: 'unavailable', reason: 'ambiguous', signature: 'invented' }, { status: 'resolved' }]) {
+      assert.equal(isNodeSourceDocumentation(invalid), false);
+    }
+    assert.ok(isNodeSourceDocumentation({ ...docs, docstring: 'x'.repeat(4096) }));
+    assert.ok(isNodeSourceDocumentation({ ...docs, docstring: '\u0085author text\u0085' }));
+  });
   test('accepts a bounded explanation with source citations and explicit unknowns', () => {
     assert.ok(isNodeExplanation(explanation()));
     assert.ok(isNodeExplanation(explanation({ inputs: [], outputs: [], steps: [], uncertainties: [] })));

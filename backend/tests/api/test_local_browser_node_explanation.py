@@ -26,6 +26,33 @@ def explanation_state(status="ready"):
     return value
 
 
+def source_documentation():
+    return dict(status="resolved", qualifiedName="UncommonBlock.forward", kind="method",
+                signature="def forward(self, x, /, *, normalize=False):",
+                docstring="Compare the input representations.\n\nArgs:\n    x: Input features.", truncated=False,
+                citation=explanation()["citations"][0])
+
+
+@pytest.mark.parametrize("status", ["queued", "loading", "ready", "unavailable"])
+def test_source_documentation_does_not_require_an_agent_result(status):
+    state = dict(explanation_state(status), documentation=source_documentation())
+    assert is_local_browser_message(result_message(state))
+    state["documentation"] = dict(status="unavailable", reason="ambiguous")
+    assert is_local_browser_message(result_message(state))
+
+
+def test_source_documentation_is_bounded_and_cannot_supply_execution_authority():
+    docs = source_documentation()
+    for update in [dict(signature="x" * 2049), dict(signature="def f():\npass"), dict(docstring="x" * 4097),
+                   dict(docstring="text\x00"), dict(docstring=" padded"), dict(truncated="false"),
+                   dict(kind="runtime"), dict(execute="model()"), dict(citation=dict(docs["citation"], file="/private.py"))]:
+        assert not is_local_browser_message(result_message(dict(explanation_state("unavailable"), documentation=dict(docs, **update))))
+    for invalid in [dict(status="unavailable", reason="guess"), dict(status="unavailable", reason="ambiguous", signature="invented")]:
+        assert not is_local_browser_message(result_message(dict(explanation_state("unavailable"), documentation=invalid)))
+    docs["docstring"] = "\u0085author text\u0085"
+    assert is_local_browser_message(result_message(dict(explanation_state("unavailable"), documentation=docs)))
+
+
 def result_message(state=None, session="session", view="view"):
     return envelope("nodeExplanation", session, 1, viewId=view, target=target(),
                     state=explanation_state() if state is None else state)

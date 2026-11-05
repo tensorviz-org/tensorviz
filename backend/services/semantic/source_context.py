@@ -144,6 +144,8 @@ class SourceContextIndex:
             self._visit(tree, self.roots[file])
         self._resolve()
         self._dependencies()
+        from .source_documentation import SourceDocumentation
+        self.documentation = SourceDocumentation(self)
 
     def _record(self, node, scope, kind, name, binding=None):
         if len(self.records) >= MAX_RECORDS or len(name) > 256 or len(scope.name) > 512:
@@ -393,6 +395,16 @@ class SourceContextIndex:
         else:
             matches = [identity for identity, item in self.records.items() if item["anchor"]["file"] == query.file
                 and item["name"] == query.symbol and (query.line is None or item["anchor"]["startLine"] == query.line)]
+            # A graph class may carry its module-qualified declaration name.
+            # Match that exact supplied module and scope, never a name suffix.
+            module = query.file[:-3].replace("/", ".")
+            if module.endswith(".__init__"):
+                module = module[:-9]
+            if not matches and query.line is not None and query.symbol.startswith(module + "."):
+                qualified = query.symbol[len(module) + 1:]
+                matches = [identity for identity, item in self.records.items() if item["kind"] == "definition"
+                    and item["anchor"]["file"] == query.file and item["anchor"]["startLine"] == query.line
+                    and item["anchor"]["scope"] == qualified]
             definitions = [identity for identity in matches if self.records[identity]["kind"] == "definition"]
             seeds = definitions or matches
             if not seeds:
@@ -434,6 +446,9 @@ class SourceContextIndex:
             traversal=dict(entities=len(selected), boundaries=boundary_count, omittedSeeds=max(0, len(seeds) - query.maxEntities)),
             total=len(items), items=[], nextOffset=None)
         effects = {}
+        documentation = self.documentation.query(matches if not query.anchorIds and query.line is not None else seeds)
+        if documentation is not None:
+            result["documentation"] = documentation
         if query.assumeValue is not None:
             from .source_change import SourceChangeAnalysis
             try:

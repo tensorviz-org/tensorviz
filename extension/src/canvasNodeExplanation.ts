@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { LocalBrowserTargetIdentity, LocalBrowserViewSelectionMessage, LocalBrowserNodeExplanationRequest } from '@tensorviz/contracts/protocol';
-import { isNodeExplanation, type NodeExplanation, type NodeExplanationCitation, type NodeExplanationState } from '@tensorviz/contracts/nodeExplanation';
+import { isNodeExplanation, isNodeSourceDocumentation, type NodeExplanation, type NodeExplanationCitation, type NodeExplanationState, type NodeSourceDocumentation } from '@tensorviz/contracts/nodeExplanation';
 import { GraphToolError, graphToolResult, type ModelRef } from '@tensorviz/graph-host/mcpGraph';
 import { z } from 'zod';
 import type { CanvasAgentRoute, AgentRunInput, AgentRunEvent } from './canvasAgent';
@@ -14,6 +14,7 @@ export interface CanvasNodeExplanationOptions {
   prepare(selection: LocalBrowserViewSelectionMessage, signal: AbortSignal): Promise<{ ref: ModelRef; context: unknown; source: { file: string; startLine: number } }>;
   current(selection: LocalBrowserViewSelectionMessage, revision?: string): boolean;
   read(target: LocalBrowserTargetIdentity, file: string): Promise<NodeExplanationSource>;
+  documentation?(selection: LocalBrowserViewSelectionMessage, signal: AbortSignal): Promise<NodeSourceDocumentation | undefined>;
   tools(owner: string): HostToolset;
   runtime(tools: (owner: string) => HostToolset): { run(input: AgentRunInput, emit: (event: AgentRunEvent) => void, signal: AbortSignal): Promise<void>; clear(): void };
   publish(viewId: string, target: LocalBrowserTargetIdentity, state: NodeExplanationState): void;
@@ -32,6 +33,16 @@ interface Work {
   bytes: number;
   result?: NodeExplanation;
 }
+interface DocumentationWork {
+  selection: LocalBrowserViewSelectionMessage;
+  ref: ModelRef;
+  key: string;
+  controller: AbortController;
+  timer?: NodeJS.Timeout;
+  value?: NodeSourceDocumentation;
+  done: Promise<void>;
+  finish(): void;
+}
 const digest = (source: string) => createHash('sha256').update(source).digest('hex');
 const string = (max: number) => z.string().trim().min(1).max(max).regex(/^[^\u0000-\u001f\u007f]+$/);
 const submission = {
@@ -42,6 +53,23 @@ const routeKey = (route: CanvasAgentRoute) => JSON.stringify([route.provider, ro
 const targetKey = (target: LocalBrowserTargetIdentity) => [target.workspaceFolder, target.file, target.cls, target.sourceDigest, target.documentVersion, target.backendRevision];
 const identity = (selection: LocalBrowserViewSelectionMessage) => JSON.stringify([selection.viewId, targetKey(selection.target), selection.nodeIds, selection.edgeIds, selection.tooLarge]);
 
+/** Lexical source identity only. Resolution and ambiguity remain the parser's job. */
+export function nodeSourceDocumentationSymbol(parameters: unknown): string | undefined {
+  if (!parameters || typeof parameters !== 'object' || Array.isArray(parameters)) return;
+  const params = parameters as Record<string, unknown>;
+  const call = params._source_result_call && typeof params._source_result_call === 'object' ? params._source_result_call as Record<string, unknown> : {};
+  const qualified = (value: unknown): value is string => typeof value === 'string' && value.length <= 256
+    && /^[\p{ID_Start}_]\p{ID_Continue}*(?:\.[\p{ID_Start}_]\p{ID_Continue}*)*$/u.test(value);
+  const raw = typeof params._raw_call === 'string' ? params._raw_call : '';
+  const callee = raw.match(/^\s*(?:return\s+|(?:[\p{ID_Start}_]\p{ID_Continue}*(?:\.[\p{ID_Start}_]\p{ID_Continue}*)*\s*=\s*))?(?:await\s+)?([\p{ID_Start}_]\p{ID_Continue}*(?:\.[\p{ID_Start}_]\p{ID_Continue}*)*)\s*\(/u)?.[1];
+  if (qualified(call.target)) return call.target;
+  // Without the graph's exact result callee, chained calls cannot be assigned to
+  // their first lexical name safely. The parser must resolve the selected call.
+  if (callee && qualified(callee) && !/\)\s*[.\[(]/u.test(raw) && (!call.name || callee.split('.').at(-1) === call.name)) return callee;
+  if (qualified(call.name)) return call.name;
+  if (qualified(params._class)) return params._class;
+}
+
 /** Source-only background work owns neither the user chat nor execution authority. */
 export class CanvasNodeExplanation {
   private selected?: LocalBrowserViewSelectionMessage;
@@ -51,13 +79,15 @@ export class CanvasNodeExplanation {
   private running: Promise<void> = Promise.resolve();
   private disposed = false;
   private readonly cache = new Map<string, NodeExplanation>();
+  private documentation?: DocumentationWork;
+  private readonly documentationCache = new Map<string, NodeSourceDocumentation>();
   constructor(private readonly options: CanvasNodeExplanationOptions) {}
 
   select(selection: LocalBrowserViewSelectionMessage): void {
     if (this.disposed) return;
     const same = this.selected && identity(this.selected) === identity(selection);
     if (same && this.active && this.current(this.active) && this.lastRoute === routeKey(this.options.route())) return;
-    this.cancel();
+    this.cancel(); this.cancelDocumentation();
     this.selected = undefined;
     if (selection.tooLarge || selection.nodeIds.length !== 1 || selection.edgeIds.length || !this.options.current(selection)) return;
     this.selected = structuredClone(selection);
@@ -72,9 +102,54 @@ export class CanvasNodeExplanation {
   }
 
   disconnect(viewId: string): void { if (this.selected?.viewId === viewId) this.invalidate(); }
-  invalidate(): void { this.cancel(); this.selected = undefined; }
-  dispose(): void { this.disposed = true; this.invalidate(); this.cache.clear(); }
+  invalidate(): void { this.cancel(); this.cancelDocumentation(); this.selected = undefined; }
+  dispose(): void { this.disposed = true; this.invalidate(); this.cache.clear(); this.documentationCache.clear(); }
   private cancel(): void { clearTimeout(this.timer); this.active?.controller.abort(); this.active = undefined; }
+  private cancelDocumentation(): void {
+    const work = this.documentation;
+    if (work) { clearTimeout(work.timer); work.controller.abort(); work.finish(); }
+    this.documentation = undefined;
+  }
+  private documentationCurrent(work: DocumentationWork): boolean {
+    return !this.disposed && this.documentation === work && !work.controller.signal.aborted
+      && !!this.selected && identity(this.selected) === identity(work.selection) && this.options.current(work.selection, work.ref.revision);
+  }
+  private async validDocumentation(work: DocumentationWork, documentation: NodeSourceDocumentation): Promise<boolean> {
+    if (!this.documentationCurrent(work) || !isNodeSourceDocumentation(documentation)) return false;
+    if (documentation.status === 'unavailable') return true;
+    const citation = documentation.citation;
+    const source = await this.options.read(work.selection.target, citation.file);
+    return this.documentationCurrent(work) && source.file === citation.file && digest(source.source) === source.digest
+      && source.digest === citation.sourceDigest && citation.endLine <= source.source.split('\n').length;
+  }
+  private ensureDocumentation(selection: LocalBrowserViewSelectionMessage, ref: ModelRef): DocumentationWork | undefined {
+    if (!this.options.documentation) return;
+    if (this.documentation && this.documentationCurrent(this.documentation)) return this.documentation;
+    this.cancelDocumentation();
+    const key = JSON.stringify([selection.target.workspaceFolder, ref, selection.target.sourceDigest, selection.nodeIds[0]]);
+    let finish!: () => void;
+    const work: DocumentationWork = { selection, ref, key, controller: new AbortController(), done: new Promise(resolve => { finish = resolve; }), finish: () => finish() };
+    this.documentation = work;
+    work.timer = setTimeout(() => { void (async () => {
+      try {
+        const cached = this.documentationCache.get(key);
+        let value = cached && await this.validDocumentation(work, cached) ? cached : undefined;
+        if (!value && this.documentationCurrent(work)) value = await this.options.documentation!(selection, work.controller.signal);
+        if (!value || !await this.validDocumentation(work, value)) return;
+        work.value = structuredClone(value);
+        this.documentationCache.delete(key); this.documentationCache.set(key, work.value);
+        while (this.documentationCache.size > 64) this.documentationCache.delete(this.documentationCache.keys().next().value!);
+        const active = this.active;
+        if (active && identity(active.selection) === identity(selection) && active.ref?.revision === ref.revision) {
+          active.state = { ...active.state, documentation: work.value };
+          // Source documentation outlives a failed or timed-out generation.
+          this.options.publish(selection.viewId, selection.target, structuredClone(active.state));
+        }
+      } catch { /* Literal documentation is optional; node facts remain usable. */ }
+      finally { work.finish(); }
+    })(); }, this.options.debounceMs ?? 400);
+    return work;
+  }
   private current(work: Work): boolean {
     return !this.disposed && this.active === work && !work.controller.signal.aborted
       && !!this.selected && identity(this.selected) === identity(work.selection)
@@ -94,6 +169,8 @@ export class CanvasNodeExplanation {
     const work: Work = { selection, controller: new AbortController(), evidence: new Map(), exposed: new Set(), reads: 0, bytes: 0,
       ref, state: { requestId: randomUUID(), nodeId: selection.nodeIds[0], revision: ref.revision, status: 'queued' } };
     this.active = work;
+    const documentation = this.ensureDocumentation(selection, ref);
+    if (documentation?.value) work.state.documentation = structuredClone(documentation.value);
     if (!route.ready || route.busy) {
       work.state.status = 'unavailable'; work.state.detail = route.busy ? 'Available when the agent finishes its current task.' : 'Connect an agent in chat for a source explanation.';
       this.publish(work); return;
@@ -101,7 +178,7 @@ export class CanvasNodeExplanation {
     this.publish(work);
     this.timer = setTimeout(() => {
       const previous = this.running;
-      this.running = (async () => { await previous; if (this.current(work)) await this.explain(work, route); })().catch(() => {});
+      this.running = (async () => { await previous; await documentation?.done; if (this.current(work)) await this.explain(work, route); })().catch(() => {});
     }, this.options.debounceMs ?? 400);
   }
 
@@ -234,7 +311,18 @@ export class CanvasNodeExplanation {
       || message.requestId !== work.state.requestId || JSON.stringify(targetKey(message.target)) !== JSON.stringify(targetKey(work.selection.target))
       || !this.selected || identity(this.selected) !== identity(work.selection) || !this.options.current(work.selection, work.ref?.revision)
       || this.lastRoute !== routeKey(this.options.route())) return;
-    if (message.action === 'retry') { if (work.key) this.cache.delete(work.key); this.cancel(); this.schedule(); return; }
+    if (message.action === 'retry') {
+      if (work.key) this.cache.delete(work.key);
+      if (this.documentation && !this.documentation.value) this.cancelDocumentation();
+      this.cancel(); this.schedule(); return;
+    }
+    const documentation = this.documentation;
+    if (documentation?.value?.status === 'resolved' && documentation.value.citation.id === message.citationId
+      && await this.validDocumentation(documentation, documentation.value)) {
+      if (!this.documentationCurrent(documentation) || this.active !== work) return;
+      await this.options.reveal(work.selection.target, documentation.value.citation, () => this.documentationCurrent(documentation) && this.active === work);
+      return;
+    }
     const explanation = work.state.explanation;
     if (work.state.status !== 'ready' || message.requestId !== work.state.requestId || !explanation) return;
     const citation = explanation.citations.find(item => item.id === message.citationId);

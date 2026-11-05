@@ -34,8 +34,11 @@ Search by a name such as `conv1`, a type such as `type=Conv2d`, or a shape such 
 
 ## Understand a node
 
-Select a node to see its callable, source and available inputs and outputs. Standard
-layers also show their reference description. **From source** means the call was
+Select a node to see its callable, source and available inputs and outputs. When the
+declaration can be resolved, its author's docstring appears as **Source documentation**.
+**More details** includes the declared signature and complete available docstring.
+This works for custom classes and functions without an agent or catalogue entry;
+standard-layer reference descriptions are a fallback. **From source** means the call was
 found in code; tensor shapes remain unknown until recorded by a capture.
 
 With an agent connected in chat, selecting one node automatically requests a short

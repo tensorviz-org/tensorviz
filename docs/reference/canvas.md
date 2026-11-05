@@ -34,9 +34,25 @@ The persistent **Canvas** receives **Open as Graph**, per-class CodeLens, and Mo
 
 ## Node understanding
 
-The existing selection panel shows deterministic node identity, catalogue descriptions
-where available, source controls and known graph inputs/outputs. Internal Python graph
+The existing selection panel shows deterministic node identity, source documentation,
+source controls and known graph inputs/outputs. Internal Python graph
 IDs are omitted from card labels. Full calls and further details are expandable.
+
+Selecting a node also requests its declaration through the existing bounded lexical
+source index, independently of agent availability. A uniquely resolved function, method
+or class supplies a normalized declaration signature, its cleaned author-written
+docstring and an exact source citation. The summary comes from that docstring; a
+standard-layer catalogue description is only a fallback. Complete available text and
+the declared signature remain in **More details**. A class declaration is labeled as
+such, rather than presented as a forward-call or runtime constructor signature.
+
+Resolution reads only the live model and graph-recorded Python dependencies, reuses the
+digest-keyed parser index and never imports or executes project code. Missing,
+ambiguous, dynamic and unsupported targets remain unresolved. Long docstrings are
+bounded and marked when truncated. A separate bounded source-revision cache preserves
+documentation when agent settings change or an agent task fails. Source citations are
+revalidated before navigation, and documentation is neither a shape observation nor
+an agent interpretation.
 
 An already connected agent can interpret a settled single-node selection in an isolated,
 read-only task. It uses the existing provider adapters with a versioned `node_explanation`

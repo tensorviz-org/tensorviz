@@ -13,6 +13,16 @@ const publicLabel = (value: unknown): string | undefined => {
   return label && !/^#?python@/.test(label) ? label : undefined;
 };
 
+/** Quote the author's opening paragraph; never infer intent from a callable name. */
+export function sourceDocumentationSummary(docstring: string | undefined): string | undefined {
+  const opening = docstring?.trim().split(/\n\s*\n/, 1)[0].replace(/\s+/g, ' ');
+  if (!opening) return undefined;
+  const maxLength = 320;
+  if (opening.length <= maxLength) return opening;
+  const boundary = opening.lastIndexOf(' ', maxLength);
+  return `${opening.slice(0, boundary >= maxLength / 2 ? boundary : maxLength).trimEnd()}…`;
+}
+
 export function nodePresentation(data: ModelNodeData, nodeId: string) {
   const custom = customCardModel(data.layerType?.id, data.parameters);
   const rawCall = text(data.parameters?._raw_call);
@@ -32,7 +42,7 @@ export function nodePresentation(data: ModelNodeData, nodeId: string) {
   const path = publicLabel(data.captureLabel);
   const subtitle = callable && callable !== title ? callable : path && path !== title ? path : undefined;
   // Catalogue descriptions are reference information, not model-specific intent.
-  const purpose = custom || !data.layerType?.id ? undefined : text(getLayerByType(data.layerType.id)?.description);
+  const purpose = custom || !data.layerType?.id || data.layerType.id === 'module' ? undefined : text(getLayerByType(data.layerType.id)?.description);
   return { title, callable, subtitle, rawCall, purpose };
 }
 

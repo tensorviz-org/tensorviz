@@ -52,6 +52,8 @@ release publication are not in this tree.
 
 ## Unreleased
 
+- Resolve selected-node signatures and author docstrings from source without an agent. Prefer source documentation over standard-layer reference text, preserve full details and citations, and keep ambiguous or dynamic targets unresolved.
+
 - Explain selected nodes with compact source facts, standard-layer descriptions and optional source-grounded agent interpretations. Keep exact callables, execution evidence and linked sources inspectable; invalidate explanations when source, capture or agent settings change.
 
 - Show runtime download totals when available, update transferred bytes during smaller downloads, and use an accurate setup progress title. Keep cancellation and download verification unchanged.

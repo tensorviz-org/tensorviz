@@ -2,7 +2,7 @@ import { ExecutionReview } from '@tensorviz/graph-host/executionReview';
 import { executionResources } from './executionResources';
 import { unsupportedRemote } from './remoteSupport';
 import { CanvasAgent, type CanvasAgentOptions } from './canvasAgent';
-import { CanvasNodeExplanation, type CanvasNodeExplanationOptions } from './canvasNodeExplanation';
+import { CanvasNodeExplanation, nodeSourceDocumentationSymbol, type CanvasNodeExplanationOptions } from './canvasNodeExplanation';
 import { isHostFile, matchesHostFile } from './workspaceFiles';
 import { GraphReview, type GraphReviewSpec } from './graphReview';
 import { SourceDrafts } from './sourceDraft';
@@ -59,7 +59,7 @@ import {
   vscodeProjectSourceIO,
 } from './projectSources';
 import { buildProjectDocument } from './projectDocument';
-import { GraphToolError, type McpModel, type ModelRef, type JsonObject } from '@tensorviz/graph-host/mcpGraph';
+import { GraphToolError, object, type McpModel, type ModelRef, type JsonObject } from '@tensorviz/graph-host/mcpGraph';
 import {
   LocalBrowserHostTransport,
   LocalBrowserHostPublish,
@@ -462,6 +462,29 @@ export class LocalBrowserGraph implements vscode.Disposable {
             source: { file: span.file, startLine: span.start[0] } };
         },
         read: (target, file) => this.sourceEdits.readModelSource(target, file),
+        documentation: async (selection, signal) => {
+          signal.throwIfAborted();
+          if (!current(selection)) throw new Error('The selected graph is no longer current.');
+          const model = this.mcpModel!, ref = options.agent!.reference!(model), nodeId = selection.nodeIds[0];
+          const nodes = object(object(model.projection.document).semantic).nodes;
+          const node = Array.isArray(nodes) ? nodes.find(item => object(item).node_id === nodeId) : undefined;
+          const span = object(model.projection.spanmap[nodeId]), start = span.start;
+          const symbol = nodeSourceDocumentationSymbol(object(node).params);
+          if (!symbol || typeof span.file !== 'string' || !Array.isArray(start) || !Number.isSafeInteger(start[0]) || start[0] < 1) {
+            return { status: 'unavailable', reason: 'unsupported_callable' };
+          }
+          const page = await this.sourceEdits.querySourceContext(selection.target, { file: span.file, symbol, line: start[0],
+            direction: 'upstream', depth: 0, maxEntities: 8, limit: 8 }, signal);
+          signal.throwIfAborted();
+          if (!current(selection, ref.revision)) throw new Error('The selected source or graph changed.');
+          const documentation = page.documentation;
+          if (!documentation || documentation.status === 'unavailable') return documentation;
+          const { declaration, ...authored } = documentation;
+          return { ...authored, citation: {
+            id: `documentation-${createHash('sha256').update(JSON.stringify([ref, declaration])).digest('hex')}`,
+            file: declaration.file, sourceDigest: declaration.digest, startLine: declaration.startLine, endLine: declaration.endLine,
+          } };
+        },
         publish: (viewId, target, state) => this.publish({ type: 'nodeExplanation', viewId, target, state }),
         reveal: async (target, citation, current) => {
           const read = await this.sourceEdits.readModelSource(target, citation.file);

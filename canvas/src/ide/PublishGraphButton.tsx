@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { CloudUpload, Download } from 'lucide-react';
-import { bridgeActive } from './bridge';
+import { bridgeActive, subscribeBridge } from './bridge';
 
 /** In VS Code, Publish adds the graph to the member's tensorViz account, where they
  *  share it; the browser page has no host to sign in through, so it saves a file instead. */
 export default function PublishGraphButton({ disabled }: { disabled: boolean }) {
-  const publish = bridgeActive();
+  const publish = useSyncExternalStore(subscribeBridge, bridgeActive);
   const command = publish ? 'share-graph-file' : 'export-graph-file';
   return <button type="button" className="local-canvas-control" disabled={disabled}
     aria-label={publish ? 'Publish graph' : 'Export graph'}

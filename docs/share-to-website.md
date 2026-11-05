@@ -22,6 +22,8 @@ The graph page also lets you rename the graph, describe it, start a discussion a
 its layers, or delete it. VS Code offers **Copy link** when the upload finishes. Open
 Canvas in Browser, which cannot sign in, keeps **Export graph** for a
 [graph file](graph-files.md).
+While the VS Code host connects, the toolbar may briefly show **Export graph**;
+it switches to **Publish** as soon as the host is ready.
 
 ## Signing in
 

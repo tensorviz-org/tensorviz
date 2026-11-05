@@ -2,6 +2,8 @@
 
 TensorViz draws one model as a graph. Three ideas cover most of the product: what a capture proves, which file holds what, and which host you are talking to.
 
+![Annotated source preview showing model layers and an example input; shapes are not yet captured](images/explore-graph.png)
+
 ## What a capture proves
 
 **Open as Graph** constructs the model and runs one forward call with the saved setup, on the saved device. The graph is that call.

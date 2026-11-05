@@ -1,5 +1,7 @@
 # Install
 
+![The shared Canvas: explore model layers after opening a model in TensorViz](images/explore-graph.png)
+
 Choose one way to use TensorViz:
 
 - [Coding-agent plugin](#plugin) for Codex, Claude Code, or Cursor.

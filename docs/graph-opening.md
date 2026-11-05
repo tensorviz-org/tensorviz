@@ -2,6 +2,8 @@
 
 Open a PyTorch model in your editor or coding agent. For JAX and Flax, use the [framework guide](jax-support.md).
 
+![Captured NeedsLib graph with measured input and output shapes after environment setup approval](images/graph-traced-after-allow.png)
+
 ## In your editor
 
 Start in the **tensorViz** panel beside chat. **tensorViz: Get Started** opens the

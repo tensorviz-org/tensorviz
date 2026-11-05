@@ -2,6 +2,8 @@
 
 Use this guide to develop TensorViz or build your own package. To use a published package, see [Install TensorViz](install.md).
 
+![Annotated Canvas showing Code focus and a Python source reference in a model preview](images/follow-code.png)
+
 The repository is currently private. Cloning requires read access until it is made public.
 
 Clone the repository first:

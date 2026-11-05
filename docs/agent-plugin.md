@@ -2,6 +2,8 @@
 
 The plugin lets Claude Code, Codex, or Cursor open a local PyTorch model, capture one forward call, and read the graph. It shows the same canvas as the editor extension. You do not need the extension to use the plugin.
 
+![Annotated model preview in the shared Canvas, also used by the coding-agent plugin](images/explore-graph.png)
+
 Use one TensorViz host per agent. Do not connect the same agent to both the plugin and the extension.
 
 ## Install

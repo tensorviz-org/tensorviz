@@ -2,6 +2,8 @@
 
 TensorViz needs a way to create your model and an example input for one forward call. It reuses a matching saved setup when one exists.
 
+![Set up this project sidebar with Python and Model inputs steps beside a source-only preview](images/project-setup-card.png)
+
 ## Complete the setup
 
 The setup sidebar shows **Python → Model inputs**. Once Python is ready, the

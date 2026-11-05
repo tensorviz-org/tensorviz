@@ -8,6 +8,8 @@ The agent explains each proposed operation and supplies its action labels. Expan
 **Details** for the host-recorded operation, paths and exact versions.
 **Stop** cancels a pending request.
 
+![Chat approval card asking to create a separate NeedsLib Python environment](images/permission-ask-card.png)
+
 The shield icon beside the composer opens this chat's permission menu. The current
 mode is checked; hover or focus another mode for its explanation:
 

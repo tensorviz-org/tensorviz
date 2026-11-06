@@ -1,0 +1,115 @@
+name: Documentation
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'tooling/docs/**'
+      - 'CONTRIBUTING.md'
+      - 'SECURITY.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'extension/CHANGELOG.md'
+      - '.github/workflows/docs.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'tooling/docs/**'
+      - 'CONTRIBUTING.md'
+      - 'SECURITY.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'extension/CHANGELOG.md'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 tooling/docs/check_links.py
+      - run: npm ci --prefix docs --no-audit --no-fund
+      - run: npm run build --prefix docs
+        env:
+          DOCS_BASE: /
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        with:
+          name: documentation
+          path: docs/.vitepress/dist
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DOCS_PUBLISH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DOCS_FIREBASE_PROJECT_ID: ${{ vars.DOCS_FIREBASE_PROJECT_ID }}
+      DOCS_FIREBASE_SITE_ID: ${{ vars.DOCS_FIREBASE_SITE_ID }}
+      DOCS_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.DOCS_WORKLOAD_IDENTITY_PROVIDER }}
+      DOCS_DEPLOY_SERVICE_ACCOUNT: ${{ vars.DOCS_DEPLOY_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check publishing configuration
+        shell: bash
+        run: |
+          for name in DOCS_FIREBASE_PROJECT_ID DOCS_FIREBASE_SITE_ID DOCS_WORKLOAD_IDENTITY_PROVIDER DOCS_DEPLOY_SERVICE_ACCOUNT; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing Actions variable $name"
+              exit 1
+            fi
+          done
+      - uses: actions/download-artifact@v4
+        with:
+          name: documentation
+          path: docs/.vitepress/dist
+      - name: Check artifact provenance
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import { readFile } from 'node:fs/promises'
+          const info = JSON.parse(await readFile('docs/.vitepress/dist/build-info.json', 'utf8'))
+          assert.equal(info.source, 'https://github.com/tensorviz-org/tensorviz')
+          assert.equal(info.revision, process.env.GITHUB_SHA)
+          assert.equal(info.base, '/')
+          NODE
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ env.DOCS_FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ env.DOCS_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.DOCS_DEPLOY_SERVICE_ACCOUNT }}
+      - name: Select the documentation site
+        working-directory: docs
+        run: npx --yes firebase-tools@15 target:apply hosting docs "$DOCS_FIREBASE_SITE_ID" --project "$DOCS_FIREBASE_PROJECT_ID" --non-interactive
+      - name: Deploy documentation to Firebase Hosting
+        working-directory: docs
+        run: npx --yes firebase-tools@15 deploy --only hosting:docs --project "$DOCS_FIREBASE_PROJECT_ID" --non-interactive

@@ -1,11 +1,14 @@
 // Shared route helpers (source path in the repo -> site route).
 export const REPO = 'tensorviz-org/tensorviz'
 
-export const outPath = (p) => (/(^|\/)README\.md$/.test(p) && p !== 'README.md' ? p.replace(/README\.md$/, 'index.md') : p)
+export const outPath = (p) => {
+  if (p === 'docs/README.md') return 'guides.md'
+  const rel = p.startsWith('docs/') ? p.slice(5) : p
+  return /(^|\/)README\.md$/.test(rel) ? rel.replace(/README\.md$/, 'index.md') : rel
+}
 
-// GitHub Pages serves the file it was given. Extensionless routes 404 there,
-// so pages are `/docs/page.html`. A copied README is `index.md`, which Pages
-// serves at the directory URL.
+// Keep explicit article filenames. A copied README becomes index.md and is
+// served at its directory URL.
 export const route = (p) => {
   const o = outPath(p)
   if (o === 'index.md') return '/'

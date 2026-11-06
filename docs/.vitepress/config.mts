@@ -5,7 +5,6 @@ import { monoLight, monoDark } from './mono-theme'
 import { REPO, route } from './routes.mjs'
 
 const gen = JSON.parse(fs.readFileSync(path.join(__dirname, 'cache/generated.json'), 'utf8'))
-const REF: string = gen.ref
 const base: string = gen.base || '/'
 // `head` is written into the HTML as given. The nav logo goes through
 // VPImage's withBase, which prefixes `base` itself.
@@ -40,7 +39,7 @@ const sidebar = [
 ]
 
 // VitePress serialises this function into the client bundle, so constants are inlined via eval.
-const editPattern = eval(`(({ filePath }) => 'https://github.com/${REPO}/blob/${REF}/' + (${JSON.stringify(gen.sources)}[filePath] ?? filePath))`)
+const editPattern = eval(`(({ filePath }) => 'https://github.com/${REPO}/edit/main/' + (${JSON.stringify(gen.sources)}[filePath] ?? filePath))`)
 
 export default async () => {
   return defineConfig({
@@ -52,7 +51,7 @@ export default async () => {
     srcDir: '.vitepress/cache/content',
     outDir: '.vitepress/dist',
     appearance: true,
-    // Pages does not map /page to /page.html. Links keep the .html suffix.
+    // Keep article URLs compatible with existing shared documentation links.
     cleanUrls: false,
     srcExclude: ['**/node_modules/**', 'public/**'],
     head: [
@@ -97,7 +96,8 @@ export default async () => {
         { text: 'Quickstart', link: r('docs/quickstart.md') },
         { text: 'Guides', link: r('docs/README.md') },
         { text: 'Reference', link: r('docs/reference.md') },
-        { text: 'Contribute', link: r('docs/local-setup.md') },
+        { text: 'Contribute', link: r('CONTRIBUTING.md') },
+        { text: 'Website', link: 'https://tensorviz.dev' },
       ],
       sidebar,
       socialLinks: [{ icon: 'github', link: `https://github.com/${REPO}` }],
@@ -105,7 +105,7 @@ export default async () => {
       outline: { level: [2, 3], label: 'On this page' },
       editLink: {
         pattern: editPattern,
-        text: `Edit on GitHub (${/^[0-9a-f]{7,40}$/i.test(REF) ? REF.slice(0, 7) : REF})`,
+        text: 'Edit this page on GitHub',
       },
       docFooter: { prev: 'Previous', next: 'Next' },
     } as any,

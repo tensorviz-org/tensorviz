@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+gha-creds-*.json
 
 # Personal Claude settings stay untracked.
 .claude/

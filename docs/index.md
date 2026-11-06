@@ -2,7 +2,6 @@
 title: TensorViz documentation
 titleTemplate: false
 outline: false
-editLink: false
 pageClass: docs-overview
 docActions: false
 ---

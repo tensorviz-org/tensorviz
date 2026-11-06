@@ -8,6 +8,15 @@ Follow [Build from source](docs/local-setup.md).
 Node.js and Python versions are in the [versions table](docs/local-setup.md#versions).
 Install the CPU PyTorch requirements before running backend tests.
 
+## Documentation contributions
+
+Documentation is maintained here in `docs/` and configured to publish independently
+at <https://docs.tensorviz.dev/>. Use **Edit this page on GitHub**, or fork this
+repository and submit a pull request with your Markdown changes. The private
+marketing website is not needed to contribute or build the docs. Run the checks
+in [Build the documentation](docs/documentation-site.md). Once publishing is enabled,
+accepted changes to `main` publish automatically; pull requests only build and check.
+
 ## What belongs here
 
 This tree is the visualization product: Open as Graph, graph diff, execution

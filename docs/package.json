@@ -5,8 +5,9 @@
   "scripts": {
     "prepare-content": "node .vitepress/prepare.mjs",
     "dev": "node .vitepress/prepare.mjs && vitepress dev .",
-    "build": "node .vitepress/prepare.mjs && vitepress build .",
-    "preview": "vitepress preview ."
+    "build": "node .vitepress/prepare.mjs && vitepress build . && node .vitepress/verify.mjs",
+    "preview": "vitepress preview .",
+    "check-built": "node .vitepress/verify.mjs"
   },
   "devDependencies": {
     "@fontsource-variable/geist": "^5.3.0",

@@ -31,6 +31,8 @@ if (Object.keys(result.metafile.inputs).some(file => /(?:^|\/)(?:extension|canva
 }
 await mkdir(path.join(root, 'out'), { recursive: true });
 await writeFile(path.join(root, 'out/host-inputs.json'), JSON.stringify(result.metafile, null, 2) + '\n');
+// Packaging stamps manifests with this version and refuses a host built as another.
+await writeFile(path.join(root, 'out/host-version.json'), JSON.stringify({ version }) + '\n');
 await build({ absWorkingDir: root, entryPoints: ['src/permissions.ts'], outfile: '../plugins/tensorviz/runtime/permissions.cjs',
   bundle: true, platform: 'node', target: 'node22', format: 'cjs' });
 

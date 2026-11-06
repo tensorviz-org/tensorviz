@@ -35,7 +35,7 @@ import { modelProjectRoot } from './modelProjectRoot';
 import { ValidationSetup } from './validationSetup';
 import { modelConfigStarter } from './validationConfig';
 import { CaptureInspector } from '@tensorviz/graph-host/captureInspection';
-import { preparePortableCapture, PortableExportError } from './portableCapture';
+import { preparePortableCapture, PortableExportError } from '@tensorviz/graph-host/portableCapture';
 import { lookupProfile, type ProfileLookupOptions } from '@tensorviz/graph-host/profileValidation';
 import {
   LocalBrowserEmptySnapshotState,

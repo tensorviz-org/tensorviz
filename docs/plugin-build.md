@@ -40,6 +40,18 @@ The archives are written to `plugin/dist/`:
 
 Each archive has a sibling `.sha256` file. `<version>` is the plugin host version in the [versions table](local-setup.md#versions).
 
+That is the base version. Published releases are numbered from it by their release run
+(`releaseVersion` in `plugin/scripts/release-version.mjs`), so they carry higher numbers,
+such as `0.3.104`. To build a local package that replaces an installed release, give the
+whole build a higher version with `TENSORVIZ_RELEASE_VERSION`:
+
+```sh
+TENSORVIZ_RELEASE_VERSION=0.3.105 npm run package:source-development --prefix plugin
+```
+
+The host, the browser and panel builds, and every plugin manifest in the archive then carry
+that version. Packaging refuses a host built with a different version.
+
 The canvas build reads `REACT_APP_TLDRAW_LICENSE_KEY` or
 `TENSORVIZ_BROWSER_LICENSE_KEY` from the environment. Leave them unset for a
 local build. Do not commit a key. A local build and the dev `package` script

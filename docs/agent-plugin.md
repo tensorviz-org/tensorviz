@@ -52,6 +52,15 @@ Ask the agent to show the **Model graph** panel. Clients without a panel can ope
 
 Closing the panel does not cancel a capture or edit source. Reopen **Model graph** if it disconnects; the capture is kept.
 
+## Publish to tensorviz.dev
+
+**Publish**, in the panel and browser graph toolbars, adds the open graph to your
+[tensorviz.dev](https://tensorviz.dev/explore/) account as private, as the editor
+extension does. The first time, choose **Continue in browser** to sign in with Google.
+Then open the graph's Share dialog to choose who can see it. Publish is a button in
+the graph, not an agent tool. To sign out, run `node scripts/launch.cjs --sign-out`
+from the installed plugin directory. Details: [Add graphs to tensorViz](share-to-website.md#publish-from-the-coding-agent-plugin).
+
 ## Permissions
 
 On first use, TensorViz asks for permission to run model and setup code, save `tensorviz.toml`, and install reviewed dependencies in the selected environment. That permission applies to your OS user across projects; your client’s tool controls still apply.

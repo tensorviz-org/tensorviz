@@ -6,6 +6,7 @@ import { LocalBrowserSourceEditClient } from './localBrowserSourceEditClient';
 import type { LocalBrowserValidationEvidence } from './protocol.generated';
 import type { LocalBrowserCaptureClient } from './localBrowserCaptureClient';
 import type { LocalBrowserPortableClient } from './localBrowserPortableClient';
+import type { LocalBrowserPublishClient } from './localBrowserPublishClient';
 
 export interface LocalBrowserContextValue {
   codeFocus?: {
@@ -21,6 +22,8 @@ export interface LocalBrowserContextValue {
   sourceEdits?: LocalBrowserSourceEditClient | null;
   captures?: LocalBrowserCaptureClient | null;
   portableExports?: LocalBrowserPortableClient | null;
+  /** Publish through the plugin host; absent where the editor or a file download publishes. */
+  publishing?: LocalBrowserPublishClient | null;
   navigation?: {
     header: HTMLDivElement | null;
     footer: HTMLDivElement | null;

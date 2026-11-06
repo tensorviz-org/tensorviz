@@ -17,9 +17,9 @@ import threading
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -29,7 +29,12 @@ from middleware import LocalTokenMiddleware
 from services.ide import multifile, review
 from services.ide.graph_setup import discover
 from services.ide.graph_setup_profiles import prepare_profile, restore_config_profile
+from services.ide.local_browser_protocol import LOCAL_BROWSER_CAPTURE_EXPORT_MAX_BYTES
 from services.ide.workspace_projection import ProjectionError, project_workspace
+
+#: The same bounds as the editor backend's /api/ide/capture/portable.
+PORTABLE_CAPTURE_INPUT_MAX_BYTES = 16 * 1024 * 1024
+PORTABLE_CAPTURE_MAX_BYTES = LOCAL_BROWSER_CAPTURE_EXPORT_MAX_BYTES
 
 
 class LimitedBody:
@@ -120,6 +125,24 @@ def create_app(token: str, assets: Path | None = None) -> FastAPI:
                                    body.config_object, config_defaults=body.config_defaults)
         except (ValueError, TypeError, KeyError, RecursionError, OverflowError):
             raise HTTPException(400, "Setup could not be prepared. Check the fields and tensorviz.toml. Nothing was written.") from None
+
+    @app.post("/api/ide/capture/portable")
+    async def portable(request: Request):
+        """Detach retained evidence for a graph file without opening files or executing
+        user code. Errors never echo the submitted capture's private literals."""
+        from services.semantic.portable import portable_capture
+        body = bytearray()
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > PORTABLE_CAPTURE_INPUT_MAX_BYTES:
+                raise HTTPException(413, "Retained capture exceeds the portable preparation input limit. Nothing was truncated.")
+            body.extend(chunk)
+        try:
+            capture = portable_capture(json.loads(body)).model_dump_json()
+        except (ValueError, TypeError, RecursionError):
+            raise HTTPException(400, "Lossless export refused: capture data is invalid or contains a private/path-like literal.") from None
+        if len(capture.encode("utf-8")) > PORTABLE_CAPTURE_MAX_BYTES:
+            raise HTTPException(413, "Retained capture exceeds the 16 MiB live-export limit. Nothing was truncated.")
+        return Response(capture, media_type="application/json", headers={"Cache-Control": "no-store"})
 
     @app.get("/api/health")
     def health():

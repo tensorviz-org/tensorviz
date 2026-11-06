@@ -14,9 +14,16 @@ import math
 import re
 from pathlib import Path
 from typing import Any, Final, Literal
+from urllib.parse import urlsplit
 
 LOCAL_BROWSER_PROTOCOL_VERSION: Final[int] = 1
 LOCAL_BROWSER_CAPTURE_EXPORT_MAX_BYTES: Final[int] = 16 * 1024 * 1024
+#: Publish to tensorviz.dev: the website's graph-file limit, and the gzipped file in
+#: base64 with room for gzip framing around an incompressible file.
+LOCAL_BROWSER_PUBLISH_MAX_BYTES: Final[int] = 10 * 1024 * 1024
+LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH: Final[int] = 4 * math.ceil((LOCAL_BROWSER_PUBLISH_MAX_BYTES + 65536) / 3)
+_BASE64 = re.compile(r"[A-Za-z0-9+/]+={0,2}")
+_GRAPH_ID = re.compile(r"[A-Za-z0-9]+")
 
 LocalBrowserRole = Literal["host", "view"]
 LocalBrowserErrorCode = Literal[
@@ -61,6 +68,7 @@ LOCAL_BROWSER_MESSAGE_TYPES: Final[frozenset[str]] = frozenset(
         "sourceEditReview", "candidateRequest", "candidateResult",
         "captureInspectRequest", "captureInspectCancel", "captureInspectResult",
         "captureExportRequest", "captureExportCancel", "captureExportResult",
+        "graphPublishRequest", "graphPublishCancel", "graphPublishState", "graphPublishResult",
         "validateRequest",
         "validateCancel",
         "validateResult",
@@ -369,6 +377,17 @@ def _applied_source_is_valid(value):
     return (value["unavailable"] is None and receipt["unavailable"] is None and value["source"] == "reviewed_saved"
         and value["captureFreshness"] != "stale" and _capture_reconciliation_is_valid(result)
         and result["reviewedDigest"] == receipt["afterDigest"])
+
+
+def _web_page_url_is_valid(value: Any) -> bool:
+    """An http(s) page a view may open for the member: never a script, file or credentialed URL."""
+    if not _is_bounded_string(value, 2048) or not re.match(r"https?://", value):
+        return False
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return False
+    return parsed.scheme in {"http", "https"} and bool(parsed.hostname) and not parsed.username and not parsed.password
 
 
 def _target_is_valid(value: Any) -> bool:
@@ -757,6 +776,31 @@ def is_local_browser_message(value: Any, expected_workspace_session_id: str | No
                 and capture["version"] == 1 and not isinstance(capture["version"], bool)
                 and capture["sourceNames"] == "anonymized" and isinstance(capture["capture"], dict)
                 and len(json.dumps(capture, ensure_ascii=False, separators=(",", ":")).encode("utf-8")) <= LOCAL_BROWSER_CAPTURE_EXPORT_MAX_BYTES)))
+
+    if message_type in {"graphPublishRequest", "graphPublishCancel", "graphPublishState", "graphPublishResult"}:
+        if not _target_is_valid(value.get("target")) or not _is_bounded_string(value.get("requestId"), 128):
+            return False
+        if message_type == "graphPublishCancel":
+            return len(value) == 6
+        if message_type == "graphPublishRequest":
+            file = value.get("file")
+            return (len(value) == 7 and _is_bounded_string(file, LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH)
+                    and _BASE64.fullmatch(file) is not None)
+        if not _is_bounded_string(value.get("detail"), 512):
+            return False
+        if message_type == "graphPublishState":
+            if value.get("phase") == "signing_in":
+                return len(value) == 9 and _web_page_url_is_valid(value.get("signInUrl"))
+            return len(value) == 8 and value.get("phase") == "uploading" and "signInUrl" not in value
+        graph = value.get("graph")
+        if len(value) != 9 or "graph" not in value:
+            return False
+        if value.get("status") == "published":
+            return (isinstance(graph, dict) and set(graph) == {"id", "title", "url", "shareUrl"}
+                    and _is_bounded_string(graph["id"], 128) and _GRAPH_ID.fullmatch(graph["id"]) is not None
+                    and _is_bounded_string(graph["title"], 128)
+                    and _web_page_url_is_valid(graph["url"]) and _web_page_url_is_valid(graph["shareUrl"]))
+        return value.get("status") in {"failed", "cancelled"} and graph is None
 
     if message_type in {"captureInspectRequest", "captureInspectCancel", "captureInspectResult"}:
         if not _target_is_valid(value.get("target")) or not _is_bounded_string(value.get("requestId"), 128):

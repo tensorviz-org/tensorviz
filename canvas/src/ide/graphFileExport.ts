@@ -58,7 +58,7 @@ export async function prepareCurrentGraphFile(current: () => GraphExportState, c
   const ref = authoritativeGraph(start.graph, start.displayed).nodes.find(node => node.data.captureRef)?.data.captureRef;
   if (!ref) return exportCurrentGraphFile(start.graph, start.page, start.displayed, start.connected, undefined, start.direction);
   if (!client || !start.connected || !start.page.activeTarget || !canExportGraphFile(start.page)) {
-    throw new Error('Connect to VS Code and finish opening this graph before exporting its capture.');
+    throw new Error('Connect to tensorViz and finish opening this graph before exporting its capture.');
   }
   const result = await client.prepare({ captureId: ref.captureId, sourceId: ref.sourceId });
   if (!result.capture) throw new Error(result.detail);

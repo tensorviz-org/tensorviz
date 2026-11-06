@@ -1,7 +1,7 @@
 import * as assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
-import { preparePortableCapture, PORTABLE_CAPTURE_MAX_BYTES } from '../../portableCapture';
+import { preparePortableCapture, PORTABLE_CAPTURE_MAX_BYTES } from '@tensorviz/graph-host/portableCapture';
 import { canonicalFixture } from '../../../../tests/fixtures/semantic.cjs';
 
 const fixture = () => JSON.parse(readFileSync(path.join(__dirname, '../../../../tests/fixtures/contracts/portable-capture.json'), 'utf8'));

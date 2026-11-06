@@ -708,6 +708,36 @@ def test_view_disconnect_synthesizes_cancels_for_its_pending_requests(client):
         assert staying.receive_json()["type"] == "sourceEditResult"
 
 
+def test_publish_progress_and_result_reach_only_the_asking_view_and_cancel_when_it_leaves(client):
+    session = mint(client)
+    host, _ = connect_host(client, session)
+    asking, _, _ = connect_view(client, cookie_key_of(bootstrap(client, session)), session, n=1800)
+    other, _, _ = connect_view(client, cookie_key_of(bootstrap(client, session)), session, n=1801)
+    graph = {"id": "AbCdEfGhIjKlMnOpQrSt", "title": "Net", "url": "https://tensorviz.dev/explore/graph/?id=AbCdEfGhIjKlMnOpQrSt",
+             "shareUrl": "https://tensorviz.dev/explore/graph/?id=AbCdEfGhIjKlMnOpQrSt&share=1"}
+    asking.send_json(request("graphPublishRequest", session, 1802, "publish-a", file="H4sIAAAAAAAA"))
+    forwarded = host.receive_json()
+    assert forwarded["type"] == "graphPublishRequest" and forwarded["file"] == "H4sIAAAAAAAA"
+    host.send_json(request("graphPublishState", session, 1803, "publish-a", phase="signing_in", detail="Sign in.",
+                           signInUrl="https://tensorviz.dev/explore/connect/?state=abc"))
+    assert asking.receive_json()["phase"] == "signing_in"
+    host.send_json(request("graphPublishState", session, 1804, "publish-a", phase="uploading", detail="Publishing Net."))
+    assert asking.receive_json()["phase"] == "uploading", "progress does not end the request"
+    host.send_json(request("graphPublishResult", session, 1805, "publish-a", status="published", detail="Published.", graph=graph))
+    assert asking.receive_json()["graph"] == graph
+    # Answered: a late state has no destination left.
+    host.send_json(request("graphPublishState", session, 1806, "publish-a", phase="uploading", detail="Late."))
+    asking.send_json(request("graphPublishRequest", session, 1807, "publish-left", file="H4sIAAAAAAAA"))
+    assert host.receive_json()["requestId"] == "publish-left"
+
+    asking.__exit__(None, None, None)
+    with entered(host, other):
+        cancel = host.receive_json()
+        assert (cancel["type"], cancel["requestId"]) == ("graphPublishCancel", "publish-left")
+        host.send_json(envelope("focusNode", session["workspaceSessionId"], 1808, hostSequence=1, target=target(), nodeId="n"))
+        assert other.receive_json()["type"] == "focusNode", "publish traffic never reaches another view"
+
+
 def test_source_request_without_a_host_and_unknown_host_replies_are_handled(client):
     session = mint(client)
     view_key = cookie_key_of(bootstrap(client, session))

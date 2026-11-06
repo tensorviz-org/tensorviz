@@ -52,6 +52,9 @@ carries its own session-scoped credential model.
   `staleState`, `focusNode`, `ack`, `error`) broadcasts to every view; view traffic
   (`snapshotRequest`, `revealNode`, `ack`, `error`) goes only to the host and is never echoed to
   other views. Broker-owned types (`connected`, `connectionState`, handshakes) cannot be injected.
+- Each host-state broadcast is encoded once and the same bounded wire text is sent to
+  every recipient. Inbound decoding, contract validation, session checks and ordering
+  still run before broadcast; a failed recipient is removed without stopping the others.
 - A view connecting before the host receives `connectionState: disconnected`; views are told
   `connected`/`disconnected` as the host arrives and leaves. A host disconnect clears the session's
   host, notifies every view, and restarts the ordering epoch when a new host registers.

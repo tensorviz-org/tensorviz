@@ -4,7 +4,7 @@ Save an interactive graph snapshot, or export an image for a document or discuss
 
 ## Save a graph file
 
-In **Open Canvas in Browser**, choose **Export graph** to download a `.tensorviz.json` file. It keeps the captured graph and supported saved views and notes. The editor Canvas offers **Publish** to share through your website account.
+In **Open Canvas in Browser**, choose **Export graph** to download a `.tensorviz.json` file. It keeps the captured graph and supported saved views and notes. The editor Canvas and the coding-agent plugin's graph offer **Publish** to share through your website account.
 
 Open it with **Open graph file viewer** to explore the snapshot. Recipients do not need to run Python to browse a saved graph.
 

@@ -19,9 +19,12 @@ refuses a non-loopback bind unless `TENSORVIZ_LOCAL_TOKEN` is set.
 `AUTH_DISABLED` does not allow a public bind. `backend/auth.py` does not accept
 bearer tokens. Firebase Admin is not a backend dependency.
 
-Website sign-in stores a refresh token in the editor secret store. The Firebase
-web API key in the extension is a public client identifier for tensorviz.dev, not
-a credential that grants admin access.
+Website sign-in stores a refresh token in the editor secret store. The plugin
+stores its refresh token in a private file (`0600`, in a `0700` folder) in its data
+folder, and receives the sign-in on a one-time loopback address that checks the
+sign-in's random state and its Host header. The Firebase web API key in the extension
+and plugin is a public client identifier for tensorviz.dev, not a credential that
+grants admin access.
 
 Do not send launch tokens, `.tensorviz/lock`, secret-storage dumps, or
 `tensorviz.toml` files that contain private paths when you report a bug. Those

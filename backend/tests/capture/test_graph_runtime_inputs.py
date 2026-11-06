@@ -217,3 +217,85 @@ def test_optional_forward_without_an_input_contract_keeps_its_defaults():
         def forward(self, x=None):
             return torch.ones(1) if x is None else self.features(x)
     assert propose_input(Optional(nn.Linear(4, 2)))['binding'] == dict(args=[], kwargs={})
+
+
+class DummyInputChild(nn.Module):
+    @property
+    def dummy_inputs(self):
+        return dict(input_ids=torch.tensor([[1, 2]]), attention_mask=torch.ones(1, 2, dtype=torch.int64))
+
+    def forward(self, input_ids, attention_mask):
+        pytest.fail('Preparation ran child forward.')
+
+
+class DummyInputWrapper(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = DummyInputChild()
+
+    def forward(self, input_ids, attention_mask):
+        pytest.fail('Preparation ran wrapper forward.')
+
+
+def test_direct_child_dummy_inputs_bind_to_wrapper_without_forward():
+    proposal = propose_input(DummyInputWrapper())
+    assert set(proposal['binding']['kwargs']) == {'input_ids', 'attention_mask'}
+    assert proposal['binding']['kwargs']['input_ids']['generator']['values'] == [1, 2]
+
+
+@pytest.mark.parametrize('kind', ['ambiguous', 'renamed', 'nested', 'oversized'])
+def test_child_dummy_inputs_keep_explicit_contract_and_budgets(kind):
+    model = DummyInputWrapper()
+    if kind == 'ambiguous':
+        model.other = DummyInputChild()
+    elif kind == 'renamed':
+        model.forward = lambda tokens, mask: None
+    elif kind == 'nested':
+        model.model = nn.Sequential(DummyInputChild())
+    else:
+        child = nn.Module()
+        child.dummy_inputs = dict(input_ids=torch.ones(1, 5000, dtype=torch.int64),
+                                  attention_mask=torch.ones(1, 2, dtype=torch.int64))
+        model.model = child
+    with pytest.raises(ValueError):
+        propose_input(model)
+
+
+def test_nonbinding_top_level_example_falls_back_to_direct_child():
+    model = DummyInputWrapper()
+    model.dummy_inputs = {'input_ids': torch.tensor([[1, 2]])}
+    assert set(propose_input(model)['binding']['kwargs']) == {'input_ids', 'attention_mask'}
+
+
+def test_top_level_dummy_inputs_take_precedence_over_children():
+    model = DummyInputWrapper()
+    model.other = DummyInputChild()
+    model.dummy_inputs = dict(input_ids=torch.tensor([[3]]), attention_mask=torch.tensor([[1]]))
+    assert propose_input(model)['binding']['kwargs']['input_ids']['generator']['values'] == [3]
+
+
+class TokenOnlyChild(nn.Module):
+    """Matches transformers BertModel.dummy_inputs: tokens only, mask optional there."""
+    @property
+    def dummy_inputs(self):
+        return {'input_ids': torch.tensor([[1, 2, 3]])}
+
+    def forward(self, input_ids, attention_mask=None):
+        pytest.fail('Preparation ran child forward.')
+
+
+class RequiredMaskWrapper(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = TokenOnlyChild()
+
+    def forward(self, input_ids, attention_mask):
+        pytest.fail('Preparation ran wrapper forward.')
+
+
+def test_child_token_example_fills_required_attention_mask():
+    proposal = propose_input(RequiredMaskWrapper())
+    kwargs = proposal['binding']['kwargs']
+    assert kwargs['input_ids']['generator']['values'] == [1, 2, 3]
+    assert kwargs['attention_mask'] == dict(kind='tensor', shape=[1, 3], dtype='int64',
+                                            requires_grad=False, generator=dict(kind='values', values=[1, 1, 1]))

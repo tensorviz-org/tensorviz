@@ -54,7 +54,7 @@ export const GraphFocusOverlay = track(function GraphFocusOverlay() {
       <span>Comparison: + added · − removed · ~ changed.</span>
       <span>Canvas keys: [ / ] select a layer · Enter opens it · Esc clears focus.</span>
     </details>}
-    <FamilyLegend nodes={graphNodes.get()} />
+    {!local && <FamilyLegend nodes={graphNodes.get()} />}
     <ViewExplanationOverview key={explanations?.model?.state?.requestId} nodes={graphNodes.get()} focused={focus.active}
       selectedNodeIds={focus.selected} onNavigate={id => {
         const shape = editor.getShape(nodeIdToShapeId(id));

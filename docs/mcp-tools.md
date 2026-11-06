@@ -1,5 +1,7 @@
 # MCP tools
 
+![Annotated graph review showing the working-tree comparison and source changes](images/review-changes.png)
+
 ## Contents
 
 - [Fill missing inputs with your agent](#fill-missing-inputs-with-your-agent)

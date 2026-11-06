@@ -322,16 +322,16 @@ export class LocalBrowserSourceEdits {
     } finally { clearTimeout(timer); signal?.removeEventListener('abort', abort); }
   }
 
-  private modelFileGuard(target: LocalBrowserTargetIdentity, relative = target.file): () => boolean {
+  private modelFileGuard(target: LocalBrowserTargetIdentity, relative = target.file): (applying?: boolean) => boolean {
     if (!vscode.workspace.isTrusted || !this.options.context(target) || !isNormalizedPythonPath(relative)) {
       throw new GraphToolError('STALE_TARGET', 'Source changes need a trusted workspace and a current model.');
     }
     const root = fs.realpathSync(target.workspaceFolder), file = path.join(root, relative);
     const identity = fs.lstatSync(file);
-    const current = () => {
+    const current = (applying = false) => {
       try {
         const now = fs.lstatSync(file);
-        return vscode.workspace.isTrusted && !!this.options.context(target) && fs.realpathSync(target.workspaceFolder) === root
+        return vscode.workspace.isTrusted && (applying || !!this.options.context(target)) && fs.realpathSync(target.workspaceFolder) === root
           && fs.realpathSync(file) === file && now.isFile() && now.dev === identity.dev && now.ino === identity.ino;
       } catch { return false; }
     };
@@ -415,7 +415,7 @@ export class LocalBrowserSourceEdits {
       if (dependencies.size > SOURCE_SET_LIMITS.maxSources) throw new GraphToolError('SOURCE_LIMIT', 'The review source inventory exceeds the projection limit.');
       const resourcesCurrent = await reviewResourceGuard(target.workspaceFolder, resources, abort,
         absolute => vscode.workspace.textDocuments.some(document => matchesHostFile(document.uri, absolute) && document.isDirty));
-      const documents: ReviewDocuments = new Map(), guards: Array<() => boolean> = [modelCurrent];
+      const documents: ReviewDocuments = new Map(), guards: Array<(applying?: boolean) => boolean> = [modelCurrent];
       let bytes = 0;
       for (const [file, digest] of dependencies) {
         guards.push(this.modelFileGuard(target, file));
@@ -432,10 +432,16 @@ export class LocalBrowserSourceEdits {
         try { return isDeepStrictEqual(this.options.capture?.(target, captured.id, captured.source.id), captured)
           && isDeepStrictEqual(this.options.capturePlan?.(target, captured.id, captured.source.id), retainedPlan); } catch { return false; }
       };
-      const stillCurrent = () => !abort.aborted && guards.every(guard => guard()) && resourcesCurrent() && captureCurrent()
-        && isDeepStrictEqual(this.options.context(target)?.dependencies, graphDependencies)
-        && this.options.origin() === origin && this.options.token() === token
-        && [...documents.values()].every(item => item.document.version === item.version && sha256(item.document.getText()) === item.digest);
+      const stillCurrent = (applying = false) => {
+        const context = this.options.context(target);
+        const current = !abort.aborted && guards.every(guard => guard(applying)) && resourcesCurrent() && captureCurrent()
+          && (applying && !context || isDeepStrictEqual(context?.dependencies, graphDependencies))
+          && this.options.origin() === origin && this.options.token() === token
+          && [...documents.values()].every(item => (applying || item.document.version === item.version)
+            && sha256(item.document.getText()) === item.digest);
+        if (current && applying && !context) this.options.channel.appendLine('[source] Review context unavailable during apply; verified reviewed source digests and hard guards.');
+        return current;
+      };
       if (!stillCurrent()) throw new GraphToolError('STALE_TARGET', 'The review context changed.');
       await this.checkSourceSet(target, edit, abort);
       if (!stillCurrent()) throw new GraphToolError('STALE_TARGET', 'The review context changed.');
@@ -533,12 +539,19 @@ export class LocalBrowserSourceEdits {
     if (!vscode.workspace.isTrusted || !context || !isLocalBrowserSourceEdit(edit)) {
       return this.outcome('refused', 'Source changes need a trusted workspace and a current graph. Wait for refresh and try again.');
     }
-    // A captured location proves navigation, not a legacy declaration recipe.
-    // Never let its span reach the codemod's line-based declaration fallback.
+    // Navigation spans alone cannot authorize a declaration codemod. An exact
+    // constructor capability can identify a declaration for the same planner.
     const semantic = (context.projection.document as { semantic?: { metadata?: Record<string, unknown>; nodes?: Array<{ node_id: string; metadata?: Record<string, unknown> }> } } | undefined)?.semantic;
     const capturedEdit = 'capabilityId' in edit;
     const canonical = !!(semantic?.metadata?.capture || semantic?.nodes?.some(node => node.metadata?.captureRef));
-    if (canonical && !capturedEdit) {
+    const declarationCapability = canonical && !capturedEdit && edit.kind !== 'group_layers'
+      ? semantic?.nodes?.find(node => node.node_id === sourceEditNodeIds(edit)[0])?.metadata?.sourceEditCapabilities
+      : undefined;
+    const constructor = Array.isArray(declarationCapability) ? declarationCapability.find(cap =>
+      isSourceEditCapability(cap) && cap.command === 'set_constructor_literal' &&
+      cap.expression.kind === 'constructor' && cap.expression.quality === 'exact' && cap.expression.anchors.length === 1 &&
+      isDeepStrictEqual(cap.target, semantic?.nodes?.find(node => node.node_id === sourceEditNodeIds(edit)[0])?.metadata?.captureRef)) : undefined;
+    if (canonical && !capturedEdit && !constructor) {
       return this.outcome('refused', 'Captured records need an explicit source-edit capability. A source location alone cannot authorize a layer edit.');
     }
     let captured: CaptureSnapshot | undefined;
@@ -577,9 +590,9 @@ export class LocalBrowserSourceEdits {
       if (!captured) return true;
       try { return !!this.options.capture?.(target, captured.id, captured.source.id); } catch { return false; }
     };
-    const stillCurrent = () => !signal.aborted && vscode.workspace.isTrusted && !!this.options.context(target) &&
+    const stillCurrent = (applying = false) => !signal.aborted && vscode.workspace.isTrusted && !!this.options.context(target) &&
       this.options.origin() === origin && this.options.token() === token && captureCurrent() && resourcesCurrent() &&
-      [...documents.values()].every(item => item.document.version === item.version && sha256(item.document.getText()) === item.digest);
+      [...documents.values()].every(item => (applying || item.document.version === item.version) && sha256(item.document.getText()) === item.digest);
     if (!stillCurrent()) throw new Error('stale source');
 
     if (capturedEdit && captured) {
@@ -654,7 +667,20 @@ export class LocalBrowserSourceEdits {
     }
 
     const ids = sourceEditNodeIds(edit);
-    const spans = ids.map(id => context.projection.spanmap[id] as { file?: string; start?: number[]; end?: number[] } | undefined);
+    let spans = ids.map(id => context.projection.spanmap[id] as { file?: string; start?: number[]; end?: number[] } | undefined);
+    let declarationName: string | undefined;
+    if (constructor) {
+      const anchor = constructor.expression.anchors[0];
+      const source = documents.get(anchor.file)?.document.getText();
+      const line = source?.split('\n')[anchor.startLine - 1];
+      // Require an entire assignment prefix, anchored at the exact constructor.
+      // Do not feed arbitrary call/navigation spans into the planner's fallback.
+      const prefix = line?.slice(0, anchor.startColumn);
+      const assignment = prefix?.match(/^\s*self\.([A-Za-z_]\w*)\s*=\s*$/);
+      if (!assignment || !source || sha256(source) !== anchor.digest) return this.outcome('refused', 'This constructor is not a standalone layer declaration. Use the agent or edit its source.');
+      declarationName = assignment[1];
+      spans = [{ file: anchor.file, start: [anchor.startLine, anchor.startColumn], end: [anchor.endLine, anchor.endColumn] }];
+    }
     const rel = spans[0]?.file;
     const snapshot = rel && documents.get(rel);
     if (!rel || !snapshot || spans.some(span => span?.file !== rel || !span.start || !span.end)) {
@@ -673,7 +699,7 @@ export class LocalBrowserSourceEdits {
     if (!classes.length) {
       return this.outcome('refused', 'The selection crosses class definitions. Select layers within one block.');
     }
-    const localIds = ids.map(id => id.split('.').pop()!);
+    const localIds = declarationName ? [declarationName] : ids.map(id => id.split('.').pop()!);
     if (new Set(localIds).size !== localIds.length) {
       return this.outcome('refused', 'Those instances share a source declaration. Select one instance of each layer.');
     }
@@ -682,7 +708,7 @@ export class LocalBrowserSourceEdits {
       return !ids.includes(id) && spans.some(selected => selected?.file === span.file &&
         JSON.stringify(selected?.start) === JSON.stringify(span.start) && JSON.stringify(selected?.end) === JSON.stringify(span.end));
     }).length;
-    const sharedTitle = shared ? ` — also affects ${shared} other projected instance${shared === 1 ? '' : 's'}` : '';
+    const sharedTitle = constructor ? ' — all executions of this declaration' : shared ? ` — also affects ${shared} other projected instance${shared === 1 ? '' : 's'}` : '';
     const applier = new EditApplier(backend, this.options.channel as vscode.OutputChannel, undefined, this.options.fetchImpl);
     const planned = await applier.plan({ uri: snapshot.document.uri, cls: classes[0].name, rel,
       sourceDigest: snapshot.digest,
@@ -766,21 +792,28 @@ export class LocalBrowserSourceEdits {
     const artifact = sourceArtifact(snapshot.document, context.entrypoint, [{
       range: { start: [1, 0], end: [end.line + 1, end.character] }, newText: patch.contents,
     }], sha256(patch.contents));
+    // The project declaration caller already displays refusal warnings.
     return this.reviewAndWrite(context.project.workspaceFolder, `tensorViz project declaration — ${context.entrypoint}`,
-      artifact, signal, stillCurrent, documents);
+      artifact, signal, stillCurrent, documents, undefined, undefined, undefined, undefined, undefined, undefined, false);
   }
 
   private async reviewAndWrite(folder: string, title: string, artifact: CodeArtifact | CodeArtifact[], signal: AbortSignal,
-    stillCurrent: () => boolean, documents: ReviewDocuments,
+    stillCurrent: (applying?: boolean) => boolean, documents: ReviewDocuments,
     onReview?: (review: SourceProposalReview) => void, candidate?: CandidateReview, onShown?: (reveal: () => Promise<void>, decide: (approved: boolean) => void) => void,
     onApplied?: (uri: vscode.Uri, artifact: CodeArtifact) => void,
-    draftInput?: Pick<SourceDraftInput, 'id' | 'target' | 'canRevise'>, onDecision?: () => void): Promise<SourceProposalOutcome> {
+    draftInput?: Pick<SourceDraftInput, 'id' | 'target' | 'canRevise'>, onDecision?: () => void, notifyRefusal = true): Promise<SourceProposalOutcome> {
     if (draftInput && this.options.accepted) title += ' — Apply saves and runs the model';
     const artifacts = Array.isArray(artifact) ? artifact : [artifact];
     const files = artifacts.map(item => ({ file: item.path, beforeDigest: item.before_digest, afterDigest: item.after_digest }));
     const review: SourceProposalReview = Array.isArray(artifact) ? { title, files } : { title, ...files[0] };
     const changed = candidate?.onDidChange(value => onReview?.({ ...review, candidate: value }));
-    let approved: boolean;
+    let approved = false, applied = false;
+    const refuse = (detail: string) => {
+      this.options.channel.appendLine(`[source] ${detail}`);
+      draft?.notifyDecisionFailed?.();
+      if (notifyRefusal) void vscode.window.showWarningMessage(detail);
+      return this.outcome(signal.aborted ? 'cancelled' : 'refused', detail);
+    };
     let draft: SourceDraftHandle | undefined;
     try {
       if (!stillCurrent()) throw new Error('stale source');
@@ -798,33 +831,40 @@ export class LocalBrowserSourceEdits {
         }, onDecision)
         : await (this.options.review ?? reviewSource)(title, artifact, signal, candidate, shown, onDecision);
       onDecision?.();
-    } finally { draft?.dispose(); await candidate?.finish(); changed?.dispose(); }
-    if (candidate?.snapshot().cleanup === 'failed') {
-      return this.outcome('refused', 'Candidate cleanup failed. Private temporary files may remain. No source change was applied.');
+    } catch (error) {
+      draft?.dispose();
+      await candidate?.finish(); changed?.dispose();
+      throw error;
     }
-    if (!approved) {
-      return this.outcome('cancelled', 'Proposal discarded. No source change was applied.');
-    }
-    if (!stillCurrent()) throw new Error('stale source');
-    // Native diff previews can close source documents. A closed TextDocument
-    // remains readable but no longer follows disk/reopened-buffer changes.
-    // Rebind only after proving the same reviewed bytes, retaining the ordinary
-    // version check for documents that stayed open throughout review.
-    for (const snapshot of documents.values()) {
-      if (!snapshot.document.isClosed) continue;
-      const document = await vscode.workspace.openTextDocument(snapshot.document.uri);
-      if (sha256(document.getText()) !== snapshot.digest) throw new Error('stale closed source');
-      snapshot.document = document;
-      snapshot.version = document.version;
-    }
-    const currentOpenSources = () => stillCurrent() && [...documents.values()].every(item => !item.document.isClosed);
-    const writer = new SourceWriter(vscode.Uri.file(folder), this.options.channel);
-    let result;
-    try { result = await writer.write(artifacts, currentOpenSources); }
-    catch {
-      return this.outcome('refused', 'The editor did not confirm the source change. Inspect the buffer before retrying; use VS Code Undo if needed.');
-    }
-    if (result.outcome === 'applied') {
+    try {
+      // Wait for private execution cleanup while retaining the review and its guards.
+      // A refused candidate run does not prevent applying the reviewed source.
+      await candidate?.settle();
+      if (candidate?.snapshot().cleanup === 'failed') {
+        return refuse('Candidate cleanup failed. Private temporary files may remain. No source change was applied.');
+      }
+      if (!approved) {
+        return this.outcome('cancelled', 'Proposal discarded. No source change was applied.');
+      }
+      // Bind every snapshot to the live buffer after approval. Preview closure or
+      // edit/undo may change document identity/version without changing its bytes.
+      for (const snapshot of documents.values()) {
+        const document = await vscode.workspace.openTextDocument(snapshot.document.uri);
+        if (sha256(document.getText()) !== snapshot.digest) return refuse('The source changed after review. No source change was applied.');
+        snapshot.document = document;
+        snapshot.version = document.version;
+      }
+      const currentOpenSources = () => !signal.aborted && [...documents.values()].every(item =>
+        !item.document.isClosed && sha256(item.document.getText()) === item.digest) && stillCurrent(true);
+      if (!currentOpenSources()) return refuse('The review context changed. No source change was applied. Refresh the graph and review the proposal again.');
+      const writer = new SourceWriter(vscode.Uri.file(folder), this.options.channel);
+      let result;
+      try { result = await writer.write(artifacts, currentOpenSources); }
+      catch {
+        return refuse('The editor did not confirm the source change. Inspect the buffer before retrying; use VS Code Undo if needed.');
+      }
+      if (result.outcome !== 'applied') return refuse(result.reason ?? 'The editor refused the source change. Inspect the buffer before retrying.');
+      applied = true;
       for (const item of artifacts) onApplied?.(vscode.Uri.file(path.join(folder, item.path)), item);
       if (draftInput && this.pending?.id === draftInput.id && this.options.accepted) {
         const origin = this.options.origin(), token = this.options.token();
@@ -836,9 +876,13 @@ export class LocalBrowserSourceEdits {
           current: () => !signal.aborted && vscode.workspace.isTrusted && this.options.origin() === origin && this.options.token() === token
             && accepted.every(item => !item.document.isClosed && item.document.version === item.version && sha256(item.document.getText()) === item.digest) };
       }
+      return this.outcome('applied',
+        `Applied to ${artifacts.length === 1 ? 'the VS Code buffer' : `all ${artifacts.length} unsaved VS Code buffers in one edit`}. The graph refreshes from source; use VS Code Undo to revert.`);
+    } catch {
+      return refuse('The editor did not confirm the source change. Inspect the buffer before retrying; use VS Code Undo if needed.');
+    } finally {
+      if (!approved || applied) draft?.dispose();
+      await candidate?.finish(); changed?.dispose();
     }
-    return this.outcome(result.outcome === 'applied' ? 'applied' : 'refused', result.outcome === 'applied'
-      ? `Applied to ${artifacts.length === 1 ? 'the VS Code buffer' : `all ${artifacts.length} unsaved VS Code buffers in one edit`}. The graph refreshes from source; use VS Code Undo to revert.`
-      : 'The source changed during review or the editor refused the edit. Nothing from this proposal was applied.');
   }
 }

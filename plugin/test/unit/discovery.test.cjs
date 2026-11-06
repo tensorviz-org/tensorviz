@@ -22,12 +22,7 @@ test('a copied plugin discovers tools with no checkout, VS Code, Python, or PATH
     await client.connect(transport);
     assert.equal(client.getServerVersion().title, 'tensorViz');
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map(tool => tool.name).sort(), ['list_models', 'get_graph', 'inspect_nodes', 'get_selection',
-      'focus_view', 'open_graph_view', 'open_graph', 'get_execution_environment', 'list_captures', 'inspect_capture',
-      'get_model_context', 'find_computation', 'query_computation', 'analyze_computation_change',
-      'get_graph_setup', 'suggest_graph_inputs', 'configure_graph_setup', 'configure_graph_environment',
-      'validate_model', 'get_run', 'inspect_run', 'cancel_run', 'compare_runs', 'open_graph_diff',
-      'open_graph_panel', 'graph_panel_read', 'graph_panel_exchange', 'detach_graph_panel', 'close_graph_panel'].sort());
+    assert.deepEqual(tools.map(tool => tool.name).sort(), [...require('../tool-names.cjs')].sort());
     assert.equal(tools.find(tool => tool.name === 'list_models').annotations.readOnlyHint, true);
     for (const name of ['get_pending_permission', 'present_permission', 'get_machine_info',
       'read_project_file', 'request_project_command', 'get_project_command', 'submit_node_explanation']) {
@@ -59,6 +54,7 @@ test('a copied plugin discovers tools with no checkout, VS Code, Python, or PATH
     const result = await client.callTool({ name: 'list_models', arguments: {} });
     assert.equal(result.structuredContent.host.kind, 'standalone');
     assert.equal(result.structuredContent.workspaceSelectionRequired, true);
+    assert.equal(result.structuredContent.capabilities.capture, ['darwin-arm64', 'linux-x64', 'win32-x64'].includes(`${process.platform}-${process.arch}`));
     assert.equal(result.structuredContent.capabilities.nativeEditor, false);
     assert.equal(result.structuredContent.capabilities.analytics, false);
     const opener = tools.find(tool => tool.name === 'open_graph_panel');

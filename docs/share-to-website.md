@@ -22,6 +22,8 @@ The graph page also lets you rename the graph, describe it, start a discussion a
 its layers, or delete it. VS Code offers **Copy link** when the upload finishes. Open
 Canvas in Browser, which cannot sign in, keeps **Export graph** for a
 [graph file](graph-files.md).
+While the VS Code host connects, the toolbar may briefly show **Export graph**;
+it switches to **Publish** as soon as the host is ready.
 
 ## Signing in
 
@@ -30,6 +32,11 @@ browser. Pick a Google account, then let the browser open VS Code; the first tim
 Code may also ask to let tensorViz open the link. The graph is then added by itself.
 **tensorViz: Sign in to tensorViz** does the same from the command palette, and
 switches accounts.
+
+Sign-in waits up to ten minutes for the browser to return to VS Code. If it times
+out, or your session has expired, the error dialog offers **Retry**. Retrying
+**Publish** opens sign-in again and then uploads the same graph. A rejected upload
+token is renewed once automatically before asking you to sign in again.
 
 The website sends VS Code a Google ID token, valid for an hour, together with the
 random state VS Code started the sign-in with; it sends it only to this extension or

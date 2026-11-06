@@ -136,3 +136,59 @@ test('cancelled runtime progress disappears immediately and cannot replace a new
     assert.equal(runtime.progress, undefined);
   } finally { https.get = original; await fs.rm(root, { recursive: true, force: true }); }
 });
+
+test('managed availability and venv paths follow supported platform pins', async () => {
+  const vm = require('node:vm');
+  const nodeFs = require('node:fs');
+  const source = await fs.readFile(path.join(__dirname, '../../out/host/runtime.cjs'), 'utf8');
+  const manifest = JSON.parse(await fs.readFile(path.resolve(__dirname, '../../../runtime/python/manifest.json'), 'utf8'));
+  for (const [osName, cpu, available] of [
+    ['darwin', 'arm64', true], ['linux', 'x64', true], ['win32', 'x64', true],
+    ['linux', 'arm64', false], ['darwin', 'x64', false],
+  ]) {
+    // Isolate process and path together: changing process.platform alone leaves
+    // Linux path.join semantics in place and cannot catch Windows path bugs.
+    const platformPath = osName === 'win32' ? path.win32 : path.posix;
+    const backend = osName === 'win32' ? String.raw`C:\plugin with spaces\backend` : '/plugin with spaces/backend';
+    const storage = osName === 'win32' ? String.raw`C:\user data` : '/user data';
+    const checkout = osName === 'win32' ? String.raw`C:\model project` : '/model project';
+    const moduleStub = { exports: {} };
+    const readManifest = file => {
+      assert.equal(file, platformPath.join(platformPath.dirname(backend), 'runtime-manifest.json'));
+      return JSON.stringify(manifest);
+    };
+    const processStub = Object.create(process);
+    Object.defineProperties(processStub, { platform: { value: osName }, arch: { value: cpu } });
+    vm.runInNewContext(source, {
+      module: moduleStub, exports: moduleStub.exports,
+      process: processStub, global: {}, Buffer, setTimeout, clearTimeout, setImmediate,
+      require(name) {
+        if (name === 'node:path') return platformPath;
+        if (name === 'node:fs') return { ...nodeFs, readFileSync: readManifest,
+          promises: { ...fs, readFile: async file => {
+            assert.ok([platformPath.join(backend, 'requirements-standalone.txt'),
+              platformPath.join(backend, 'requirements-capture.txt')].includes(file));
+            return 'torch\n';
+          } } };
+        return require(name);
+      },
+    });
+    const runtime = new moduleStub.exports.ManagedRuntime(backend, storage, {});
+    assert.equal(runtime.availability().available, available, `${osName}-${cpu}`);
+    if (available) {
+      for (const role of ['service', 'capture']) {
+        const location = await runtime.location(checkout, role);
+        assert.equal(location.interpreter, platformPath.join(location.prefix,
+          ...(osName === 'win32' ? ['Scripts', 'python.exe'] : ['bin', 'python'])));
+        assert.ok(location.directory.startsWith(storage + platformPath.sep));
+        assert.equal(location.asset.pin.interpreter, osName === 'win32' ? 'python.exe' : 'bin/python3');
+        const pin = manifest.platforms[`${osName}-${cpu}`];
+        assert.equal(location.asset.url, `${manifest.baseUrl}/${manifest.release}/cpython-${manifest.python}%2B${manifest.release}-${pin.triple}-${manifest.flavour}.tar.gz`);
+      }
+    } else {
+      assert.match(runtime.availability().detail, /including when using an existing model Python/);
+      await assert.rejects(runtime.provisionService(checkout, new AbortController().signal),
+        error => error.code === 'MANAGED_RUNTIME_UNSUPPORTED');
+    }
+  }
+});

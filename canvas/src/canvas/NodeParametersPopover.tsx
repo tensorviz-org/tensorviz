@@ -33,6 +33,8 @@ import { isModelShape } from './canvasShapePolicy';
 import { shapeIdToNodeId } from './canvasShapeId';
 import { closeNodeParameters, openNodeParameters, parameterTarget } from './nodeParameters';
 import { ModelNodeData } from '../types';
+import { LocalBrowserContext } from '../ide/localBrowserContext';
+import { LocalSourceEditor } from './LocalSourceEditor';
 
 /** How long an edit rests before it is written, so dragging a range handle is one request. */
 const COMMIT_DEBOUNCE_MS = 450;
@@ -180,6 +182,7 @@ const Editor: React.FC<EditorProps> = ({ shapeId, data, screen, flip }) => {
 
 export const NodeParametersPopover: React.FC = () => {
   const editor = useEditor();
+  const local = React.useContext(LocalBrowserContext);
   const targetId = useValue(parameterTarget);
   // Outside the camera transform, so this has to re-project when the camera moves
   // or the popover drifts off its node.
@@ -214,6 +217,11 @@ export const NodeParametersPopover: React.FC = () => {
   if (!targetId || !shape || !isModelShape(shape) || !placement) return null;
   const data = (shape.props as { nodeData?: ModelNodeData }).nodeData;
   if (!data) return null;
+
+  if (local) return <div className="model-node-params" style={{ left: placement.x, top: placement.y, marginLeft: placement.flip ? -272 : 12 }}>
+    <button aria-label="Close parameters" onClick={closeNodeParameters}>Close</button>
+    <LocalSourceEditor key={shape.id} nodeId={shapeIdToNodeId(shape.id)} data={data} />
+  </div>;
 
   return (
     <Editor

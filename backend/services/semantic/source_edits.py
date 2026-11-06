@@ -87,7 +87,12 @@ class CapturedEditResolver:
         self.capture = CaptureSnapshot.model_validate(payload)
         if isinstance(payload, CaptureSnapshot):
             self.capture = self.capture.model_copy(deep=True)
-        self.sources = dict(sources)
+        # Host snapshots may include every Python file in a large workspace.
+        # Only the model and recorded binding files can participate in edits;
+        # apply the proof budgets and digest checks to that complete subset.
+        referenced = {self.capture.source.modelFile}
+        referenced.update(anchor.file for binding in self.capture.sourceBindings for anchor in binding.anchors)
+        self.sources = {path: text for path, text in sources.items() if path in referenced}
         self.files = {file.path: file for file in self.capture.source.files if file.role == "source"}
         if len(self.sources) > MAX_FILES:
             raise SourceEditRefused("source_limit")

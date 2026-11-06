@@ -9,7 +9,7 @@ export const permissionSummary = `Allow TensorViz to work with local models with
 
 When you request a model workflow, TensorViz can read your selected projects, inspect Python environments, run model/setup code, save TensorViz recipes and generated setup helpers, download verified Python runtimes, and build/install required dependencies in the selected environment. Project and package code runs with your user account's access; it is not sandboxed by TensorViz. Graph evidence is returned to your coding client.
 
-This permission applies to TensorViz across projects, chats, compatible updates and coding clients on this computer. Your explicit read-only instructions and client/organization permissions still apply. Revoke it with the plugin's scripts/launch.sh --revoke-permission command.`;
+This permission applies to TensorViz across projects, chats, compatible updates and coding clients on this computer. Your explicit read-only instructions and client/organization permissions still apply. Revoke it by running node scripts/launch.cjs --revoke-permission from the installed plugin directory.`;
 
 /** User-level consent lives outside project files and the replaceable plugin cache. */
 export class PluginPermissions {

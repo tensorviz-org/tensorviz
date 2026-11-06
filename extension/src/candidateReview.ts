@@ -118,9 +118,13 @@ export class CandidateReview {
   }
 
   /** Apply/Discard waits for private execution cleanup, without requiring a pass. */
-  async finish(): Promise<void> {
+  async settle(): Promise<void> {
     this.closed = true; this.cancel();
     await this.pending;
+  }
+
+  async finish(): Promise<void> {
+    await this.settle();
     this.parent.removeEventListener('abort', this.abort);
     this.result = undefined;
     this.checkpointText = '';

@@ -5,6 +5,7 @@ How the extension endpoint and the browser view are bounded. Connecting a client
 ## Contents
 
 - [Loopback and no bearer token](#loopback-and-no-bearer-token)
+- [Setup permissions and approvals](#setup-permissions-and-approvals)
 - [Host and Origin](#host-and-origin)
 - [Sessions and the lock](#sessions-and-the-lock)
 - [SSH and forwarded desktops](#ssh-and-forwarded-desktops)
@@ -16,6 +17,16 @@ How the extension endpoint and the browser view are bounded. Connecting a client
 The extension MCP endpoint binds `127.0.0.1` only. There is no bearer credential. Other local processes can call tools while a session exists. Ordinary cross-origin web pages are rejected by the Host and Origin checks.
 
 The plugin service (`backend/standalone_server.py`) also binds `127.0.0.1`, requires a launch token of at least 32 characters, and does not bind `0.0.0.0`. `start.sh` and `backend/server_v2.py` default to `127.0.0.1` and refuse a non-loopback bind unless `TENSORVIZ_LOCAL_TOKEN` is set. `AUTH_DISABLED` does not allow a public bind. A DNS Host header is rejected. A numeric non-loopback Host is allowed only when that token is set. With the token set, unauthenticated `GET /health` keeps device and capabilities and omits Torch and Python versions, and `/openapi.json`, `/docs`, and `/redoc` are not registered. Details: [service bind](local-setup.md#service-bind).
+
+## Setup permissions and approvals
+
+The chat's **Setup permissions** picker chooses how much environment setup an agent may do without asking: **Ask every time**, **Auto setup**, or **Full setup access**. With **Ask every time**, you review each environment change. Commands and source edits always ask, whichever mode is selected.
+
+![Setup permissions picker with Ask every time selected, Auto setup and Full setup access, noting that commands and source edits always ask](images/mcp-setup-permissions.png)
+
+A machine command appears as an approval card in the chat. The card names the command and what it can access, and its buttons describe the action, such as **Run version check** and **Cancel check**. Nothing runs until you choose the run button.
+
+![Chat approval card titled Check PyTorch version with Run version check and Cancel check buttons](images/mcp-permission-card.png)
 
 ## Host and Origin
 

@@ -33,6 +33,10 @@ export function graphDebugContext(previous: GraphDebugBaseline, projection: Proj
     const beforeId = left.get(`${kind}:${previous.capture.id}`), afterId = right.get(`${kind}:${capture.id}`);
     if (beforeId && afterId) result.nodePairs.push({ beforeId, afterId });
   }
+  // A retained baseline with identical source is not a pending source diff.
+  // Preserve correspondence and partial-run diagnostics, but skip successful-run badges.
+  if (capture.status === 'complete' && !capture.invocations.some(call => call.status === 'failed')
+    && projection.sourceDigest === previous.projection.sourceDigest) return result;
   for (const change of comparison.changes.filter(change => change.kind === 'operation')) {
     const nodeId = right.get(`operation:${change.afterId}`);
     const details = change.fields.filter(field => ['target', 'arguments'].includes(field.field))

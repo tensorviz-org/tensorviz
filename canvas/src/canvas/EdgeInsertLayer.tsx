@@ -34,6 +34,10 @@ import { LayerType } from '../types';
 import { layerTypes } from '../data/layerTypes';
 import { categoryColor } from '../data/categoryColor';
 import { cancelEdgeInsert, hoveredEdge, insertTarget, useEdgeInsert } from './edgeInsert';
+import { LocalBrowserContext } from '../ide/localBrowserContext';
+import { LocalSourceEditor } from './LocalSourceEditor';
+import { graphEdges, graphNodes } from './graphQueryState';
+import { hasDeclarationEdit } from '../ide/directSourceEdits';
 import { graphIsReadOnly } from './graphAccess';
 
 /** Ops it makes sense to drop into an existing connection: single-input, not IO. */
@@ -187,6 +191,9 @@ const Picker: React.FC<PickerProps> = ({ screen, edgeId }) => {
 
 export const EdgeInsertLayer: React.FC = () => {
   const editor = useEditor();
+  const local = React.useContext(LocalBrowserContext);
+  const nodes = useValue(graphNodes);
+  const edges = useValue(graphEdges);
   const hover = useValue(hoveredEdge);
   const target = useValue(insertTarget);
   // This layer is outside the camera transform, so it has to re-project when the
@@ -209,6 +216,28 @@ export const EdgeInsertLayer: React.FC = () => {
   // `camera` is read so this recomputes on pan/zoom; the value itself is unused.
   void camera;
 
+  if (local?.sourceEdits) {
+    const active = target || hover;
+    const edge = edges.find(item => item.id === active?.edgeId);
+    const source = nodes.find(item => item.id === edge?.source);
+    // Declaration insertion applies to the layer's calls, not an arbitrary branch.
+    const singleOutput = source && edges.filter(item => item.source === source.id).length === 1;
+    const destination = nodes.find(item => item.id === edge?.target);
+    const port = destination?.data.capturePorts?.find(port => port.id === edge?.targetHandle);
+    const caps = destination?.data.sourceEditCapabilities?.filter(cap => cap.command === 'insert_unary_op' &&
+      port?.valueId === cap.expected.id && port.paths.some(path => JSON.stringify(path) === JSON.stringify(cap.argumentPath)));
+    const insertion = destination && caps?.length === 1
+      ? { nodeId: destination.id, data: destination.data, capabilityId: caps[0].id } : undefined;
+    if (!active || !source || (!insertion && (!singleOutput || !hasDeclarationEdit(source.data)))) return null;
+    const point = project(active.point);
+    if (target) return <div className="model-edge-insert-picker" style={{ left: point.x, top: point.y }}>
+      <button aria-label="Close insertion" onClick={cancelEdgeInsert}>Close</button>
+      <p>{insertion ? "Activation insertion uses this connection’s exact source operand." : "Insert after this declaration (all its calls)."}</p>
+      <LocalSourceEditor key={source.id} nodeId={source.id} data={source.data} structuralOnly insertion={insertion} />
+    </div>;
+    return <button className="model-edge-insert-plus" aria-label="Insert layer through source review"
+      style={{ left: point.x, top: point.y }} onClick={() => insertTarget.set(active)}>+</button>;
+  }
   if (graphIsReadOnly(editor)) return null;
   if (target) return <Picker screen={project(target.point)} edgeId={target.edgeId} />;
   if (!hover) return null;

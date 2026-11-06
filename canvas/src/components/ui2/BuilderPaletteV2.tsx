@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { categories, layerTypes } from '../../data/layerTypes';
-import { LayerType } from '../../types';
+import { LayerType, ModelNodeData } from '../../types';
+import { LocalSourceEditor } from '../../canvas/LocalSourceEditor';
+import { localBrowserMode } from '../../ide/projection';
 import {
   ApiService,
   PaperTemplateInventoryResponse,
@@ -21,6 +23,7 @@ type AddLayerOptions = {
 };
 
 interface BuilderPaletteV2Props {
+  sourceNode?: { id: string; data: ModelNodeData };
   onAddLayer: (layerType: string, options?: AddLayerOptions) => void;
 }
 
@@ -188,7 +191,14 @@ const SECOND_GROUP_HEAD_STYLE: React.CSSProperties = {
   borderTop: '1px solid var(--ui2-rule)',
 };
 
-export default function BuilderPaletteV2({ onAddLayer }: BuilderPaletteV2Props) {
+export default function BuilderPaletteV2(props: BuilderPaletteV2Props) {
+  if (localBrowserMode()) return props.sourceNode
+    ? <LocalSourceEditor key={props.sourceNode.id} nodeId={props.sourceNode.id} data={props.sourceNode.data} structuralOnly />
+    : <p>Select a declared layer to insert a Block through source review.</p>;
+  return <EditableBuilderPaletteV2 {...props} />;
+}
+
+function EditableBuilderPaletteV2({ onAddLayer }: BuilderPaletteV2Props) {
   const [templateInventory, setTemplateInventory] = useState<PaperTemplateInventoryResponse | null>(null);
   const [templateError, setTemplateError] = useState('');
   // null means "there is no workspace here" — the hosted product, or an IDE whose

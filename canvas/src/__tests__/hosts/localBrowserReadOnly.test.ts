@@ -38,8 +38,18 @@ describe('the external extension page is read-only', () => {
     expect(page).toContain('data-testid="ui2-action-layout"');
     expect(page).toContain('data-testid="ui2-action-fit-view"');
     expect(page).toContain('{!readOnlyLocalBrowser && <button className="ui2-primary-action"');
-    expect(page).toContain('{!readOnlyLocalBrowser && paletteOpen && (');
+    expect(page).toContain('{paletteOpen && (');
     expect(page).toContain('onRenameModel={readOnlyLocalBrowser ? undefined');
+  });
+
+  it('keeps the family legend hidden and offers a source review palette in the local page', () => {
+    const overlay = readSource('canvas', 'GraphFocusOverlay.tsx');
+    expect(overlay).toContain('const local = React.useContext(LocalBrowserContext);');
+    expect(overlay).toContain('{!local && <FamilyLegend nodes={graphNodes.get()} />}');
+
+    const palette = readSource('components', 'ui2', 'BuilderPaletteV2.tsx');
+    expect(palette).toContain('if (localBrowserMode()) return props.sourceNode');
+    expect(palette).toContain('<LocalSourceEditor');
   });
 
   it('keeps node source editing and the chat rail out of local mode', () => {

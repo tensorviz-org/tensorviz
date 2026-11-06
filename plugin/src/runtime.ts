@@ -26,8 +26,11 @@ export class ManagedRuntime {
   get progress(): string | undefined { return this.activity?.signal.aborted ? undefined : this.activity?.detail; }
   constructor(private readonly backend: string, private readonly storage: string, private readonly approvals: ApprovalGate) {}
   availability(): Record<string, unknown> {
-    return { available: process.platform === 'darwin' && process.arch === 'arm64', platform: `${process.platform}-${process.arch}`,
-      selection: { managedRuntime: true }, detail: 'Managed CPU environments currently target macOS Apple Silicon. Provisioning uses your saved TensorViz permission for verified downloads and dependency installation.' };
+    const asset = selectRuntimeAsset(loadRuntimeManifest(path.dirname(this.backend)));
+    return { available: asset.ok, platform: `${process.platform}-${process.arch}`,
+      selection: { managedRuntime: true }, detail: asset.ok
+        ? 'Managed CPU environments use the pinned runtime for this platform. Provisioning uses your saved TensorViz permission for verified downloads and dependency installation.'
+        : `Managed plugin environments are not available for ${process.platform}-${process.arch}. Capture requires a supported managed tool-service runtime, including when using an existing model Python.` };
   }
 
   async provision(root: string, signal: AbortSignal): Promise<string> {
@@ -48,7 +51,7 @@ export class ManagedRuntime {
     const key = digest(JSON.stringify([asset.sha256, packages])).slice(0, 24);
     const directory = role === 'service' ? path.join(this.storage, 'service', key) : path.join(this.storage, 'managed', digest(root), key);
     const prefix = path.join(directory, 'venv');
-    const interpreter = path.join(prefix, 'bin', 'python');
+    const interpreter = path.join(prefix, ...(process.platform === 'win32' ? ['Scripts', 'python.exe'] : ['bin', 'python']));
     const owner = JSON.stringify({ ...(role === 'service' ? { role } : { workspaceRoot: root }), runtime: asset.sha256, requirements: digest(JSON.stringify(packages)) });
     const record = path.join(directory, 'owner.json'), ready = path.join(directory, 'ready.json');
     return { manifest, asset, packages, directory, prefix, interpreter, owner, record, ready };
@@ -66,7 +69,8 @@ export class ManagedRuntime {
     const activity = { signal, detail: undefined as string | undefined };
     this.activity = activity;
     const report = (detail: string) => { if (this.activity === activity && !signal.aborted) activity.detail = detail; };
-    if (!this.availability().available) throw new HostError('MANAGED_RUNTIME_UNSUPPORTED', 'Managed plugin environments currently support macOS Apple Silicon. Select a compatible existing Python on this platform.');
+    const availability = this.availability();
+    if (!availability.available) throw new HostError('MANAGED_RUNTIME_UNSUPPORTED', String(availability.detail));
     const { manifest, asset, packages, directory, prefix, interpreter, owner, record, ready } = await this.location(root, role);
     if (await exists(ready) && await exists(record) && await fs.readFile(record, 'utf8') === owner
       && await fs.readFile(ready, 'utf8') === owner && await exists(interpreter)) return interpreter;

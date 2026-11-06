@@ -2,6 +2,8 @@
 
 Open a PyTorch model in your editor or coding agent. For JAX and Flax, use the [framework guide](jax-support.md).
 
+![Captured NeedsLib graph with measured input and output shapes after environment setup approval](images/graph-traced-after-allow.png)
+
 ## In your editor
 
 Start in the **tensorViz** panel beside chat. **tensorViz: Get Started** opens the
@@ -12,6 +14,11 @@ screen offers **Open Folder**, discovered models and runtime setup when needed.
 2. Click **Open as Graph** above the model class. You can also select it in **tensorViz → Models**, or run **tensorViz: Open as Graph**.
 3. If setup is needed, choose **Set up project with agent**. The agent checks the project’s Python environment and inputs, requests approval for required library installation, and continues opening the same model.
 4. Use **Set up manually** to choose Python and complete the inputs yourself. Existing saved setup is reused where compatible.
+
+The starting screen's **Open as Graph** uses the active Python file, or a visible
+Python editor or selected text tab when the panel has focus. Class choices stay
+within that file. If no host Python file is selected, it offers workspace models.
+The action above a class always opens that exact file and class.
 
 Python and model inputs are steps in the same setup sidebar. Closing it leaves
 one **Complete setup** reminder; returning resumes the unfinished step. The

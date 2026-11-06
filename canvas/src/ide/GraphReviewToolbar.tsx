@@ -1,4 +1,5 @@
 import React from 'react';
+import { DROPOUT_INSERT_HINT, reviewAddsDropout } from './dropoutInsertion';
 import { ChevronLeft, ChevronRight, FileCode2, RefreshCw, X } from 'lucide-react';
 import type { GraphReviewState } from './protocol.generated';
 import { reviewParseFailure, type GraphReviewPresentation, type ReviewMode } from './graphReview';
@@ -95,6 +96,7 @@ export function DraftGraphToolbar({ state, presentation, index, onChange, onSour
         {deciding === 'discard' ? 'Discarding…' : 'Discard'}</button>
       {onContinueEditing && <button type="button" title="Describe a revision in the agent chat" onClick={onContinueEditing}>Continue editing</button>}
     </div>
+    {reviewAddsDropout(state) && <p className="graph-review-draft-note">{DROPOUT_INSERT_HINT}</p>}
     {presentation?.inheritedBase && <p className="graph-review-draft-note">The inherited base forward was not inspected; its internals and output shapes are unknown.</p>}
     {state.stale && <p id={staleId} className="graph-review-stale" role="status">Source changed since this draft, so it can’t be accepted. Discard it and request a new change.</p>}
     {coverage.actions && <div className="graph-review-coverage">{coverage.actions}{coverage.content}</div>}

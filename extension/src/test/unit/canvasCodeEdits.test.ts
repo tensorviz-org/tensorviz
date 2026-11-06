@@ -254,7 +254,7 @@ suite('Canvas agent normal code proposals', () => {
   });
 
   for (const mutation of ['bytes', 'version', 'trust', 'target', 'cancel', 'symlink', 'replacement'] as const) {
-    test(`review cannot apply after ${mutation} changes`, async () => {
+    test(`review ${mutation === 'version' || mutation === 'target' ? 'accepts identical source after' : 'cannot apply after'} ${mutation} changes`, async () => {
       const controller = new AbortController();
       review = async () => {
         const file = path.join(root, 'vision_models.py');
@@ -270,8 +270,11 @@ suite('Canvas agent normal code proposals', () => {
         }
         return true;
       };
-      assert.notEqual((await propose(controller.signal)).status, 'applied');
-      assert.equal(editorState.appliedEdits.length, 0);
+      const result = await propose(controller.signal);
+      const applies = mutation === 'version' || mutation === 'target';
+      if (applies) assert.equal(result.status, 'applied', result.detail);
+      else assert.notEqual(result.status, 'applied');
+      assert.equal(editorState.appliedEdits.length, applies ? 1 : 0);
     });
   }
 

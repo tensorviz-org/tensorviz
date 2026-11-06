@@ -1,3 +1,4 @@
+import { dropoutInsertionReveal } from './dropoutInsertion';
 import ExecutionPanel from './ExecutionPanel';
 import { AGENT_COMPOSE_EVENT, CanvasAgentChat } from './CanvasAgentChat';
 import { buildGraphReview, type ReviewMode } from './graphReview';
@@ -487,7 +488,7 @@ export default function LocalBrowserApp({
       dispatch(message);
       if (message.type === 'graphReviewState') {
         if (message.state?.id !== reviewRef.current.state?.id) {
-          if (message.state) acceptedFocus.current = null;
+          if (message.state) { acceptedFocus.current = null; dropoutInsertionReveal.clear(); }
           setReviewMode('diff'); setReviewIndex(0);
           const { activeTarget, projection, greyed } = pageRef.current;
           const context = message.state?.liveContext;
@@ -636,6 +637,7 @@ export default function LocalBrowserApp({
     return () => {
       clearModelCatalogRequest();
       explanationWatchdog.clear();
+      dropoutInsertionReveal.clear();
       window.removeEventListener('tensorviz-projection-rendered', reviewRendered);
       if (transportRef.current === transport) transportRef.current = null;
       setBrowserRevealNodeSink(null);
@@ -1119,6 +1121,7 @@ export default function LocalBrowserApp({
         onSource={() => transportRef.current?.send({ type: 'graphReviewRequest', action: 'reveal', reviewId: review.id, side: 'after' })}
         onAccept={() => {
           const sent = !!transportRef.current?.send({ type: 'graphReviewRequest', action: 'acceptDraft', reviewId: review.id });
+          if (sent) dropoutInsertionReveal.accept(review, pageRef.current.projection);
           const change = reviewPresentation?.changes[reviewIndex];
           const nodeIds = change && reviewPresentation?.focusNodes?.get(change.id);
           acceptedFocus.current = sent && review.after.sourceDigest && reviewPresentation?.projections.diff.capturedContext && Array.isArray(nodeIds)
@@ -1128,6 +1131,7 @@ export default function LocalBrowserApp({
         }}
         onDiscard={() => {
           acceptedFocus.current = null;
+          dropoutInsertionReveal.clear();
           return !!transportRef.current?.send({ type: 'graphReviewRequest', action: 'discardDraft', reviewId: review.id });
         }}
         onContinueEditing={standalone || review.proposal?.canRevise === false ? undefined : () => window.dispatchEvent(new CustomEvent(AGENT_COMPOSE_EVENT))} />}

@@ -5,6 +5,7 @@ import { LocalBrowserHostPublish } from '@tensorviz/graph-host/localBrowserHostT
 import { canvasHomeHtml, canvasHomeParts, CanvasHomeState } from './canvasHome';
 import type { CanvasHomeSetup } from './canvasHomeSetup';
 import { OPEN_AS_GRAPH } from './commandIds';
+import { selectedTextUri } from './editorSelection';
 import { NEW_MODEL_COMMAND } from './views';
 import {
   isLocalBrowserMessage, LOCAL_BROWSER_PROTOCOL_VERSION, LOCAL_BROWSER_SEQUENCED_MESSAGE_TYPES,
@@ -219,8 +220,10 @@ export class SidebarCanvas implements vscode.WebviewViewProvider, vscode.Disposa
 
   private async homeAction(action: unknown): Promise<void> {
     if (action === 'open' || action === 'pr') {
+      const target = action === 'open' ? { uri: selectedTextUri() } : undefined;
       await this.runHomeRequest({ label: action === 'pr' ? 'Opening pull request…' : 'Opening your model…',
-        run: async () => vscode.commands.executeCommand(action === 'pr' ? 'tensorviz.openPullRequest' : OPEN_AS_GRAPH) }, true);
+        run: async () => action === 'pr' ? vscode.commands.executeCommand('tensorviz.openPullRequest')
+          : vscode.commands.executeCommand(OPEN_AS_GRAPH, target) }, true);
     } else if (action === 'starter') await this.runHomeRequest({ label: 'Choosing a starter model…',
       run: async () => vscode.commands.executeCommand(NEW_MODEL_COMMAND) });
     else if (action === 'retry' && this.homeRetry) await this.runHomeRequest(this.homeRetry);

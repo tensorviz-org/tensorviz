@@ -100,7 +100,7 @@ for (const recipe of Object.keys(fixtures)) suite(`captured ${recipe} native rev
   });
 
   for (const kind of ['version', 'dependency', 'configuration', 'eviction', 'cancel']) {
-    test(`a changed ${kind} cannot apply after native review`, async () => {
+    test(`native review ${kind === 'version' ? 'accepts identical bytes after' : 'refuses'} changed ${kind}`, async () => {
       let reviewed = false;
       const h = harness(async () => {
         reviewed = true;
@@ -116,9 +116,11 @@ for (const recipe of Object.keys(fixtures)) suite(`captured ${recipe} native rev
       editorState.documents.set('/work/' + file, '# dependency\n');
       h.data.capture.source.files.push({ path: file, role: kind === 'configuration' ? 'config' : 'source',
         digest: sha256('# dependency\n'), documentVersion: 1 });
-      assert.notEqual((await h.propose()).status, 'applied');
+      const result = await h.propose();
+      if (kind === 'version') assert.equal(result.status, 'applied', result.detail);
+      else assert.notEqual(result.status, 'applied');
       assert.equal(reviewed, true);
-      assert.equal(editorState.appliedEdits.length, 0);
+      assert.equal(editorState.appliedEdits.length, kind === 'version' ? 1 : 0);
     });
   }
 

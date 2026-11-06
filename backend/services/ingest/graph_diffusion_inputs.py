@@ -1,12 +1,51 @@
 """Editable examples for the installed conditional UNet API, never a forward check."""
 from __future__ import annotations
 
+import inspect
 import math
 
 import torch
 
 
 def propose_diffusion_input(model):
+    proposal = _propose_library_input(model)
+    if proposal is not None:
+        return proposal
+    signature = inspect.signature(model.forward)
+    parameters = list(signature.parameters.values())
+    matches = []
+    # Only direct composition establishes a candidate; never search descendants.
+    for index, (_, child) in enumerate(model.named_children()):
+        if index >= 4096:
+            raise ValueError('The constructed model exceeds the input inspection budget.')
+        proposal = _propose_library_input(child)
+        if proposal is None:
+            continue
+        values = proposal['binding']['kwargs']
+        binding = dict(args=[], kwargs={})
+        for position, parameter in enumerate(parameters):
+            if parameter.name not in values:
+                continue
+            if parameter.kind is parameter.POSITIONAL_ONLY:
+                # Skipping a positional default would change the argument meaning.
+                if len(binding['args']) != position:
+                    break
+                binding['args'].append(values[parameter.name])
+            elif parameter.kind in (parameter.POSITIONAL_OR_KEYWORD, parameter.KEYWORD_ONLY):
+                binding['kwargs'][parameter.name] = values[parameter.name]
+        else:
+            try:
+                signature.bind(*binding['args'], **binding['kwargs'])
+            except TypeError:
+                continue
+            if binding['args'] or binding['kwargs']:
+                matches.append(dict(binding=binding, detail=proposal['detail']))
+                if len(matches) > 1:
+                    raise ValueError('Multiple conditional UNet children need an explicit input binding.')
+    return matches[0] if matches else None
+
+
+def _propose_library_input(model):
     forward = getattr(model.forward, '__func__', None)
     if getattr(forward, '__module__', None) != 'diffusers.models.unets.unet_2d_condition':
         return None

@@ -2,6 +2,8 @@
 
 The VS Code extension exposes a Model Context Protocol endpoint over Streamable HTTP. TensorViz supplies graph facts and tools. Your agent supplies the language model. No TensorViz provider key is required.
 
+![Model layers and example input in the Canvas that an agent can open through MCP](images/explore-graph.png)
+
 MCP is optional. You can fill in **Set up manually** or edit `tensorviz.toml`. All three routes use the same saved-profile capture. An agent does not unlock another validation level and does not replace the Python environment.
 
 For a graph while the editor is closed, install the [coding-agent plugin](agent-plugin.md) once and do not also add this extension endpoint to that agent.

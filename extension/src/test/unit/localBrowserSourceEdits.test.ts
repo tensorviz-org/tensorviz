@@ -35,6 +35,7 @@ suite('local browser source review', () => {
     }
     const requests: Array<{ url: string; body: any; headers: any }> = [];
     const replies: any[] = [];
+    const logs: string[] = [];
     let done!: (value: any) => void;
     const result = new Promise<any>(resolve => { done = resolve; });
     let current = true;
@@ -47,7 +48,7 @@ suite('local browser source review', () => {
       accepted,
       origin: () => 'http://127.0.0.1:9901', token: () => 'private-launch-credential',
       context: target => current && JSON.stringify(target) === JSON.stringify(TARGET) ? context : undefined,
-      publish: reply => { replies.push(reply); done(reply); }, channel: { appendLine() {} },
+      publish: reply => { replies.push(reply); done(reply); }, channel: { appendLine(line) { logs.push(line); } },
       review: review ?? (async () => true),
       fetchImpl: (async (url, init) => {
         requests.push({ url: String(url), body: JSON.parse(String(init?.body)), headers: init?.headers });
@@ -60,7 +61,7 @@ suite('local browser source review', () => {
     const message = (edit = EDIT): LocalBrowserSourceEditRequestMessage => ({
       type: 'sourceEditRequest', protocolVersion: 1, workspaceSessionId: 'session-1', messageId: 'm1', requestId: 'edit1', target: TARGET, edit,
     });
-    return { host, result, requests, replies, message, context, retarget: () => { current = false; } };
+    return { host, result, requests, replies, logs, message, context, retarget: () => { current = false; } };
   }
 
   test('accepted typed source starts its follow-up once, after write and review cleanup', async () => {
@@ -104,7 +105,7 @@ suite('local browser source review', () => {
     h.host.dispose();
   });
 
-  for (const decision of ['accept', 'discard', 'stale', 'cancel', 'error'] as const) test(`typed draft ${decision} uses frozen sources and closes before a guarded write`, async () => {
+  for (const decision of ['accept', 'discard', 'stale', 'cancel', 'error'] as const) test(`typed draft ${decision} uses frozen sources and stays open through a guarded write`, async () => {
     let shown = false, disposed = false;
     const h = harness(async (_title, artifact, _signal, _candidate, onShown) => {
       assert.equal(artifact.after, AFTER); assert.equal(editorState.appliedEdits.length, 0);
@@ -120,14 +121,46 @@ suite('local browser source review', () => {
         if (decision === 'stale') h.retarget();
         if (decision === 'cancel') h.host.cancel();
         choose(decision !== 'discard');
-      }, dispose() { disposed = true; assert.equal(editorState.appliedEdits.length, 0); } };
+      }, dispose() { disposed = true; assert.equal(editorState.appliedEdits.length, decision === 'accept' ? 1 : 0); } };
     });
     try {
       const result = await h.host.propose(h.message());
-      assert.equal(shown, decision !== 'error'); assert.ok(disposed);
+      assert.equal(shown, decision !== 'error');
+      assert.equal(disposed, !['stale', 'cancel'].includes(decision));
+      if (['stale', 'cancel'].includes(decision)) assert.match(state.warningMessages.join(' '), /review context changed/);
       assert.equal(result.status, decision === 'accept' ? 'applied' : ['discard', 'cancel'].includes(decision) ? 'cancelled' : 'refused');
       assert.equal(editorState.appliedEdits.length, decision === 'accept' ? 1 : 0);
     } finally { h.host.dispose(); }
+  });
+
+  for (const throws of [false, true]) test(`failed write keeps the draft and surfaces the reason; throws=${throws}`, async () => {
+    let disposed = false, republished = false;
+    const h = harness(undefined, undefined, () => ({ show() {}, notifyDecisionFailed() { republished = true; }, dispose() { disposed = true; } }));
+    mock.method(workspace as any, 'applyEdit', async () => {
+      assert.equal(disposed, false);
+      if (throws) throw new Error('editor unavailable');
+      return false;
+    });
+    const result = await h.host.propose(h.message());
+    assert.equal(result.status, 'refused');
+    assert.equal(disposed, false);
+    assert.equal(republished, true);
+    assert.match(state.warningMessages.join(' '), throws ? /did not confirm/ : /editor rejected/);
+    assert.ok(h.logs.some(line => line.includes(result.detail)));
+    h.host.dispose();
+  });
+
+  test('preview disposal cannot invalidate an accepted write', async () => {
+    let disposed = false;
+    const h = harness(undefined, undefined, () => ({ show() {}, dispose() {
+      assert.equal(editorState.appliedEdits.length, 1);
+      disposed = true;
+      h.retarget();
+    } }));
+    const result = await h.host.propose(h.message());
+    assert.equal(result.status, 'applied');
+    assert.equal(disposed, true);
+    h.host.dispose();
   });
 
   test('reviews exact source before one WorkspaceEdit and keeps credentials inside host requests', async () => {
@@ -249,12 +282,21 @@ suite('local browser source review', () => {
     });
   }
 
-  for (const change of ['document-version', 'dependency', 'retarget', 'cancel'] as const) {
+  test('typed review applies after identical-byte document version drift', async () => {
+    const h = harness(async () => {
+      editorState.versions.set('/work/net.py', 7);
+      return true;
+    });
+    assert.equal((await h.host.propose(h.message())).status, 'applied');
+    assert.equal(editorState.appliedEdits.length, 1);
+    h.host.dispose();
+  });
+
+  for (const change of ['dependency', 'retarget', 'cancel'] as const) {
     test(`refuses apply after ${change} changes during native review`, async () => {
       let reviewed = false;
       const h = harness(async () => {
         reviewed = true;
-        if (change === 'document-version') editorState.versions.set('/work/net.py', 2);
         if (change === 'dependency') editorState.documents.set('/work/dep.py', '# changed\n');
         if (change === 'retarget') h.retarget();
         if (change === 'cancel') h.host.cancel('edit1');
@@ -299,6 +341,27 @@ suite('local browser source review', () => {
       }
       assert.equal(h.requests.length, 0);
       assert.equal(editorState.appliedEdits.length, 0);
+    });
+  }
+
+  for (const edit of [EDIT, { kind: 'remove_layer', nodeId: 'fc' },
+    { kind: 'add_layer', afterNodeId: 'fc', nodeId: 'drop', layerType: 'dropout', params: { p: 0.5 } }] as LocalBrowserSourceEdit[]) {
+    test(`captured exact constructor can plan and review ${edit.kind}`, async () => {
+      const h = harness();
+      const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, '../../../../tests/fixtures/contracts/captured-constructor-edit.json'), 'utf8'));
+      const capability = structuredClone(fixture.document.semantic.nodes.flatMap((node: any) => node.metadata.sourceEditCapabilities || [])
+        .find((cap: any) => cap.command === 'set_constructor_literal'));
+      capability.expression.anchors = [{ ...capability.expression.anchors[0], file: 'net.py', digest: sha256(BEFORE),
+        startLine: 4, startColumn: 18, endLine: 4, endColumn: 33 }];
+      h.context.projection.document = { semantic: { metadata: { capture: {} }, nodes: [
+        { node_id: 'fc', metadata: { captureRef: capability.target, sourceEditCapabilities: [capability] } },
+      ] } } as any;
+      const result = await h.host.propose({ requestId: edit.kind, target: TARGET, edit });
+      assert.equal(result.status, 'applied', result.detail);
+      assert.equal(h.requests.length, 2);
+      assert.equal(editorState.appliedEdits.length, 1);
+      const operations = h.requests[1].body.operations;
+      assert.ok(operations || h.requests[1].body.ops);
     });
   }
 

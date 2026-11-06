@@ -47,6 +47,17 @@ suite('pending source draft authority', () => {
     assert.deepEqual(decisions, [true, false]);
   });
 
+  test('failed accept republishes a fresh draft state to clear the pending decision', async () => {
+    const handle = drafts.start(input(), new AbortController().signal, () => current);
+    handle.show(async () => {}, () => {}); await tick();
+    const previous = latest();
+    drafts.handle({ action: 'acceptDraft', reviewId: 'proposal-1' } as any);
+    handle.notifyDecisionFailed?.();
+    assert.notStrictEqual(latest(), previous);
+    assert.deepEqual(latest(), previous);
+    assert.equal(drafts.active, true);
+  });
+
   test('projects frozen reviewed bytes alongside the diff, never live edits or a model run', async () => {
     release = () => {};
     const handle = drafts.start(input(), new AbortController().signal, () => current);

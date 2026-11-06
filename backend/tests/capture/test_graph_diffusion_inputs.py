@@ -163,3 +163,49 @@ def test_conditional_inputs_survive_saved_profile_capture(tmp_path, variant):
     assert len(document.semantic.nodes) == len(graph.nodes)
     assert len(document.semantic.edges) == len(graph.edges)
     print(json.dumps(dict(variant=variant, nodes=len(graph.nodes), coverage=capture['status'], output_shape=output['shape'])))
+
+
+class UNetWrapper(nn.Module):
+    def __init__(self, child):
+        super().__init__()
+        self.model = child
+
+    def forward(self, sample, timestep, encoder_hidden_states):
+        pytest.fail('Preparation ran wrapper forward.')
+
+
+def test_direct_child_unet_proposes_wrapper_inputs_without_forward():
+    model = UNetWrapper(_model())
+    handle = model.model.register_forward_pre_hook(lambda *args: pytest.fail('Preparation ran child forward.'))
+    try:
+        binding = Binding.model_validate(propose_input(model)['binding'])
+        assert set(binding.kwargs) == {'sample', 'timestep', 'encoder_hidden_states'}
+        assert binding.kwargs['sample'].shape == [1, 4, 16, 16]
+        assert binding.kwargs['encoder_hidden_states'].shape == [1, 8, 16]
+    finally:
+        handle.remove()
+
+
+@pytest.mark.parametrize('kind', ['ambiguous', 'renamed', 'nested', 'overridden'])
+def test_unet_wrapper_requires_single_direct_compatible_library_child(kind):
+    child = _model()
+    model = UNetWrapper(child)
+    if kind == 'ambiguous':
+        model.other = _model()
+    elif kind == 'renamed':
+        model.forward = lambda sample, timestep, context: None
+    elif kind == 'nested':
+        model.model = nn.Sequential(child)
+    else:
+        child.forward = lambda sample, timestep, encoder_hidden_states: sample
+    with pytest.raises(ValueError):
+        propose_input(model)
+
+
+def test_unet_wrapper_filters_optional_kwargs_and_adapts_positional_parameters():
+    class Positional(UNetWrapper):
+        def forward(self, sample, /, timestep=1):
+            pytest.fail('Preparation ran forward.')
+    binding = propose_input(Positional(_model()))['binding']
+    assert binding['args'][0]['shape'] == [1, 4, 16, 16]
+    assert binding['kwargs'] == {'timestep': 1}

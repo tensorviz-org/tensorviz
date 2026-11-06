@@ -110,6 +110,18 @@ Explanations read source without running the model or changing your files. They 
 local to the current session and refresh after source or capture changes. Saved graph
 files and SVG exports retain full technical names.
 
+## Edit the model
+
+Click a layer to edit supported constructor parameters, such as Linear `out_features` or Dropout `p`. Leave the field or press Enter to open a source draft through the same [review and Accept](source-editing.md) path as agent proposals. Accept writes Python and refreshes the model; the canvas does not change the model before review.
+
+Use the layer palette (Blocks), the inspector or the + on a supported connection to insert Linear, Dropout, LayerNorm, ReLU, GELU, SiLU, Sigmoid or Tanh after a declared layer. Set the new attribute name and constructor parameters, then choose **Review insertion**. **Review deletion** removes a declared layer or bypasses an activation with a supported deletion capability. A shared declaration affects all its calls; inspect the draft before Accept. Activation insertion on an exact captured operand uses its source capability. Declaration insertion on a connection is limited to single-output nodes. Insertion dimensions are explicit and are not inferred from recorded tensors.
+
+Dropout inserts write source correctly; under eval mode the live capture hides unchanged Dropout/Identity calls unless **More tools → Show unchanged calls (N)** is on, while LayerNorm and Linear remain visible. Accepting a Dropout insertion reveals its new unchanged calls once after capture.
+
+Captured constructor edits prefer exact source capabilities. Structural edits require an exact constructor declaration and a successful source plan. Navigation-only records, dynamic construction, unsupported expressions, control flow and ambiguous source edits show a limitation or refusal. Use the agent or edit Python directly for those cases. Free-form graph wiring, builder undo and code export remain unavailable in the live canvas. The floating Blocks family legend stays hidden.
+
+Successful captures with the same source digest as the previous capture do not show capture-to-capture change badges.
+
 ## Ask for a change
 
 Select the relevant layers and describe your change in Canvas chat. Choose your agent, model, and supported effort in chat settings; start a new chat to switch agents. [Review the proposed Python changes](source-editing.md) before applying them.

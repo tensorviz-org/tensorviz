@@ -224,6 +224,11 @@ Imports are limited to 96 MiB, 20,000 nodes, 50,000 edges, 64 hierarchy levels,
 8 parameter nesting levels, 50 walkthrough steps, 50 saved views, 200 threads and 1,000 messages.
 Notes/messages allow 4,000 characters each. Invalid identities, parents, coordinates,
 unsafe keys and unsupported versions are rejected before rendering.
+The importer checks every parsed own key, including ignored metadata and array
+entries, before consuming the file. Ordinary shallow JSON avoids a reviver callback
+for every scalar; unsafe keys or unusually deep containers use the original
+reviver traversal, preserving its rejection behavior and engine-dependent depth
+handling. This optimization does not change schema or privacy validation.
 Version 4 permits up to 32,768 declared ports per node within the same total file
 limit; versions 1–3 keep their 64-port bound. Runtime capture budgets remain independent
 from file size, document size and display collapse. Limits refuse without truncation.

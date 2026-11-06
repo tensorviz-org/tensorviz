@@ -241,10 +241,37 @@ export function parseGraphFile(contents: string): GraphFile {
   if (contents.length > GRAPH_FILE_MAX_BYTES || new Blob([contents]).size > GRAPH_FILE_MAX_BYTES) fail('Graph files must be smaller than 96 MiB.');
   let value: unknown;
   try {
-    value = JSON.parse(contents, (key, item) => {
-      if (UNSAFE_KEYS.has(key)) fail('Unsafe object key in graph file.');
-      return item;
-    });
+    value = JSON.parse(contents);
+    // Inspect every own key before consuming any parsed content, including
+    // ignored metadata and array entries, without a reviver call per scalar.
+    const pending = [{ value, depth: 0 }];
+    let useLegacyReviver = false;
+    scan: while (pending.length) {
+      const entry = pending.pop()!;
+      if (entry.value === null || typeof entry.value !== 'object') continue;
+      // This is a fallback threshold, not a new acceptance/depth limit.
+      // Let the legacy traversal decide errors for deep or unsafe inputs.
+      if (entry.depth > 128) {
+        useLegacyReviver = true;
+        break;
+      }
+      for (const key of Object.keys(entry.value)) {
+        if (UNSAFE_KEYS.has(key)) {
+          useLegacyReviver = true;
+          break scan;
+        }
+        const child = (entry.value as Record<string, unknown>)[key];
+        if (child !== null && typeof child === 'object') pending.push({ value: child, depth: entry.depth + 1 });
+      }
+    }
+    if (useLegacyReviver) {
+      pending.length = 0;
+      value = undefined;
+      value = JSON.parse(contents, (key, item) => {
+        if (UNSAFE_KEYS.has(key)) fail('Unsafe object key in graph file.');
+        return item;
+      });
+    }
   } catch (error) {
     if (error instanceof GraphFileError) throw error;
     return fail('This file is not valid JSON. Choose a .tensorviz.json graph file.');

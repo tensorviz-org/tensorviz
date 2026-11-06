@@ -46,6 +46,10 @@ Saves within 1.5 seconds are combined. Typing, unchanged saves, unrelated files,
 
 Showing, hiding, or exploring the Canvas does not start another capture.
 
+The first captured graph is sized from its child frames before its top-level
+cards are placed once. Saved views and positions you move yourself are preserved
+when the same graph refreshes.
+
 ## Choose a trace tier
 
 `tensorviz.traceTier` applies to graph capture without a saved profile. `real` is the default. Experimental `fake` uses shape-only tensors and retries once with real tensors if values are needed. Experimental `auto` starts with real tensors, then uses fake tensors for models previously counted at 150 million parameters or more. A large model that needed a real retry stays real. Saved profiles, validation and reviewed candidates use real tensors.

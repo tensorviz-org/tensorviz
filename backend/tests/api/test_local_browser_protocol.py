@@ -7,6 +7,7 @@ from services.ide.local_browser_protocol import (
     LOCAL_BROWSER_ERROR_CODES,
     LOCAL_BROWSER_MESSAGE_TYPES,
     LOCAL_BROWSER_CAPTURE_EXPORT_MAX_BYTES,
+    LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH,
     LOCAL_BROWSER_PROTOCOL_VERSION,
     LOCAL_BROWSER_ROLES,
     is_local_browser_message,
@@ -55,6 +56,7 @@ def test_version_roles_messages_and_errors_match_the_frozen_contract():
         "sourceEditReview", "candidateRequest", "candidateResult",
         "captureInspectRequest", "captureInspectCancel", "captureInspectResult",
         "captureExportRequest", "captureExportCancel", "captureExportResult",
+        "graphPublishRequest", "graphPublishCancel", "graphPublishState", "graphPublishResult",
         "validateRequest",
         "validateCancel",
         "validateResult",
@@ -87,6 +89,13 @@ def test_portable_transfer_budget_counts_utf8_not_characters(corpus):
     message = next(item for item in valid if item['type'] == 'captureExportResult')
     oversized = {**message, 'capture': {'version': 1, 'sourceNames': 'anonymized', 'capture': {'label': '界' * (LOCAL_BROWSER_CAPTURE_EXPORT_MAX_BYTES // 3 + 1)}}}
     assert is_local_browser_message(oversized, session) is False
+
+
+def test_publish_file_is_bounded_by_the_website_limit_in_gzip_base64(corpus):
+    session, valid, _ = corpus
+    message = next(item for item in valid if item['type'] == 'graphPublishRequest')
+    assert is_local_browser_message({**message, 'file': 'A' * LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH}, session) is True
+    assert is_local_browser_message({**message, 'file': 'A' * (LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH + 4)}, session) is False
 
 
 def test_refuses_every_canonical_invalid_message(corpus):

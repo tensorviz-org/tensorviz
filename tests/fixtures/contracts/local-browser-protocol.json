@@ -4,6 +4,131 @@
     {
       "protocolVersion": 1,
       "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishRequest",
+      "messageId": "publish-request",
+      "requestId": "publish-one",
+      "file": "H4sIAAAAAAAC/x2LQQ6AIAwEv2J6Nj7AR/gBY0wDRTm0NVA9SPi7wm0nM1sgaGI0mAcwkqzpie90JLxOGAfw6m4mabpAJkax6DoIMrXTQtZCUU/557X0uUffZHBQt1rrB65Izv9mAAAA"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishCancel",
+      "messageId": "publish-cancel",
+      "requestId": "publish-one"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishState",
+      "messageId": "publish-signing-in",
+      "requestId": "publish-one",
+      "phase": "signing_in",
+      "detail": "Sign in to tensorViz in your browser.",
+      "signInUrl": "https://tensorviz.dev/explore/connect/?state=Zq3_state-abcdefghij&callback=http%3A%2F%2F127.0.0.1%3A52123%2Ftensorviz%2Fauth"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishState",
+      "messageId": "publish-uploading",
+      "requestId": "publish-one",
+      "phase": "uploading",
+      "detail": "Publishing Net."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishResult",
+      "messageId": "publish-result",
+      "requestId": "publish-one",
+      "status": "published",
+      "detail": "Net is on tensorViz, visible only to you.",
+      "graph": {
+        "id": "AbCdEfGhIjKlMnOpQrSt",
+        "title": "Net",
+        "url": "https://tensorviz.dev/explore/graph/?id=AbCdEfGhIjKlMnOpQrSt",
+        "shareUrl": "https://tensorviz.dev/explore/graph/?id=AbCdEfGhIjKlMnOpQrSt&share=1"
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishResult",
+      "messageId": "publish-failed",
+      "requestId": "publish-one",
+      "status": "failed",
+      "detail": "tensorViz takes graphs with 1 to 5,000 blocks.",
+      "graph": null
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishResult",
+      "messageId": "publish-cancelled",
+      "requestId": "publish-one",
+      "status": "cancelled",
+      "detail": "Publishing was cancelled.",
+      "graph": null
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
       "messageId": "environment-library-failure",
       "type": "graphOpening",
       "hostSequence": 1,
@@ -5750,6 +5875,362 @@
     }
   ],
   "invalid": [
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishRequest",
+      "messageId": "publish-request",
+      "requestId": "publish-one"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishRequest",
+      "messageId": "publish-request",
+      "requestId": "publish-one",
+      "file": "not base64!"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishRequest",
+      "messageId": "publish-request",
+      "requestId": "publish-one",
+      "file": ""
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishRequest",
+      "messageId": "publish-request",
+      "requestId": "publish-one",
+      "file": "H4sIAAAAAAAC/x2LQQ6AIAwEv2J6Nj7AR/gBY0wDRTm0NVA9SPi7wm0nM1sgaGI0mAcwkqzpie90JLxOGAfw6m4mabpAJkax6DoIMrXTQtZCUU/557X0uUffZHBQt1rrB65Izv9mAAAA",
+      "extra": true
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "graphPublishRequest",
+      "messageId": "publish-request",
+      "requestId": "publish-one",
+      "file": "H4sIAAAAAAAC/x2LQQ6AIAwEv2J6Nj7AR/gBY0wDRTm0NVA9SPi7wm0nM1sgaGI0mAcwkqzpie90JLxOGAfw6m4mabpAJkax6DoIMrXTQtZCUU/557X0uUffZHBQt1rrB65Izv9mAAAA"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishCancel",
+      "messageId": "publish-cancel",
+      "requestId": "publish-one",
+      "file": "H4sIAAAAAAAC/x2LQQ6AIAwEv2J6Nj7AR/gBY0wDRTm0NVA9SPi7wm0nM1sgaGI0mAcwkqzpie90JLxOGAfw6m4mabpAJkax6DoIMrXTQtZCUU/557X0uUffZHBQt1rrB65Izv9mAAAA"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishState",
+      "messageId": "publish-signing-in",
+      "requestId": "publish-one",
+      "phase": "signing_in",
+      "detail": "Sign in to tensorViz in your browser."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishState",
+      "messageId": "publish-signing-in",
+      "requestId": "publish-one",
+      "phase": "signing_in",
+      "detail": "Sign in to tensorViz in your browser.",
+      "signInUrl": "javascript:alert(1)"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishState",
+      "messageId": "publish-signing-in",
+      "requestId": "publish-one",
+      "phase": "signing_in",
+      "detail": "Sign in to tensorViz in your browser.",
+      "signInUrl": "file:///etc/passwd"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishState",
+      "messageId": "publish-signing-in",
+      "requestId": "publish-one",
+      "phase": "signing_in",
+      "detail": "Sign in to tensorViz in your browser.",
+      "signInUrl": "https://user:pass@tensorviz.dev/explore/connect/"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishState",
+      "messageId": "publish-uploading",
+      "requestId": "publish-one",
+      "phase": "uploading",
+      "detail": "Publishing Net.",
+      "signInUrl": "https://tensorviz.dev/explore/connect/?state=Zq3_state-abcdefghij&callback=http%3A%2F%2F127.0.0.1%3A52123%2Ftensorviz%2Fauth"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishState",
+      "messageId": "publish-uploading",
+      "requestId": "publish-one",
+      "phase": "waiting",
+      "detail": "Publishing Net."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishState",
+      "messageId": "publish-uploading",
+      "requestId": "publish-one",
+      "phase": "uploading"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishResult",
+      "messageId": "publish-result",
+      "requestId": "publish-one",
+      "status": "published",
+      "detail": "Net is on tensorViz, visible only to you.",
+      "graph": null
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishResult",
+      "messageId": "publish-result",
+      "requestId": "publish-one",
+      "status": "published",
+      "detail": "Net is on tensorViz, visible only to you.",
+      "graph": {
+        "id": "../../etc",
+        "title": "Net",
+        "url": "https://tensorviz.dev/explore/graph/?id=AbCdEfGhIjKlMnOpQrSt",
+        "shareUrl": "https://tensorviz.dev/explore/graph/?id=AbCdEfGhIjKlMnOpQrSt&share=1"
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishResult",
+      "messageId": "publish-result",
+      "requestId": "publish-one",
+      "status": "published",
+      "detail": "Net is on tensorViz, visible only to you.",
+      "graph": {
+        "id": "AbCdEfGhIjKlMnOpQrSt",
+        "title": "Net",
+        "url": "javascript:alert(1)",
+        "shareUrl": "https://tensorviz.dev/explore/graph/?id=AbCdEfGhIjKlMnOpQrSt&share=1"
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishResult",
+      "messageId": "publish-result",
+      "requestId": "publish-one",
+      "status": "published",
+      "detail": "Net is on tensorViz, visible only to you.",
+      "graph": {
+        "id": "AbCdEfGhIjKlMnOpQrSt",
+        "title": "Net",
+        "url": "https://tensorviz.dev/explore/graph/?id=AbCdEfGhIjKlMnOpQrSt",
+        "shareUrl": "https://tensorviz.dev/explore/graph/?id=AbCdEfGhIjKlMnOpQrSt&share=1",
+        "extra": 1
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishResult",
+      "messageId": "publish-failed",
+      "requestId": "publish-one",
+      "status": "failed",
+      "detail": "tensorViz takes graphs with 1 to 5,000 blocks.",
+      "graph": {
+        "id": "AbCdEfGhIjKlMnOpQrSt",
+        "title": "Net",
+        "url": "https://tensorviz.dev/explore/graph/?id=AbCdEfGhIjKlMnOpQrSt",
+        "shareUrl": "https://tensorviz.dev/explore/graph/?id=AbCdEfGhIjKlMnOpQrSt&share=1"
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishResult",
+      "messageId": "publish-cancelled",
+      "requestId": "publish-one",
+      "status": "done",
+      "detail": "Publishing was cancelled.",
+      "graph": null
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      },
+      "type": "graphPublishResult",
+      "messageId": "publish-failed",
+      "requestId": "publish-one",
+      "status": "failed",
+      "detail": "tensorViz takes graphs with 1 to 5,000 blocks."
+    },
     {
       "protocolVersion": 1,
       "workspaceSessionId": "session-1",

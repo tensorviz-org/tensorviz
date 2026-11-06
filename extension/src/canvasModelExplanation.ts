@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import type { LocalBrowserModelExplanationRequest, LocalBrowserTargetIdentity, LocalBrowserViewSelectionMessage } from '@tensorviz/contracts/protocol';
+import type { CanvasAgentSettings, LocalBrowserModelExplanationRequest, LocalBrowserTargetIdentity, LocalBrowserViewSelectionMessage } from '@tensorviz/contracts/protocol';
 import { isNodeExplanation, isNodeSourceDocumentation, isViewExplanation, type ViewExplanation, type NodeSourceDocumentation, type ModelExplanationState, type NodeExplanation, type NodeExplanationCitation, type NodeExplanationState } from '@tensorviz/contracts/nodeExplanation';
 import { GraphToolError, graphToolResult, object, type McpModel, type JsonObject, type ModelRef } from '@tensorviz/graph-host/mcpGraph';
 import type { CanvasAgentRoute } from './canvasAgent';
@@ -8,9 +8,10 @@ import { explanationAbortable, nodeExplanationSubmission, type CanvasNodeExplana
 import { CANVAS_AGENT_PROMPTS } from './canvasAgentPrompts';
 import type { HostToolset } from './mcpHost';
 
-export interface CanvasModelExplanationOptions extends Pick<CanvasNodeExplanationOptions, 'route' | 'read' | 'runtime' | 'tools'> {
+export interface CanvasModelExplanationOptions extends Pick<CanvasNodeExplanationOptions, 'read' | 'runtime' | 'tools'> {
+  route(settings?: CanvasAgentSettings): CanvasAgentRoute;
   scope?(request: LocalBrowserModelExplanationRequest): ModelExplanationScope;
-  prepareRoute?(signal: AbortSignal): Promise<CanvasAgentRoute>;
+  prepareRoute?(signal: AbortSignal, settings?: CanvasAgentSettings): Promise<CanvasAgentRoute>;
   current(request: LocalBrowserModelExplanationRequest, revision?: string): boolean;
   reference(request: LocalBrowserModelExplanationRequest): ModelRef;
   refusal?(request: LocalBrowserModelExplanationRequest): { ref: ModelRef; detail: string } | undefined;
@@ -42,6 +43,8 @@ export interface ModelExplanationScope {
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const targetKey = (target: LocalBrowserTargetIdentity) => JSON.stringify(target);
 const routeKey = (route: CanvasAgentRoute) => JSON.stringify([route.provider, route.resolvedModel, route.settings]);
+const execution = (route: CanvasAgentRoute): ModelExplanationState['execution'] => ({ provider: route.provider,
+  ...(route.resolvedModel ? { model: route.resolvedModel } : {}), ...(route.settings.effort ? { effort: route.settings.effort } : {}) });
 const shortText = (max: number) => z.string().trim().min(1).max(max).regex(/^[^\u0000-\u001f\u007f]+$/);
 const citationIds = z.array(shortText(128)).min(1).max(8);
 const viewSubmission = z.object({ summary: shortText(640).optional().describe('Required for the first view result; omit when the supplied viewProgress already has a summary.'),
@@ -132,7 +135,7 @@ export class CanvasModelExplanation {
   }
   private viewKey(run: Run): string { return this.key(run.request.target, run.ref, JSON.stringify([...run.request.nodeIds].sort()), run.route); }
   private current(run: Run): boolean {
-    const route = this.options.route();
+    const route = this.options.route(run.request.settings);
     return !this.disposed && this.active === run && !run.controller.signal.aborted && !route.busy
       && (run.preparingRoute ? route.provider === run.route.provider : route.ready && routeKey(route) === routeKey(run.route))
       && this.options.current(run.request, run.ref.revision);
@@ -163,9 +166,10 @@ export class CanvasModelExplanation {
       ref = this.options.reference(request); scope = this.options.scope?.(request);
       if (scope && request.nodeIds.some(id => !scope!.nodes.some(node => node.nodeId === id))) throw new Error('The displayed graph changed.');
     } catch { this.refuse(request); return; }
-    const route = this.options.route();
+    const route = this.options.route(request.settings);
     const run: Run = { request: structuredClone(request), ref, scope, route, controller: new AbortController(), preparingRoute: !!this.options.prepareRoute,
       documentation: new Map(), ready: new Map(), state: { requestId: request.requestId, revision: ref.revision, status: 'loading', completed: 0, total: request.nodeIds.length,
+        ...(route.ready ? { execution: execution(route) } : {}),
         ...(!route.ready && this.options.prepareRoute ? { detail: 'Connecting to agent…' } : {}) } };
     if ((!route.ready && !this.options.prepareRoute) || route.busy) {
       run.state.status = 'unavailable'; run.state.detail = route.busy ? 'The agent is busy. Explain when its current task finishes.' : route.detail ?? 'Connect an agent in chat, then explain this model.'; this.publish(run); return;
@@ -178,11 +182,11 @@ export class CanvasModelExplanation {
     if (this.options.prepareRoute) {
       const timeout = setTimeout(() => { if (this.active === run) this.stop('The configured agent did not finish connecting. Check its sign-in and try again.', 'unavailable'); }, 45000);
       try {
-        const route = await explanationAbortable(this.options.prepareRoute(run.controller.signal), run.controller.signal);
+        const route = await explanationAbortable(this.options.prepareRoute(run.controller.signal, run.request.settings), run.controller.signal);
         if (!this.current(run)) { if (this.active === run) this.refresh(); return; }
         run.route = route; run.preparingRoute = false;
         if (!route.ready || route.busy) { this.stop(route.detail ?? 'Check the configured agent connection, then explain again.', 'unavailable'); return; }
-        run.state = { ...run.state, detail: 'Reading model components…' }; this.publish(run);
+        run.state = { ...run.state, execution: execution(route), detail: 'Reading model components…' }; this.publish(run);
       } catch {
         if (this.active === run) this.stop('The configured agent could not connect. Check its sign-in and try again.', 'unavailable');
         return;

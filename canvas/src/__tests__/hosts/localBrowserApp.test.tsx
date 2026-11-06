@@ -411,6 +411,49 @@ describe('LocalBrowserApp', () => {
     } finally { jest.useRealTimers(); }
   });
 
+  it('pins explanation settings separately from chat, keeps the pass alive on chat edits, and remembers the preference', async () => {
+    window.localStorage.removeItem('tensorviz.explanation.settings.v1');
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => 'chosen-explanation' } });
+    try {
+      const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+      (rig.transport as { session: unknown }).session = { viewId: 'model-view', capabilities: {} };
+      const route = { sessionId: 'agent', revision: 1, provider: 'codex', status: 'idle', activity: '', messages: [],
+        selections: { codex: { model: 'chat-model', effort: 'high' } },
+        agents: { codex: { status: 'ready', detail: '', models: [
+          { id: 'chat-model', label: 'Chat model', description: '', efforts: ['high'] },
+          { id: 'explain-model', label: 'Explain model', description: '', efforts: ['low'] },
+        ], defaultModel: 'chat-model' } } };
+      act(() => rig.emit(hostMessage('agentState', { viewId: 'model-view', state: route })));
+      expect(mockCapturedExplanationContext?.model?.configuration?.settings).toEqual(route.selections.codex);
+      act(() => mockCapturedExplanationContext?.model?.configuration?.choose({ model: 'explain-model', effort: 'low' }));
+      expect(mockCapturedExplanationContext?.model?.configuration?.followsChat).toBe(false);
+      await act(async () => mockCapturedExplanationContext?.model?.start(['n']));
+      const requests = (rig.transport.send as jest.Mock).mock.calls.map(([message]) => message);
+      const start = requests.find(message => message.type === 'modelExplanationRequest' && message.action === 'start');
+      expect(start.settings).toEqual({ model: 'explain-model', effort: 'low' });
+      expect(requests.filter(message => message.type === 'agentRequest' && message.action === 'configure')).toHaveLength(0);
+      await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'model-view', target: netTarget(), state: {
+        requestId: start.requestId, revision: 'current-graph-revision', nodeId: 'n', status: 'loading' } })));
+      act(() => rig.emit(hostMessage('agentState', { viewId: 'model-view', state: { ...route, revision: 2,
+        selections: { codex: { model: 'other-chat-model' } } } })));
+      expect(mockCapturedExplanationContext?.model?.state?.status).toBe('loading');
+      expect(mockCapturedExplanationContext?.states.n.status).toBe('loading');
+      expect(mockCapturedExplanationContext?.model?.configuration?.settings).toEqual(start.settings);
+      expect(JSON.parse(window.localStorage.getItem('tensorviz.explanation.settings.v1')!)).toEqual({ codex: start.settings });
+      act(() => mockCapturedExplanationContext?.model?.configuration?.discover(true));
+      expect(rig.transport.send).toHaveBeenLastCalledWith({ type: 'agentRequest', viewId: 'model-view', action: 'discover', catalogOnly: true, refresh: true });
+      act(() => mockCapturedExplanationContext?.model?.configuration?.choose(undefined));
+      expect(mockCapturedExplanationContext?.model?.configuration?.settings).toEqual({ model: 'other-chat-model' });
+      expect(mockCapturedExplanationContext?.model?.configuration?.followsChat).toBe(true);
+    } finally {
+      window.localStorage.removeItem('tensorviz.explanation.settings.v1');
+      if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+      else Reflect.deleteProperty(globalThis, 'crypto');
+    }
+  });
+
   it('keeps a cold first model explanation active while provider discovery resolves its default', async () => {
     jest.useFakeTimers();
     (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');

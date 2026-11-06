@@ -79,6 +79,8 @@ export interface ModelExplanationState {
   completed: number;
   total: number;
   detail?: string;
+  /** Effective routing for this pass, independent of later chat preference changes. */
+  execution?: { provider: 'codex' | 'claude'; model?: string; effort?: string };
   view?: ViewExplanation;
 }
 
@@ -170,11 +172,15 @@ export function isViewExplanation(value: unknown): value is ViewExplanation {
 }
 
 export function isModelExplanationState(value: unknown): value is ModelExplanationState {
-  return record(value) && keys(value, ['requestId', 'revision', 'status', 'completed', 'total', 'detail', 'view'])
+  return record(value) && keys(value, ['requestId', 'revision', 'status', 'completed', 'total', 'detail', 'execution', 'view'])
     && text(value.requestId, 128) && text(value.revision, 256)
     && typeof value.status === 'string' && ['loading', 'ready', 'unavailable', 'cancelled'].includes(value.status)
     && Number.isSafeInteger(value.completed) && Number.isSafeInteger(value.total)
     && Number(value.completed) >= 0 && Number(value.total) <= 10000 && Number(value.completed) <= Number(value.total)
     && (value.detail === undefined || text(value.detail, 320))
+    && (value.execution === undefined || (record(value.execution) && keys(value.execution, ['provider', 'model', 'effort'])
+      && ['codex', 'claude'].includes(String(value.execution.provider))
+      && (value.execution.model === undefined || text(value.execution.model, 256))
+      && (value.execution.effort === undefined || text(value.execution.effort, 32))))
     && (value.view === undefined || (isViewExplanation(value.view) && value.view.nodeIds.length === value.total));
 }

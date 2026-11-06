@@ -105,10 +105,14 @@ suite('node explanation contract', () => {
       assert.ok(isLocalBrowserMessage({ ...envelope, type: 'modelExplanation', state: { ...progress, status } }));
     }
     assert.ok(isModelExplanationState({ ...progress, completed: 10000, total: 10000, detail: 'x'.repeat(320) }));
+    assert.ok(isModelExplanationState({ ...progress, execution: { provider: 'codex', model: 'discovered-model', effort: 'low' } }));
+    assert.ok(isModelExplanationState({ ...progress, execution: { provider: 'claude' } }));
     for (const update of [{ completed: -1 }, { completed: 129 }, { completed: 0.5 }, { completed: true },
       { completed: Number.NaN }, { total: 10001 }, { total: -1 }, { total: Infinity }, { total: 1.5 },
       { requestId: '' }, { revision: '' }, { status: 'queued' }, { detail: '' }, { detail: 'x'.repeat(321) },
-      { command: 'execute' }]) {
+      { command: 'execute' }, { execution: null }, { execution: {} }, { execution: { provider: 'unknown' } },
+      { execution: { provider: 'codex', model: '' } }, { execution: { provider: 'codex', effort: 'x'.repeat(33) } },
+      { execution: { provider: 'codex', command: 'run' } }]) {
       assert.equal(isModelExplanationState({ ...progress, ...update }), false, JSON.stringify(update));
       assert.equal(isLocalBrowserMessage({ ...envelope, type: 'modelExplanation', state: { ...progress, ...update } }), false);
     }
@@ -119,13 +123,25 @@ suite('node explanation contract', () => {
     assert.ok(isLocalBrowserMessage(request, 'session'));
     assert.ok(isLocalBrowserMessage({ ...request, nodeIds: Array.from({ length: 128 }, (_, i) => `node-${i}`) }));
     assert.ok(isLocalBrowserMessage({ ...request, action: 'cancel', nodeIds: [] }));
+    assert.ok(isLocalBrowserMessage({ ...request, settings: {} }));
+    assert.ok(isLocalBrowserMessage({ ...request, settings: { model: 'discovered-model', effort: 'low' } }));
     assert.equal(isLocalBrowserMessage(request, 'another-session'), false);
     for (const update of [{ nodeIds: [] }, { nodeIds: ['node', 'node'] }, { nodeIds: [''] },
       { nodeIds: ['n'.repeat(1025)] }, { nodeIds: Array.from({ length: 129 }, (_, i) => `node-${i}`) },
       { nodeIds: [1] }, { nodeIds: null }, { action: 'cancel' }, { action: 'execute' }, { viewId: '' },
-      { target: null }, { requestId: '' }, { requestId: 'r'.repeat(129) }, { command: 'execute' }]) {
+      { target: null }, { requestId: '' }, { requestId: 'r'.repeat(129) }, { command: 'execute' },
+      { settings: null }, { settings: { model: '' } }, { settings: { model: 'x'.repeat(257) } }, { settings: { effort: 'x'.repeat(33) } },
+      { settings: { provider: 'claude' } }, { action: 'cancel', nodeIds: [], settings: {} }]) {
       assert.equal(isLocalBrowserMessage({ ...request, ...update }), false, JSON.stringify(update));
     }
+  });
+
+  test('explanation-only model discovery is a typed capability check', () => {
+    const discover = { ...envelope, type: 'agentRequest', action: 'discover', catalogOnly: true, refresh: true };
+    delete (discover as any).target;
+    assert.ok(isLocalBrowserMessage(discover));
+    assert.equal(isLocalBrowserMessage({ ...discover, catalogOnly: 'true' }), false);
+    assert.equal(isLocalBrowserMessage({ ...discover, catalogOnly: null }), false);
   });
 
   test('citation paths stay relative and spans identify real positive line ranges', () => {

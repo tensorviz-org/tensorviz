@@ -77,3 +77,41 @@ it('does not offer unsupported hosts an action and explains why a disconnected v
   fireEvent.focus(screen.getByRole('button', { name: 'Explain this view' }).parentElement!);
   expect(screen.getByRole('tooltip')).toHaveTextContent('Reconnect to the graph host first.');
 });
+
+it('shows the selected explanation model before starting and lets effort be chosen without changing chat', () => {
+  const choose = jest.fn(), discover = jest.fn();
+  mount(value({ configuration: { settings: { model: 'research-model', effort: 'low' }, followsChat: false,
+    choose, discover, availability: { status: 'ready', detail: '', defaultModel: 'research-model', models: [
+      { id: 'research-model', label: 'Research model', description: 'Source analysis', efforts: ['low', 'high'], defaultEffort: 'high' },
+    ] } } }));
+  expect(screen.getByRole('button', { name: 'Explain this view' })).toHaveTextContent('Research model · Low');
+  fireEvent.click(screen.getByRole('button', { name: 'Choose explanation model and effort' }));
+  expect(discover).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Effort for Research model' }));
+  fireEvent.click(screen.getByRole('menuitemradio', { name: 'High', exact: true }));
+  expect(choose).toHaveBeenCalledWith({ model: 'research-model', effort: 'high' });
+  expect(screen.queryByRole('dialog', { name: 'Explanation model' })).toBeNull();
+});
+
+it('discovers the model catalogue when opening a cold explanation menu, and prevents unsupported starts', () => {
+  const configuration = { settings: {}, followsChat: true, choose: jest.fn(), discover: jest.fn() };
+  const view = mount(value({ configuration }));
+  fireEvent.click(screen.getByRole('button', { name: 'Choose explanation model and effort' }));
+  expect(configuration.discover).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Close explanation model' }));
+  view.rerender(<NodeExplanationContext.Provider value={value({ configuration: { ...configuration,
+    settings: { model: 'retired' }, availability: { status: 'ready', models: [], detail: '' } } })}>
+    <ModelExplanationControl compact={false} />
+  </NodeExplanationContext.Provider>);
+  expect(screen.getByRole('button', { name: 'Explain this view' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Choose explanation model and effort' })).toBeEnabled();
+});
+
+it('keeps the running execution choice visible and disables configuration until it settles', () => {
+  mount(value({ state: { requestId: 'run', revision: 'revision', status: 'loading', completed: 1, total: 4,
+    execution: { provider: 'codex', model: 'running-model', effort: 'low' } },
+    configuration: { settings: { model: 'next-model' }, followsChat: false, choose: jest.fn(), discover: jest.fn() } }));
+  expect(screen.getByRole('button', { name: 'Explaining view · 1/4' })).toHaveTextContent('running-model · Low');
+  expect(screen.getByRole('button', { name: 'Choose explanation model and effort' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Stop explaining view' })).toBeEnabled();
+});

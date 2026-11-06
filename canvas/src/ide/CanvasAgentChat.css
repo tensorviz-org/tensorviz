@@ -108,6 +108,10 @@
 .canvas-agent-composer textarea::placeholder { color: var(--canvas-muted); }
 .canvas-agent-composer-tools { display: flex; align-items: center; gap: 3px; width: 100%; min-width: 0; }
 .canvas-agent-composer-space { flex: 1; min-width: 0; }
+.canvas-agent-composer-tools > .agent-model-picker { flex: 0 1 auto; min-width: 0; }
+.canvas-agent-composer-tools .canvas-tooltip-anchor { min-width: 0; }
+.canvas-agent-composer-tools .agent-model-picker > .canvas-tooltip-anchor:first-child { min-width: 0; flex: 1 1 auto; }
+.canvas-agent-composer-tools .agent-model-picker > .canvas-tooltip-anchor + .canvas-tooltip-anchor { flex: none; }
 .canvas-agent-chat .canvas-agent-mode-toggle { min-width: 28px; }
 .canvas-agent-chat .canvas-agent-mode-toggle[aria-expanded="true"],
 .canvas-agent-chat .canvas-agent-mode-toggle:not(.canvas-agent-mode-ask) { color: var(--canvas-accent); }

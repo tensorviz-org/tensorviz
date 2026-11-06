@@ -227,11 +227,29 @@ def test_model_explanation_requests_bind_bounded_unique_nodes_to_the_request():
     assert is_local_browser_message(dict(request, nodeIds=[f"node-{index}" for index in range(128)]))
     assert is_local_browser_message(model_request_message("cancel"))
     assert not is_local_browser_message(request, "other-session")
+    assert is_local_browser_message(dict(request, settings={}))
+    assert is_local_browser_message(dict(request, settings=dict(model="discovered-model", effort="low")))
     for update in [dict(nodeIds=[]), dict(nodeIds=["node", "node"]), dict(nodeIds=[""]),
                    dict(nodeIds=["n" * 1025]), dict(nodeIds=[f"node-{index}" for index in range(129)]),
                    dict(nodeIds=[1]), dict(nodeIds=None), dict(action="cancel"), dict(action="execute"),
-                   dict(viewId=""), dict(target=None), dict(requestId=""), dict(requestId="r" * 129), dict(command="execute")]:
+                   dict(viewId=""), dict(target=None), dict(requestId=""), dict(requestId="r" * 129), dict(command="execute"),
+                   dict(settings=None), dict(settings=dict(model="")), dict(settings=dict(model="x" * 257)),
+                   dict(settings=dict(effort="x" * 33)), dict(settings=dict(provider="claude")),
+                   dict(action="cancel", nodeIds=[], settings={})]:
         assert not is_local_browser_message(dict(request, **update)), update
+
+
+def test_model_explanation_execution_and_catalog_only_discovery_are_typed():
+    state = model_result_message()["state"]
+    assert is_local_browser_message(model_result_message(dict(state, execution=dict(provider="codex", model="discovered-model", effort="low"))))
+    assert is_local_browser_message(model_result_message(dict(state, execution=dict(provider="claude"))))
+    for execution in [None, {}, dict(provider="unknown"), dict(provider="codex", model=""),
+                      dict(provider="codex", effort="x" * 33), dict(provider="codex", command="run")]:
+        assert not is_local_browser_message(model_result_message(dict(state, execution=execution)))
+    discover = envelope("agentRequest", "session", 6, viewId="view", action="discover", catalogOnly=True, refresh=True)
+    assert is_local_browser_message(discover)
+    assert not is_local_browser_message(dict(discover, catalogOnly="true"))
+    assert not is_local_browser_message(dict(discover, catalogOnly=None))
 
 
 @pytest.mark.parametrize("action", ["start", "cancel"])

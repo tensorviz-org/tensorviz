@@ -65,6 +65,12 @@ Choose **Explain this view** in the toolbar to explain the nodes currently visib
 the Canvas, including input and output boundaries. The click captures a scope; panning,
 zooming and opening a component do not recursively request more explanations. Click
 again to explain the new view. Collapsed and off-camera nodes stay outside that pass.
+The split button shows the model and effort before starting. Open its arrow to search
+the connected agent's models and choose a supported effort. Explanation preferences
+start with chat's selection and are remembered separately for each agent; **Use chat
+settings** restores that link. Changing them does not change chat. Each pass retains
+its chosen model and effort, shown while it runs and in its result details. Model
+discovery in this menu checks the connected agent without opening or warming chat.
 Readable roles, a short purpose sentence and input/output meanings appear directly on
 the cards, while technical names and tensor evidence remain available.
 
@@ -124,7 +130,12 @@ Successful captures with the same source digest as the previous capture do not s
 
 ## Ask for a change
 
-Select the relevant layers and describe your change in Canvas chat. Choose your agent, model, and supported effort in chat settings; start a new chat to switch agents. [Review the proposed Python changes](source-editing.md) before applying them.
+Select the relevant layers and describe your change in Canvas chat. Model and effort
+controls sit beside the composer. Search the model menu; its row arrows offer the
+efforts that model supports. Agent selection and connection checks remain in chat
+settings; start a new chat to switch agents. Models and efforts come from the
+connected agent, including new models, rather than a TensorViz catalogue.
+[Review the proposed Python changes](source-editing.md) before applying them.
 
 After a matching capture, native and ACP Canvas agents automatically receive [compact model context](model-context.md). Current facts can be reused without another capture; missing measurements and stale source stay explicit.
 

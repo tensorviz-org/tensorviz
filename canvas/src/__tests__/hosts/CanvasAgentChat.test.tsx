@@ -51,7 +51,16 @@ const settingsPanel = () => screen.queryByRole('group', { name: 'Agent settings'
 const sendButton = () => screen.getByRole('button', { name: 'Send request' });
 const recheckButton = () => screen.getByRole('button', { name: 'Recheck agent connection' });
 const type = (text: string) => fireEvent.change(screen.getByRole('textbox'), { target: { value: text } });
-const chooseModel = (model: string) => fireEvent.change(screen.getByRole('combobox', { name: 'Model' }), { target: { value: model } });
+const modelButton = () => screen.getByRole('button', { name: /^Chat model:/ });
+const effortButton = () => screen.getByRole('button', { name: /^Chat effort:/ });
+const chooseModel = (model: string) => {
+  fireEvent.click(modelButton());
+  fireEvent.click(screen.getByRole('menuitemradio', { name: model ? [...models, ...claudeModels].find(entry => entry.id === model)!.label : /^Agent default/ }));
+};
+const chooseEffort = (effort: string) => {
+  fireEvent.click(effortButton());
+  fireEvent.click(screen.getByRole('menuitemradio', { name: effort ? effort.charAt(0).toUpperCase() + effort.slice(1) : /^Default/ }));
+};
 
 test('Use Agent opens progress without requiring a typed prompt or racing host discovery', () => {
   const { sent, state } = fixture();
@@ -264,15 +273,17 @@ test('model and effort edits configure the host, keep the draft, and Send uses t
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Keep me' } });
   openSettings();
   expect(screen.getByRole('combobox', { name: 'Agent' })).toHaveFocus();
-  expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual(expect.arrayContaining(['Default (high)', 'low', 'high']));
-  fireEvent.change(screen.getByRole('combobox', { name: 'Model' }), { target: { value: 'gpt-b' } });
+  fireEvent.click(effortButton());
+  expect(screen.getAllByRole('menuitemradio').map(option => option.textContent)).toEqual(['Default (High)', 'Low', 'High']);
+  fireEvent.keyDown(screen.getByRole('menu', { name: 'Reasoning effort' }), { key: 'Escape' });
+  chooseModel('gpt-b');
   expect(sent('configure')).toEqual([expect.objectContaining({ provider: 'codex', settings: { model: 'gpt-b' } })]);
   // GPT B advertises no efforts, so the stale "low" is dropped rather than carried over.
-  expect(screen.queryByRole('combobox', { name: 'Effort' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Chat effort:/ })).toBeNull();
   expect(screen.getByRole('textbox')).toHaveValue('Keep me');
   // A background publication repeating an earlier ack is not this edit's acknowledgement.
   state({ revision: 2, ack: 'earlier', agents: agents(), selections: { codex: { model: 'gpt-a', effort: 'low' } } });
-  expect(screen.getByRole('combobox', { name: 'Model' })).toHaveValue('gpt-b');
+  expect(modelButton()).toHaveAccessibleName('Chat model: GPT B');
   fireEvent.click(sendButton());
   expect(sent('send')[0]).toEqual(expect.objectContaining({ provider: 'codex', settings: { model: 'gpt-b' } }));
 });
@@ -282,12 +293,12 @@ test('changing model resets effort to that model’s default; agent default uses
   openChat();
   state({ selections: { codex: { model: 'gpt-b' } } });
   openSettings();
-  expect(screen.queryByRole('combobox', { name: 'Effort' })).toBeNull();
-  fireEvent.change(screen.getByRole('combobox', { name: 'Model' }), { target: { value: '' } });
+  expect(screen.queryByRole('button', { name: /^Chat effort:/ })).toBeNull();
+  chooseModel('');
   expect(sent('configure').slice(-1)[0].settings).toEqual({});
-  const effort = screen.getByRole('combobox', { name: 'Effort' });
-  expect(effort).toHaveValue('');
-  fireEvent.change(effort, { target: { value: 'low' } });
+  const effort = effortButton();
+  expect(effort).toHaveAccessibleName('Chat effort: High');
+  chooseEffort('low');
   expect(sent('configure').slice(-1)[0].settings).toEqual({ effort: 'low' });
   expect(settingsToggle()).toHaveAccessibleName('Agent settings: Ready, Codex, Default (GPT A), low');
   // Choosing a model and then an effort keeps the settings open.
@@ -300,11 +311,13 @@ test.each(['codex', 'claude'] as const)('%s shows the host medium default withou
   available[provider] = { ...available[provider], defaultModel: 'medium-model',
     models: [{ id: 'medium-model', label: 'Medium model', description: '', efforts: ['medium', 'high'], defaultEffort: 'medium' }] };
   openChat(); state({ provider, agents: available }); openSettings();
-  const effort = screen.getByRole('combobox', { name: 'Effort' });
-  expect(effort).toHaveValue('');
-  expect(within(effort).getByRole('option', { name: 'Default (medium)' })).toBeVisible();
+  const effort = effortButton();
+  expect(effort).toHaveAccessibleName('Chat effort: Medium');
+  fireEvent.click(effort);
+  expect(screen.getByRole('menuitemradio', { name: 'Default (Medium)' })).toBeVisible();
+  fireEvent.keyDown(screen.getByRole('menu', { name: 'Reasoning effort' }), { key: 'Escape' });
   state({ revision: 2, provider, agents: available, selections: { [provider]: { effort: 'high' } } });
-  expect(effort).toHaveValue('high');
+  expect(effort).toHaveAccessibleName('Chat effort: High');
 });
 
 test('a saved model or effort the agent no longer offers stays visible and blocks Send until replaced', () => {
@@ -316,14 +329,16 @@ test('a saved model or effort the agent no longer offers stays visible and block
   expect(screen.getByText(reason)).toBeVisible();
   expect(sendButton()).toBeDisabled();
   openSettings();
-  expect(screen.getByRole('combobox', { name: 'Model' })).toHaveValue('gpt-old');
-  expect(screen.getByRole('option', { name: 'gpt-old (unavailable)' })).toBeInTheDocument();
+  expect(modelButton()).toHaveAccessibleName('Chat model: gpt-old');
+  fireEvent.click(modelButton());
+  expect(screen.getByText('gpt-old is unavailable. Choose another model.')).toBeVisible();
+  fireEvent.keyDown(screen.getByRole('dialog', { name: 'Choose model' }), { key: 'Escape' });
   expect(sent('configure')).toHaveLength(0);
-  fireEvent.change(screen.getByRole('combobox', { name: 'Model' }), { target: { value: 'gpt-a' } });
+  chooseModel('gpt-a');
   expect(sendButton()).toBeEnabled();
   state({ revision: 2, ack: sent('configure')[0].requestId, selections: { codex: { model: 'gpt-a' } } });
   state({ revision: 3, selections: { codex: { model: 'gpt-a', effort: 'max' } } });
-  expect(screen.getByRole('combobox', { name: 'Effort' })).toHaveValue('max');
+  expect(effortButton()).toHaveAccessibleName('Chat effort: Max');
   expect(sendButton()).toBeDisabled();
   expect(screen.getByRole('textbox')).toHaveAccessibleDescription('Saved effort “max” isn\'t available for GPT A. Choose another effort to send.');
 });
@@ -337,7 +352,8 @@ test('provider can change only on an empty idle chat, and settings lock while ru
   expect(sent('configure')).toEqual([expect.objectContaining({ provider: 'claude', settings: { model: 'sonnet' } })]);
   expect(settingsToggle()).toHaveAccessibleName('Agent settings: Ready, Claude Code, Sonnet 5.5');
   state({ revision: 2, ack: sent('configure')[0].requestId, provider: 'claude', status: 'running', selections: { claude: { model: 'sonnet' } }, messages: [{ id: 'u', role: 'user', text: 'hi' }] });
-  for (const name of ['Agent', 'Model']) expect(screen.getByRole('combobox', { name })).toBeDisabled();
+  expect(screen.getByRole('combobox', { name: 'Agent' })).toBeDisabled();
+  expect(modelButton()).toBeDisabled();
 });
 
 test('a configure lost to a disconnect is replayed on reconnect', () => {
@@ -345,9 +361,9 @@ test('a configure lost to a disconnect is replayed on reconnect', () => {
   openChat();
   state();
   openSettings();
-  fireEvent.change(screen.getByRole('combobox', { name: 'Model' }), { target: { value: 'gpt-b' } });
+  chooseModel('gpt-b');
   link(false);
-  expect(screen.getByRole('combobox', { name: 'Model' })).toBeDisabled();
+  expect(modelButton()).toBeDisabled();
   link(true);
   expect(sent('configure')).toHaveLength(2);
   expect(sent('configure')[1]).toEqual(sent('configure')[0]);
@@ -361,7 +377,7 @@ test('Escape closes the settings panel before minimizing', () => {
   fixture();
   openChat();
   openSettings();
-  fireEvent.keyDown(screen.getByRole('combobox', { name: 'Model' }), { key: 'Escape' });
+  fireEvent.keyDown(screen.getByRole('combobox', { name: 'Agent' }), { key: 'Escape' });
   expect(screen.queryByRole('group', { name: 'Agent settings' })).toBeNull();
   expect(screen.getByRole('textbox')).toBeVisible();
   expect(screen.getByRole('button', { name: /^Agent settings/ })).toHaveAttribute('aria-expanded', 'false');
@@ -384,8 +400,8 @@ test('a stale settings acknowledgement or background update never ends a pending
   // Settings closed on Send; they can still be inspected while the request is pending, but not changed.
   expect(settingsPanel()).toBeNull();
   openSettings();
-  expect(screen.getByRole('combobox', { name: 'Model' })).toBeDisabled();
-  expect(screen.getByRole('combobox', { name: 'Model' })).toHaveValue('gpt-b');
+  expect(modelButton()).toBeDisabled();
+  expect(modelButton()).toHaveAccessibleName('Chat model: GPT B');
   fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
   expect(sent('send')).toHaveLength(1);
   await act(async () => { state({ revision: 4, ack: sendId, status: 'error', activity: 'Wait for the agent check to finish before sending.', selections: { codex: { model: 'gpt-b' } } }); });
@@ -403,9 +419,9 @@ test('an older settings acknowledgement never drops a newer local edit', () => {
   const [first, second] = sent('configure').map(message => message.requestId);
   expect(first).not.toEqual(second);
   state({ revision: 2, ack: first, selections: { codex: { model: 'gpt-b' } } });
-  expect(screen.getByRole('combobox', { name: 'Model' })).toHaveValue('gpt-a');
+  expect(modelButton()).toHaveAccessibleName('Chat model: GPT A');
   state({ revision: 3, ack: second, selections: { codex: { model: 'gpt-a' } } });
-  expect(screen.getByRole('combobox', { name: 'Model' })).toHaveValue('gpt-a');
+  expect(modelButton()).toHaveAccessibleName('Chat model: GPT A');
   type('Go');
   fireEvent.click(sendButton());
   expect(sent('send')[0].settings).toEqual({ model: 'gpt-a' });
@@ -455,22 +471,22 @@ test('a delayed sync cannot release a send made after that sync was requested', 
   expect(sent('send')).toHaveLength(1);
 });
 
-test('Claude’s default alias is offered once, as Default with its actual model and an on-demand description', () => {
+test('Claude’s default alias is offered once, named by the provider, and its description is available on focus', () => {
   const { sent, state } = fixture();
   openChat();
   state({ provider: 'claude' });
-  openSettings();
-  const model = screen.getByRole('combobox', { name: 'Model' });
-  expect(within(model).getAllByRole('option').map(option => option.textContent)).toEqual(['Default (Opus 5.5)', 'Sonnet 5.5']);
-  expect(model).toHaveAccessibleDescription('Opus 5.5 · Most capable for complex work');
-  expect(model).toHaveAttribute('title', 'Default (Opus 5.5) — Opus 5.5 · Most capable for complex work');
-  expect(settingsToggle()).toHaveAccessibleName('Agent settings: Ready, Claude Code, Default (Opus 5.5), Default effort');
-  chooseModel('sonnet');
-  expect(model).toHaveAccessibleDescription('Sonnet 5.5 · Everyday tasks');
-  // A model saved explicitly as the alias (here by another view) stays visible and selectable.
+  const model = modelButton();
+  fireEvent.focus(model);
+  expect(model).toHaveAccessibleDescription('Opus 5.5 · Agent default — Opus 5.5 · Most capable for complex work');
+  fireEvent.click(model);
+  expect(screen.getAllByRole('menuitemradio').map(option => option.textContent)).toEqual(['Agent defaultOpus 5.5', 'Sonnet 5.5']);
+  fireEvent.click(screen.getByRole('menuitemradio', { name: 'Sonnet 5.5' }));
+  fireEvent.focus(model);
+  expect(model).toHaveAccessibleDescription('Sonnet 5.5 — Sonnet 5.5 · Everyday tasks');
   state({ revision: 2, ack: sent('configure')[0].requestId, provider: 'claude', selections: { claude: { model: 'default' } } });
-  expect(within(model).getAllByRole('option').map(option => option.textContent)).toEqual(['Default (Opus 5.5)', 'Opus 5.5', 'Sonnet 5.5']);
-  expect(model).toHaveValue('default');
+  fireEvent.click(model);
+  expect(screen.getAllByRole('menuitemradio').map(option => option.textContent)).toEqual(['Agent defaultOpus 5.5', 'Opus 5.5', 'Sonnet 5.5']);
+  expect(screen.getByRole('menuitemradio', { name: 'Opus 5.5' })).toHaveAttribute('aria-checked', 'true');
 });
 
 test('checking appears in the reply area; idle stays quiet and readiness stays in settings descriptions', () => {
@@ -482,9 +498,9 @@ test('checking appears in the reply area; idle stays quiet and readiness stays i
   expect(screen.queryByRole('img', { name: 'Agent idle' })).toBeNull();
   expect(document.querySelector('.canvas-agent-generation')).toBeNull();
   expect(screen.queryByText('Ready')).toBeNull();
-  // A long default model name never appears as on-screen text while settings are collapsed.
+  // Model and effort stay visible beside the composer while connection settings are collapsed.
   expect(settingsToggle()).toHaveTextContent(/^$/);
-  expect(screen.queryByText(/Opus 5\.5/)).toBeNull();
+  expect(modelButton()).toHaveTextContent('Opus 5.5');
   expect(settingsToggle()).toHaveAccessibleName('Agent settings: Ready, Claude Code, Default (Opus 5.5), Default effort');
   expect(settingsToggle()).toHaveAttribute('title', 'Agent settings · Ready · Claude Code · Default (Opus 5.5) · Default effort');
   link(false);
@@ -497,12 +513,15 @@ test('settings start collapsed and open and close from the toggle', () => {
   state();
   expect(settingsPanel()).toBeNull();
   expect(screen.queryByRole('combobox', { name: 'Agent' })).toBeNull();
-  expect(screen.queryByRole('combobox', { name: 'Model' })).toBeNull();
+  expect(modelButton()).toBeVisible();
+  expect(effortButton()).toBeVisible();
   expect(settingsToggle()).toHaveAttribute('aria-expanded', 'false');
   openSettings();
   expect(settingsToggle()).toHaveAttribute('aria-expanded', 'true');
   expect(settingsToggle()).toHaveAttribute('aria-controls', settingsPanel()!.id);
-  for (const name of ['Agent', 'Model', 'Effort']) expect(screen.getByRole('combobox', { name })).toBeVisible();
+  expect(screen.getByRole('combobox', { name: 'Agent' })).toBeVisible();
+  expect(modelButton()).toBeVisible();
+  expect(effortButton()).toBeVisible();
   openSettings();
   expect(settingsPanel()).toBeNull();
   expect(settingsToggle()).toHaveAttribute('aria-expanded', 'false');
@@ -524,7 +543,7 @@ test('minimizing and reopening collapses settings but keeps the draft and the ch
   expect(screen.getByRole('textbox')).toHaveValue('Keep me');
   expect(settingsToggle()).toHaveAccessibleName(/, GPT B$/);
   openSettings();
-  expect(screen.getByRole('combobox', { name: 'Model' })).toHaveValue('gpt-b');
+  expect(modelButton()).toHaveAccessibleName('Chat model: GPT B');
 });
 
 test('a dispatched Send collapses settings; a Send that cannot be dispatched leaves them open', async () => {
@@ -559,7 +578,8 @@ test('connection status and recheck live in settings, with account details avail
   act(() => caption.focus());
   expect(caption).toHaveAccessibleDescription('Uses your Codex account. Model access and limits are checked when you send. Source edits open in VS Code for review.');
   expect(within(panel).queryByText(/Codex ready/)).toBeNull();
-  expect(within(panel).getByRole('combobox', { name: 'Model' })).toHaveAccessibleDescription('Balanced');
+  fireEvent.focus(modelButton());
+  expect(modelButton()).toHaveAccessibleDescription('GPT A · Agent default — Balanced');
   fireEvent.click(within(panel).getByRole('button', { name: 'Recheck agent connection' }));
   expect(sent('discover').slice(-1)[0]).toEqual(expect.objectContaining({ refresh: true }));
   const ack = send.mock.results.at(-1)!.value.messageId;

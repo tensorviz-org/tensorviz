@@ -212,13 +212,18 @@ def _view_explanation(value: Any) -> bool:
 
 def _model_explanation_state(value: Any) -> bool:
     return (isinstance(value, dict)
-            and set(value) <= {"requestId", "revision", "status", "completed", "total", "detail", "view"}
+            and set(value) <= {"requestId", "revision", "status", "completed", "total", "detail", "execution", "view"}
             and _node_explanation_text(value.get("requestId"), 128)
             and _node_explanation_text(value.get("revision"), 256)
             and isinstance(value.get("status"), str) and value["status"] in ("loading", "ready", "unavailable", "cancelled")
             and _is_non_negative_integer(value.get("completed")) and _is_non_negative_integer(value.get("total"))
             and value["completed"] <= value["total"] <= 10000
             and ("detail" not in value or _node_explanation_text(value["detail"], 320))
+            and ("execution" not in value or isinstance(value["execution"], dict)
+                 and set(value["execution"]) <= {"provider", "model", "effort"}
+                 and value["execution"].get("provider") in ("codex", "claude")
+                 and ("model" not in value["execution"] or _node_explanation_text(value["execution"]["model"], 256))
+                 and ("effort" not in value["execution"] or _node_explanation_text(value["execution"]["effort"], 32)))
             and ("view" not in value or _view_explanation(value["view"])
                  and len(value["view"]["nodeIds"]) == value["total"]))
 
@@ -789,13 +794,14 @@ def is_local_browser_message(value: Any, expected_workspace_session_id: str | No
                 and _target_is_valid(value.get("target")) and _model_explanation_state(value.get("state")))
     if message_type == "modelExplanationRequest":
         action, node_ids = value.get("action"), value.get("nodeIds")
-        return (len(value) == 9
-                and set(value) <= {"type", "protocolVersion", "workspaceSessionId", "messageId", "viewId", "target", "requestId", "action", "nodeIds"}
+        return (len(value) == (10 if "settings" in value else 9)
+                and set(value) <= {"type", "protocolVersion", "workspaceSessionId", "messageId", "viewId", "target", "requestId", "action", "nodeIds", "settings"}
                 and _is_bounded_string(value.get("viewId"), 128) and _target_is_valid(value.get("target"))
                 and _is_bounded_string(value.get("requestId"), 128) and isinstance(node_ids, list)
                 and len(node_ids) <= 128 and all(_is_bounded_string(node_id, 1024) for node_id in node_ids)
                 and len(set(node_ids)) == len(node_ids)
-                and (len(node_ids) > 0 if action == "start" else action == "cancel" and len(node_ids) == 0))
+                and (len(node_ids) > 0 and ("settings" not in value or _agent_settings(value["settings"]))
+                     if action == "start" else action == "cancel" and len(node_ids) == 0 and "settings" not in value))
     if message_type == "nodeExplanationRequest":
         action = value.get("action")
         return (len(value) == (10 if action == "reveal" else 9)
@@ -810,8 +816,9 @@ def is_local_browser_message(value: Any, expected_workspace_session_id: str | No
         if action in ("sync", "clear"):
             return len(value) == 6
         if action == "discover":
-            return (set(value) <= {"type", "protocolVersion", "workspaceSessionId", "messageId", "viewId", "action", "refresh"}
-                    and ("refresh" not in value or isinstance(value["refresh"], bool)))
+            return (set(value) <= {"type", "protocolVersion", "workspaceSessionId", "messageId", "viewId", "action", "refresh", "catalogOnly"}
+                    and ("refresh" not in value or isinstance(value["refresh"], bool))
+                    and ("catalogOnly" not in value or isinstance(value["catalogOnly"], bool)))
         if action == "configure":
             return (len(value) == (9 if "requestId" in value else 8)
                     and ("requestId" not in value or _is_bounded_string(value["requestId"], 128))

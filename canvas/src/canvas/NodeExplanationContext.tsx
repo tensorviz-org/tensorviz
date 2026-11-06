@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ModelExplanationState, NodeExplanationState } from '../ide/nodeExplanation.generated';
+import type { CanvasAgentAvailability, CanvasAgentSettings } from '../ide/protocol.generated';
 
 /** Host-confirmed, revision-scoped interpretations. Never stored in node data. */
 export interface NodeExplanationContextValue {
@@ -11,6 +12,14 @@ export interface NodeExplanationContextValue {
   model?: {
     state?: ModelExplanationState;
     disabledReason?: string;
+    configuration?: {
+      availability?: CanvasAgentAvailability;
+      settings: CanvasAgentSettings;
+      followsChat: boolean;
+      disabled?: boolean;
+      choose(settings: CanvasAgentSettings | undefined): void;
+      discover(refresh?: boolean): void;
+    };
     start(nodeIds: string[]): void;
     cancel(): void;
     toggle(): void;

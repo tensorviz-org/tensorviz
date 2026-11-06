@@ -8,7 +8,8 @@ import GraphOpeningPanel from './GraphOpeningPanel';
 import { GraphSetupBoundary } from './GraphSetupBoundary';
 import { GraphRunNotice } from './GraphRunNotice';
 import { graphSetupWorkflow } from './graphSetupWorkflow.generated';
-import { newLocalBrowserMessageId, DEFAULT_CODE_FOCUS, type CodeFocusState, type GraphSetupAction } from './protocol.generated';
+import { newLocalBrowserMessageId, DEFAULT_CODE_FOCUS, type CanvasAgentState, type CanvasAgentSettings, type CodeFocusState, type GraphSetupAction } from './protocol.generated';
+import { readExplanationSettings, saveExplanationSettings } from './explanationSettings';
 import { createLocalBrowserViewControl } from './localBrowserViewControl';
 /** External browser view of one VS Code window's authenticated broker session.
  * The page presents the host-owned projection, freshness and validation evidence.
@@ -161,7 +162,13 @@ export default function LocalBrowserApp({
   const [nodeExplanations, setNodeExplanations] = React.useState<{ scope: string; states: Record<string, NodeExplanationState> }>({ scope: '', states: {} });
   const [nodeAnnotations, setNodeAnnotations] = React.useState<{ scope: string; states: Record<string, NodeExplanationState> }>({ scope: '', states: {} });
   const [modelExplanation, setModelExplanation] = React.useState<{ scope: string; state?: ModelExplanationState; visible: boolean }>({ scope: '', visible: false });
-  const modelExplanationRequestRef = React.useRef<{ scope: string; requestId: string } | null>(null);
+  const modelExplanationRequestRef = React.useRef<{ scope: string; requestId: string; settings?: CanvasAgentSettings } | null>(null);
+  const [explanationAgent, setExplanationAgent] = React.useState<CanvasAgentState | null>(null);
+  const [explanationPreferences, setExplanationPreferences] = React.useState(readExplanationSettings);
+  const explanationProvider = explanationAgent?.provider ?? 'codex';
+  const explanationSettings = explanationPreferences[explanationProvider] ?? explanationAgent?.selections?.[explanationProvider] ?? {};
+  const explanationSettingsRef = React.useRef<CanvasAgentSettings | undefined>(undefined);
+  explanationSettingsRef.current = explanationAgent || explanationPreferences[explanationProvider] ? explanationSettings : undefined;
   const [explanationWatchdog] = React.useState(() => new ExplanationWatchdog());
   const [page, dispatch] = React.useReducer(
     reduceLocalBrowserViewMessage,
@@ -385,7 +392,7 @@ export default function LocalBrowserApp({
     setPortableExports(portableClient);
     const explanationArrivals = new Map<string, number>();
     let explanationArrival = 0;
-    let explanationRoute: { selected: string; defaultModel?: string } | undefined;
+    let explanationRoute: { selected: string; account: string; defaultModel?: string } | undefined;
     const offMessage = transport.onMessage(message => {
       if (message.type === 'modelCatalog' && message.viewId === transport.session?.viewId
         && !standalone && !reviewRef.current.state && !pageRef.current.greyed
@@ -398,14 +405,25 @@ export default function LocalBrowserApp({
       }
       if (message.type === 'agentState' && message.viewId === transport.session?.viewId) {
         const state = message.state;
+        setExplanationAgent(state);
+        const account = JSON.stringify([state.sessionId, state.provider]);
         const selected = JSON.stringify([state.sessionId, state.provider, state.selections?.[state.provider]]);
         const defaultModel = state.agents?.[state.provider]?.defaultModel;
         const sameSelection = explanationRoute?.selected === selected;
         // Discovering an unchecked provider resolves its default during the same request.
         // Only explicit route changes or changes between known defaults retire that request.
         if (explanationRoute && (!sameSelection || (explanationRoute.defaultModel && defaultModel
-          && explanationRoute.defaultModel !== defaultModel))) explanationWatchdog.interrupt();
-        explanationRoute = { selected, defaultModel: defaultModel ?? (sameSelection ? explanationRoute?.defaultModel : undefined) };
+          && explanationRoute.defaultModel !== defaultModel))) {
+          const accountChanged = explanationRoute.account !== account;
+          // Explicit passes own their settings. Chat model/effort edits only retire node reads.
+          explanationWatchdog.interrupt(key => {
+            const pass = modelExplanationRequestRef.current;
+            const belongsToPass = key === 'model' || (key.startsWith('node:')
+              && explanationStatesRef.current.states[key.slice(5)]?.requestId === pass?.requestId);
+            return accountChanged || !belongsToPass || pass?.settings === undefined;
+          });
+        }
+        explanationRoute = { selected, account, defaultModel: defaultModel ?? (sameSelection ? explanationRoute?.defaultModel : undefined) };
       }
       if (message.type === 'modelExplanation' && message.viewId === transport.session?.viewId
         && !standalone && !reviewRef.current.state && !pageRef.current.greyed
@@ -554,6 +572,7 @@ export default function LocalBrowserApp({
         clearModelCatalogRequest();
         setModelCatalog({ scope: '' });
         explanationRoute = undefined;
+        setExplanationAgent(null);
         setNodeExplanations({ scope: '', states: {} });
         setNodeAnnotations({ scope: '', states: {} });
         setModelExplanation({ scope: '', visible: false });
@@ -985,7 +1004,8 @@ export default function LocalBrowserApp({
     ids.sort((left, right) => Number(states[left]?.status === 'ready') - Number(states[right]?.status === 'ready'));
     const bounded = ids.slice(0, 128);
     if (ids.length > bounded.length) setSourceNotice(`Explaining ${bounded.length} of ${ids.length} visible nodes. Zoom into a smaller area to explain the rest.`);
-    const request = { scope, requestId: crypto.randomUUID() };
+    const settings = explanationSettingsRef.current;
+    const request = { scope, requestId: crypto.randomUUID(), ...(settings ? { settings: { ...settings } } : {}) };
     const previous = modelExplanationRequestRef.current;
     if (previous?.scope === scope) transport.send({ type: 'modelExplanationRequest', viewId, target,
       action: 'cancel', requestId: previous.requestId, nodeIds: [] });
@@ -1008,7 +1028,8 @@ export default function LocalBrowserApp({
                 : 'The graph host did not acknowledge this explanation request. Retry or reload the Canvas.' } } : previous);
             transport.send({ type: 'modelExplanationRequest', viewId, target, requestId: request.requestId, action: 'cancel', nodeIds: [] });
           } });
-        transport.send({ type: 'modelExplanationRequest', viewId, target, action: 'start', requestId: request.requestId, nodeIds: bounded });
+        transport.send({ type: 'modelExplanationRequest', viewId, target, action: 'start', requestId: request.requestId, nodeIds: bounded,
+          ...(request.settings ? { settings: request.settings } : {}) });
       }
     } catch {
       if (modelExplanationRequestRef.current !== request || explanationScopeRef.current !== scope || transportRef.current !== transport) return;
@@ -1035,6 +1056,18 @@ export default function LocalBrowserApp({
       disabledReason: !explanationScope ? 'Open a current model graph first.'
         : status?.phase !== 'connected' || status.hostLink !== 'connected' ? 'Reconnect to the graph host first.'
           : validating || agentValidating ? 'Wait for the model capture to finish.' : undefined,
+      configuration: {
+        availability: explanationAgent?.agents?.[explanationProvider],
+        settings: explanationSettings,
+        followsChat: explanationPreferences[explanationProvider] === undefined,
+        disabled: status?.phase !== 'connected' || status.hostLink !== 'connected' || explanationAgent?.status === 'running',
+        choose: settings => setExplanationPreferences(previous => saveExplanationSettings(previous, explanationProvider, settings)),
+        discover: (refresh = false) => {
+          const transport = transportRef.current;
+          if (!transport?.session?.viewId || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') return;
+          transport.send({ type: 'agentRequest', viewId: transport.session.viewId, action: 'discover', catalogOnly: true, ...(refresh ? { refresh: true } : {}) });
+        },
+      },
       start: nodeIds => { void startModelExplanation(nodeIds); },
       cancel: cancelModelExplanation,
       toggle: () => setModelExplanation(previous => previous.scope === explanationScope

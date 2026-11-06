@@ -903,7 +903,7 @@ export interface CanvasAgentState {
 }
 export type CanvasAgentAction =
   | { action: 'sync' }
-  | { action: 'discover'; refresh?: boolean }
+  | { action: 'discover'; refresh?: boolean; /** Inspect the selected provider without preparing a chat or changing providers. */ catalogOnly?: boolean }
   | { action: 'configure'; provider: CanvasAgentProvider; settings: CanvasAgentSettings; requestId?: string }
   | { action: 'clear' }
   | { action: 'stop'; requestId: string }
@@ -926,6 +926,8 @@ export type LocalBrowserModelExplanation = LocalBrowserEnvelope<'modelExplanatio
 export type LocalBrowserModelExplanationRequest = LocalBrowserEnvelope<'modelExplanationRequest'> & {
   viewId: string; target: LocalBrowserTargetIdentity; requestId: string;
   action: 'start' | 'cancel'; nodeIds: string[];
+  /** A per-pass choice. Missing retains the chat selection; an empty object uses provider defaults. */
+  settings?: CanvasAgentSettings;
 };
 
 export type LocalBrowserModelCatalogRequest = LocalBrowserEnvelope<'modelCatalogRequest'> & {
@@ -1908,8 +1910,9 @@ export function isLocalBrowserMessage(
     case 'agentRequest': {
       if (!isBoundedString(record.viewId, 128)) return false;
       if (record.action === 'sync' || record.action === 'clear') return Object.keys(record).length === 6;
-      if (record.action === 'discover') return Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'action', 'refresh'].includes(key))
-        && (record.refresh === undefined || typeof record.refresh === 'boolean');
+      if (record.action === 'discover') return Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'action', 'refresh', 'catalogOnly'].includes(key))
+        && (record.refresh === undefined || typeof record.refresh === 'boolean')
+        && (record.catalogOnly === undefined || typeof record.catalogOnly === 'boolean');
       if (record.action === 'configure') return Object.keys(record).length === (record.requestId === undefined ? 8 : 9)
         && (record.requestId === undefined || isBoundedString(record.requestId, 128))
         && ['codex', 'claude'].includes(String(record.provider)) && isCanvasAgentSettings(record.settings);
@@ -1945,13 +1948,14 @@ export function isLocalBrowserMessage(
       return Object.keys(record).length === 7 && isBoundedString(record.viewId, 128)
         && isLocalBrowserTarget(record.target) && isModelExplanationState(record.state);
     case 'modelExplanationRequest':
-      return Object.keys(record).length === 9
-        && Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'target', 'requestId', 'action', 'nodeIds'].includes(key))
+      return Object.keys(record).length === (record.settings === undefined ? 9 : 10)
+        && Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'target', 'requestId', 'action', 'nodeIds', 'settings'].includes(key))
         && isBoundedString(record.viewId, 128) && isLocalBrowserTarget(record.target)
         && isBoundedString(record.requestId, 128) && Array.isArray(record.nodeIds)
         && record.nodeIds.length <= 128 && record.nodeIds.every(id => isBoundedString(id, 1024))
         && new Set(record.nodeIds).size === record.nodeIds.length
-        && (record.action === 'start' ? record.nodeIds.length > 0 : record.action === 'cancel' && record.nodeIds.length === 0);
+        && (record.action === 'start' ? record.nodeIds.length > 0 && (record.settings === undefined || isCanvasAgentSettings(record.settings))
+          : record.action === 'cancel' && record.nodeIds.length === 0 && record.settings === undefined);
     case 'nodeExplanationRequest':
       return Object.keys(record).length === (record.action === 'reveal' ? 10 : 9)
         && Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'target', 'nodeId', 'requestId', 'action', 'citationId'].includes(key))

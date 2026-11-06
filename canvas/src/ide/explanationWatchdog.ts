@@ -81,8 +81,9 @@ export class ExplanationWatchdog {
     this.retired.delete(this.identity(key, requestId));
     this.observe(key, requestId, 'queued', pending);
   }
-  interrupt(): void {
-    for (const entry of this.entries.values()) {
+  interrupt(include: (key: string) => boolean = () => true): void {
+    for (const [key, entry] of this.entries) {
+      if (!include(key)) continue;
       if (entry.status !== 'queued' && entry.status !== 'loading') continue;
       clearTimeout(entry.timer); entry.timer = undefined; entry.status = 'expired';
       entry.expire?.('provider');

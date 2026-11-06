@@ -23,7 +23,7 @@ suite('Explicit model explanation', () => {
     const target = { workspaceFolder: '/fixture', file: 'model.py', cls: 'Model', sourceDigest: hash(source), documentVersion: 1, backendRevision: 0 };
     const states: ModelExplanationState[] = [], nodes: NodeExplanationState[] = [], inputs: AgentRunInput[] = [], toolsets: HostToolset[] = [], signals: AbortSignal[] = [];
     let clears = 0, changed = 0;
-    const service = new CanvasModelExplanation({ route: () => route, current: (_request, rev) => valid && (!rev || rev === revision), reference: () => ({ modelId: 'model', revision }),
+    const service = new CanvasModelExplanation({ route: settings => settings === undefined ? route : { ...route, settings: { ...settings }, resolvedModel: settings.model ?? route.resolvedModel }, current: (_request, rev) => valid && (!rev || rev === revision), reference: () => ({ modelId: 'model', revision }),
       prepare: async (_request, nodeId) => ({ context: { nodeId, callable: 'AudioVAE', edges: [{ sourceNodeId: nodeId, targetNodeId: 'decoder' }] }, source: { file: 'model.py', startLine: 10 } }),
       read: async (_target, file) => { if (file !== 'model.py') throw new Error('Not graph-recorded'); return { file, source, digest: hash(source) }; },
       tools: () => new Map([['request_project_command', { config: { inputSchema: {} }, handler: async () => { throw new Error('Execution leaked'); } }],
@@ -43,6 +43,38 @@ suite('Explicit model explanation', () => {
     const context = JSON.parse(r.inputs[0].context); assert.equal(context.sourceEvidence.length, 1); assert.equal(context.nodes.length, 2); assert.equal(context.nodes[0].facts.edges[0].targetNodeId, 'decoder');
     assert.deepEqual([...r.toolsets[0].keys()].sort(), ['query_source_context', 'read_model_source', 'submit_model_explanations']);
     assert.equal(r.states.at(-1)!.status, 'ready'); assert.equal(r.states.at(-1)!.completed, 2); assert.equal(r.nodes.length, 2); assert.equal(r.nodes[0].explanation!.concepts![0].term, 'VAE'); assert.equal(r.clears, 1);
+  });
+  test('per-pass model and effort are immutable, published and part of the explanation cache', async () => {
+    const r = rig(); const settings = { model: 'quick-model', effort: 'low' };
+    r.start({ settings }); settings.model = 'changed-by-caller'; settings.effort = 'high'; await r.done();
+    assert.deepEqual(r.inputs[0].settings, { model: 'quick-model', effort: 'low' });
+    assert.deepEqual(r.states.at(-1)!.execution, { provider: 'codex', model: 'quick-model', effort: 'low' });
+    assert.deepEqual(r.route.settings, { model: 'fixture' });
+    r.start({ requestId: 'same-choice', settings: { model: 'quick-model', effort: 'low' } }); await r.done();
+    assert.equal(r.inputs.length, 1, 'the same explanation choice reuses its own cached nodes');
+    r.start({ requestId: 'different-choice', settings: { model: 'quick-model', effort: 'high' } }); await r.done();
+    assert.equal(r.inputs.length, 2); assert.equal(r.inputs[1].settings?.effort, 'high');
+  });
+  test('an explicit pass survives chat model changes and still stops if the provider changes', async () => {
+    const r = rig(async (_tools, _input, signal) => new Promise(resolve => signal.addEventListener('abort', () => resolve(), { once: true })));
+    r.start({ settings: { model: 'quick-model', effort: 'low' } }); await until(() => r.signals.length === 1);
+    r.route = { ...r.route, settings: { model: 'new-chat-model', effort: 'high' }, resolvedModel: 'new-chat-model' }; r.service.refresh();
+    assert.equal(r.signals[0].aborted, false); assert.equal(r.service.busy, true);
+    r.route = { ...r.route, provider: 'claude' }; r.service.refresh(); await r.done();
+    assert.equal(r.signals[0].aborted, true); assert.equal(r.states.at(-1)!.status, 'unavailable');
+  });
+  test('cold preparation receives the per-pass choice and publishes its resolved defaults', async () => {
+    const choices: unknown[] = [];
+    const r = rig(undefined, { route: settings => ({ ...r.route, resolvedModel: settings?.model ?? r.route.resolvedModel,
+      settings: { ...settings, effort: settings?.effort ?? 'low' } }), prepareRoute: async (_signal, settings) => {
+      choices.push(settings); r.route = { ...r.route, ready: true };
+      return { ...r.route, resolvedModel: settings?.model, settings: { ...settings, effort: settings?.effort ?? 'low' } };
+    } });
+    r.route = { ...r.route, ready: false };
+    r.start({ settings: { model: 'quick-model' } }); await r.done();
+    assert.deepEqual(choices, [{ model: 'quick-model' }]);
+    assert.deepEqual(r.states.at(-1)!.execution, { provider: 'codex', model: 'quick-model', effort: 'low' });
+    assert.equal(r.inputs[0].settings?.model, 'quick-model'); assert.equal(r.states.at(-1)!.status, 'ready');
   });
   test('live MCP inspection fields retain callable, source, parameters, actual ports and named graph neighbors', () => {
     const model: McpModel = { current: true, target: { workspaceFolder: '/fixture', file: 'model.py', cls: 'Model', sourceDigest: hash('source'), documentVersion: 1, backendRevision: 0 },

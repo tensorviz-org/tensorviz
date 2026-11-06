@@ -427,6 +427,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
       },
     } : undefined;
     if (agentOptions) {
+      agentOptions.externalBusy = () => !!this.modelExplanation?.busy;
       agentOptions.prepareWarm = async (viewId, signal) => {
         const model = this.mcpModel;
         if (!model?.current || this.reviewState || this.sourceDrafts.current
@@ -523,7 +524,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
         return request.nodeIds.every(id => ids.has(id));
       };
       this.modelExplanation = new CanvasModelExplanation({ ...options.agent.explanation,
-        route: () => this.agent!.routing(), prepareRoute: signal => this.agent!.prepareExplanation(signal), current: modelCurrent,
+        route: settings => this.agent!.routing(settings), prepareRoute: (signal, settings) => this.agent!.prepareExplanation(signal, settings), current: modelCurrent,
         refusal: request => {
           const model = this.mcpModel;
           if (!model || !sameTargetIdentity(model.target, request.target) || !this.mcpViews.list().some(view => view.viewId === request.viewId)) return;

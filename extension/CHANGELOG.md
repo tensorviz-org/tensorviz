@@ -52,6 +52,8 @@ release publication are not in this tree.
 
 ## Unreleased
 
+- Show searchable model and supported effort choices beside the chat composer. Add a model/effort split menu to **Explain this view**, with separate saved preferences and the actual execution choice visible during and after each pass.
+
 - Keep graph cards compact at every zoom, wrap full technical names, and move ordinary parameter lists into selection details. Size Input/Output cards from actual rows instead of leaving empty bodies; keep SVG and connection geometry aligned.
 
 - Resolve selected-node signatures and author docstrings from source without an agent. Prefer source documentation over standard-layer reference text, preserve full details and citations, and keep ambiguous or dynamic targets unresolved.

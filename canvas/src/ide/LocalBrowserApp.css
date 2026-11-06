@@ -308,6 +308,15 @@
   animation: canvas-popover-open var(--tv-standard) var(--tv-ease);
 }
 .local-canvas-popover-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px 5px; }
+/* Publish from a plugin view: each step beside the button, with the member's next action. */
+.local-canvas-publish-body { display: flex; flex-direction: column; gap: 10px; padding: 4px 12px 12px; }
+.local-canvas-publish-body p { margin: 0; overflow-wrap: anywhere; }
+.local-canvas-publish-note { color: var(--canvas-muted); font-size: 11px; }
+.local-canvas-publish-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.local-canvas-publish-actions .local-canvas-control { border-color: var(--canvas-line); }
+.local-canvas-control.local-canvas-publish-primary { background: var(--tv-primary-bg); color: var(--tv-primary-ink); border-color: var(--tv-primary-line); box-shadow: var(--tv-primary-shadow); }
+.local-canvas-control.local-canvas-publish-primary:hover:not(:disabled) { background: var(--tv-primary-bg); color: var(--tv-primary-ink); filter: brightness(1.08); }
+.local-canvas-publish-link { box-sizing: border-box; width: 100%; padding: 6px 8px; color: var(--canvas-text); background: var(--canvas-field); border: 1px solid var(--canvas-line); border-radius: 6px; font: 11px/1.5 var(--canvas-font); }
 .local-canvas-popover-heading strong { font-weight: 500; }
 .local-canvas-menu-section { padding: 7px; }
 .local-canvas-code-focus { display: flex; flex-direction: column; gap: 12px; padding: 12px; }

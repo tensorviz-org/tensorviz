@@ -54,7 +54,9 @@ An administrator completes this setup once:
    Firebase console and apply the exact DNS records Firebase supplies. Wait for
    Firebase to provision its HTTPS certificate.
 2. Create a docs deployment service account and grant Firebase Hosting Admin
-   (`roles/firebasehosting.admin`) on the selected project. Do not reuse or extend
+   (`roles/firebasehosting.admin`) on the selected project. Also grant a project
+   custom role containing only `serviceusage.services.get`; the Firebase CLI uses
+   it to check whether the Hosting API is enabled. Do not reuse or extend
    the website's deployment identity. Hosting roles apply to the project; use a
    separate Firebase project if the docs identity must be unable to deploy the
    website's Hosting site. The workflow's target selection is not an IAM boundary.
@@ -104,8 +106,10 @@ Verify the overview, quickstart, local search, GitHub edit links and Markdown
 download at the custom domain before switching website links. The website's old
 `/docs/` URLs can then redirect to this host, retaining article paths and anchors.
 Keep the existing preview available until that cutover succeeds. When moving the
-website's old `/docs/` routes, redirect `/docs` and `/docs/` to the docs homepage,
-and `/docs/:path*` to `https://docs.tensorviz.dev/:path`.
+website's old `/docs/` routes, use Firebase regex redirects: `^/docs/?$` to
+`https://docs.tensorviz.dev/`, and `^/docs/(?P<path>.+)$` to
+`https://docs.tensorviz.dev/:path`. The named capture retains trailing slashes on
+directory-style article URLs.
 
 Guide images use the shared Canvas renderer with a source-preview fixture.
 They illustrate controls; they do not show measured runtime shapes.

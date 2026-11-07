@@ -315,6 +315,12 @@ Use **Expand toolbar → More tools → Auto layout** to apply the new placement
 an existing arrangement, including the contents of expanded modules, in the
 current direction. Saved views and ordinary source refreshes preserve top-level
 positions.
+
+When reconciliation preserves those positions, it skips preparing top-level card
+sizes and folded layout connections. Visibility, module sizing, boundary ports
+and display connections are still reconciled; an explicit relayout prepares and
+uses the complete layout inputs as before.
+
 Switching to another model starts its own layout even when the two models share
 Input/Output node IDs. **Fit** changes the camera, not placement.
 

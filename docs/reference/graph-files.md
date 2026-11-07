@@ -251,3 +251,19 @@ JAX exports keep inferred shape provenance. Import refuses a file that calls tho
 shapes measured. Large graphs lay out with iterative ranking above 1,000 nodes or
 4,000 edges so the layout does not recurse without bound. All nodes and edges are
 retained. See [licensing](../licensing.md) before you ship a viewer build.
+
+### Expanded module draw order
+
+When the visible edge set changes, the canvas keeps new edges behind cards and
+expanded module surfaces behind their contents. Expanded modules retain the
+existing deepest-first move sequence, including its tie order. The canvas plans
+these moves against each shape's actual tldraw parent and applies final index
+changes together, rather than rescanning all siblings for every module. Geometry
+synchronization and corrections still run normally, including small movements.
+
+This optimization preserves the final sibling order for a stable, coherent
+store. It does not promise identical intermediate edit notifications or identical
+partial progress if an ordering operation fails. The existing cosmetic-ordering
+error boundary, projection write access, ignored history, and locked-shape write
+policy remain in place. Fractional indices can differ between production runs
+because tldraw adds jitter; deterministic tests compare exact index values.

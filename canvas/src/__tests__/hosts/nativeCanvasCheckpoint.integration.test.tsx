@@ -149,7 +149,7 @@ test.each(['pointerup', 'blur', 'pagehide'])('%s still publishes immediately and
 test('store changes remain debounced and committed node changes publish without waiting', async () => {
   await connect();
   const view = makeEditor();
-  const hook = renderHook(() => {
+  const utils = renderHook(() => {
     const fit = useRef<string | null>(null);
     const [nodes, setNodes] = useState([node('commit')]);
     useNativeCanvasPresentation('committed-nodes', nodes, setNodes, view.editor, fit);
@@ -166,7 +166,7 @@ test('store changes remain debounced and committed node changes publish without 
   clearPosts();
   act(() => {
     view.changed();
-    hook.result.current(nodes => nodes.map(value => ({ ...value, position: { x: 300, y: 400 },
+    utils.result.current(nodes => nodes.map(value => ({ ...value, position: { x: 300, y: 400 },
       data: { ...value.data, expanded: false } })));
   });
   expect(published).toHaveBeenCalledTimes(1);
@@ -280,7 +280,7 @@ test('rerender replaces the capture and cleanup cancels stale listeners and time
   await connect();
   const first = makeEditor(), second = makeEditor();
   const nodes = [node('transition')];
-  const hook = renderHook(({ graphId, editor }: { graphId: string; editor: Editor | null }) => {
+  const utils = renderHook(({ graphId, editor }: { graphId: string; editor: Editor | null }) => {
     const fit = useRef<string | null>(null);
     const [current, setNodes] = useState(nodes);
     useNativeCanvasPresentation(graphId, current, setNodes, editor, fit);
@@ -288,7 +288,7 @@ test('rerender replaces the capture and cleanup cancels stale listeners and time
   act(() => { first.changed(); });
   second.move({ x: 700, y: 800, z: 0.5 });
   clearPosts();
-  hook.rerender({ graphId: 'after-rerender', editor: second.editor });
+  utils.rerender({ graphId: 'after-rerender', editor: second.editor });
   expect(first.listeners.size).toBe(0);
   expect(second.listeners.size).toBe(1);
   expect(published).toHaveBeenCalledTimes(1);
@@ -299,12 +299,12 @@ test('rerender replaces the capture and cleanup cancels stale listeners and time
   advance();
   expectAck(state);
   act(() => { second.changed(); });
-  hook.rerender({ graphId: 'after-rerender', editor: null });
+  utils.rerender({ graphId: 'after-rerender', editor: null });
   expect(second.listeners.size).toBe(0);
   clearPosts();
   checkpoint('no-editor');
   expectAck(state, 'no-editor');
-  hook.unmount();
+  utils.unmount();
   clearPosts();
   act(() => { first.changed(); second.changed(); window.dispatchEvent(new Event('pagehide')); });
   advance();

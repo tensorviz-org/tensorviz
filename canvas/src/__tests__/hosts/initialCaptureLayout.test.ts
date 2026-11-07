@@ -1,3 +1,11 @@
+import { applyProjection } from '../../ide/projection';
+import { mergeProjection } from '../../ide/applyProjection';
+import { ProjectionPayload } from '../../ide/protocol.generated';
+import { graphDocumentV2ToModelGraph } from '../../services/graphDocumentAdapter';
+import { reconcileModuleView } from '../../services/canvasLayout';
+import { GraphDocumentV2 } from '../../types/graphDocument';
+import captureFixture from '../../test/fixtures/canvas/capture-document.json';
+
 const mockLayouts: string[][] = [];
 
 jest.mock('dagre', () => {
@@ -11,14 +19,6 @@ jest.mock('dagre', () => {
   };
 });
 jest.mock('../../ide/bridge', () => ({ postToHost: jest.fn() }));
-
-import { applyProjection } from '../../ide/projection';
-import { mergeProjection } from '../../ide/applyProjection';
-import { ProjectionPayload } from '../../ide/protocol.generated';
-import { graphDocumentV2ToModelGraph } from '../../services/graphDocumentAdapter';
-import { reconcileModuleView } from '../../services/canvasLayout';
-import { GraphDocumentV2 } from '../../types/graphDocument';
-import captureFixture from '../../test/fixtures/canvas/capture-document.json';
 
 let nextGraph = 0;
 const payload = (collapsed = false, nested = false): ProjectionPayload => {
@@ -97,7 +97,8 @@ it.each([false, true])('settles temporary badges once unless the user moved a ca
   mockLayouts.length = 0;
   const settled = applyProjection(projection, before)!;
   expect(topLevelCalls()).toBe(moved ? 0 : 1);
-  if (moved) expect(settled.nodes.map(node => node.position)).toEqual(before.map(node => node.position));
+  const movedPositions = moved ? settled.nodes.map(node => node.position) : [];
+  expect(movedPositions).toEqual(moved ? before.map(node => node.position) : []);
   mockLayouts.length = 0;
   const refreshed = applyProjection(projection, settled.nodes)!;
   expect(mockLayouts).toHaveLength(0);

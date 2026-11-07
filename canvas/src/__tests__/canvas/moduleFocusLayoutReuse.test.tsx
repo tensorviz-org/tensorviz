@@ -56,17 +56,18 @@ function setup({ attached = true, width = 1100, height = 650, strict = false } =
   };
   const suspended = new Promise<void>(() => {});
   const props = { ...fixture(), setNodes: jest.fn(), graphId: 'one', sourceKey: 'same-source', enabled: true, sync: true, suspend: false };
-  const rendered = renderHook((value: typeof props) => {
+  const view = renderHook((value: typeof props) => {
     const focus = useModuleFocus(value);
-    useEffect(() => { if (value.sync) focus.markSceneCommitted(focus.graph.nodes); }, [value.sync, focus.graph.nodes, focus.markSceneCommitted]);
+    const { graph: { nodes }, markSceneCommitted } = focus;
+    useEffect(() => { if (value.sync) markSceneCommitted(nodes); }, [value.sync, nodes, markSceneCommitted]);
     if (value.suspend) throw suspended;
     return focus;
   }, { initialProps: props, wrapper: ({ children }: { children: React.ReactNode }) => {
     const content = <React.Suspense fallback={null}>{children}</React.Suspense>;
     return strict ? <React.StrictMode>{content}</React.StrictMode> : content;
   } });
-  if (attached) act(() => rendered.result.current.attachEditor(editor));
-  return { ...rendered, props, editor, resize: (value: typeof viewport) => { viewport = value; },
+  if (attached) act(() => view.result.current.attachEditor(editor));
+  return { ...view, props, editor, resize: (value: typeof viewport) => { viewport = value; },
     changeAfterNextRead: (value: typeof viewport) => { nextViewport = value; } };
 }
 

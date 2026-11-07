@@ -28,6 +28,7 @@ import { nodeIdToShapeId, edgeIdToShapeId } from './canvasShapeId';
 import { updateFocusConnections } from './graphFocus';
 import { graphEdges, graphNodes } from './graphQueryState';
 import { graphIsReadOnly } from './graphAccess';
+import { planExpandedModuleOrder } from './expandedModuleOrder';
 import { createGraphShapes } from './graphShapeCreation';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -690,9 +691,11 @@ export function useTldrawBridge({
               }
               return seen.size;
             };
-            nodes.filter(node => node.type === 'moduleNode' && node.data.expanded && !node.hidden)
+            const moduleIds = nodes.filter(node => node.type === 'moduleNode' && node.data.expanded && !node.hidden)
               .sort((a, b) => depth(b) - depth(a))
-              .forEach(node => editor.sendToBack([nodeIdToShapeId(node.id)]));
+              .map(node => nodeIdToShapeId(node.id));
+            const moduleOrder = planExpandedModuleOrder(editor, moduleIds);
+            if (moduleOrder.length > 0) editor.updateShapes(moduleOrder);
           }, { history: 'ignore', ignoreShapeLock: true }));
         } catch (e) {
           // Ordering is cosmetic; stale/deleted edge records should not break sync.

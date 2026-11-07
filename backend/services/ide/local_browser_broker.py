@@ -810,8 +810,21 @@ class LocalBrowserBroker:
         return message, None
 
     async def _broadcast_to_views(self, session: _Session, message: dict[str, Any]) -> None:
-        for view in list(session.views.values()):
-            if not await self._send(view, message):
+        views = list(session.views.values())
+        if not views:
+            return
+        # The validated host state is identical for every recipient. Reuse its
+        # bounded wire encoding, especially the gzip work for large graphs.
+        try:
+            text = encode_message(message)
+        except Exception:
+            # Match a failed _send for each recipient without retrying the same
+            # encoding. Teardown still clears that view's pending requests.
+            for view in views:
+                await self._drop_connection(session, view)
+            return
+        for view in views:
+            if not await self._send_encoded(view, text):
                 await self._drop_connection(session, view)
 
     async def _notify_view_state(self, session: _Session) -> None:
@@ -881,7 +894,14 @@ class LocalBrowserBroker:
         if connection is None:
             return False
         try:
-            await connection.websocket.send_text(encode_message(message))
+            text = encode_message(message)
+        except Exception:
+            return False
+        return await self._send_encoded(connection, text)
+
+    async def _send_encoded(self, connection: _Connection, text: str) -> bool:
+        try:
+            await connection.websocket.send_text(text)
         except Exception:
             return False
         return True

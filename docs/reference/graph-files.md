@@ -96,6 +96,8 @@ its results select the visible containing block without changing expansion.
 legend limits described above. Saved views and discussions remain available
 beside these controls, and architecture stays read-only.
 
+Focus and search controls derive labels only for the targets they display. Their render-local node lookup includes hidden nodes, so searching inside collapsed modules keeps the same results without opening those modules.
+
 ## Share a specific view
 
 Choose **Saved views**, select a layer, block or real connection, and arrange the
@@ -224,6 +226,11 @@ Imports are limited to 96 MiB, 20,000 nodes, 50,000 edges, 64 hierarchy levels,
 8 parameter nesting levels, 50 walkthrough steps, 50 saved views, 200 threads and 1,000 messages.
 Notes/messages allow 4,000 characters each. Invalid identities, parents, coordinates,
 unsafe keys and unsupported versions are rejected before rendering.
+The importer checks every parsed own key, including ignored metadata and array
+entries, before consuming the file. Ordinary shallow JSON avoids a reviver callback
+for every scalar; unsafe keys or unusually deep containers use the original
+reviver traversal, preserving its rejection behavior and engine-dependent depth
+handling. This optimization does not change schema or privacy validation.
 Version 4 permits up to 32,768 declared ports per node within the same total file
 limit; versions 1–3 keep their 64-port bound. Runtime capture budgets remain independent
 from file size, document size and display collapse. Limits refuse without truncation.
@@ -251,3 +258,19 @@ JAX exports keep inferred shape provenance. Import refuses a file that calls tho
 shapes measured. Large graphs lay out with iterative ranking above 1,000 nodes or
 4,000 edges so the layout does not recurse without bound. All nodes and edges are
 retained. See [licensing](../licensing.md) before you ship a viewer build.
+
+### Expanded module draw order
+
+When the visible edge set changes, the canvas keeps new edges behind cards and
+expanded module surfaces behind their contents. Expanded modules retain the
+existing deepest-first move sequence, including its tie order. The canvas plans
+these moves against each shape's actual tldraw parent and applies final index
+changes together, rather than rescanning all siblings for every module. Geometry
+synchronization and corrections still run normally, including small movements.
+
+This optimization preserves the final sibling order for a stable, coherent
+store. It does not promise identical intermediate edit notifications or identical
+partial progress if an ordering operation fails. The existing cosmetic-ordering
+error boundary, projection write access, ignored history, and locked-shape write
+policy remain in place. Fractional indices can differ between production runs
+because tldraw adds jitter; deterministic tests compare exact index values.

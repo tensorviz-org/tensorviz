@@ -43,8 +43,11 @@ class PrivateImports(ast.NodeTransformer):
 
 
 def compile_backend(source, build, destination):
-    if sys.platform != 'darwin' or platform.machine() != 'arm64' or sys.version_info[:2] != (3, 12):
-        raise RuntimeError('The verified native target requires macOS Apple Silicon and CPython 3.12.')
+    if (sys.platform, platform.machine()) not in {('darwin', 'arm64'), ('linux', 'x86_64')} or sys.version_info[:2] != (3, 12):
+        raise RuntimeError('Native builds require Darwin ARM64 or glibc Linux x64 and CPython 3.12.')
+    expected_abi = 'cpython-312-darwin' if sys.platform == 'darwin' else 'cpython-312-x86_64-linux-gnu'
+    if sysconfig.get_config_var('SOABI') != expected_abi:
+        raise RuntimeError('Unsupported native Python ABI: ' + str(sysconfig.get_config_var('SOABI')))
     if version('nuitka') != '2.8.10':
         raise RuntimeError('Use the pinned Nuitka 2.8.10 compiler; 4.2.2 fails on a Python 3.12 finally/list-comprehension case.')
     source, build, destination = map(Path, (source, build, destination))
@@ -83,10 +86,14 @@ def compile_backend(source, build, destination):
     shutil.rmtree(destination, ignore_errors=True)
     destination.mkdir(parents=True)
     shutil.copy2(binary, destination / binary.name)
+    if sys.platform == 'linux':
+        # Remove compiler DWARF paths while preserving dynamic symbols and ABI.
+        subprocess.run(['strip', '--strip-debug', str(destination / binary.name)], check=True)
     # Mach-O's default install name includes the private build directory.
-    subprocess.run(['/usr/bin/install_name_tool', '-id', '@rpath/' + binary.name,
-                    str(destination / binary.name)], check=True)
-    subprocess.run(['/usr/bin/codesign', '--force', '--sign', '-', str(destination / binary.name)], check=True)
+    if sys.platform == 'darwin':
+        subprocess.run(['/usr/bin/install_name_tool', '-id', '@rpath/' + binary.name,
+                        str(destination / binary.name)], check=True)
+        subprocess.run(['/usr/bin/codesign', '--force', '--sign', '-', str(destination / binary.name)], check=True)
     for file in source.rglob("*"):
         if file.is_file() and file.suffix != ".py":
             target = destination / NAMESPACE / file.relative_to(source)

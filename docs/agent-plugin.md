@@ -38,6 +38,11 @@ T3 Code uses your Codex profile. See the [public catalog](https://github.com/ten
 
 Start a new chat afterward. Platform limits and source builds are on the [Install](install.md) page.
 
+The source now includes a Linux x64/glibc >=2.35 compiled-runtime repair.
+Existing v0.3.104 assets remain Mac-only until a new Linux asset and catalog are
+published; see [Linux SSH runtime](linux-ssh-runtime.md) for requirements, local
+validation scope and release limits.
+
 ## First graph
 
 1. Open your model project in the client and start a new chat.

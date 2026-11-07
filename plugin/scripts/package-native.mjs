@@ -4,13 +4,16 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeBundleNotices } from '../../tooling/packaging/bundle-notices.mjs';
+import { nativePlatform, nativePlatforms, runtimeArchive } from './native-platforms.mjs';
 import { validateRuntimeLock } from './export-public.mjs';
 
 const repository = fileURLToPath(new URL('../..', import.meta.url));
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const json = async file => JSON.parse(await fs.readFile(file, 'utf8'));
 
-export async function auditNativeRuntime(directory) {
+export async function auditNativeRuntime(directory, platform = nativePlatform().key) {
+  if (!Object.hasOwn(nativePlatforms, platform)) throw new Error(`Unsupported compiled runtime target: ${platform}`);
+  const target = nativePlatforms[platform];
   const files = {};
   const walk = async relative => {
     for (const entry of await fs.readdir(path.join(directory, relative), { withFileTypes: true })) {
@@ -28,7 +31,7 @@ export async function auditNativeRuntime(directory) {
   };
   await walk('');
   for (const file of ['tensorviz-host', 'plugin.json', 'runtime-manifest.json', 'backend/native-backend.json',
-    'backend/_tensorviz_backend.cpython-312-darwin.so', 'backend/requirements-project.txt',
+    `backend/_tensorviz_backend.${target.abi}.so`, 'backend/requirements-project.txt',
     'backend/requirements-standalone.txt', 'browser/index.html', 'browser/panel.html',
     'DEPENDENCY_NOTICES.md', 'licenses/node.txt', 'licenses/pkg.txt', 'licenses/nuitka.txt', 'licenses/tldraw-5.0.1.md']) {
     if (!files[file]) throw new Error(`Native runtime is incomplete: ${file}`);
@@ -64,28 +67,43 @@ async function notices(directory) {
   await fs.writeFile(path.join(directory, 'licenses/node.txt'), nodeLicense);
 }
 
+// pkg hosts have large version-symbol tables (observed: 1,418,885 bytes).
+// Keep a finite bound and inspect the complete output; never truncate the gate.
+export function verifyLinuxGlibc(file, command = execFileSync) {
+  const versions = command('readelf', ['--version-info', file], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+  for (const match of versions.matchAll(/GLIBC_(\d+)\.(\d+)/g)) {
+    if (Number(match[1]) > 2 || Number(match[1]) === 2 && Number(match[2]) > 35) throw new Error(`Linux runtime requires glibc newer than 2.35: ${file}`);
+  }
+}
+
 export async function packageNative(url) {
   const directory = path.join(repository, 'plugin/out/native-runtime');
   const { version } = await json(path.join(directory, 'plugin.json'));
   const backend = await json(path.join(directory, 'backend/native-backend.json'));
+  const target = nativePlatform();
   const check = JSON.parse(execFileSync(path.join(directory, 'tensorviz-host'), ['--verify-native-package'], { encoding: 'utf8' }));
-  if (check.sourceIncluded !== false || check.architecture !== 'arm64') throw new Error('Native host verification failed.');
+  if (check.sourceIncluded !== false || check.platform !== target.os || check.architecture !== target.arch || backend.abi !== target.abi || backend.architecture !== target.machine) throw new Error('Native host verification failed.');
+  if (target.os === 'linux') {
+    for (const file of ['tensorviz-host', path.join('backend', backend.binary)]) {
+      verifyLinuxGlibc(path.join(directory, file));
+    }
+  }
   await notices(directory);
   await fs.rm(path.join(directory, 'release-manifest.json'), { force: true });
-  const files = await auditNativeRuntime(directory);
-  const manifest = { formatVersion: 1, version, platform: 'darwin-arm64', pythonABI: backend.abi,
+  const files = await auditNativeRuntime(directory, target.key);
+  const manifest = { formatVersion: 1, version, platform: target.key, pythonABI: backend.abi,
     sourceRevision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repository, encoding: 'utf8' }).trim(),
     workingTreeChanged: execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: repository, encoding: 'utf8' }).trim().length > 0,
     coreSourceIncluded: false, rendererDistributionCoverage: process.env.TLDRAW_DISTRIBUTION_CONFIRMED === 'true'
       ? 'owner-confirmed' : 'pending-owner-confirmation', files };
   await fs.writeFile(path.join(directory, 'release-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-  const archive = path.join(repository, 'plugin/dist', `tensorviz-runtime-${version}-darwin-arm64.tar.gz`);
+  const archive = path.join(repository, 'plugin/dist', runtimeArchive({ version, platform: target.key }));
   await fs.mkdir(path.dirname(archive), { recursive: true });
   execFileSync('/usr/bin/tar', ['-czf', archive, '-C', directory, ...Object.keys(files), 'release-manifest.json'], {
     env: { ...process.env, COPYFILE_DISABLE: '1' }, maxBuffer: 1024 * 1024,
   });
   const bytes = await fs.readFile(archive);
-  const lock = validateRuntimeLock({ formatVersion: 1, version, platform: 'darwin-arm64', pythonABI: backend.abi,
+  const lock = validateRuntimeLock({ formatVersion: 1, version, platform: target.key, pythonABI: backend.abi,
     sha256: digest(bytes), bytes: bytes.length, url });
   await fs.writeFile(`${archive}.json`, JSON.stringify(lock, null, 2) + '\n');
   console.log(JSON.stringify({ archive, lock: `${archive}.json`, files: Object.keys(files).length, bytes: bytes.length }));

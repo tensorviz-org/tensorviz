@@ -69,8 +69,13 @@ it('keeps the engine-dependent rejection of extremely deep otherwise-valid JSON'
   const json = withIgnored('['.repeat(20000) + '0' + ']'.repeat(20000));
   let legacyAccepts = true;
   try { JSON.parse(json, (_key, item) => item); } catch { legacyAccepts = false; }
-  if (legacyAccepts) expect(parseGraphFile(json)).toEqual(parseGraphFile(raw));
-  else expect(() => parseGraphFile(json)).toThrow('This file is not valid JSON. Choose a .tensorviz.json graph file.');
+  const actual = (() => {
+    try { return { value: parseGraphFile(json) }; } catch (error) { return { error }; }
+  })();
+  const expected = legacyAccepts
+    ? { value: parseGraphFile(raw) }
+    : { error: new Error('This file is not valid JSON. Choose a .tensorviz.json graph file.') };
+  expect(actual).toEqual(expected);
 });
 
 it('preserves legacy error order when deep subtrees and unsafe keys coexist', () => {

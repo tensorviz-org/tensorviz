@@ -99,10 +99,15 @@ export function mergeProjection(
   const placed = new Map<string, ModelNode>();
   existing.forEach((node) => placed.set(node.id, node));
 
-  const incomingIds = new Set(incoming.nodes.map((node) => node.id));
+  const incomingIds = new Set<string>();
   const added: string[] = [];
+  const newAndUnplaced = new Set<string>();
   const nodes = incoming.nodes.map((node) => {
     const previous = placed.get(node.id);
+    // The old lookup used the first incoming occurrence of an added id.
+    // Classify it here rather than searching the merged nodes for every addition.
+    if (!previous && isUnplaced(node) && !incomingIds.has(node.id)) newAndUnplaced.add(node.id);
+    incomingIds.add(node.id);
     if (!previous) {
       added.push(node.id);
       return node;
@@ -141,12 +146,6 @@ export function mergeProjection(
   // position for them (a sidecar layout does). layoutTopLevel returns positions
   // for the WHOLE graph — it has to, to place a new node relative to its
   // neighbours — and everything already on the canvas is then kept anyway.
-  const newAndUnplaced = new Set(
-    added.filter((id) => {
-      const node = nodes.find((candidate) => candidate.id === id);
-      return !!node && isUnplaced(node);
-    }),
-  );
   if (newAndUnplaced.size === 0) {
     return { nodes, edges: incoming.edges, added, removed };
   }

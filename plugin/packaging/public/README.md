@@ -25,20 +25,27 @@ refresh the graph after editing your model.
 [Claude Code](#install-in-claude-code) · [Cursor](#install-in-cursor) ·
 [T3 Code](#install-in-t3-code)
 
-This is a **preview for Apple Silicon Macs**. The plugin runs locally and does
+This compiled candidate supports **Apple Silicon Macs and Linux x64 with glibc 2.35+**. The plugin runs locally and does
 not require the tensorViz VS Code extension or a separate Node.js installation.
 
 ## Requirements
 
-- **macOS on Apple Silicon** (an M-series chip). To check, open the Apple menu →
-  **About This Mac** and look at **Chip**. This compiled preview targets CPU
-  capture; Windows, Linux, Intel Macs and CUDA are not verified targets.
+- **macOS on Apple Silicon or Linux x64 with glibc 2.35 or newer**. Linux also
+  needs `/usr/bin/python3` for launcher metadata, `curl`, `sha256sum` and `tar`.
+  This compiled preview targets CPU capture. Windows, Linux ARM64, Intel Macs
+  and musl are unsupported; CUDA capture remains unverified.
 - **CPython 3.12** with compatible PyTorch and your model's dependencies, or
   tensorViz's managed Python setup when no compatible environment is available.
 - A local PyTorch model project and **Codex, Claude Code, Cursor, or T3 Code with its Codex provider** with plugins
   enabled. Your coding client's account and tool permissions still apply;
   tensorViz does not require its own account or provider API key.
 - Internet access for the initial runtime download and any approved Python setup.
+
+The launcher selects the **MCP execution host** with `uname`, not the desktop
+showing your client. Linux needs a catalog that actually pins a Linux asset;
+installed 0.3.104 remains Darwin-only until a new runtime is published. This source
+change does not update existing releases. Remote browser links require forwarding
+from that host; SSH environment variables do not select a desktop runtime.
 
 ## Download
 
@@ -77,8 +84,8 @@ client marketplace listing.
 1. Install or update the [Codex CLI](https://developers.openai.com/codex/cli/).
    It must be available as `codex` in your terminal, including when you use the
    Codex desktop app.
-2. Open the macOS **Terminal** app (press **Command + Space**, type `Terminal`,
-   and press **Return**). Run these commands one at a time:
+2. Open a terminal on the machine where Codex executes, including the Linux
+   server for an SSH session. Run these commands one at a time:
 
    ```sh
    codex plugin marketplace add tensorviz-org/tensorviz
@@ -108,7 +115,7 @@ disable that connection before using this plugin. See the
 ## Install in Claude Code
 
 Install or update [Claude Code](https://code.claude.com/docs/en/setup) first.
-Open the macOS **Terminal** app and run these commands one at a time:
+Open a terminal on the MCP execution host and run these commands one at a time:
 
 ```sh
 claude plugin marketplace add tensorviz-org/tensorviz
@@ -187,6 +194,14 @@ retains the normal approval flow. Desktop acceptance used
 with a local browser graph, but did not render the embedded panel in testing.
 See the [T3 setup and troubleshooting guide](BUILD.md#t3-code), including custom
 Codex profiles and agent-session lifetime.
+
+## Included integration
+
+The plugin ships the `model-workflow` skill and a local MCP server with **29
+tools**: 25 agent tools and four tools reserved for the Model graph app. See the
+[tool inventory and integration boundaries](BUILD.md#tools-and-integration-boundaries).
+There are no separate bundled slash commands. T3 uses the Codex integration;
+Claude Cowork and other clients have not been verified for this release.
 
 ## Use tensorViz
 

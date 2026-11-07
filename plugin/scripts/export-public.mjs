@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { nativePlatforms, runtimeEntries } from './native-platforms.mjs';
 import { distributionRepository, pluginVersion } from './release-version.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -17,12 +18,21 @@ export const publicFiles = [...documents, 'LICENSE',
 const json = (file, value) => fs.writeFile(file, JSON.stringify(value, null, 2) + '\n');
 
 export function validateRuntimeLock(lock) {
-  if (lock?.formatVersion !== 1 || lock.platform !== 'darwin-arm64'
-    || !/^\d+\.\d+\.\d+$/.test(lock.version) || !/^[a-f0-9]{64}$/.test(lock.sha256)
-    || !Number.isSafeInteger(lock.bytes) || lock.bytes < 1 || lock.bytes > 256 * 1024 * 1024
-    || lock.pythonABI !== 'cpython-312-darwin') throw new Error('Invalid compiled runtime lock.');
-  const url = new URL(lock.url);
-  if (url.protocol !== 'https:' || url.username || url.password || url.hash) throw new Error('The runtime URL must use HTTPS without credentials.');
+  if (lock?.formatVersion === 2) {
+    const entries = runtimeEntries(lock);
+    if (!entries.length || entries.length > Object.keys(nativePlatforms).length
+      || Object.keys(lock.runtimes).some(key => !Object.hasOwn(nativePlatforms, key)
+        || lock.runtimes[key]?.platform !== key || lock.runtimes[key]?.version !== lock.version
+        || lock.runtimes[key]?.formatVersion !== 1)) throw new Error('Invalid compiled runtime table.');
+    for (const entry of entries) validateRuntimeLock(entry);
+  } else {
+    if (lock?.formatVersion !== 1 || !Object.hasOwn(nativePlatforms, lock.platform)
+      || !/^\d+\.\d+\.\d+$/.test(lock.version) || !/^[a-f0-9]{64}$/.test(lock.sha256)
+      || !Number.isSafeInteger(lock.bytes) || lock.bytes < 1 || lock.bytes > 256 * 1024 * 1024
+      || lock.pythonABI !== nativePlatforms[lock.platform].abi) throw new Error('Invalid compiled runtime lock.');
+    const url = new URL(lock.url);
+    if (url.protocol !== 'https:' || url.username || url.password || url.hash) throw new Error('The runtime URL must use HTTPS without credentials.');
+  }
   return lock;
 }
 
@@ -62,7 +72,7 @@ export async function exportPublic(destination, options = {}) {
         manifest.repository = `https://github.com/${distributionRepository}`;
         const ui = manifest.interface ?? manifest.extensions?.['com.openai']?.interface;
         if (ui) Object.assign(ui, {
-          longDescription: 'A local TensorViz host for PyTorch architecture, tensor shapes and model changes. Downloads a verified compiled runtime automatically. This preview supports macOS Apple Silicon and CPython 3.12. VS Code and Node.js are not required.',
+          longDescription: 'A local TensorViz host for PyTorch architecture, tensor shapes and model changes. Downloads a verified compiled runtime automatically. Native runtime availability follows the pinned platform table; model execution requires matching CPython 3.12. VS Code and Node.js are not required.',
           category: 'Developer Tools',
           websiteURL: 'https://tensorviz.dev',
           supportURL: `https://github.com/${distributionRepository}/blob/main/SUPPORT.md`,

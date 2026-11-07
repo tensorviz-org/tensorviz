@@ -2,10 +2,11 @@ import { execFileSync } from 'node:child_process';
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { nativePlatform } from './native-platforms.mjs';
 import { pluginVersion } from './release-version.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
-if (process.platform !== 'darwin' || process.arch !== 'arm64') throw new Error('This locally verified build targets macOS Apple Silicon.');
+const target = nativePlatform();
 const output = path.join(root, 'plugin/out/native-runtime');
 const build = path.join(root, 'plugin/out/native-host');
 const version = pluginVersion();
@@ -20,7 +21,7 @@ await writeFile(path.join(build, 'host.cjs'), `if (process.argv[2] === '--verify
 // change the repository's license or the licenses of bundled dependencies.
 await writeFile(path.join(build, 'package.json'), JSON.stringify({ name: 'tensorviz-native-host',
   version, private: true, license: 'UNLICENSED', bin: 'host.cjs',
-  pkg: { scripts: ['host.cjs'], targets: ['node22-macos-arm64'], bytecode: true,
+  pkg: { scripts: ['host.cjs'], targets: [target.pkg], bytecode: true,
     public: false, publicPackages: [], fallbackToSource: false, sea: false,
     ignore: ['**/node_modules/**'] } }, null, 2));
 const log = execFileSync(path.join(root, 'plugin/node_modules/.bin/pkg'),
@@ -29,7 +30,7 @@ const log = execFileSync(path.join(root, 'plugin/node_modules/.bin/pkg'),
 await writeFile(path.join(build, 'build.log'), log);
 if (/Content of[^\n]*host\.cjs|Failed to make bytecode|fallback.to.source/i.test(log)) throw new Error('The host was not packaged exclusively as bytecode.');
 const checked = JSON.parse(execFileSync(path.join(output, 'tensorviz-host'), ['--verify-native-package'], { encoding: 'utf8' }));
-if (checked.sourceIncluded !== false || checked.platform !== 'darwin' || checked.architecture !== 'arm64') throw new Error('Native host verification failed.');
+if (checked.sourceIncluded !== false || checked.platform !== target.os || checked.architecture !== target.arch) throw new Error('Native host verification failed.');
 await writeFile(path.join(build, 'verification.json'), JSON.stringify(checked, null, 2) + '\n');
 for (const name of ['browser', 'runtime-manifest.json', 'plugin.json', 'licenses']) {
   await cp(path.join(root, 'plugins/tensorviz', name), path.join(output, name), { recursive: true });

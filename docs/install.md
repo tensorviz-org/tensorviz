@@ -18,6 +18,11 @@ You need your client’s terminal CLI: [Codex CLI](https://developers.openai.com
 
 The published plugin is a **preview** for Apple Silicon macOS with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection. You need internet access for that download, but no separate Node.js installation.
 
+The source now includes a Linux x64/glibc >=2.35 compiled-runtime repair.
+Existing v0.3.104 assets remain Mac-only until a new Linux asset and catalog are
+published; see [Linux SSH runtime](linux-ssh-runtime.md) for requirements, local
+validation scope and release limits.
+
 It is distributed from the public catalog [tensorviz-org/tensorviz-plugins](https://github.com/tensorviz-org/tensorviz-plugins). The catalog name is `tensorviz-standalone`.
 
 ### Codex

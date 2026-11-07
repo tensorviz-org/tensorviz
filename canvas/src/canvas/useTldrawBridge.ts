@@ -29,6 +29,7 @@ import { updateFocusConnections } from './graphFocus';
 import { graphEdges, graphNodes } from './graphQueryState';
 import { graphIsReadOnly } from './graphAccess';
 import { planExpandedModuleOrder } from './expandedModuleOrder';
+import { createGraphShapes } from './graphShapeCreation';
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
@@ -535,7 +536,7 @@ export function useTldrawBridge({
             editor.deleteShapes(shapesToRecreate as any);
           }
           if (shapesToCreate.length > 0) {
-            editor.createShapes(shapesToCreate);
+            createGraphShapes(editor, shapesToCreate);
           }
           if (shapesToUpdate.length > 0) {
             editor.updateShapes(shapesToUpdate);
@@ -664,7 +665,7 @@ export function useTldrawBridge({
           editor.deleteShapes(toDelete);
         }
         if (toCreate.length > 0) {
-          editor.createShapes(toCreate.map((edge) => ({
+          createGraphShapes(editor, toCreate.map((edge) => ({
             id: edge.id, type: EDGE_SHAPE_TYPE as any, x: edge.x, y: edge.y, isLocked: true, props: edge.props as any,
           })));
         }

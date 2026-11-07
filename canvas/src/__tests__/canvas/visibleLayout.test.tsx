@@ -47,6 +47,11 @@ jest.mock('tldraw', () => ({
     return <Component {...props} />;
   },
 }));
+// Parent discovery needs the real Editor and ShapeUtils; its differential child
+// test covers that path. This recording seam keeps only the original create call.
+jest.mock('../../canvas/graphShapeCreation', () => ({
+  createGraphShapes: (editor: RecordingEditor, shapes: any[]) => editor.createShapes(shapes),
+}));
 jest.mock('../../ide/bridge', () => ({ postToHost: jest.fn(), bridgeActive: () => true }));
 jest.mock('../../services/apiService', () => ({ ApiService: {} }));
 jest.mock('../../components/SaveGraphDialog', () => () => null);

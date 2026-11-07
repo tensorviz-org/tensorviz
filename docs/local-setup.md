@@ -73,6 +73,8 @@ Point **tensorViz: Select Python Environment** at `venv/bin/python` when the pic
 
 Canvas hot reload is the dev server (`npm start --prefix canvas`) with `REACT_APP_IDE=true`. The packaged sidebar uses `npm run build:webview --prefix extension`, which builds `canvas/` and stages it into the extension.
 
+Graph projection keeps node and edge creation in the same tldraw batches. When the page is focused and every existing shape uses tldraw's default child-rejection behavior, the bridge supplies the page parent directly instead of searching the whole page for every new shape. Custom containers and focused groups keep tldraw's normal parent discovery. The real-Editor canvas regression test checks this against the installed tldraw version.
+
 ## Documentation website
 
 Run `npm ci --prefix docs` and `npm run dev --prefix docs` for a local

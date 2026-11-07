@@ -100,10 +100,10 @@ export function useNativeCanvasPresentation(graphId: string | undefined, nodes: 
         editor.select(...selected);
       }
     };
-    const checkpoint = () => {
+    const snapshot = () => {
       clearTimeout(timer);
       // A scope change is not checkpointed halfway through camera restoration.
-      if (currentFocus.current && !currentFocus.current.isReady()) return retained;
+      if (currentFocus.current && !currentFocus.current.isReady()) return;
       restoreSelection();
       const camera = editor.getCamera();
       const state: Presentation = { graphId, selected: [...(pendingSelection.current ?? editor.getSelectedShapeIds())], camera: { x: camera.x, y: camera.y, z: camera.z },
@@ -116,11 +116,17 @@ export function useNativeCanvasPresentation(graphId: string | undefined, nodes: 
           hidden: node.hidden, selected: node.selected })),
         ...(currentLayout.current ? { layout: currentLayout.current } : {}) };
       retained = state;
+      return state;
+    };
+    const checkpoint = () => {
+      const state = snapshot();
+      if (!state) return retained;
       // Presentation is a shell message, deliberately outside the graph protocol.
       postToHost({ type: 'canvasPresentation', state } as never);
       return state;
     };
-    capture = checkpoint;
+    // The authenticated transport publishes this snapshot with its request ID.
+    capture = snapshot;
     const save = () => { restoreSelection(); clearTimeout(timer); timer = setTimeout(checkpoint, 100); };
     // Node changes (including expansion) are committed now; don't leave their
     // last gesture pending in a timer that disposal can discard.
@@ -134,7 +140,7 @@ export function useNativeCanvasPresentation(graphId: string | undefined, nodes: 
       window.removeEventListener('pointerup', checkpoint);
       window.removeEventListener('blur', checkpoint);
       window.removeEventListener('pagehide', checkpoint);
-      if (capture === checkpoint) capture = undefined;
+      if (capture === snapshot) capture = undefined;
     };
   }, [graphId, nodes, edges, setNodes, setEdges, editor, initialFit]);
 }

@@ -251,7 +251,9 @@ saved-graph ID. It is limited to 4 MiB, in memory for this window only. Node and
 expansion changes checkpoint immediately; camera gestures coalesce for 100 ms
 and flush on pointer release, blur or page hide. **Hide Canvas waits for an
 authenticated checkpoint round trip**, reading the current camera even before
-the store listener has run. A newer Show/Hide request wins over an older pending
+the store listener has run. The requested snapshot is sent once, in the response
+with that request ID, rather than also publishing an unsolicited copy. Ordinary
+store and gesture checkpoints continue independently. A newer Show/Hide request wins over an older pending
 hide. An unresponsive renderer times out after one second, logs the checkpoint
 failure, and retains its last checkpoint. Unexpected renderer termination can
 recover only the last delivered checkpoint; full window reload persistence is

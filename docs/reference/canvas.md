@@ -329,6 +329,10 @@ uses the complete layout inputs as before.
 Switching to another model starts its own layout even when the two models share
 Input/Output node IDs. **Fit** changes the camera, not placement.
 
+IDE projection merges classify new cards during the merge pass, including when a
+saved view opens into an empty canvas. Saved positions and existing canvas state
+are retained; only new, unplaced cards need layout.
+
 Saved workspace views keep their existing format; portable exports record the direction:
 
 - A saved view opens at its saved top-level positions while ports follow the

@@ -130,11 +130,17 @@ _BROKER_OWNED_TYPES = frozenset(
 _HOST_TO_ALL_VIEWS = frozenset(
     {"graphReviewState", "graphReviewFocus", "activeTarget", "projection", "projectIndex", "projectDocument", "syncState", "staleState", "focusNode", "validationState", "graphOpening", "ack", "error"}
 )
-_VIEW_TO_HOST = frozenset({"agentRequest", "codeFocusRequest", "graphReviewRequest", "graphReviewApplied", "graphSetupRequest", "projectFocus", "projectExpand", "projectDeclare", "viewSelection", "viewFocusResult", "snapshotRequest", "revealNode", "sourceEditRequest", "sourceEditCancel", "candidateRequest", "validateRequest", "validateCancel", "captureInspectRequest", "captureInspectCancel", "captureExportRequest", "captureExportCancel", "ack", "error"})
+_VIEW_TO_HOST = frozenset({"agentRequest", "codeFocusRequest", "graphReviewRequest", "graphReviewApplied", "graphSetupRequest", "projectFocus", "projectExpand", "projectDeclare", "viewSelection", "viewFocusResult", "snapshotRequest", "revealNode", "sourceEditRequest", "sourceEditCancel", "candidateRequest", "validateRequest", "validateCancel", "captureInspectRequest", "captureInspectCancel", "captureExportRequest", "captureExportCancel", "graphPublishRequest", "graphPublishCancel", "ack", "error"})
 
 #: Terminal source-edit and validation results. Not ordered state, so these never carry
 #: ``hostSequence`` and never enter ``_SEQUENCED_HOST_TYPES``.
-_REQUEST_TERMINAL_TYPES = frozenset({"sourceEditResult", "validateResult", "captureInspectResult", "captureExportResult"})
+_REQUEST_TERMINAL_TYPES = frozenset({"sourceEditResult", "validateResult", "captureInspectResult", "captureExportResult", "graphPublishResult"})
+
+#: Progress the host reports for one view's request before its terminal result.
+_REQUEST_PROGRESS_TYPES = frozenset({"sourceEditReview", "graphPublishState"})
+
+#: Each request's cancellation, which is also what the broker sends when the asking view leaves.
+_REQUEST_CANCELS = {"sourceEditRequest": "sourceEditCancel", "validateRequest": "validateCancel", "captureInspectRequest": "captureInspectCancel", "captureExportRequest": "captureExportCancel", "graphPublishRequest": "graphPublishCancel"}
 
 #: Ordered host state: these carry ``hostSequence`` and must strictly increase.
 _SEQUENCED_HOST_TYPES = frozenset(
@@ -512,7 +518,7 @@ class LocalBrowserBroker:
             if view is not None:
                 await self._drop_connection(session, view)
             return
-        if message_type in _REQUEST_TERMINAL_TYPES or message_type == "sourceEditReview":
+        if message_type in _REQUEST_TERMINAL_TYPES or message_type in _REQUEST_PROGRESS_TYPES:
             await self._deliver_reply(session, message)
             return
         if message_type == "snapshot":
@@ -540,10 +546,10 @@ class LocalBrowserBroker:
             if not session.view_control or message["viewId"] != str(connection.connection_id):
                 await self._send_error(connection, session, "INVALID_MESSAGE")
                 return
-        if message_type in {"sourceEditRequest", "validateRequest", "captureInspectRequest", "captureExportRequest"}:
+        if message_type in _REQUEST_CANCELS:
             await self._route_request(session, connection, message)
             return
-        if message_type in {"sourceEditCancel", "validateCancel", "captureInspectCancel", "captureExportCancel"}:
+        if message_type in _REQUEST_CANCELS.values():
             await self._route_cancel(session, connection, message)
             return
         if message_type == "snapshotRequest":
@@ -621,7 +627,8 @@ class LocalBrowserBroker:
         if host is None or request_id in session.pending_requests or len(session.pending_requests) >= 32:
             await self._send_error(connection, session, "INVALID_MESSAGE")
             return
-        session.pending_requests[request_id] = (connection.connection_id, message)
+        # Remember who asked, not what they sent: a publish request carries the graph file.
+        session.pending_requests[request_id] = (connection.connection_id, {key: value for key, value in message.items() if key != "file"})
         if not await self._send(host, message):
             session.pending_requests.pop(request_id, None)
             await self._drop_connection(session, host)
@@ -639,7 +646,7 @@ class LocalBrowserBroker:
         host = session.host
         if pending is None or pending[0] != connection.connection_id or host is None:
             return
-        expected = {"sourceEditRequest": "sourceEditCancel", "validateRequest": "validateCancel", "captureInspectRequest": "captureInspectCancel", "captureExportRequest": "captureExportCancel"}[pending[1]["type"]]
+        expected = _REQUEST_CANCELS[pending[1]["type"]]
         if message["type"] != expected or message["target"] != pending[1]["target"]:
             return
         session.pending_requests.pop(request_id, None)
@@ -659,6 +666,7 @@ class LocalBrowserBroker:
             "validateRequest": {"validateResult"},
             "captureInspectRequest": {"captureInspectResult"},
             "captureExportRequest": {"captureExportResult"},
+            "graphPublishRequest": {"graphPublishState", "graphPublishResult"},
         }[pending[1]["type"]]
         if message["type"] not in expected or message["target"] != pending[1]["target"]:
             return
@@ -706,7 +714,7 @@ class LocalBrowserBroker:
             if host is not None:
                 for request_id, request in abandons:
                     cancel = self._new_broker_message(
-                        session, {"sourceEditRequest": "sourceEditCancel", "validateRequest": "validateCancel", "captureInspectRequest": "captureInspectCancel", "captureExportRequest": "captureExportCancel"}[request["type"]],
+                        session, _REQUEST_CANCELS[request["type"]],
                         target=request["target"], requestId=request_id
                     )
                     if not await self._send(host, cancel):
@@ -802,8 +810,21 @@ class LocalBrowserBroker:
         return message, None
 
     async def _broadcast_to_views(self, session: _Session, message: dict[str, Any]) -> None:
-        for view in list(session.views.values()):
-            if not await self._send(view, message):
+        views = list(session.views.values())
+        if not views:
+            return
+        # The validated host state is identical for every recipient. Reuse its
+        # bounded wire encoding, especially the gzip work for large graphs.
+        try:
+            text = encode_message(message)
+        except Exception:
+            # Match a failed _send for each recipient without retrying the same
+            # encoding. Teardown still clears that view's pending requests.
+            for view in views:
+                await self._drop_connection(session, view)
+            return
+        for view in views:
+            if not await self._send_encoded(view, text):
                 await self._drop_connection(session, view)
 
     async def _notify_view_state(self, session: _Session) -> None:
@@ -873,7 +894,14 @@ class LocalBrowserBroker:
         if connection is None:
             return False
         try:
-            await connection.websocket.send_text(encode_message(message))
+            text = encode_message(message)
+        except Exception:
+            return False
+        return await self._send_encoded(connection, text)
+
+    async def _send_encoded(self, connection: _Connection, text: str) -> bool:
+        try:
+            await connection.websocket.send_text(text)
         except Exception:
             return False
         return True

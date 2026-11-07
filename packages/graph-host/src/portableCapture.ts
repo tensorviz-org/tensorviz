@@ -4,7 +4,7 @@ import Ajv from 'ajv';
 import { isDeepStrictEqual } from 'node:util';
 import schema from '@tensorviz/contracts/semanticSchema.generated';
 import type { components } from '@tensorviz/contracts/semanticContracts.generated';
-import type { CaptureSnapshot } from '@tensorviz/graph-host/semanticCapture';
+import type { CaptureSnapshot } from './semanticCapture';
 import { LOCAL_BROWSER_CAPTURE_EXPORT_MAX_BYTES } from '@tensorviz/contracts/protocol';
 
 export type PortableCapture = components['schemas']['PortableCapture'];

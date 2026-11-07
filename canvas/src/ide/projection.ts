@@ -228,7 +228,10 @@ export function applyProjection(
   if (settleInitial) retainedNodes = [];
   if (initialCapture || settleInitial) {
     // Diagnostic/source presentation affects dimensions, so it precedes layout.
-    graph = { ...graph, ...reconcileModuleView(graph.nodes, graph.edges, { relayout: true, direction }) };
+    // On an empty canvas the merge below owns top-level placement. Reconcile
+    // still lays out children and sizes their frames, without placing the same
+    // top-level graph twice. A capture over an existing view keeps the old path.
+    graph = { ...graph, ...reconcileModuleView(graph.nodes, graph.edges, { relayout: retainedNodes.length > 0, direction }) };
   }
   const merged = mergeProjection(canonical ? graph : wrapRepeatBlocks(graph), retainedNodes, { viewRestored: payload.viewRestored, direction });
   merged.nodes = dropoutInsertionReveal.apply(payload, merged.nodes);

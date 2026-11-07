@@ -14,7 +14,7 @@ export interface LocalBrowserPortableClient {
 /** Export is private to the asking view and exact displayed target. No raw
  * capture source, launch token or model execution enters this client. */
 export function createLocalBrowserPortableClient(transport: LocalBrowserViewTransport,
-  activeTarget: () => LocalBrowserTargetIdentity | null): LocalBrowserPortableClient {
+  activeTarget: () => LocalBrowserTargetIdentity | null, host = 'VS Code'): LocalBrowserPortableClient {
   let disposed = false;
   let pending: { id: string; target: LocalBrowserTargetIdentity; reference: CaptureExportReference;
     timer: ReturnType<typeof setTimeout>; resolve(value: PortableExportResult): void } | null = null;
@@ -42,7 +42,7 @@ export function createLocalBrowserPortableClient(transport: LocalBrowserViewTran
       || message.type === 'staleState' || message.type === 'syncState') {
       const target = message.type === 'snapshot' ? message.state.activeTarget : message.target;
       if (!target || !sameValidationTarget(target, pending.target)) cancel('The graph changed during export. Export its current version again.');
-    } else if (message.type === 'error') cancel('Export could not reach VS Code. Reconnect and try again.');
+    } else if (message.type === 'error') cancel(`Export could not reach ${host}. Reconnect and try again.`);
   });
   const offStatus = transport.onStatusChange(status => {
     if (status.phase !== 'connected' || status.hostLink !== 'connected') settle({ capture: null, detail: 'The connection ended during export. Reconnect and try again.' });
@@ -52,7 +52,7 @@ export function createLocalBrowserPortableClient(transport: LocalBrowserViewTran
       cancel();
       const target = activeTarget();
       if (disposed || !target || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') {
-        return Promise.resolve({ capture: null, detail: 'Connect to VS Code to export the retained capture.' });
+        return Promise.resolve({ capture: null, detail: `Connect to ${host} to export the retained capture.` });
       }
       const requestId = newLocalBrowserMessageId();
       const promise = new Promise<PortableExportResult>(resolve => {
@@ -60,7 +60,7 @@ export function createLocalBrowserPortableClient(transport: LocalBrowserViewTran
           timer: setTimeout(() => cancel('Capture export timed out. Reconnect and try again.'), 15_000) };
       });
       try {
-        if (!transport.send({ type: 'captureExportRequest', target, requestId, reference })) settle({ capture: null, detail: 'Capture export could not reach VS Code.' });
+        if (!transport.send({ type: 'captureExportRequest', target, requestId, reference })) settle({ capture: null, detail: `Capture export could not reach ${host}.` });
       } catch { settle({ capture: null, detail: 'Capture export could not start.' }); }
       return promise;
     },

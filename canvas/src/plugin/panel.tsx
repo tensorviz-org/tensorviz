@@ -45,8 +45,13 @@ function Panel({ panelId }: { panelId: string }) {
     active = createPanelTransport(app, panelId, setWaiting, setNotice);
     return active;
   }, [panelId]);
+  // The sandboxed panel asks its host to open tensorviz.dev, which may ask the member first.
+  const openLink = React.useCallback((url: string) => {
+    const manual = () => setNotice(`Open ${url} in your browser to continue.`);
+    void app.openLink({ url }).then(result => { if (result.isError) manual(); }, manual);
+  }, []);
   return <CanvasAssetContext.Provider value={assets}>
-    <LocalBrowserApp hostKind="standalone" createTransport={createTransport} hostControls={displayControl} />
+    <LocalBrowserApp hostKind="standalone" createTransport={createTransport} hostControls={displayControl} openLink={openLink} />
     {notice && <div role="status" style={{ position: 'fixed', bottom: 8, left: 16, right: 16,
       padding: 12, background: 'var(--tv-popover)', color: 'var(--tv-warning)', fontFamily: 'Inter, sans-serif', zIndex: 1000 }}>{notice}</div>}
     {waiting && <div role="status" style={{ position: 'fixed', inset: 0, display: 'grid', placeContent: 'center',

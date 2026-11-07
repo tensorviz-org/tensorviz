@@ -1,25 +1,11 @@
 name: Documentation
 
 on:
+  # The link/reference checker also reads product manifests and source files.
+  # Validate every PR, including forks, so those inputs cannot bypass the check.
   pull_request:
-    paths:
-      - 'docs/**'
-      - 'tooling/docs/**'
-      - 'CONTRIBUTING.md'
-      - 'SECURITY.md'
-      - 'CODE_OF_CONDUCT.md'
-      - 'extension/CHANGELOG.md'
-      - '.github/workflows/docs.yml'
   push:
     branches: [main]
-    paths:
-      - 'docs/**'
-      - 'tooling/docs/**'
-      - 'CONTRIBUTING.md'
-      - 'SECURITY.md'
-      - 'CODE_OF_CONDUCT.md'
-      - 'extension/CHANGELOG.md'
-      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:
@@ -47,11 +33,16 @@ jobs:
           python-version: '3.12'
       - run: python3 tooling/docs/check_links.py
       - run: npm ci --prefix docs --no-audit --no-fund
+      - name: Check a prefixed preview build
+        run: npm run build --prefix docs
+        env:
+          DOCS_BASE: /tensorviz/
+      # Build the deployable root artifact last.
       - run: npm run build --prefix docs
         env:
           DOCS_BASE: /
       - uses: actions/upload-artifact@v4
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         with:
           name: documentation
           path: docs/.vitepress/dist
@@ -60,7 +51,7 @@ jobs:
 
   deploy:
     needs: build
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DOCS_PUBLISH_ENABLED == 'true'
+    if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.DOCS_PUBLISH_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -87,6 +78,10 @@ jobs:
               exit 1
             fi
           done
+          if [[ "$DOCS_FIREBASE_PROJECT_ID" != 'tensorviz-docs' || "$DOCS_DEPLOY_SERVICE_ACCOUNT" != *@tensorviz-docs.iam.gserviceaccount.com ]]; then
+            echo "::error::Publishing must use the isolated tensorviz-docs project and service account"
+            exit 1
+          fi
       - uses: actions/download-artifact@v4
         with:
           name: documentation

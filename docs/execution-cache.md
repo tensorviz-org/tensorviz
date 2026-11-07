@@ -44,6 +44,8 @@ Agent MCP runs and reviewed-candidate runs always execute. A run that writes fil
 
 Installed package files used by a stored result are fingerprinted and rechecked before serving. A waiting single-use worker also checks preloaded package files before execution. Changed packages trigger a fresh POSIX worker; other platforms refuse reuse of that stale evidence.
 
+Every reused capture is validated before serving. If editor document versions need updating, the updated capture is checked again; unchanged versions do not repeat that full check.
+
 The window setting owns the shared store's memory limit and lifetime, with per-result and count limits. Closing the window disposes its worker and store. Reuse preserves current editor document versions and source freshness, but it is not new runtime evidence.
 
 </details>

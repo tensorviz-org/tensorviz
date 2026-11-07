@@ -5,6 +5,8 @@ import path from 'node:path';
 import { backendPythonArgs } from '@tensorviz/graph-host/backendPython';
 import { createLocalBrowserHostTransport, mintLocalBrowserSession, mintLocalBrowserViewLink,
   type LocalBrowserHostTransport, type LocalBrowserSessionMaterial } from '@tensorviz/graph-host/localBrowserHostTransport';
+import { preparePortableCapture, PortableExportError, type PortableCapture } from '@tensorviz/graph-host/portableCapture';
+import type { CaptureSnapshot } from '@tensorviz/graph-host/semanticCapture';
 import { HostError } from './workspace';
 
 /** One owned service process; it receives source snapshots, never execution authority. */
@@ -91,6 +93,13 @@ export class Backend {
     const result = JSON.parse(Buffer.concat(chunks).toString());
     if (!response.ok) throw new HostError('PREPARATION_FAILED', typeof result.detail === 'string' ? result.detail : 'The supplied source or capture could not be projected.');
     return result as T;
+  }
+
+  /** Retained evidence detached for a graph file. Python owns detachment; the launch
+   *  token never reaches the view. Nothing is executed. */
+  async portable(capture: CaptureSnapshot, signal: AbortSignal): Promise<PortableCapture> {
+    if (!this.origin || !this.token) throw new PortableExportError('Reopen the graph before exporting its capture.');
+    return preparePortableCapture(capture, { origin: this.origin, token: this.token, signal });
   }
 
   async connect(signal: AbortSignal): Promise<LocalBrowserHostTransport> {

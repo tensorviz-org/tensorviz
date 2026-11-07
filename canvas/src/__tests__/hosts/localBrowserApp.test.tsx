@@ -23,7 +23,7 @@ import deepDeclarationFixture from '../../test/fixtures/canvas/deepDeclarationRe
 import React from 'react';
 import { execFileSync } from 'child_process';
 import * as path from 'path';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import LocalBrowserApp from '../../ide/LocalBrowserApp';
 import * as bridge from '../../ide/bridge';
@@ -2040,6 +2040,60 @@ it('offers Publish in place of Export graph where VS Code can upload it', () => 
     window.removeEventListener('builder-command', listener);
     active.mockRestore();
   }
+});
+
+it('publishes from a plugin view through its host and opens tensorviz.dev only when the member clicks', async () => {
+  Object.assign(global, { CompressionStream: require('stream/web').CompressionStream });
+  const rig = makeTransport();
+  const openLink = jest.fn();
+  render(<LocalBrowserApp hostKind="standalone" createTransport={() => rig.transport} openLink={openLink} />);
+  const commands: string[] = [];
+  const listener = (event: Event) => commands.push((event as CustomEvent).detail.command);
+  window.addEventListener('builder-command', listener);
+  try {
+    act(() => {
+      rig.setStatus({ phase: 'connected', hostLink: 'connected', error: null });
+      rig.emit(hostMessage('activeTarget', { target: netTarget() }));
+      rig.emit(hostMessage('projection', { target: netTarget(), projection: netProjection(), traced: false, greyed: false }));
+      rig.emit(hostMessage('syncState', { target: netTarget(), state: 'source-only' }));
+    });
+    expect(screen.queryByRole('button', { name: 'Export graph' })).not.toBeInTheDocument();
+    const publish = screen.getByRole('button', { name: 'Publish graph' });
+    expect(publish).toBeEnabled();
+    fireEvent.click(publish);
+    expect(commands).toContain('share-graph-file');
+
+    // The canvas prepares the same graph file Export graph saves and hands it to the plugin host.
+    const client = mockCapturedLocalContext!.publishing!;
+    act(() => { expect(client.start()).toBe(true); client.publish(JSON.stringify({ format: 'tensorviz.graph' })); });
+    const sent = () => (rig.transport.send as jest.Mock).mock.calls.map(([message]) => message)
+      .find(message => message.type === 'graphPublishRequest');
+    await waitFor(() => expect(sent()).toBeDefined());
+    const request = sent();
+    expect(request).toMatchObject({ target: netTarget(), file: expect.stringMatching(/^H4sI/) });
+    expect(screen.getByRole('button', { name: 'Publish graph' })).toBeDisabled();
+
+    const signInUrl = 'https://tensorviz.dev/explore/connect/?state=abc';
+    act(() => rig.emit(hostMessage('graphPublishState', { target: netTarget(), requestId: request.requestId, phase: 'signing_in',
+      detail: 'Sign in to tensorViz in your browser to publish Net.', signInUrl })));
+    const signingIn = screen.getByRole('dialog', { name: 'Publish to tensorViz' });
+    expect(signingIn).toHaveTextContent('Sign in to tensorViz in your browser to publish Net.');
+    expect(openLink).not.toHaveBeenCalled();
+    fireEvent.click(within(signingIn).getByRole('button', { name: 'Continue in browser' }));
+    expect(openLink).toHaveBeenCalledWith(signInUrl);
+
+    const graph = { id: 'AbCdEfGhIjKlMnOpQrSt', title: 'Net', url: 'https://tensorviz.dev/explore/graph/?id=AbCdEfGhIjKlMnOpQrSt',
+      shareUrl: 'https://tensorviz.dev/explore/graph/?id=AbCdEfGhIjKlMnOpQrSt&share=1' };
+    act(() => rig.emit(hostMessage('graphPublishResult', { target: netTarget(), requestId: request.requestId, status: 'published',
+      detail: 'Net is on tensorViz, visible only to you. Choose who can see it on its Share page.', graph })));
+    const published = screen.getByRole('dialog', { name: 'Publish to tensorViz' });
+    expect(published).toHaveTextContent('Published to tensorViz');
+    fireEvent.click(within(published).getByRole('button', { name: 'Choose who can see it' }));
+    expect(openLink).toHaveBeenLastCalledWith(graph.shareUrl);
+    fireEvent.click(within(published).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog', { name: 'Publish to tensorViz' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Publish graph' })).toBeEnabled();
+  } finally { window.removeEventListener('builder-command', listener); }
 });
 
 it('renders project indexing failures and sends canvas expansion with the host project identity', () => {

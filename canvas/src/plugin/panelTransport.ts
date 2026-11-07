@@ -4,7 +4,9 @@ import { isLocalBrowserMessage, LOCAL_BROWSER_PROTOCOL_VERSION, LOCAL_BROWSER_CL
   type LocalBrowserSessionInfo } from '../ide/protocol.generated';
 import type { LocalBrowserViewMessage, LocalBrowserViewStatus, LocalBrowserViewTransport } from '../ide/localBrowserViewTransport';
 
-const READ_ONLY_MESSAGES = new Set(['viewSelection', 'viewFocusResult', 'captureInspectRequest', 'captureInspectCancel']);
+// Publishing sends the graph to tensorviz.dev, so it uses the exchange tool, never the read tool.
+const READ_ONLY_MESSAGES = new Set(['viewSelection', 'viewFocusResult', 'captureInspectRequest', 'captureInspectCancel',
+  'captureExportRequest', 'captureExportCancel']);
 
 /** Canvas's existing protocol over the host-owned MCP Apps channel. */
 export function createPanelTransport(app: Pick<App, 'callServerTool' | 'updateModelContext'>, panelId: string,

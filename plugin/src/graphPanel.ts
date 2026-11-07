@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { StandaloneHost } from './host';
 import { GraphToolError, graphToolResult, type ModelRef } from '@tensorviz/graph-host/mcpGraph';
 import { encodeLocalBrowserMessage, MAX_WIRE_BYTES } from '@tensorviz/graph-host/localBrowserWire';
-import { isLocalBrowserMessage, LOCAL_BROWSER_PROTOCOL_VERSION } from '@tensorviz/contracts/protocol';
+import { isLocalBrowserMessage, LOCAL_BROWSER_PROTOCOL_VERSION, LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH } from '@tensorviz/contracts/protocol';
 import { createLocalBrowserViewTransport, type LocalBrowserSocketLike,
   type LocalBrowserViewTransport, type LocalBrowserViewSend } from '@tensorviz/graph-host/viewTransport';
 
@@ -29,9 +29,13 @@ interface Panel {
 }
 
 const VIEW_MESSAGES = new Set(['viewSelection', 'viewFocusResult', 'graphSetupRequest',
-  'captureInspectRequest', 'captureInspectCancel', 'graphReviewRequest', 'graphReviewApplied']);
+  'captureInspectRequest', 'captureInspectCancel', 'captureExportRequest', 'captureExportCancel',
+  'graphPublishRequest', 'graphPublishCancel', 'graphReviewRequest', 'graphReviewApplied']);
 const VIEW_ID_MESSAGES = new Set(['viewSelection', 'viewFocusResult', 'graphReviewApplied']);
-const READ_ONLY_MESSAGES = new Set(['viewSelection', 'viewFocusResult', 'captureInspectRequest', 'captureInspectCancel']);
+// Publishing sends the graph to tensorviz.dev, so it is never a read.
+const READ_ONLY_MESSAGES = new Set(['viewSelection', 'viewFocusResult', 'captureInspectRequest', 'captureInspectCancel',
+  'captureExportRequest', 'captureExportCancel']);
+const REQUEST_BYTES = 128 * 1024;
 
 export class GraphPanels {
   private readonly panels = new Map<string, Panel>();
@@ -130,7 +134,9 @@ export class GraphPanels {
       if (panel.error) throw new GraphToolError('PANEL_UNAVAILABLE', panel.error);
       const transport = panel.transport;
       if (messages.length && !transport?.session?.viewId) throw new GraphToolError('PANEL_NOT_READY', 'Wait for the graph panel to connect.');
-      if (Buffer.byteLength(JSON.stringify(messages)) > 128 * 1024) throw new GraphToolError('REQUEST_LIMIT', 'The panel request is too large.');
+      // Only Publish carries a file: the gzipped graph, within the website's limit.
+      const budget = REQUEST_BYTES + (messages.some(message => message.type === 'graphPublishRequest') ? LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH : 0);
+      if (Buffer.byteLength(JSON.stringify(messages)) > budget) throw new GraphToolError('REQUEST_LIMIT', 'The panel request is too large.');
       const requests = messages.map(message => {
         if (!VIEW_MESSAGES.has(String(message.type))) throw new GraphToolError('INVALID_PANEL_REQUEST', 'This action is not supported by the graph panel.');
         // View identity always comes from the authenticated broker, never the UI.

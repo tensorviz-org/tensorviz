@@ -31,6 +31,8 @@ if (Object.keys(result.metafile.inputs).some(file => /(?:^|\/)(?:extension|canva
 }
 await mkdir(path.join(root, 'out'), { recursive: true });
 await writeFile(path.join(root, 'out/host-inputs.json'), JSON.stringify(result.metafile, null, 2) + '\n');
+// Packaging stamps manifests with this version and refuses a host built as another.
+await writeFile(path.join(root, 'out/host-version.json'), JSON.stringify({ version }) + '\n');
 await build({ absWorkingDir: root, entryPoints: ['src/permissions.ts'], outfile: '../plugins/tensorviz/runtime/permissions.cjs',
   bundle: true, platform: 'node', target: 'node22', format: 'cjs' });
 
@@ -50,7 +52,7 @@ await build({ absWorkingDir: root, entryPoints: {
   approval: 'src/approval.ts', assets: 'src/assets.ts', workspace: 'src/workspace.ts', environment: 'src/environment.ts',
   host: 'src/host.ts', graphPanel: 'src/graphPanel.ts', review: 'src/review.ts', ownedTemporary: '../packages/graph-host/src/ownedTemporary.ts', protocol: '../packages/contracts/src/protocol.ts',
   setupFiles: 'src/setupFiles.ts', locks: 'src/locks.ts', profileChoices: 'src/profileChoices.ts', dependencies: 'src/dependencies.ts', runtime: 'src/runtime.ts',
-  backendPython: '../packages/graph-host/src/backendPython.ts',
+  backendPython: '../packages/graph-host/src/backendPython.ts', website: 'src/website.ts',
 },
   outdir: 'out/host', bundle: true, platform: 'node', target: 'node22', format: 'cjs', outExtension: { '.js': '.cjs' } });
 

@@ -188,6 +188,7 @@ suite('local browser protocol', () => {
       'graphReviewRequest', 'graphReviewState', 'graphReviewFocus', 'graphReviewApplied',
       'graphOpening', 'graphSetupRequest',
       'captureExportRequest', 'captureExportCancel', 'captureExportResult',
+      'graphPublishRequest', 'graphPublishCancel', 'graphPublishState', 'graphPublishResult',
       'captureInspectRequest', 'captureInspectCancel', 'captureInspectResult',
       'viewState', 'viewSelection', 'focusView', 'viewFocusResult',
       'connected',

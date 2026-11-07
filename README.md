@@ -40,6 +40,10 @@ Published packages are maintained separately from this source tree. To build fro
 
 ## Docs
 
+Read the independently hosted documentation at <https://docs.tensorviz.dev/>.
+To edit or preview it, follow the [docs contribution guide](CONTRIBUTING.md#documentation-contributions).
+Only this repository and the docs dependencies are needed.
+
 - [Install](docs/install.md)
 - [Quickstart](docs/quickstart.md)
 - [Coding-agent plugin](docs/agent-plugin.md)

@@ -619,34 +619,39 @@ export function reconcileModuleView(
 
   // ── Top-level layout (modules + standalone nodes) ──────────────────────
   const topLevel = nodes.filter((n) => !parentOf(n));
-  const topIds = topLevel.filter(n => !n.data.operationGroupHiddenBy).map((n) => n.id);
-  const topSizes = new Map<string, { w: number; h: number }>();
-  for (const n of topLevel) {
-    topSizes.set(n.id, moduleSize.get(n.id) ?? nodeCardSize(n));
-  }
-
-  // Map any endpoint to the top-level node that represents it (a child folds
-  // into its module) so the top-level DAG is connected.
-  const toTop = (id: string): string | undefined => {
-    let node = byId.get(id);
-    if (!node) return undefined;
-    const seen = new Set<string>();
-    while (parentOf(node) && !seen.has(node.id)) {
-      seen.add(node.id);
-      node = byId.get(parentOf(node)!) ?? node;
+  // Saved-position reconciliation never consumes top-level layout inputs.
+  // Build them only when this call actually requests a new top-level layout.
+  const computeTopPositions = () => {
+    const topIds = topLevel.filter(n => !n.data.operationGroupHiddenBy).map((n) => n.id);
+    const topSizes = new Map<string, { w: number; h: number }>();
+    for (const n of topLevel) {
+      topSizes.set(n.id, moduleSize.get(n.id) ?? nodeCardSize(n));
     }
-    return node.id;
-  };
-  const topEdges: Array<LayoutEdge & { flow: boolean }> = [];
-  for (const e of activeEdges) {
-    const s = toTop(e.source);
-    const t = toTop(e.target);
-    if (s && t && s !== t) topEdges.push({ source: s, target: t, flow: isFlowEdge(e) });
-  }
 
+    // Map any endpoint to the top-level node that represents it (a child folds
+    // into its module) so the top-level DAG is connected.
+    const toTop = (id: string): string | undefined => {
+      let node = byId.get(id);
+      if (!node) return undefined;
+      const seen = new Set<string>();
+      while (parentOf(node) && !seen.has(node.id)) {
+        seen.add(node.id);
+        node = byId.get(parentOf(node)!) ?? node;
+      }
+      return node.id;
+    };
+    const topEdges: Array<LayoutEdge & { flow: boolean }> = [];
+    for (const e of activeEdges) {
+      const s = toTop(e.source);
+      const t = toTop(e.target);
+      if (s && t && s !== t) topEdges.push({ source: s, target: t, flow: isFlowEdge(e) });
+    }
+
+    return layoutByStory(topIds, topSizes, topEdges, opts.direction);
+  };
   const doRelayout = opts.relayout ?? false;
   const topPos = doRelayout
-    ? layoutByStory(topIds, topSizes, topEdges, opts.direction)
+    ? computeTopPositions()
     : new Map(topLevel.map((n) => [n.id, n.position || { x: 0, y: 0 }] as const));
 
   // ── Assemble render nodes (parents before children) ───────────────────

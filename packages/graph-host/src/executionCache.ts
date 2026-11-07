@@ -314,11 +314,12 @@ function completeCapture(envelope: WorkerEnvelope, attemptId: string, plan: Reso
  * another (undo, or a file opened after the run). A served result must carry the versions
  * of the run that asked for it: navigation refuses a node whose file version is not the
  * open document's. Rewrites the stored plan's versions, and the envelope's two copies, from
- * the current plan, in place on `envelope`. Returns the rewritten plan, or undefined if the
- * file lists differ in anything but `documentVersion` (never expected under an equal key).
+ * the current plan, in place on `envelope`. Reports whether any versions were rewritten,
+ * or returns undefined if the file lists differ in anything but `documentVersion` (never
+ * expected under an equal key). An unchanged result leaves the validated capture intact.
  */
 function withCurrentDocumentVersions(envelope: WorkerEnvelope, stored: ResolvedExecutionPlan,
-  current: ResolvedExecutionPlan): ResolvedExecutionPlan | undefined {
+  current: ResolvedExecutionPlan): { plan: ResolvedExecutionPlan; rewritten: boolean } | undefined {
   const versions = current.source.files;
   const matches = (files: unknown): files is Array<Record<string, unknown>> => Array.isArray(files)
     && files.length === versions.length && files.every((file, index) => {
@@ -333,10 +334,13 @@ function withCurrentDocumentVersions(envelope: WorkerEnvelope, stored: ResolvedE
     (diagnostics?.semantic_capture as { source?: { files?: unknown } } | undefined)?.source,
   ].filter((source): source is { files?: unknown } => !!source && typeof source === 'object');
   if (!matches(stored.source.files) || !sources.every(source => matches(source.files))) return undefined;
+  if (isDeepStrictEqual(stored.source.files, versions) && sources.every(source => isDeepStrictEqual(source.files, versions))) {
+    return { plan: stored, rewritten: false };
+  }
   const rewrite = <T extends object>(files: T[]): T[] =>
     files.map((file, index) => ({ ...file, documentVersion: versions[index].documentVersion }));
   for (const source of sources) source.files = rewrite(source.files as object[]);
-  return { ...stored, source: { ...stored.source, files: rewrite(stored.source.files) } };
+  return { plan: { ...stored, source: { ...stored.source, files: rewrite(stored.source.files) } }, rewritten: true };
 }
 
 /**
@@ -369,10 +373,15 @@ export function servableEntry(entry: { text: string; meta?: string } | undefined
     if (installed.some(([file, stamp]) => environmentFingerprint(file) !== stamp)) return { ok: false, reason: 'environment_changed' };
     const capture = completeCapture(envelope, meta.attemptId, meta.plan, meta.planDigest);
     if (!capture || capture.id !== meta.captureId) return { ok: false, reason: 'capture' };
-    const plan = withCurrentDocumentVersions(envelope, meta.plan, snapshot.plan);
-    if (!plan) return { ok: false, reason: 'source_files' };
-    const current = completeCapture(envelope, meta.attemptId, plan, meta.planDigest);
-    if (!current || current.id !== meta.captureId) return { ok: false, reason: 'capture' };
+    const versions = withCurrentDocumentVersions(envelope, meta.plan, snapshot.plan);
+    if (!versions) return { ok: false, reason: 'source_files' };
+    const { plan, rewritten } = versions;
+    // The first validation still distrusts every stored entry. Repeat it only after a
+    // rewrite, which can change schema validity or push the capture over its byte limit.
+    if (rewritten) {
+      const current = completeCapture(envelope, meta.attemptId, plan, meta.planDigest);
+      if (!current || current.id !== meta.captureId) return { ok: false, reason: 'capture' };
+    }
     return { ok: true, envelope, reused: { attemptId: meta.attemptId, captureId: meta.captureId, plan,
       planDigest: meta.planDigest, capturedAt: meta.capturedAt } };
   } catch {

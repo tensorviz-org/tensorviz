@@ -1,4 +1,5 @@
 import React from 'react';
+import type { ModelNode } from '../types';
 import { track, useEditor } from 'tldraw';
 import { nodeIdToShapeId } from './canvasShapeId';
 import { cameraDuration } from './reducedMotion';
@@ -16,7 +17,13 @@ export const GraphQueryPanel = track(function GraphQueryPanel() {
   const editor = useEditor();
   const result = graphSearchResult.get();
   const query = graphSearchQuery.get();
-  const labels = new Map(graphNodes.get().map(node => [node.id, operationDisplayName(node.data) ?? node.data.captureLabel]));
+  // This index exists only for this render, and only when a label is displayed.
+  let nodesById: Map<string, ModelNode> | undefined;
+  const label = (id: string) => {
+    if (!nodesById) nodesById = new Map(graphNodes.get().map(node => [node.id, node]));
+    const node = nodesById.get(id);
+    return node ? operationDisplayName(node.data) ?? node.data.captureLabel : undefined;
+  };
 
   /** Move the camera to a hit without changing what is open: a search that
    *  expanded containers to reach a node would undo the reader's own view. */
@@ -56,12 +63,12 @@ export const GraphQueryPanel = track(function GraphQueryPanel() {
             {result.groups.slice(0, 8).map(group => (
               <li key={group.visibleId}>
                 <button type="button" onClick={() => reveal(group.visibleId)}>
-                  <strong>{labels.get(group.visibleId) ?? group.visibleId}</strong>
+                  <strong>{label(group.visibleId) ?? group.visibleId}</strong>
                   {/* A closed module reports what it contains instead of being
                       forced open — the count is the hit, until you open it. */}
                   {group.hits.length > 1 || group.hits[0].id !== group.visibleId ? (
                     <span className="graph-query-inside">
-                      {group.hits.length} inside · {group.hits.slice(0, 3).map(hit => labels.get(hit.id) ?? scopedNodeLabel(hit.id, group.visibleId)).join(', ')}
+                      {group.hits.length} inside · {group.hits.slice(0, 3).map(hit => label(hit.id) ?? scopedNodeLabel(hit.id, group.visibleId)).join(', ')}
                       {group.hits.length > 3 ? '…' : ''}
                     </span>
                   ) : (

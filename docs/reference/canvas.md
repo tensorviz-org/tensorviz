@@ -280,6 +280,11 @@ children with 48px between ranks. Inputs sit beside the first visible entry;
 outputs sit beside the final visible exit. This keeps boundary connections short
 instead of drawing diagonal lines through a tall module.
 
+Reconciliation prepares internal connections and skip-lane clearance only when a
+visible expanded module needs child layout. Flat graphs, collapsed contents and
+module-focus projections skip that preparation. Visibility, diagnostics, boundary
+ports and display connections are still derived in every case.
+
 The footer **Layout direction** button, beside Fit, offers **Auto**,
 **Horizontal** and **Vertical**. It stays available when the toolbar is
 minimized, and its icon shows the current direction.

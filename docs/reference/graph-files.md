@@ -96,6 +96,8 @@ its results select the visible containing block without changing expansion.
 legend limits described above. Saved views and discussions remain available
 beside these controls, and architecture stays read-only.
 
+Focus and search controls derive labels only for the targets they display. Their render-local node lookup includes hidden nodes, so searching inside collapsed modules keeps the same results without opening those modules.
+
 ## Share a specific view
 
 Choose **Saved views**, select a layer, block or real connection, and arrange the

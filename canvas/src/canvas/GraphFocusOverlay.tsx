@@ -1,4 +1,5 @@
 import React from 'react';
+import type { ModelNode } from '../types';
 import { track, useEditor } from 'tldraw';
 import { graphFocus, setTraceDirection } from './graphFocus';
 import { selectedEdgeId } from './edgeSelection';
@@ -23,9 +24,15 @@ export const GraphFocusOverlay = track(function GraphFocusOverlay() {
   const state = graphFocus(editor);
   const focus = state.focus.get();
   const edge = state.index.get().edges.get(selectedEdgeId.get() ?? '');
-  const labels = new Map(graphNodes.get().map(node => [node.id, customCardModel(node.data.layerType.id, node.data.parameters)?.title
-    ?? operationDisplayName(node.data) ?? node.data.captureLabel]));
-  const label = (id: string) => labels.get(id) ?? id;
+  // This index exists only for this render, and only when a label is displayed.
+  let nodesById: Map<string, ModelNode> | undefined;
+  const label = (id: string) => {
+    if (!nodesById) nodesById = new Map(graphNodes.get().map(node => [node.id, node]));
+    const node = nodesById.get(id);
+    return node ? customCardModel(node.data.layerType.id, node.data.parameters)?.title
+      ?? operationDisplayName(node.data) ?? node.data.captureLabel ?? id : id;
+  };
+  const selectedLabel = focus.active && focus.selected.length === 1 ? label(focus.selected[0]) : undefined;
   const selected = focus.selected.length === 1 ? graphNodes.get().find(node => node.id === focus.selected[0]) : undefined;
   const zoom = editor.getEfficientZoomLevel();
   const readable = () => {
@@ -51,7 +58,7 @@ export const GraphFocusOverlay = track(function GraphFocusOverlay() {
     {!local && <FamilyLegend nodes={graphNodes.get()} />}
     {!local && zoom < .55 && <button className="graph-readable" onClick={readable}>Zoom to readable detail ↗</button>}
     {focus.active && <section className="graph-focus-controls" aria-label="Connection focus">
-      <div className="graph-focus-caption"><strong>{focus.selected.length === 1 ? label(focus.selected[0]) : `${focus.selected.length} layers`}</strong><span>{focus.edgeIds.size} connections{focus.truncated ? ' · limit reached' : ''}</span></div>
+      <div className="graph-focus-caption"><strong>{focus.selected.length === 1 ? selectedLabel : `${focus.selected.length} layers`}</strong><span>{focus.edgeIds.size} connections{focus.truncated ? ' · limit reached' : ''}</span></div>
       {selected && <BlockSummary node={selected} nodes={graphNodes.get()} edges={graphEdges.get()} />}
       <div role="group" aria-label="Trace direction">
         <button aria-pressed={focus.direction === 'local'} onClick={() => setTraceDirection(editor, 'local')}>Neighbors</button>
@@ -61,7 +68,7 @@ export const GraphFocusOverlay = track(function GraphFocusOverlay() {
       {focus.direction !== 'local' && <small>Tracing visible connections · does not run the model</small>}
       {selected?.data.captureRef && local?.captures && <CaptureDetails
         key={`${selected.data.captureRef.captureId}:${selected.id}`} reference={selected.data.captureRef}
-        label={label(selected.id)} client={local.captures} stale={local.page.greyed || local.page.syncState === 'stale'} />}
+        label={selectedLabel ?? selected.id} client={local.captures} stale={local.page.greyed || local.page.syncState === 'stale'} />}
     </section>}
     {edge && !focus.active && <section className="graph-focus-controls" aria-label="Selected connection">
       <strong>{label(edge.source)} → {label(edge.target)}</strong>

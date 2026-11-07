@@ -30,11 +30,12 @@ export default function CaptureComparisonPanel({ before, after, result, onNaviga
   };
   const label = (side: Side, kind: CaptureRecordChange['kind'], id: string) => {
     if (kind === 'capture') return 'Whole capture';
-    const snapshot = file(side), target = capturedRecordTarget(snapshot, kind, id);
+    const snapshot = file(side);
     if (kind === 'module') {
       const paths = snapshot.capture!.capture.modules.find(module => module.id === id)?.paths;
       if (paths?.length) return `Module ${paths.slice(0, 2).map(path => path || '(root)').join(' / ')}`.slice(0, 200);
     }
+    const target = capturedRecordTarget(snapshot, kind, id);
     const node = target && snapshot.document.semantic.nodes.find(node => node.node_id === target.nodeId);
     const name = kind === 'value' ? `Tensor ${id}` : String(node?.metadata.captureLabel ?? node?.op ?? id);
     return name.slice(0, 200);

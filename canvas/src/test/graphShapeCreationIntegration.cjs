@@ -1,3 +1,4 @@
+/* global globalThis:readonly */
 // Real Editor/store and production ShapeUtil integration. No timing assertions.
 const fs = require('fs');
 const Module = require('module');
@@ -63,7 +64,6 @@ function makeEditor(options = {}) {
 }
 const snapshot = editor => editor.getCurrentPageShapes().sort((a, b) => a.id.localeCompare(b.id));
 const indices = editor => snapshot(editor).map(({ id, index, parentId }) => ({ id, index, parentId }));
-const geometry = editor => snapshot(editor).map(({ index, ...rest }) => rest);
 function compareEditors(a, b) {
   assert.deepEqual(snapshot(a), snapshot(b));
   assert.deepEqual(a.getSortedChildIdsForParent(a.getCurrentPageId()), b.getSortedChildIdsForParent(b.getCurrentPageId()));

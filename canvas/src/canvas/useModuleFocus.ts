@@ -16,6 +16,7 @@ interface ScopeView {
   orientation: FocusOrientation;
   layout?: FocusLayout;
   layoutKey?: string;
+  layoutRequest?: { key: string; width: number; height: number; orientation: FocusOrientation };
   positions: Map<string, { x: number; y: number }>;
   restoredDirection?: 'LR' | 'TB';
   measured?: boolean;
@@ -95,7 +96,10 @@ export function useModuleFocus({ nodes, edges, setNodes, graphId, sourceKey, ena
     const view = scopeView(scopeId), key = focusLayoutKey(projection);
     if (view.layoutKey !== key || !view.layout) {
       const rect = editor?.getContainer().getBoundingClientRect();
-      view.layout = layoutModuleFocus(projection, { width: rect?.width || 1000, height: rect?.height || 700 }, view.restoredDirection ?? view.layout?.direction ?? view.orientation);
+      const viewport = { width: rect?.width || 1000, height: rect?.height || 700 };
+      const orientation = view.restoredDirection ?? view.layout?.direction ?? view.orientation;
+      view.layout = layoutModuleFocus(projection, viewport, orientation);
+      view.layoutRequest = view.measured ? undefined : { key, ...viewport, orientation };
       if (view.restoredLayoutKey && view.restoredLayoutKey !== key) {
         view.positions.clear(); view.camera = undefined;
       }
@@ -141,7 +145,17 @@ export function useModuleFocus({ nodes, edges, setNodes, graphId, sourceKey, ena
     const view = scopeView(scopeId);
     if (view.measured) return;
     const rect = editor.getContainer().getBoundingClientRect();
-    view.layout = layoutModuleFocus(projection, { width: rect.width, height: rect.height }, view.restoredDirection ?? view.orientation);
+    const orientation = view.restoredDirection ?? view.orientation;
+    const key = focusLayoutKey(projection);
+    const request = view.layoutRequest;
+    // The first render already laid out this scope. Reuse it only when the
+    // committed viewport and requested inputs match; changed measurements still
+    // take the original measured-layout path.
+    if (!view.layout || !request || request.key !== key || request.width !== rect.width
+      || request.height !== rect.height || request.orientation !== orientation) {
+      view.layout = layoutModuleFocus(projection, { width: rect.width, height: rect.height }, orientation);
+    }
+    view.layoutRequest = undefined;
     view.measured = true;
     view.restoredDirection = undefined;
     setVersion(value => value + 1);
@@ -247,7 +261,7 @@ export function useModuleFocus({ nodes, edges, setNodes, graphId, sourceKey, ena
     views.current.clear();
     for (const view of value.views) if (view.id === null || known.has(view.id)) {
       views.current.set(viewKey(view.id), { ...view, selected: view.selected.filter(id => known.has(id)),
-        positions: new Map(view.positions), restoredDirection: view.direction, restoredLayoutKey: view.layoutKey });
+        positions: new Map(view.positions), restoredDirection: view.direction, restoredLayoutKey: view.layoutKey, layoutRequest: undefined });
     }
     const id = value.scopeId && canEnterModule(source, value.scopeId) ? value.scopeId : null;
     state.current.scopeId = id;

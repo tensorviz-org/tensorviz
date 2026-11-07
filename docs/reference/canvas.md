@@ -638,6 +638,13 @@ The compact navigation row is the only persistent scope identity: Back, Overview
 
 On first entry the canvas compares horizontal and vertical layouts and keeps the orientation that fits, staying with horizontal unless the other orientation is clearly better. Resizing does not rotate the graph. Entering, going back, changing layout, and finishing a recapture fit the destination after its shapes are committed. Selection, dragging, and pan or zoom keep the camera.
 
+The first committed measurement reuses the layout computed during rendering only
+when its graph layout key, viewport dimensions and requested orientation match
+exactly. A changed measurement still computes the measured layout; a late editor
+can reuse a fallback layout only if the actual inputs match it. Fitting,
+selection restoration and scene-commit readiness follow
+the same path in either case.
+
 ## Operation input and output shapes
 
 Captured operation cards show an `IN` row for every tensor operand and an `OUT` row for every tensor result. Matrix multiplication shows both matrices and any bias. Reshape, transpose, squeeze, unsqueeze, and clone keep their tensor input. Repeated uses of the same tensor stay separate inputs. An unavailable shape is labelled **Not recorded**. Scalar options such as `dim` stay off the card; **View captured details** still has the full arguments. Failed operations keep their recorded inputs next to the failure.

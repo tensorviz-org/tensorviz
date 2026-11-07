@@ -8,6 +8,10 @@ In **Open Canvas in Browser**, choose **Export graph** to download a `.tensorviz
 
 Open it with **Open graph file viewer** to explore the snapshot. Recipients do not need to run Python to browse a saved graph.
 
+Import preserves the recorded order of module members, including wide modules,
+without repeatedly copying the preceding siblings. File validation and privacy
+checks still run before the graph is displayed.
+
 ## Share a view
 
 In the graph-file viewer, arrange the graph and save the view you want someone else to see. You can add a walkthrough or discussions on layers and connections, then download the updated file.

@@ -199,7 +199,10 @@ function portableDocument(value: unknown, captured = false): GraphDocumentV2 {
   const children = new Map<string, string[]>();
   for (const node of nodes) {
     const parent = node.metadata.parentId as string | undefined;
-    if (parent) children.set(parent, [...(children.get(parent) ?? []), node.node_id]);
+    if (!parent) continue;
+    let members = children.get(parent);
+    if (!members) children.set(parent, members = []);
+    members.push(node.node_id);
   }
   for (const node of nodes.filter(n => n.kind === 'module')) {
     const members = children.get(node.node_id) ?? [];

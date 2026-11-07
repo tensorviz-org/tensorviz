@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { GraphFocusOverlay } from '../../canvas/GraphFocusOverlay';
 import { GraphQueryPanel } from '../../canvas/GraphQueryPanel';
 import { graphNodes, graphSearchQuery, graphSearchResult } from '../../canvas/graphQueryState';
@@ -70,7 +70,7 @@ it('derives one selected-node label and reuses it for capture details, retaining
   expect(get).toHaveBeenCalledTimes(1);
   expect(screen.getByTestId('selected-node')).toHaveTextContent('first node');
   expect(screen.getByTestId('capture-label')).toHaveTextContent('last');
-  expect(screen.getByRole('region', { name: 'Connection focus' }).querySelector('strong')?.textContent).toBe('last');
+  expect(within(screen.getByRole('region', { name: 'Connection focus' })).getAllByText(() => true, { selector: 'strong' })[0].textContent).toBe('last');
 });
 
 it('preserves custom-title and ATen label precedence and performs only two selected-edge lookups', () => {
@@ -91,7 +91,7 @@ it('does no label lookup for multi-selection and preserves missing-ID and empty-
   expect(screen.getByText('2 layers')).toBeInTheDocument(); expect(get).not.toHaveBeenCalled();
   mockFocus = { ...mockFocus, active: false }; mockEdges.set('edge', { source: 'empty', target: 'missing' }); selectedEdgeId.set('edge');
   view.rerender(<GraphFocusOverlay />);
-  expect(screen.getByRole('region', { name: 'Selected connection' }).querySelector('strong')?.textContent).toBe(' → missing');
+  expect(within(screen.getByRole('region', { name: 'Selected connection' })).getAllByText(() => true, { selector: 'strong' })[0].textContent).toBe(' → missing');
   expect(get).toHaveBeenCalledTimes(1); // The missing node needs no derived label.
 });
 
@@ -129,7 +129,7 @@ it('search preserves empty labels and missing scoped-hit fallback without custom
   jest.spyOn(graphSearchResult, 'get').mockReturnValue({ query: 'match', groups: [{ visibleId: 'group', hits: [{ id: 'group.child', matched: 'match' }] }], hits: [{}], visibleIds: new Set(['group']) } as any);
   render(<GraphQueryPanel />);
   expect(screen.queryByText('Ignored search title')).toBeNull();
-  expect(screen.getByRole('list').querySelector('strong')?.textContent).toBe('');
+  expect(within(screen.getByRole('list')).getAllByText(() => true, { selector: 'strong' })[0].textContent).toBe('');
   expect(screen.getByText(/1 inside · child/)).toBeInTheDocument();
 });
 
@@ -156,7 +156,7 @@ it('preserves an empty selected caption in local capture details without substit
   const get = spyLookup();
   const context = { captures: {}, page: { greyed: false, syncState: 'ready' } } as any;
   render(<LocalBrowserContext.Provider value={context}><GraphFocusOverlay /></LocalBrowserContext.Provider>);
-  expect(screen.getByRole('region', { name: 'Connection focus' }).querySelector('strong')?.textContent).toBe('');
+  expect(within(screen.getByRole('region', { name: 'Connection focus' })).getAllByText(() => true, { selector: 'strong' })[0].textContent).toBe('');
   expect(screen.getByTestId('capture-label').textContent).toBe('');
   expect(get).toHaveBeenCalledTimes(1);
 });
@@ -169,6 +169,6 @@ it('refreshes displayed query labels after graph replacement and clear', () => {
   graphNodes.set([node('group', 'New')]); view.rerender(<GraphQueryPanel />);
   expect(screen.getByText('New')).toBeInTheDocument(); expect(screen.queryByText('Old')).toBeNull();
   graphNodes.set([]); view.rerender(<GraphQueryPanel />);
-  expect(screen.getByRole('list').querySelector('strong')?.textContent).toBe('group');
+  expect(within(screen.getByRole('list')).getAllByText(() => true, { selector: 'strong' })[0].textContent).toBe('group');
   expect(screen.queryByText('New')).toBeNull();
 });

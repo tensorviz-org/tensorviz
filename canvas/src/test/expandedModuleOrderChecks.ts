@@ -1,14 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { Editor, getIndicesBetween } from 'tldraw';
+import type { IndexKey, TLParentId, TLShape, TLShapeId, TLShapePartial } from 'tldraw';
+import { planExpandedModuleOrder } from '../canvas/expandedModuleOrder';
 
 function spy<T extends (...args: any[]) => any>(fn: T) {
   const calls: Parameters<T>[] = [];
   return Object.assign((...args: Parameters<T>): ReturnType<T> => { calls.push(args); return fn(...args); }, { calls });
 }
-
-import { Editor, getIndicesBetween } from 'tldraw';
-import type { IndexKey, TLParentId, TLShape, TLShapeId, TLShapePartial } from 'tldraw';
-import { planExpandedModuleOrder } from '../canvas/expandedModuleOrder';
 
 const sid = (id: string) => `shape:${id}` as TLShapeId;
 const page = 'page:test' as TLParentId;

@@ -1,7 +1,6 @@
+/* global globalThis:readonly */
 // Plain-Node differential checks; no performance claims from this fake store.
 const fs = require('fs');
-const Module = require('module');
-const path = require('path');
 const { JSDOM } = require('jsdom');
 
 const { window } = new JSDOM('<!doctype html><html><body></body></html>', { pretendToBeVisual: true, url: 'http://localhost/' });

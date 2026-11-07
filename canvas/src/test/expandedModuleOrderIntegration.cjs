@@ -1,3 +1,4 @@
+/* global globalThis:readonly */
 // Real Editor/store and production ShapeUtil integration. No timing assertions.
 const fs = require('fs');
 const Module = require('module');

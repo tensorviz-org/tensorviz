@@ -292,7 +292,17 @@ function layoutChildren(
   // design's vertical sub-layer column) so the module stays narrow beside its
   // neighbours in the top-level row. A horizontal canvas runs them in a row.
   const row = direction === 'horizontal';
-  const local = dagreLayout(ids, sizes, internalEdges, {
+  // Restore uses the first child's saved position for each id. If every one
+  // is present, Dagre's positions would all be discarded; bounds still need
+  // the current card sizes below. Keep the full layout for partial restores.
+  const savedPositions = new Map<string, Pos>();
+  if (preservePositions) {
+    for (const child of children) {
+      if (!savedPositions.has(child.id)) savedPositions.set(child.id, child.position);
+    }
+  }
+  const allPositionsSaved = preservePositions && ids.every(id => savedPositions.get(id) != null);
+  const local = allPositionsSaved ? new Map<string, Pos>() : dagreLayout(ids, sizes, internalEdges, {
     rankdir: row ? 'LR' : 'TB',
     nodesep: 24,
     ranksep: 48,
@@ -305,7 +315,7 @@ function layoutChildren(
   const positions = new Map<string, Pos>();
   for (const id of ids) {
     const p = local.get(id) || { x: MODULE_PAD, y: MODULE_PAD };
-    const saved = preservePositions ? children.find(child => child.id === id)?.position : undefined;
+    const saved = savedPositions.get(id);
     const placed = saved ?? { x: p.x + MODULE_PAD, y: p.y + MODULE_HEADER };
     positions.set(id, placed);
     const sz = childSizes.get(id) || CHILD_SIZE;

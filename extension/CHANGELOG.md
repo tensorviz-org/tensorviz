@@ -3,6 +3,7 @@
 ## Contents
 
 - [Unreleased](#unreleased)
+- [0.1.41](#0141)
 - [0.1.36](#0136)
 - [0.1.35](#0135)
 - [0.1.34](#0134)
@@ -42,15 +43,18 @@
 - [0.0.2](#002)
 - [0.0.1](#001)
 
-Extension **0.1.36**. The plugin host in this repository is **0.3.61**.
+Extension **0.1.41**. The plugin host in this repository is **0.3.109**.
 
 This tree is the visualization product: Open as Graph, graph diff, execution
 cache (`off`, `shadow`, and `on`), code focus, graph export, MCP, Hugging Face open, source
 proposals, JAX/Flax capture, and website sign-in and share. Latency profiling,
-training-step capture, product analytics, the hosted website application, and
-release publication are not in this tree.
+training-step capture, product analytics, and the hosted website application are not in this tree.
 
 ## Unreleased
+
+## 0.1.41
+
+- Release the visualization product directly from tensorviz-org/tensorviz, with reviewed source versions and identical VSIX bytes on Marketplace, GitHub, and Open VSX.
 
 - Show runtime download totals when available, update transferred bytes during smaller downloads, and use an accurate setup progress title. Keep cancellation and download verification unchanged.
 

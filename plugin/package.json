@@ -1,6 +1,6 @@
 {
   "name": "@tensorviz/plugin",
-  "version": "0.3.61",
+  "version": "0.3.109",
   "private": true,
   "description": "Local tensorViz host for coding-agent plugins",
   "license": "MIT",
@@ -21,7 +21,7 @@
     "build:panel": "node ../canvas/scripts/build-plugin.cjs --panel",
     "build:browser": "node ../canvas/scripts/build-plugin.cjs",
     "package": "node scripts/package.mjs --allow-source-development",
-    "package:release": "node scripts/package.mjs --release",
+    "package:release": "node scripts/build-release.mjs --native-archive",
     "check": "tsc --noEmit",
     "test": "npm run check && npm run build && npm run build:panel && node --test test/unit/*.test.cjs",
     "pretest:capture": "node test/check-capture-fixtures.cjs && npm run check && npm run build && npm run build:browser && npm run build:panel",

@@ -62,6 +62,7 @@ export async function createReleaseCandidate(integration, archive) {
     const names = publicFiles.filter(file => file.startsWith(`${client}/`)).map(file => file.slice(client.length + 1));
     execFileSync('zip', ['-q', '-X', path.join(directory, `${prefix}-${version}.zip`), ...names], { cwd: path.join(integration, client) });
   }
+  execFileSync('zip', ['-q', '-X', path.join(directory, `tensorviz-catalog-${version}.zip`), ...publicFiles, 'PUBLICATION.json'], { cwd: integration });
   for (const item of await fs.readdir(directory, { withFileTypes: true })) {
     if (item.isFile()) files[item.name] = sha256(await fs.readFile(path.join(directory, item.name)));
   }
@@ -80,7 +81,7 @@ export async function verifyReleaseCandidate(directory, { publishing = false } =
     || !/^[a-f0-9]{40}$/.test(release.sourceRevision)) throw new Error('Release provenance mismatch.');
   const runtimes = runtimeEntries(runtime);
   const archives = runtimes.map(runtimeArchive);
-  const expected = [...archives.flatMap(archive => [archive, `${archive}.json`]), `tensorviz-${version}.zip`, `tensorviz-cursor-${version}.zip`].sort();
+  const expected = [...archives.flatMap(archive => [archive, `${archive}.json`]), `tensorviz-${version}.zip`, `tensorviz-cursor-${version}.zip`, `tensorviz-catalog-${version}.zip`].sort();
   if (JSON.stringify(Object.keys(release.files).sort()) !== JSON.stringify(expected)
     || JSON.stringify((await fs.readdir(directory)).sort()) !== JSON.stringify([...expected, 'integration', 'release.json'].sort())) throw new Error('Unexpected release assets.');
   for (const file of expected) {
@@ -98,6 +99,14 @@ export async function verifyReleaseCandidate(directory, { publishing = false } =
       }
     }
   }
+  const catalog = path.join(directory, `tensorviz-catalog-${version}.zip`);
+  const catalogNames = [...publicFiles, 'PUBLICATION.json'].sort();
+  const catalogActual = execFileSync('unzip', ['-Z1', catalog], { encoding: 'utf8' }).trim().split('\n').sort();
+  if (JSON.stringify(catalogActual) !== JSON.stringify(catalogNames)) throw new Error('Submitted catalog ZIP differs from the public file allowlist.');
+  for (const name of catalogNames) {
+    if (sha256(execFileSync('unzip', ['-p', catalog, name], { maxBuffer: 1024 * 1024 }))
+      !== sha256(await fs.readFile(path.join(directory, 'integration', name)))) throw new Error(`Submitted catalog ZIP checksum mismatch: ${name}`);
+  }
   for (const entry of runtimes) {
     const archive = runtimeArchive(entry);
     if (release.files[archive] !== entry.sha256 || (await fs.stat(path.join(directory, archive))).size !== entry.bytes
@@ -111,8 +120,9 @@ export async function verifyReleaseCandidate(directory, { publishing = false } =
       || JSON.stringify(listed.slice().sort()) !== JSON.stringify([...Object.keys(manifest.files), 'release-manifest.json'].sort())) {
       throw new Error('Runtime manifest and candidate provenance differ.');
     }
+    if (publishing && manifest.workingTreeChanged !== false) throw new Error('Publication requires a clean reviewed source working tree.');
     if (publishing && (release.rendererDistributionCoverage !== 'owner-confirmed'
-      || entry.url !== `https://github.com/${distributionRepository}/releases/download/v${version}/${archive}`)) {
+      || entry.url !== `https://github.com/${distributionRepository}/releases/download/plugin-v${version}/${archive}`)) {
       throw new Error('Publication requires confirmed renderer coverage and the exact distribution release URL.');
     }
     const detail = execFileSync('tar', ['-tvzf', path.join(directory, archive)], { encoding: 'utf8', maxBuffer: 1024 * 1024 });

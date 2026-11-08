@@ -38,7 +38,7 @@ code --install-extension tensorviz.tensorviz-vscode
 
 All options, VSIX files, and platform limits are on the [Install](docs/install.md) page. Then open your first graph with the [quickstart](docs/quickstart.md).
 
-Published packages are maintained separately from this source tree. To build from source, see [local setup](docs/local-setup.md) and [plugin build](docs/plugin-build.md). This repository is currently private, so GitHub links to it (source files, issues, releases) need read access until it is made public.
+Release automation now lives in this repository. The installation links above still serve the last verified packages until the [maintainer cutover](docs/releasing.md) is completed. To build from source, see [local setup](docs/local-setup.md) and [plugin build](docs/plugin-build.md). This repository is currently private, so GitHub links to it (source files, issues, releases) need read access until it is made public.
 
 ## Docs
 

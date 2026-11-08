@@ -53,6 +53,8 @@ Start with installation, then follow the task you want to do.
 - [Build from source](local-setup.md)
 - [Build the plugin](plugin-build.md)
 - [Build the documentation](documentation-site.md)
+- [Release from this repository](releasing.md)
+- [Configure merge and release protections](merge-protection.md)
 - [Contributing](../CONTRIBUTING.md)
 - [Licensing](licensing.md) and [security](../SECURITY.md)
 - [Dependency maintenance](dependency-maintenance.md)

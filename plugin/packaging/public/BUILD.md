@@ -8,7 +8,8 @@ contains the visualization product source separately from the archive.
 The candidate's download URL must be published before installation works outside
 the release test environment.
 
-For a local evaluation checkout, Claude Code supports:
+Extract `tensorviz-catalog-{{VERSION}}.zip` into a persistent directory. For
+that local catalog, Claude Code supports:
 
 ```sh
 claude plugin marketplace add /absolute/path/to/integration
@@ -22,12 +23,13 @@ codex plugin marketplace add /absolute/path/to/integration
 codex plugin add tensorviz@tensorviz-standalone
 ```
 
-For published releases, replace the local checkout path in the marketplace command
-with `tensorviz-org/tensorviz`. The compiled runtime downloads on the first
+Use the extracted catalog path in these commands, not the source repository.
+Source main and source tags are not generated installation catalogs. The compiled runtime downloads on the first
 connection. Updating the plugin selects its new pinned runtime; an existing chat
 keeps its session's resources. Start a new chat to use the new version.
 
-For Claude, `claude plugin update tensorviz@tensorviz-standalone` refreshes the
+To update, replace the local catalog with a complete new catalog ZIP, keeping the
+prior complete directory for rollback. For Claude, `claude plugin update tensorviz@tensorviz-standalone` refreshes the
 marketplace and installs a changed version. Automatic updates for custom Claude
 marketplaces are off by default; the user controls that setting. For Codex, refresh
 the marketplace through `codex plugin marketplace upgrade tensorviz-standalone`
@@ -94,9 +96,11 @@ export does not publish new binaries or prove native acceptance on both platform
 
 The local exporter reads `plugin/packaging/public/` and preserves version
 placeholders in these source templates. `PUBLICATION.json` records the exact
-41-file integration inventory, hashes and runtime provenance. Both client locks
-must match the publication lock. This source repository has no native release
-workflow or publishing credentials; local export does not publish an asset.
+integration inventory, hashes and runtime provenance. Both client locks must
+match the publication lock. The source repository native release workflow publishes
+runtime archives, client ZIPs, and the catalog ZIP under `plugin-v{{VERSION}}`,
+pointing directly at reviewed source. It never replaces source main with an export.
+Local export alone does not publish an asset.
 
 ## T3 Code
 

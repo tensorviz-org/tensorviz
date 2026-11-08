@@ -7,10 +7,11 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout } from 'node:timers/promises';
+import { readReleaseResult } from '../../tooling/release/extension-release.mjs';
 
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const registry = 'https://open-vsx.org';
-const publisher = 'tensorviz', name = 'tensorviz';
+const publisher = 'tensorviz', name = 'tensorviz-vscode';
 
 export async function syncOpenVsxRelease({ version, source, repository, token = process.env.OVSX_PAT,
   command = execFileSync, request = fetch, sleep = setTimeout }) {
@@ -82,17 +83,29 @@ export async function syncOpenVsxRelease({ version, source, repository, token = 
   }
 }
 
+export async function syncOpenVsxFromResult({ file, requestedSource, ...options }) {
+  const result = readReleaseResult(file, requestedSource);
+  if (!result.publish) return { skipped: true, reason: 'The originating run was build-only.' };
+  if (options.repository !== result.repository) throw new Error('Release handoff repository mismatch.');
+  return syncOpenVsxRelease({ ...options, version: result.version, source: result.source });
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (!process.argv.includes('--publish')) {
     console.error('Maintainer-only. Pass --publish with OVSX_PAT, GITHUB_REPOSITORY, and a published GitHub release. Nothing was published.');
     process.exit(1);
   }
+  const prepared = process.env.RELEASE_RESULT ? readReleaseResult(process.env.RELEASE_RESULT, process.env.RELEASE_REQUEST_SOURCE) : null;
+  if (prepared && !prepared.publish) {
+    console.log('The originating run was build-only; nothing to synchronize.');
+    process.exit(0);
+  }
   if (!(process.env.OVSX_PAT || '').trim() || !(process.env.GH_TOKEN || process.env.GITHUB_TOKEN || '').trim()) {
     console.error('Maintainer publication requires OVSX_PAT and GH_TOKEN or GITHUB_TOKEN. Nothing was published.');
     process.exit(1);
   }
-  const result = await syncOpenVsxRelease({ version: process.env.OPENVSX_VERSION,
-    source: process.env.RELEASE_SOURCE, repository: process.env.GITHUB_REPOSITORY });
+  const result = await syncOpenVsxRelease({ version: prepared?.version || process.env.OPENVSX_VERSION,
+    source: prepared?.source || process.env.RELEASE_SOURCE, repository: process.env.GITHUB_REPOSITORY });
   const summary = `${result.published ? 'Published' : 'Verified existing'} Open VSX ${result.version}. ` +
     `Marketplace, numbered GitHub and Open VSX packages match: SHA-256 ${result.sha256}\n${result.url}\n`;
   console.log(summary);

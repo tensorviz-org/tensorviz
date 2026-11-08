@@ -28,32 +28,33 @@ local launcher and Codex tests.
 
 ## Install from a local repository
 
-The release ZIPs contain plugin files directly. Codex and Claude Code marketplace
-registration instead requires the repository's catalog and plugin directories.
-Download and extract [the {{VERSION}} repository ZIP](https://github.com/tensorviz-org/tensorviz/archive/refs/tags/v{{VERSION}}.zip)
-into a persistent folder, or clone the tagged repository:
+Download and extract [the {{VERSION}} catalog ZIP](https://github.com/tensorviz-org/tensorviz/releases/download/plugin-v{{VERSION}}/tensorviz-catalog-{{VERSION}}.zip)
+into a persistent folder, for example `~/tensorviz-catalog-{{VERSION}}`.
+It contains `.agents/plugins/marketplace.json`, `.claude-plugin/marketplace.json`,
+and the plugin directories with pinned runtime locks. The separate per-client
+plugin ZIPs do not contain the marketplace catalogs.
 
-```sh
-git clone --branch v{{VERSION}} https://github.com/tensorviz-org/tensorviz.git
-```
+Do not use GitHub's automatically generated source ZIP or clone source main for
+compiled installation. Source tags point to reviewed source commits, while the
+catalog ZIP is the audited installation export.
 
 Then choose your client, replacing the example path with the absolute path to
-the extracted or cloned repository:
+the extracted catalog:
 
 ```sh
-codex plugin marketplace add /absolute/path/to/tensorviz
+codex plugin marketplace add /absolute/path/to/tensorviz-catalog-{{VERSION}}
 codex plugin add tensorviz@tensorviz-standalone
 ```
 
 ```sh
-claude plugin marketplace add /absolute/path/to/tensorviz
+claude plugin marketplace add /absolute/path/to/tensorviz-catalog-{{VERSION}}
 claude plugin install tensorviz@tensorviz-standalone --scope user
 ```
 
-For Cursor, copy the repository's complete `cursor/plugins/tensorviz` directory
+For Cursor, copy the catalog's complete `cursor/plugins/tensorviz` directory
 to `~/.cursor/plugins/local/tensorviz`, then reload Cursor. Do not copy the whole
 repository or its common `plugins/tensorviz` directory into that destination.
-Keep the original repository folder available for local marketplace refreshes.
+Keep the extracted catalog folder available for local marketplace refreshes.
 Local installation still needs internet access for the first runtime download.
 
 ## T3 Code and large graphs
@@ -84,7 +85,7 @@ T3 mobile, remote hosts, and non-Codex providers are outside this acceptance sco
 | Unsupported execution host or glibc error | Use macOS Apple Silicon or Linux x64 with glibc >=2.35 and a matching runtime pin. ARM Linux, musl, Windows and Intel Mac are unsupported. |
 | `codex` or `claude` is not found | Install the corresponding client CLI using the links in the README, reopen your terminal, and check that its plugin commands are available. |
 | `plugin` is an unknown command | Update your coding client to a version with plugin support, then reopen your terminal. |
-| Marketplace catalog not found after downloading a ZIP | The release plugin ZIP is not a marketplace. Use the repository installation commands in the README or the complete repository download above. |
+| Marketplace catalog not found after downloading a ZIP | The release plugin ZIP is not a marketplace. Use the complete catalog ZIP above, not a plugin ZIP or source archive. |
 | T3 captures a model but does not show an interactive panel | Use a Codex thread and the tested T3 nightly or a newer compatible build. Check the provider profile; on stable 0.0.45, request `open_graph_view` for the local browser fallback. |
 | T3 says a panel is unavailable | Send a message to resume the originating agent session, then ask the agent to reopen the graph. |
 | No tensorViz tools in a chat | Check that the plugin is enabled, then start a new chat in the model project. Restart the client if needed. |
@@ -103,7 +104,9 @@ and extracts separate session files. See [runtime details](../BUILD.md).
 
 ## Update or remove
 
-For a GitHub-backed Codex installation, refresh the marketplace:
+To update, download the new catalog ZIP, keep the previous complete folder for
+rollback, and replace the catalog directory with the complete new export. Do not
+merge files from different releases. Then refresh Codex:
 
 ```sh
 codex plugin marketplace upgrade tensorviz-standalone
@@ -115,8 +118,8 @@ Then use Codex's plugin update/install controls and start a new chat. For Claude
 claude plugin update tensorviz@tensorviz-standalone
 ```
 
-Restart the Claude Code session afterward. A local repository pinned to a release
-tag stays at that version until you explicitly update or replace that checkout.
+Restart the Claude Code session afterward. A locally extracted catalog stays at
+its version until you explicitly replace it with a new complete catalog export.
 
 For Cursor, close chats using tensorViz, move the old `tensorviz` plugin directory
 outside `~/.cursor/plugins/local`, then extract the complete new Cursor ZIP into

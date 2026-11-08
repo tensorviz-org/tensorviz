@@ -117,3 +117,9 @@ Then the package you changed:
 
 Describe the behavior change and the checks you ran. Keep a PR to one coherent
 change. Update the doc in `docs/` that describes the behavior you changed.
+
+
+PRs require at least one approving review from an eligible TensorViz org member,
+and only eligible org members may merge. Maintainers must configure the actual
+[GitHub protections](docs/merge-protection.md); this text alone does not enforce
+them. [Release changes](docs/releasing.md) follow the same reviewed-PR process.

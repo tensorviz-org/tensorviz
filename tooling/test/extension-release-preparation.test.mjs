@@ -66,3 +66,14 @@ test('release workflows cannot execute fork PR code with secrets or write source
     assert.doesNotMatch(text, /pull_request_target|pull_request:|git push|PLUGIN_PUBLISH_TOKEN|POSTHOG|pytorch-viz|mainbackend/);
   }
 });
+
+
+test('initial cutover cannot publish merely by merging even if an unknown repository variable is true', () => {
+  for (const name of ['release-vsix', 'release-plugin']) {
+    const text = readFileSync(new URL(`../../.github/workflows/${name}.yml`, import.meta.url), 'utf8');
+    assert.doesNotMatch(text, /^  push:/m);
+    assert.match(text, /workflow_dispatch:/);
+    assert.match(text, /default: false/);
+    assert.match(text, /RELEASE_PUBLISH: \$\{\{ vars.RELEASES_ENABLED == 'true' && inputs.publish \}\}/);
+  }
+});

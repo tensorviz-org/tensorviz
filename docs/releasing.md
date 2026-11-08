@@ -2,17 +2,17 @@
 
 All new release automation belongs to `tensorviz-org/tensorviz`. The migration is
 not active merely because these files exist. `RELEASES_ENABLED` must remain unset
-or `false` until the owner completes and verifies the cutover below. No legacy
-workflow, repository visibility, permission, secret or environment is changed by
-this code change.
+or `false` until the owner completes and verifies the cutover below. The initial cutover is manual-only: merging this code cannot start publication,
+even if a repository variable was already enabled. No legacy workflow, repository
+visibility, permission, secret or environment is changed by this code change.
 
 ## Release inventory
 
 | Workflow | Trigger after activation | Output |
 | --- | --- | --- |
-| `release-vsix.yml` | Relevant reviewed main push, or manual dispatch | `tensorviz.tensorviz-vscode` on VS Code Marketplace; exact same VSIX and checksum on this repository's `vX.Y.Z` release; rolling `latest` download |
+| `release-vsix.yml` | Manual dispatch from reviewed main | `tensorviz.tensorviz-vscode` on VS Code Marketplace; exact same VSIX and checksum on this repository's `vX.Y.Z` release; rolling `latest` download |
 | `release-openvsx.yml` | Successful trusted Release VSIX run, or explicit existing version | Identical Marketplace/GitHub bytes on Open VSX |
-| `release-plugin.yml` | Relevant reviewed main push, or manual dispatch | Apple Silicon macOS and Linux x64 compiled runtimes, client ZIPs, complete catalog ZIP and provenance on this repository's `plugin-vX.Y.Z` release |
+| `release-plugin.yml` | Manual dispatch from reviewed main | Apple Silicon macOS and Linux x64 compiled runtimes, client ZIPs, complete catalog ZIP and provenance on this repository's `plugin-vX.Y.Z` release |
 | `docs.yml` | Existing documentation workflow | Independent documentation publishing, unchanged by this migration |
 
 The old repository contains exactly the first three release workflows above.
@@ -53,7 +53,13 @@ legacy repository. Disable the old publishers before activating new ones.
 
 ## Owner setup before activation
 
-1. Configure and verify [org-member merging and required org review](merge-protection.md).
+A private source repository cannot serve anonymous compiled runtime downloads.
+Native publication intentionally requires the source repository to be public.
+While visibility stays private, keep existing public tensorviz-plugins runtime
+downloads intact; private release URLs cannot replace them. This blocks native
+activation and archival until release continuity is explicitly resolved.
+
+1. Before the public launch, configure and verify [org-member merging and required org review](merge-protection.md).
    These are GitHub settings, not assertions enforced by this document. Audit
    outside write/admin access and app/deploy-key bypasses. At the migration audit,
    main was unprotected and the private repository plan did not support rulesets.
@@ -72,7 +78,8 @@ legacy repository. Disable the old publishers before activating new ones.
    `PLUGIN_PUBLISH_TOKEN` is retired: the job-scoped `GITHUB_TOKEN` needs
    `contents: write` only for same-repository release/tag publication.
 5. Leave repository variable `RELEASES_ENABLED=false`. Merge the reviewed migration
-   only after required CI and org review. Run manual build-only VSIX and plugin
+   after required CI. Org-only review enforcement is deferred until public launch.
+   Run manual build-only VSIX and plugin
    workflows on main (`publish=false`). Both still require production renderer
    configuration because they produce distributable packages. Public repository
    artifacts are public, not private candidate storage.
@@ -92,6 +99,9 @@ legacy repository. Disable the old publishers before activating new ones.
    download locations. Preserve the old URLs as historical links. New compiled
    installs use the complete catalog ZIP as a local marketplace; do not register
    source main as the generated marketplace.
+10. Archive tensorViz-extension only after replacement publishing and consumers
+   are verified. Preserve historical releases, tags and useful issue records.
+   Confirm the archived state and existing download continuity afterward.
 
 ## Retry and rollback
 

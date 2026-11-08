@@ -1,20 +1,7 @@
 name: Release compiled plugin
 
+# Initial cutover is manual-only. Merging this workflow never publishes.
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/release-plugin.yml'
-      - 'plugin/**'
-      - 'plugins/tensorviz/**'
-      - 'backend/**'
-      - 'packages/**'
-      - 'canvas/**'
-      - 'runtime/**'
-      - 'tooling/runtime/**'
-      - 'tooling/packaging/**'
-      - 'plugin/packaging/public/**'
-      - 'package*.json'
   workflow_dispatch:
     inputs:
       publish:
@@ -32,7 +19,7 @@ permissions:
 
 jobs:
   configuration:
-    if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && (vars.RELEASES_ENABLED == 'true' || github.event_name == 'workflow_dispatch')
+    if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.release.outputs.version }}
@@ -48,7 +35,7 @@ jobs:
       - name: Verify the reviewed plugin version and publication gate
         id: release
         env:
-          RELEASE_PUBLISH: ${{ vars.RELEASES_ENABLED == 'true' && (github.event_name == 'push' || inputs.publish) }}
+          RELEASE_PUBLISH: ${{ vars.RELEASES_ENABLED == 'true' && inputs.publish }}
           TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
         run: |
           node --input-type=module <<'JS'

@@ -139,3 +139,27 @@ def test_constructor_anchor_is_exact_and_belongs_to_the_selected_model(client, a
     response = client.post('/api/ide/apply', json=request)
     assert response.status_code == 200 and response.json()['refused'], response.text
     assert response.json()['edits'] == []
+
+
+@pytest.mark.parametrize('case', ['wildcard', 'constructor_internal_comment'])
+def test_review_import_and_constructor_comment_refusals_leave_source_unchanged(case):
+    from services.ide.code_apply import apply_operations
+    source = '''from torch import nn
+class Net(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.new_layer = nn.Dropout(p=0.5)
+    def forward(self, x):
+        return self.new_layer(x)
+'''
+    if case == 'wildcard':
+        source = source.replace('from torch import nn', 'from torch import nn\nfrom custom import *')
+    else:
+        source = source.replace('nn.Dropout(p=0.5)', 'nn.Dropout(\n            # preserve rationale\n            p=0.5\n        )')
+    call = next(n.value for n in ast.walk(ast.parse(source)) if isinstance(n, ast.Assign))
+    span = dict(file='model.py', start=[call.lineno, call.col_offset], end=[call.end_lineno, call.end_col_offset])
+    result = apply_operations(source, {'new_layer': span}, [dict(op='remove_layer', node_id='new_layer')],
+        cls='Net', file='model.py')
+    assert result.refused
+    assert result.edits == []
+    assert result.source == source

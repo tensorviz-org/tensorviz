@@ -1054,6 +1054,10 @@ def _constructor_deletion_site(index: _Index, site: _Site, span, node_id: str) -
         return None
     imports = [alias for item in ast.walk(tree) if isinstance(item, (ast.Import, ast.ImportFrom))
                for alias in item.names if (alias.asname or alias.name.split(".")[0]) == binding]
+    # An unknown import-star can replace even an explicitly imported nn name.
+    if any(isinstance(item, ast.ImportFrom) and any(alias.name == "*" for alias in item.names)
+           for item in ast.walk(tree)):
+        return None
     if len(imports) != 1 or any(item.arg is None for item in constructor.keywords):
         return None
     try:

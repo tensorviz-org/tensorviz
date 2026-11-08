@@ -334,3 +334,5 @@ For a fresh automatic-input fixture, use `# tensorviz: input=2,4`.
 `# tensorviz: input=(2, 4)` is a Python tuple expression, not a tensor shape;
 it requires correction or explicit setup. An existing saved input profile may
 mask that fixture error, so check automatic setup in a fresh project.
+
+Constructor-anchor deletion also refuses files with wildcard imports: their exports can replace the apparent torch.nn binding. Constructor-internal comments remain a refusal with unchanged source and zero edits.

@@ -1011,3 +1011,21 @@ def test_unavailable_requirement_is_named_without_forwarding_pip_output(monkeypa
         setup.pip_run(['install', '--only-binary=:all:'])
     assert error.value.requirement == 'torch==2.0.0'
     assert 'secret' not in str(error.value)
+
+
+def test_managed_cpu_policy_preserves_additive_planner_and_exact_request(tmp_path, monkeypatch):
+    observed = []
+    def record(directory, requirements, **options):
+        observed.append((requirements.read_text(), options))
+        return {'digest': 'planned'}
+    monkeypatch.setattr(setup, 'plan', record)
+    setup.plan_packages(tmp_path, ['torch==2.14.1+cpu', 'numpy'], managed_cpu=True)
+    assert observed[-1] == ('--extra-index-url https://download.pytorch.org/whl/cpu\ntorch==2.14.1+cpu\nnumpy\n', {'allow_source': False})
+    setup.plan_packages(tmp_path, ['torch'])
+    assert observed[-1] == ('torch\n', {'allow_source': False})
+
+
+def test_managed_cpu_refuses_gpu_payload_before_review(tmp_path, monkeypatch):
+    monkeypatch.setattr(setup, 'plan', lambda *args, **kwargs: {'packages': [{'name': 'nvidia-cublas-cu13'}]})
+    with pytest.raises(setup.SetupError, match='GPU dependencies'):
+        setup.plan_packages(tmp_path, ['torch==2.14.1+cpu'], managed_cpu=True)

@@ -430,9 +430,11 @@ export function resetRuntimeProbeCache(): void {
 export class ManagedRuntime {
   constructor(private readonly options: ManagedRuntimeOptions) {}
 
-  /** `<globalStorage>/runtime` — the copy, not the bundle. */
+  /** Policy-owned copy under globalStorage, separate from older live runtimes. */
   get root(): string {
-    return path.join(this.options.globalStorageDir, 'runtime');
+    // A new CPU policy gets a new namespace. Never repair an older live
+    // runtime in place merely because this build changed its dependency policy.
+    return path.join(this.options.globalStorageDir, 'runtime-cpu2141-v1');
   }
 
   /** The copied standalone interpreter the venv is built from. */

@@ -27,3 +27,7 @@
 # The pins themselves stay in one place. `-r` is resolved relative to THIS
 # file, so the two travel together into resources/app/backend/.
 -r requirements.txt
+
+# Exact local builds prevent a competing PyPI CUDA wheel from winning resolution.
+torch==2.14.1+cpu; sys_platform == "linux" or sys_platform == "win32"
+torchvision==0.29.1+cpu; sys_platform == "linux" or sys_platform == "win32"

@@ -42,3 +42,20 @@ for (const scenario of ['approved', 'declined', 'changed', 'source-declined']) {
     } finally { gate.dispose(); await fs.rm(root, { recursive: true, force: true }); }
   });
 }
+
+test('managed CPU provisioning refuses a missing wheel without source or install approval', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-cpu-wheel-'));
+  const calls = [];
+  try {
+    await assert.rejects(installStandaloneDependencies({ python: '/owned/python', backendDir: '/bundled/backend',
+      prefix: root, workspaceRoot: root, storage: path.join(root, 'temporary'), packages: ['torch==2.14.1+cpu'], managedCpu: true,
+      signal: new AbortController().signal, current: async () => true,
+      approvals: { approve: async () => assert.fail('a missing CPU wheel must not prompt for a source/GPU fallback') },
+      runner: async (_python, _backend, args) => {
+        calls.push(args[0]); return { ok: false, code: 'NO_COMPATIBLE_WHEEL', message: 'CPU wheel unavailable' };
+      },
+    }), { code: 'NO_COMPATIBLE_WHEEL' });
+    assert.deepEqual(calls, ['plan-packages-managed-cpu']);
+    assert.deepEqual(await fs.readdir(path.join(root, 'temporary')), []);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});

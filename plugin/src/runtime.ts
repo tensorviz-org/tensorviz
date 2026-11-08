@@ -20,6 +20,19 @@ async function checksum(file: string): Promise<string> {
   return hash.digest('hex');
 }
 
+/** Evaluate the bounded marker syntax shipped in our own capture requirements.
+ * User requests still go through the planner's strict no-marker/no-URL guard. */
+export function managedRequirements(text: string, python: string): string[] {
+  const [major, minor] = python.split('.').map(Number);
+  return text.split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith('#')).flatMap(line => {
+    if (!line.includes(';')) return [line];
+    const marker = /^(.+); python_version < "(\d+)\.(\d+)"$/.exec(line);
+    if (!marker) throw new HostError('MANAGED_REQUIREMENTS_UNSUPPORTED', 'The bundled managed requirements contain an unsupported environment marker. Update TensorViz before provisioning.');
+    const older = major < Number(marker[2]) || major === Number(marker[2]) && minor < Number(marker[3]);
+    return older ? [marker[1]] : [];
+  });
+}
+
 /** Shared tool service and separately mutable capture environments per checkout. */
 export class ManagedRuntime {
   private activity?: { signal: AbortSignal; detail?: string };
@@ -46,8 +59,9 @@ export class ManagedRuntime {
     const asset = selectRuntimeAsset(manifest);
     if (!asset.ok) throw new HostError('MANAGED_RUNTIME_UNSUPPORTED', asset.message);
     const requirementText = await fs.readFile(path.join(this.backend, role === 'service' ? 'requirements-standalone.txt' : 'requirements-capture.txt'), 'utf8');
-    const packages = requirementText.split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith('#'))
-      .map(line => role === 'capture' && line === 'torch' ? 'torch==2.14.1' : line);
+    const managedCpu = process.platform === 'linux' || process.platform === 'win32';
+    const packages = managedRequirements(requirementText, manifest.python)
+      .map(line => line === 'torch' || line.startsWith('torch==') ? `torch==2.14.1${managedCpu ? '+cpu' : ''}` : line);
     const key = digest(JSON.stringify([asset.sha256, packages])).slice(0, 24);
     const directory = role === 'service' ? path.join(this.storage, 'service', key) : path.join(this.storage, 'managed', digest(root), key);
     const prefix = path.join(directory, 'venv');
@@ -127,7 +141,7 @@ export class ManagedRuntime {
         }
         check(); report('Preparing the exact package installation plan.');
         await installStandaloneDependencies({ workspaceRoot: root, python: interpreter, prefix, backendDir: this.backend,
-          storage: path.join(this.storage, 'temporary'), packages, signal, approvals: this.approvals,
+          storage: path.join(this.storage, 'temporary'), packages, managedCpu: process.platform === 'linux' || process.platform === 'win32', signal, approvals: this.approvals,
           current: async () => { check(); return await fs.readFile(record, 'utf8') === owner; } });
         const inspected = await runEnvironmentHelper(interpreter, this.backend, [role === 'service' ? 'inspect' : 'inspect-capture'], () => signal.aborted, true, true);
         check();

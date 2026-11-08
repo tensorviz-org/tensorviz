@@ -10,7 +10,7 @@ const { ElicitRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
 const { execFileSync } = require('node:child_process');
 
 test('fresh managed Python captures without an existing interpreter and isolates two checkouts', { timeout: 600000 }, async t => {
-  assert.equal(`${process.platform}-${process.arch}`, 'darwin-arm64', 'This acceptance target currently claims only macOS Apple Silicon.');
+  assert.ok(['darwin-arm64', 'linux-x64', 'win32-x64'].includes(`${process.platform}-${process.arch}`), 'Use a supported managed runtime platform.');
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-managed-acceptance-')));
   const plugin = path.join(root, 'plugin'), state = path.join(root, 'state');
   const first = path.join(root, 'first'), second = path.join(root, 'second'), declined = path.join(root, 'declined');
@@ -32,7 +32,7 @@ test('fresh managed Python captures without an existing interpreter and isolates
       return { action: 'accept', content: { confirm: !message.includes(`Workspace: ${declined}\n`) } };
     });
     await client.connect(new StdioClientTransport({ command: process.execPath, args: [path.join(plugin, 'runtime/host.cjs')], cwd: root,
-      env: { PATH: '', TENSORVIZ_DATA_DIR: state }, stderr: 'inherit' }));
+      env: { PATH: '', TMPDIR: root, TENSORVIZ_DATA_DIR: state }, stderr: 'inherit' }));
     const call = async (name, args) => {
       const result = await client.callTool({ name, arguments: args });
       assert.ok(!result.isError, JSON.stringify(result)); return result.structuredContent;
@@ -60,8 +60,10 @@ test('fresh managed Python captures without an existing interpreter and isolates
     assert.equal(result.status, 'ready', JSON.stringify(result));
     const interpreter = result.environment.executable;
     assert.ok(interpreter.startsWith(state));
-    assert.equal(result.environment.torch, '2.14.1');
+    assert.equal(result.environment.torch, `2.14.1${process.platform === 'linux' || process.platform === 'win32' ? '+cpu' : ''}`);
+
     const inventory = JSON.parse(execFileSync(interpreter, ['-I', '-c', 'import json,importlib.metadata as m;print(json.dumps(sorted(d.metadata["Name"].lower() for d in m.distributions())))'], { encoding: 'utf8' }));
+    assert.ok(!inventory.some(name => /^(nvidia-|triton$)/.test(name)), 'managed CPU provisioning must not install GPU payloads');
     assert.ok(!inventory.includes('fastapi') && !inventory.includes('uvicorn') && !inventory.includes('libcst'), 'managed capture contains no tool-server libraries');
     const reused = await poll(await open(first));
     assert.equal(reused.status, 'ready', JSON.stringify(reused));

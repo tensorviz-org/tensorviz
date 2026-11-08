@@ -203,3 +203,11 @@ export function autoOpenClass(trigger: AutoOpenTrigger): string | undefined {
   }
   return trigger.classes[0];
 }
+
+/** Browsing model Python never needs the separately provisioned tool service. */
+export async function prepareEnvironmentCommand(forcePicker: boolean, starting: Promise<unknown> | undefined,
+  ensure: () => Promise<boolean>): Promise<boolean> {
+  if (forcePicker) return true;
+  if (starting) await starting;
+  return ensure();
+}

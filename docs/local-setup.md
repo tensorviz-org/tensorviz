@@ -131,3 +131,18 @@ The default host is `127.0.0.1`. `start.sh` and `python backend/server_v2.py` ca
 When `TENSORVIZ_LOCAL_TOKEN` is set, unauthenticated `GET /health` keeps `device` and `capabilities` and omits Torch and Python versions and the library list. `/openapi.json`, `/docs`, and `/redoc` are not registered in that mode.
 
 The plugin service (`backend/standalone_server.py`) binds `127.0.0.1`, requires a launch token of at least 32 characters, and does not bind `0.0.0.0`. `backend/auth.py` accepts `AUTH_DISABLED` (the dev principal) and then the local token. Any other credential, including a bearer token, is 401. Firebase Admin is not a backend dependency.
+
+### Model Python and the local service
+
+**Select Python Environment** saves the interpreter for model execution even when
+service setup is pending, cancelled, or has failed. Workspace Trust is still
+required. Selecting a model interpreter does not install or start the local web
+service. **Open as Graph** requires the separate TensorViz service setup; approve
+that setup or retry **Repair Runtime** after correcting its reported prerequisite.
+The selected model interpreter retains its installed Torch/CUDA versions.
+
+New TensorViz-owned Linux/Windows environments request Torch 2.14.1+cpu from the
+official PyTorch CPU index. The extension also requests torchvision 0.29.1+cpu.
+This CPU policy selects a new managed cache identity; existing live managed
+and user environments are preserved. Missing CPU wheels fail setup without
+falling back to a source build or a GPU distribution.

@@ -175,7 +175,7 @@ export async function discoverEnvironments(context: Context, backendDir: string,
       known?: ReadonlyArray<{ path?: string; executable?: { uri?: vscode.Uri } }> } } | undefined : undefined;
   const [active, known, managed] = await Promise.all([
     resource || root ? options.enumerateOnly
-      ? Promise.resolve(cached?.environments?.getActiveEnvironmentPath?.(resource ?? root!)?.path)
+      ? Promise.resolve().then(() => cached?.environments?.getActiveEnvironmentPath?.(resource ?? root!)?.path).catch(() => undefined)
       : userInterpreter(resource ?? root!) : Promise.resolve(undefined),
     (async () => {
       try {

@@ -95,3 +95,11 @@ Check the selected environment and the proposed packages. TensorViz keeps permis
 [Full environment reference](reference/environment-recovery.md)
 
 </details>
+
+### Interpreter picker consent
+
+Opening **Select Python Environment** lists interpreter paths without running discovered
+Python executables or checking the managed service. Version and library metadata stay
+unknown until a selected interpreter is checked. Cancel preserves the previous choice.
+Selection works before service setup; subsequent inspection and setup still require
+Workspace Trust, a current target and the existing installation approvals.

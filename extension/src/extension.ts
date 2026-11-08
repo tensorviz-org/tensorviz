@@ -1702,7 +1702,8 @@ async function checkEnvironmentCommand(context: vscode.ExtensionContext, forcePi
     (progress, token) => (forcePicker ? selectProjectEnvironment : resolveCaptureEnvironment)(context, resolved.backendDir, {
       runtime: managedBackendRuntime(context), managerPython: backend?.interpreter, forcePicker, resource,
       workspaceRoot: target && path.join(target.workspaceFolder, target.file) === resource?.fsPath ? target.workspaceFolder : undefined,
-      report: message => progress.report({ message }), isCancelled: () => token.isCancellationRequested,
+      report: message => progress.report({ message }), isCancelled: () => token.isCancellationRequested
+        || (!!target && browserGraph?.opening?.state?.target !== target),
     }),
   );
   if (!result.ok) {

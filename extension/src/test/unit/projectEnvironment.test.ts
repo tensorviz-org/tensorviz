@@ -101,10 +101,48 @@ suite('project environment selection and consent', () => {
       return { ok: true, python: '3.12.2', missing: ['torch', 'pydantic'] };
     } });
     assert.equal(result.ok, true); assert.deepEqual(savedEnvironment(context), { kind: 'project', interpreter: executable, explicit: true });
-    assert.deepEqual(calls, ['inspect-capture']);
+    assert.deepEqual(calls, []);
     assert.equal(state.warningMessages.length, 0); assert.equal(infoMessages.length, 0);
     assert.deepEqual(fs.readdirSync(directory), ['new'], 'selection creates no installation plan');
   });
+  for (const managerPython of [undefined, '/unused/manager']) test(`real picker never executes discovered Python before cancel or selection (manager=${managerPython})`, async () => {
+    if (process.platform === 'win32') return; // POSIX executable fixture; Windows inventory is covered separately.
+    state.workspaceFolders = [{ uri: vscode.Uri.file(directory) }];
+    const executable = path.join(directory, '.venv', 'bin', 'python');
+    const marker = path.join(directory, 'executed');
+    fs.mkdirSync(path.dirname(executable), { recursive: true });
+    fs.writeFileSync(executable, `#!/bin/sh\nprintf x >> '${marker}'\nprintf '%s\\n' '{"ok":true,"python":"3.12.15","torch":"2.14.1+cpu"}'\n`, { mode: 0o700 });
+    memory.set(ENVIRONMENT_KEY, { kind: 'managed' });
+    const options = { managerPython, runtime: { check: async () => { throw new Error('picker must not check service setup'); } } as unknown as ManagedRuntime };
+    const cancelled = await selectProjectEnvironment(context, directory, options);
+    assert.ok(!cancelled.ok && cancelled.cancelled);
+    assert.equal(fs.existsSync(marker), false, 'cancel must execute neither target nor manager');
+    assert.deepEqual(savedEnvironment(context), { kind: 'managed' });
+    state.quickPickAnswers = [executable];
+    assert.equal((await selectProjectEnvironment(context, directory, options)).ok, true);
+    assert.equal(fs.existsSync(marker), false, 'saving the explicit selection still does not execute it');
+    const result = await inspectExecutionEnvironment(context, directory, { resource: vscode.Uri.file(path.join(directory, 'model.py')),
+      signal: new AbortController().signal, readyManaged: async () => undefined });
+    assert.equal(result.ok, true);
+    assert.equal(fs.readFileSync(marker, 'utf8'), 'x', 'only the selected interpreter is inspected, once');
+  });
+
+  for (const change of ['trust', 'scope', 'current-target']) test(`selection rechecks ${change} before inspection or saving`, async () => {
+    let stale = false;
+    const picker = async () => {
+      if (change === 'trust') state.isTrusted = false;
+      if (change === 'scope') state.workspaceFolders = [];
+      if (change === 'current-target') stale = true;
+      return choice;
+    };
+    const options = { picker, runner, isCancelled: () => stale };
+    assert.equal((await resolveCaptureEnvironment(context, '/backend', options)).ok, false);
+    assert.deepEqual(calls, []); assert.equal(memory.size, 0);
+    state.isTrusted = true; state.workspaceFolders = [{ uri: vscode.Uri.file('/project') }]; stale = false;
+    assert.equal((await selectProjectEnvironment(context, '/backend', options)).ok, false);
+    assert.deepEqual(calls, []); assert.equal(memory.size, 0);
+  });
+
   test('Browse can select an unprepared managed fallback without provisioning it', async () => {
     state.quickPickAnswers = ['Use a separate tensorViz environment'];
     const result = await selectProjectEnvironment(context, '/backend', { runner, runtime: {
@@ -577,12 +615,12 @@ suite('project environment selection and consent', () => {
 
   test('cancelled metadata collection does not display an environment picker', async () => {
     let cancelled = false;
-    state.extensions.set('ms-python.python', { activate: async () => ({ environments: {
+    state.extensions.set('ms-python.python', { activate: async () => { cancelled = true; return { environments: {
       getActiveEnvironmentPath: () => ({ path: choice.interpreter }), resolveEnvironment: async () => undefined,
-    } }) });
+    } }; } });
     state.quickPickAnswers = ['Enter Python or environment path…'];
     const result = await resolveCaptureEnvironment(context, '/backend', { isCancelled: () => cancelled,
-      runner: async () => { cancelled = true; return { ok: false }; } });
+      runner: async () => { throw new Error('inventory must not execute Python'); } });
     assert.ok(!result.ok && 'cancelled' in result);
     assert.equal(state.quickPickAnswers.length, 1, 'the cancelled picker must not consume user interaction');
     assert.equal(memory.size, 0);

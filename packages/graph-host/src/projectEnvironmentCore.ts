@@ -69,6 +69,8 @@ export function parseEnvironmentHelperResult(stdout: string): HelperResult {
 export async function inspectEnvironmentCandidates(hints: EnvironmentHint[], options: {
   backendDir: string; managerPython?: string; signal: AbortSignal; runner?: EnvironmentRunner;
   cancelled?: () => boolean;
+  /** Picker inventory must not execute any discovered interpreter. */
+  enumerateOnly?: boolean;
   model?: { workspaceFolder: string; file: string; missingModules?: string[] };
 }): Promise<GraphEnvironmentCandidate[]> {
   const action = options.model ? ['inspect-candidate', options.model.workspaceFolder,
@@ -80,6 +82,12 @@ export async function inspectEnvironmentCandidates(hints: EnvironmentHint[], opt
     else if (paths.size < 16) paths.set(key, { ...hint });
   }
   const unique = [...paths.values()];
+  options.signal.throwIfAborted();
+  if (options.cancelled?.()) return [];
+  if (options.enumerateOnly) return unique.map(hint => ({ ...hint, source: hint.source.slice(0, 256),
+    id: createHash('sha256').update(hint.interpreter).digest('hex').slice(0, 24),
+    status: 'unavailable', detail: 'Not inspected; checked after selection.',
+  }));
   const rows: GraphEnvironmentCandidate[] = new Array(unique.length);
   let next = 0;
   const inspect = async () => {

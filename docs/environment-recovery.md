@@ -99,7 +99,8 @@ Check the selected environment and the proposed packages. TensorViz keeps permis
 ### Interpreter picker consent
 
 Opening **Select Python Environment** lists interpreter paths without running discovered
-Python executables or checking the managed service. Version and library metadata stay
+Python executables or checking the managed service. Python-extension suggestions use
+already cached paths without activation or environment resolution. Version and library metadata stay
 unknown until a selected interpreter is checked. Cancel preserves the previous choice.
 Selection works before service setup; subsequent inspection and setup still require
 Workspace Trust, a current target and the existing installation approvals.

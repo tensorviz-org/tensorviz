@@ -169,10 +169,18 @@ export async function discoverEnvironments(context: Context, backendDir: string,
   const root = environmentFolder(resource)?.uri;
   const configured = vscode.workspace.getConfiguration('tensorviz', resource ?? root).get<string>('pythonPath', '').trim();
   const saved = savedEnvironment(context, resource);
+  // Cached paths only in the picker: activation/resolution can itself probe Python.
+  const cached = options.enumerateOnly ? vscode.extensions.getExtension('ms-python.python')?.exports as {
+    environments?: { getActiveEnvironmentPath?(resource: vscode.Uri): { path?: string };
+      known?: ReadonlyArray<{ path?: string; executable?: { uri?: vscode.Uri } }> } } | undefined : undefined;
   const [active, known, managed] = await Promise.all([
-    resource || root ? userInterpreter(resource ?? root!) : Promise.resolve(undefined),
+    resource || root ? options.enumerateOnly
+      ? Promise.resolve(cached?.environments?.getActiveEnvironmentPath?.(resource ?? root!)?.path)
+      : userInterpreter(resource ?? root!) : Promise.resolve(undefined),
     (async () => {
       try {
+        if (options.enumerateOnly) return (cached?.environments?.known ?? []).slice(0, 64)
+          .map(env => env.executable?.uri?.fsPath ?? env.path ?? '');
         const api = await vscode.extensions.getExtension('ms-python.python')?.activate() as {
           environments?: { known?: ReadonlyArray<{ path?: string; executable?: { uri?: vscode.Uri } }> } } | undefined;
         return (api?.environments?.known ?? []).slice(0, 64).map(env => env.executable?.uri?.fsPath ?? env.path ?? '');

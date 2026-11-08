@@ -113,6 +113,10 @@ suite('project environment selection and consent', () => {
     fs.mkdirSync(path.dirname(executable), { recursive: true });
     fs.writeFileSync(executable, `#!/bin/sh\nprintf x >> '${marker}'\nprintf '%s\\n' '{"ok":true,"python":"3.12.15","torch":"2.14.1+cpu"}'\n`, { mode: 0o700 });
     memory.set(ENVIRONMENT_KEY, { kind: 'managed' });
+    let apiProbes = 0;
+    state.extensions.set('ms-python.python', { activate: async () => { apiProbes++; throw new Error('no activation'); },
+      exports: { environments: { getActiveEnvironmentPath: () => ({ path: executable }),
+        resolveEnvironment: async () => { apiProbes++; throw new Error('no resolution'); } } } });
     const options = { managerPython, runtime: { check: async () => { throw new Error('picker must not check service setup'); } } as unknown as ManagedRuntime };
     const cancelled = await selectProjectEnvironment(context, directory, options);
     assert.ok(!cancelled.ok && cancelled.cancelled);
@@ -125,6 +129,7 @@ suite('project environment selection and consent', () => {
       signal: new AbortController().signal, readyManaged: async () => undefined });
     assert.equal(result.ok, true);
     assert.equal(fs.readFileSync(marker, 'utf8'), 'x', 'only the selected interpreter is inspected, once');
+    assert.equal(apiProbes, 0, 'picker neither activates the Python extension nor resolves an environment');
   });
 
   for (const change of ['trust', 'scope', 'current-target']) test(`selection rechecks ${change} before inspection or saving`, async () => {
@@ -475,10 +480,10 @@ suite('project environment selection and consent', () => {
     const executable = path.join(directory, process.platform === 'win32' ? 'python.exe' : 'bin/python');
     fs.mkdirSync(path.dirname(executable), { recursive: true }); fs.writeFileSync(executable, '');
     state.workspaceFolders = [{ uri: { fsPath: '/project' } }];
-    state.extensions.set('ms-python.python', { activate: async () => ({ environments: {
+    state.extensions.set('ms-python.python', { activate: async () => { throw new Error('cached inventory must not activate Python extension'); }, exports: { environments: {
       getActiveEnvironmentPath: () => ({ path: '', id: '' }), resolveEnvironment: async () => undefined,
       known: [{ path: directory }],
-    } }) });
+    } } });
     state.quickPickAnswers = [executable];
     const result = await resolveCaptureEnvironment(context, '/backend', { runner });
     assert.ok(result.ok);
@@ -533,10 +538,10 @@ suite('project environment selection and consent', () => {
   test('the picker asks the Python extension about the actual model resource', async () => {
     const executable = path.join(directory, 'python'); fs.writeFileSync(executable, '');
     const resource = vscode.Uri.file('/project/nested/model.py');
-    state.extensions.set('ms-python.python', { activate: async () => ({ environments: {
-      getActiveEnvironmentPath: (actual: vscode.Uri) => { assert.equal(actual, resource); return { path: directory }; },
+    state.extensions.set('ms-python.python', { activate: async () => { throw new Error('cached inventory must not activate Python extension'); }, exports: { environments: {
+      getActiveEnvironmentPath: (actual: vscode.Uri) => { assert.equal(actual, resource); return { path: executable }; },
       resolveEnvironment: async () => ({ executable: { uri: vscode.Uri.file(executable) } }),
-    } }) });
+    } } });
     state.quickPickAnswers = [executable];
     const result = await resolveCaptureEnvironment(context, '/backend', { resource, runner });
     assert.ok(result.ok); assert.equal(result.interpreter, executable);
@@ -615,9 +620,9 @@ suite('project environment selection and consent', () => {
 
   test('cancelled metadata collection does not display an environment picker', async () => {
     let cancelled = false;
-    state.extensions.set('ms-python.python', { activate: async () => { cancelled = true; return { environments: {
-      getActiveEnvironmentPath: () => ({ path: choice.interpreter }), resolveEnvironment: async () => undefined,
-    } }; } });
+    state.extensions.set('ms-python.python', { activate: async () => { throw new Error('cached inventory must not activate Python extension'); }, exports: { environments: {
+      getActiveEnvironmentPath: () => { cancelled = true; return { path: choice.interpreter }; }, resolveEnvironment: async () => undefined,
+    } } });
     state.quickPickAnswers = ['Enter Python or environment path…'];
     const result = await resolveCaptureEnvironment(context, '/backend', { isCancelled: () => cancelled,
       runner: async () => { throw new Error('inventory must not execute Python'); } });

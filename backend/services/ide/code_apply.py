@@ -999,6 +999,76 @@ def _apply_group(index: _Index, plan: _Plan, spanmap, op: Mapping[str, Any]) -> 
         plan.set(first_statement, rewritten)
 
 
+def _constructor_deletion_site(index: _Index, site: _Site, span, node_id: str) -> Optional[_Site]:
+    """An exact constructor anchor may name its own standalone declaration.
+
+    Captured palette proposals carry constructor-expression anchors, while the
+    static projection carries assignment anchors. Do not generalize navigation
+    spans into permission to remove arbitrary expressions or whole statements.
+    """
+    declaration = index.declarations.get(node_id)
+    if declaration is None or declaration.call is not site.call or site.call is None:
+        return None
+    exact = index.range_of(site.call)
+    if any(span.get(key) != exact[key] for key in ("file", "start", "end")):
+        return None
+    statement = declaration.statement
+    if (declaration.control_flow or not isinstance(statement, cst.SimpleStatementLine)
+            or len(statement.body) != 1 or not isinstance(statement.body[0], cst.Assign)
+            or len(statement.body[0].targets) != 1
+            or statement.trailing_whitespace.comment
+            or any(line.comment for line in statement.leading_lines)):
+        return None
+    calls = index.call_sites.get(node_id, [])
+    if (index.class_node is None or len(calls) != 1
+            or len(_walk_self_attributes(index.class_node, node_id)) != 2):
+        return None
+    call = calls[0].call
+    if call is None or len(call.args) != 1 or call.args[0].keyword or call.args[0].star:
+        return None
+    # Only the explicit, unmodified torch.nn binding and palette constructors.
+    tree = ast.parse(index.module.code)
+    bindings = set()
+    for item in tree.body:
+        if isinstance(item, ast.Import):
+            bindings.update(alias.asname for alias in item.names if alias.name == "torch.nn" and alias.asname)
+        elif isinstance(item, ast.ImportFrom) and item.module == "torch":
+            bindings.update(alias.asname or "nn" for alias in item.names if alias.name == "nn")
+    constructor_source = index.module.code_for_node(site.call)
+    if "#" in constructor_source:
+        return None  # Deleting this declaration must not discard constructor comments.
+    constructor = ast.parse(constructor_source, mode="eval").body
+    if (not isinstance(constructor.func, ast.Attribute) or not isinstance(constructor.func.value, ast.Name)
+            or constructor.func.value.id not in bindings
+            or constructor.func.attr not in {"Linear", "Dropout", "LayerNorm", "ReLU", "GELU", "SiLU", "Sigmoid", "Tanh"}):
+        return None
+    binding = constructor.func.value.id
+    if any((isinstance(node, ast.Name) and node.id == binding and isinstance(node.ctx, (ast.Store, ast.Del)))
+           or (isinstance(node, ast.arg) and node.arg == binding)
+           or (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name == binding)
+           or (isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name)
+               and node.value.id == binding and isinstance(node.ctx, (ast.Store, ast.Del)))
+           or (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+               and node.func.id in {"getattr", "setattr", "delattr", "vars", "exec"})
+           for node in ast.walk(tree)):
+        return None
+    imports = [alias for item in ast.walk(tree) if isinstance(item, (ast.Import, ast.ImportFrom))
+               for alias in item.names if (alias.asname or alias.name.split(".")[0]) == binding]
+    if len(imports) != 1 or any(item.arg is None for item in constructor.keywords):
+        return None
+    try:
+        for argument in [*constructor.args, *(item.value for item in constructor.keywords)]:
+            ast.literal_eval(argument)
+    except (ValueError, TypeError):
+        return None
+    # Comments inside discarded wrapper punctuation cannot be relocated safely.
+    wrapper = index.module.code_for_node(call)
+    operand = index.module.code_for_node(call.args[0].value)
+    if wrapper.count("#") != operand.count("#"):
+        return None
+    return declaration
+
+
 def _apply_remove_layer(index: _Index, plan: _Plan, spanmap, op: Mapping[str, Any]) -> None:
     node_id = _required(op, "node_id")
     site, span = _site_for_node(index, spanmap, node_id)
@@ -1006,6 +1076,10 @@ def _apply_remove_layer(index: _Index, plan: _Plan, spanmap, op: Mapping[str, An
     # statement. A functional node's statement is `return x + self.l2(h)` and a
     # Sequential child's is the whole `self.net = nn.Sequential(...)`; dropping
     # either would delete far more than the card the user selected.
+    if index.declarations.get(node_id) is not site:
+        declaration = _constructor_deletion_site(index, site, span, node_id)
+        if declaration is not None:
+            site = declaration
     if index.declarations.get(node_id) is not site:
         raise _Refused(
             UNSUPPORTED_OPERATION,
@@ -1057,7 +1131,9 @@ def _apply_remove_layer(index: _Index, plan: _Plan, spanmap, op: Mapping[str, An
         statement = call_site.statement
         # `x = self.fc1(x)` becomes `x = x` when fc1 goes; that is not an edit a
         # reader would accept, so the whole line goes with it.
-        if _is_identity_assignment(statement, call, passthrough):
+        if (_is_identity_assignment(statement, call, passthrough)
+                and not statement.trailing_whitespace.comment
+                and not any(line.comment for line in statement.leading_lines)):
             plan.drop(statement)
             continue
         plan.set(call, passthrough)

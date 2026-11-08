@@ -312,3 +312,25 @@ this Run action. Browser and MCP offer the same candidate controls and retained
 results. After Apply, **Check applied source** compares
 the confirmed receipt with the current source and a later live capture; Save and
 Validate remain explicit actions. Native Undo remains the source-edit mechanism.
+
+## Delete a palette insertion after capture
+
+A captured palette layer can be deleted through its exact constructor capability
+when it has one standalone declaration and one unary forward use. For example,
+`return self.new_layer(self.fc(x))` becomes `return self.fc(x)` and only the
+`self.new_layer = nn.Dropout(p=0.5)` declaration is removed. The producer and
+surrounding return comments remain intact. Dropout in eval mode may appear among
+unchanged calls; enable **Show unchanged calls** to select it.
+
+Constructor-expression anchors and assignment anchors identify different ranges.
+Deletion accepts an exact constructor anchor only for supported palette layers
+with literal arguments and an unmodified explicit torch.nn import. Aliases,
+multiple uses, extra/keyword forward arguments, dynamic constructors, constructor
+comments that cannot be retained safely and stale source remain refused. This
+exception does not authorize arbitrary expression deletion. Native Review and
+Accept, source currency checks and recapture still apply.
+
+For a fresh automatic-input fixture, use `# tensorviz: input=2,4`.
+`# tensorviz: input=(2, 4)` is a Python tuple expression, not a tensor shape;
+it requires correction or explicit setup. An existing saved input profile may
+mask that fixture error, so check automatic setup in a fresh project.

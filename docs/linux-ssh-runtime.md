@@ -19,8 +19,10 @@ to that execution host and require forwarding for a remote desktop browser.
 
 Format-1 locks remain compatible. Format-2 catalogs hold one pinned entry per
 platform with the same version, exact ABI, immutable HTTPS URL, size and SHA-256.
-A Linux host refuses a Darwin-only lock before download. Existing v0.3.104 releases
-remain Darwin-only; this source change does not publish a Linux archive.
+A Linux host refuses a Darwin-only lock before download. The current published
+plugin supports both platforms; see the [public catalog](https://github.com/tensorviz-org/tensorviz-plugins)
+for current release metadata. Older v0.3.104 releases remain Darwin-only.
+This source checkout and its local validation do not publish a Linux archive.
 
 Native builders select `node22-macos-arm64` or `node22-linux-x64`. Linux strips
 compiler debug paths with failure propagation. Packaging audits the complete

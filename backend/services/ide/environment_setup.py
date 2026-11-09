@@ -418,10 +418,19 @@ def package_requirements(values: object) -> list[str]:
     return result
 
 
-def plan_packages(directory: Path, requested: object, *, allow_source: bool = False) -> dict:
+def plan_packages(directory: Path, requested: object, *, allow_source: bool = False, managed_cpu: bool = False) -> dict:
     requirements = directory / "requested.txt"
-    requirements.write_text("\n".join(package_requirements(requested)) + "\n")
-    return plan(directory, requirements, allow_source=allow_source)
+    packages = package_requirements(requested)
+    if managed_cpu:
+        # Only new TensorViz-owned environments opt in. User environments retain
+        # their selected Torch/CUDA builds and the ordinary additive planner.
+        packages = ["--extra-index-url https://download.pytorch.org/whl/cpu", *packages]
+    requirements.write_text("\n".join(packages) + "\n")
+    result = plan(directory, requirements, allow_source=allow_source)
+    if managed_cpu and any(item['name'].startswith('nvidia-') or item['name'] == 'triton'
+                           for item in result.get('packages', [])):
+        raise SetupError("The managed CPU plan contains GPU dependencies. No installation was approved.")
+    return result
 
 
 # Import names are not generally distribution names. Only these known mappings
@@ -1095,6 +1104,8 @@ def main(probe_backend=None, *, requirements=REQUIREMENTS, minimum_python=(3, 10
             result = plan(Path(sys.argv[2]), requirements)
         elif action == "plan-capture":
             result = plan(Path(sys.argv[2]), CAPTURE_REQUIREMENTS)
+        elif action == "plan-packages-managed-cpu":
+            result = plan_packages(Path(sys.argv[2]), json.loads(sys.argv[3]), managed_cpu=True)
         elif action == "plan-packages":
             result = plan_packages(Path(sys.argv[2]), json.loads(sys.argv[3]))
         elif action == "plan-packages-source":

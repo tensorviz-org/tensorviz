@@ -80,6 +80,7 @@ import {
   declaresModule,
   moduleClasses,
   shouldStartBackend,
+  prepareEnvironmentCommand,
 } from './activation';
 import { registerTracebackLinks } from './tracebackLinks';
 import { registerWebsiteCommands } from './websiteCommands';
@@ -1692,16 +1693,17 @@ async function checkEnvironmentCommand(context: vscode.ExtensionContext, forcePi
   resource?: vscode.Uri): Promise<boolean> {
   const target = browserGraph?.opening?.state?.target;
   resource ??= target ? vscode.Uri.file(path.join(target.workspaceFolder, target.file)) : vscode.window.activeTextEditor?.document.uri;
-  if (backendStarting) await backendStarting;
   const resolved = resolveBackendDir(context);
   if (!resolved.ok) { void fail(resolved.message, resolved.detail); return false; }
-  if (!backend && !await ensureBackend(context, vscode.ProgressLocation.Notification)) return false;
+  if (!await prepareEnvironmentCommand(forcePicker, backendStarting, async () =>
+    !!backend || !!await ensureBackend(context, vscode.ProgressLocation.Notification))) return false;
   const result = await vscode.window.withProgress(
     { location: vscode.ProgressLocation.Notification, title: forcePicker ? 'Choosing Python environment…' : 'Checking Python environment…', cancellable: true },
     (progress, token) => (forcePicker ? selectProjectEnvironment : resolveCaptureEnvironment)(context, resolved.backendDir, {
-      runtime: managedBackendRuntime(context), managerPython: backend!.interpreter, forcePicker, resource,
+      runtime: managedBackendRuntime(context), managerPython: backend?.interpreter, forcePicker, resource,
       workspaceRoot: target && path.join(target.workspaceFolder, target.file) === resource?.fsPath ? target.workspaceFolder : undefined,
-      report: message => progress.report({ message }), isCancelled: () => token.isCancellationRequested,
+      report: message => progress.report({ message }), isCancelled: () => token.isCancellationRequested
+        || (!!target && browserGraph?.opening?.state?.target !== target),
     }),
   );
   if (!result.ok) {

@@ -11,6 +11,14 @@ const metadata = (prefix: string): HelperResult => ({ ok: true, python: '3.12.13
     implementation: 'cpython', abi: 'cpython-312-x86_64-linux-gnu', torch: '2.6.0+cu124', pip: null } });
 
 suite('bounded environment candidate metadata', () => {
+  test('picker inventory deduplicates paths without invoking any target or manager', async () => {
+    const rows = await inspectEnvironmentCandidates([...hints, hints[0]], { backendDir: '/backend', managerPython: '/manager',
+      signal: new AbortController().signal, enumerateOnly: true,
+      runner: async () => { throw new Error('no interpreter execution is authorized'); } });
+    assert.equal(rows.length, hints.length);
+    assert.ok(rows.every(row => row.detail === 'Not inspected; checked after selection.' && !row.python && !row.fingerprint));
+  });
+
   test('retains checked import evidence from the final worker response, without logging progress output', () => {
     const diagnostic: ModelImportDiagnostic = { exceptionType: 'ImportError', message: 'Native CUDA extension could not load.',
       traceback: '  File "model.py", line 3, in <module>\nImportError: Native CUDA extension could not load.',

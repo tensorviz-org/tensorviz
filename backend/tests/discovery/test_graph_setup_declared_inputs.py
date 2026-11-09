@@ -74,7 +74,7 @@ def test_declared_inputs_survive_factory_selection():
     assert result['draft']['profile']['inputs']['args'][0]['shape'] == [5, 8]
 
 
-@pytest.mark.parametrize('value', ['', 'torch.ones(5,8)', '-1,8', '0,8', '1,8388608', ',8',
+@pytest.mark.parametrize('value', ['', 'torch.ones(5,8)', '(2, 4)', '-1,8', '0,8', '1,8388608', ',8',
                                    '5,8;', ','.join(['1'] * 33), '1;' * 64 + '1'])
 def test_unsupported_declarations_require_setup_without_inference_or_runtime_probe(value):
     result = declared(value)

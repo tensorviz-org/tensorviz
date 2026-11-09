@@ -10,7 +10,7 @@ Use one TensorViz host per agent. Do not connect the same agent to both the plug
 
 Use your client’s terminal CLI. If it is not installed, start with the [installation requirements](install.md#plugin).
 
-The published plugin is a preview for Apple Silicon macOS with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js installation. Allow internet access for that first download.
+The published plugin is a preview for Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js installation. Allow internet access for that first download.
 
 Codex:
 
@@ -38,10 +38,7 @@ T3 Code uses your Codex profile. See the [public catalog](https://github.com/ten
 
 Start a new chat afterward. Platform limits and source builds are on the [Install](install.md) page.
 
-The source now includes a Linux x64/glibc >=2.35 compiled-runtime repair.
-Existing v0.3.104 assets remain Mac-only until a new Linux asset and catalog are
-published; see [Linux SSH runtime](linux-ssh-runtime.md) for requirements, local
-validation scope and release limits.
+Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin. See [Linux SSH runtime](linux-ssh-runtime.md) for execution-host requirements and the limits of local validation. Published platform availability does not establish real SSH-network or installed-client acceptance.
 
 ## First graph
 

@@ -1,6 +1,6 @@
 import * as assert from 'node:assert/strict';
 
-import { autoOpenClass, declaresModule, moduleClasses, shouldStartBackend } from '../../activation';
+import { autoOpenClass, declaresModule, moduleClasses, shouldStartBackend, prepareEnvironmentCommand } from '../../activation';
 
 /** P0 deleted the Models view's "Start tensorViz" row on the grounds that opening a folder with
  *  a model in it is the instruction. Nothing then started the backend, the class list comes
@@ -306,5 +306,19 @@ suite('which class the canvas opens', () => {
 
   test('without the source it degrades to what it always did', () => {
     assert.equal(autoOpenClass({ ...base, classes: ['EncoderStack', 'BertBase'] }), 'EncoderStack');
+  });
+});
+
+
+suite('environment command startup', () => {
+  test('first-use selection works while service provisioning is pending or unavailable', async () => {
+    const pending = new Promise(() => {});
+    assert.equal(await prepareEnvironmentCommand(true, pending, async () => { throw new Error('must not provision'); }), true);
+    assert.equal(await prepareEnvironmentCommand(true, undefined, async () => false), true);
+  });
+  test('checks retain service failures, cancellation and retry', async () => {
+    assert.equal(await prepareEnvironmentCommand(false, undefined, async () => false), false);
+    await assert.rejects(prepareEnvironmentCommand(false, Promise.reject(new Error('setup failed')), async () => true), /setup failed/);
+    assert.equal(await prepareEnvironmentCommand(false, Promise.resolve(), async () => true), true);
   });
 });

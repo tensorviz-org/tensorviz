@@ -98,11 +98,21 @@ suite('runtime.ManagedRuntime', () => {
 
   test('the venv is created under globalStorage, never inside the bundle', () => {
     const { runtime, globalStorage, app } = fixture();
-    assert.equal(runtime.root, path.join(globalStorage, 'runtime'));
-    assert.ok(runtime.interpreter.startsWith(path.join(globalStorage, 'runtime', 'venv')));
+    assert.equal(runtime.root, path.join(globalStorage, 'runtime-cpu2141-v1'));
+    assert.ok(runtime.interpreter.startsWith(path.join(globalStorage, 'runtime-cpu2141-v1', 'venv')));
     // The reason this matters: a pyvenv.cfg home= pointing inside a .app breaks the first time
     // the user drags the app to /Applications.
     assert.ok(!runtime.interpreter.startsWith(app));
+  });
+
+  test('the CPU policy preserves the old live managed runtime', async () => {
+    const { runtime, globalStorage } = fixture();
+    const old = path.join(globalStorage, 'runtime', 'venv', 'bin', 'python');
+    fs.mkdirSync(path.dirname(old), { recursive: true });
+    fs.writeFileSync(old, 'old live interpreter');
+    assert.notEqual(runtime.interpreter, old);
+    assert.equal((await runtime.check()).state, 'absent');
+    assert.equal(fs.readFileSync(old, 'utf8'), 'old live interpreter');
   });
 
   test('no bundle and no pinned manifest (a bare dev checkout) is unavailable, not an error', async () => {

@@ -81,7 +81,7 @@ chat for retained error evidence. Animated dots beneath the latest message show
 the agent working; they stop when the turn ends or needs your approval. Hover or
 focus the indicator for details. Approval, stopped and error states remain distinct.
 
-The published plugin preview requires **CPython 3.12 on an Apple Silicon Mac** and targets CPU capture. See [installation options](install.md) for package requirements; [local setup](local-setup.md#versions) lists source-development versions.
+The published plugin preview requires **CPython 3.12 on Apple Silicon macOS (ARM64) or Linux x64 (glibc >=2.35)** and targets CPU capture. See [installation options](install.md) for package requirements; [local setup](local-setup.md#versions) lists source-development versions.
 
 ## Before installing dependencies
 
@@ -95,3 +95,12 @@ Check the selected environment and the proposed packages. TensorViz keeps permis
 [Full environment reference](reference/environment-recovery.md)
 
 </details>
+
+### Interpreter picker consent
+
+Opening **Select Python Environment** lists interpreter paths without running discovered
+Python executables or checking the managed service. Python-extension suggestions use
+already cached paths without activation or environment resolution. Version and library metadata stay
+unknown until a selected interpreter is checked. Cancel preserves the previous choice.
+Selection works before service setup; subsequent inspection and setup still require
+Workspace Trust, a current target and the existing installation approvals.

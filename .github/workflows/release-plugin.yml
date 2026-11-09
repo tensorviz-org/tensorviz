@@ -61,7 +61,7 @@ jobs:
           - runner: ubuntu-22.04
             platform: linux-x64
             uname: Linux-x86_64
-    environment: release
+    # Build-only validation must not create or access the publishing environment.
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 40
     env:

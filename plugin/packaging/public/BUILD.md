@@ -2,34 +2,34 @@
 
 This page is the compiled plugin archive's install guide. That archive cannot
 rebuild the runtime; the launcher downloads the pinned artifact, and users do
-not need a source checkout or build tools to use it. The open-source repository
-contains the visualization product source separately from the archive.
+not need a source checkout or build tools to use it. The public distribution repository contains only the audited integration,
+not the private source history.
 `runtime-lock.json` pins the exact platform, CPython ABI, URL and SHA-256 digest.
 The candidate's download URL must be published before installation works outside
 the release test environment.
 
-Extract `tensorviz-catalog-{{VERSION}}.zip` into a persistent directory. For
-that local catalog, Claude Code supports:
+Claude Code supports the existing public catalog:
 
 ```sh
-claude plugin marketplace add /absolute/path/to/integration
+claude plugin marketplace add tensorviz-org/tensorviz-plugins
 claude plugin install tensorviz@tensorviz-standalone --scope user
 ```
 
-For Codex's local plugin flow:
+For Codex:
 
 ```sh
-codex plugin marketplace add /absolute/path/to/integration
+codex plugin marketplace add tensorviz-org/tensorviz-plugins
 codex plugin add tensorviz@tensorviz-standalone
 ```
 
-Use the extracted catalog path in these commands, not the source repository.
-Source main and source tags are not generated installation catalogs. The compiled runtime downloads on the first
+For a local catalog, extract `tensorviz-catalog-{{VERSION}}.zip` into a persistent
+directory and use that absolute path instead. Never register the private source
+repository as a marketplace. The compiled runtime downloads on the first
 connection. Updating the plugin selects its new pinned runtime; an existing chat
 keeps its session's resources. Start a new chat to use the new version.
 
-To update, replace the local catalog with a complete new catalog ZIP, keeping the
-prior complete directory for rollback. For Claude, `claude plugin update tensorviz@tensorviz-standalone` refreshes the
+For local ZIP installs, replace the catalog with a complete new catalog ZIP,
+keeping the prior complete directory for rollback. For Claude, `claude plugin update tensorviz@tensorviz-standalone` refreshes the
 marketplace and installs a changed version. Automatic updates for custom Claude
 marketplaces are off by default; the user controls that setting. For Codex, refresh
 the marketplace through `codex plugin marketplace upgrade tensorviz-standalone`
@@ -98,14 +98,16 @@ The local exporter reads `plugin/packaging/public/` and preserves version
 placeholders in these source templates. `PUBLICATION.json` records the exact
 integration inventory, hashes and runtime provenance. Both client locks must
 match the publication lock. The source repository native release workflow publishes
-runtime archives, client ZIPs, and the catalog ZIP under `plugin-v{{VERSION}}`,
-pointing directly at reviewed source. It never replaces source main with an export.
+runtime archives, client ZIPs, and the catalog ZIP under `v{{VERSION}}`,
+in the public distribution repository. Tags identify audited export commits;
+PUBLICATION.json binds each export to its reviewed private source SHA. It never
+replaces source main or copies private Git history.
 Local export alone does not publish an asset.
 
 ## T3 Code
 
 T3 Code is not a supported install target in this source tree. Use
-[the plugin guide](https://github.com/tensorviz-org/tensorviz/blob/main/docs/agent-plugin.md) for Claude Code, Codex, and Cursor.
+[the installation guide](docs/installation.md) for Claude Code, Codex, and Cursor.
 
 ## Updates and removal
 

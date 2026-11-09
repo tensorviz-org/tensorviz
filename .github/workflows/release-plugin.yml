@@ -68,7 +68,7 @@ jobs:
       TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
       TENSORVIZ_RELEASE_VERSION: ${{ needs.configuration.outputs.version }}
       TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
-      TENSORVIZ_RUNTIME_URL: https://github.com/tensorviz-org/tensorviz/releases/download/plugin-v${{ needs.configuration.outputs.version }}/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz
+      TENSORVIZ_RUNTIME_URL: https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v${{ needs.configuration.outputs.version }}/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz
     steps:
       - uses: actions/checkout@v4
         with:
@@ -192,7 +192,7 @@ jobs:
     if: needs.configuration.outputs.publish == 'true'
     environment: release
     permissions:
-      contents: write
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -207,10 +207,11 @@ jobs:
         with:
           name: compiled-plugin-${{ needs.configuration.outputs.version }}
           path: plugin/out/release-candidate
-      - name: Publish immutable source-tagged assets
+      - name: Publish immutable public assets and advance the audited catalog
         env:
           TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PLUGIN_PUBLISH_TOKEN }}
+          TENSORVIZ_SOURCE_TOKEN: ${{ github.token }}
           TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
           TLDRAW_LICENSE_KEY: ${{ secrets.TLDRAW_LICENSE_KEY }}
         run: |

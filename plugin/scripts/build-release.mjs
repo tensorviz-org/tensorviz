@@ -17,7 +17,7 @@ export function releaseBuildConfig(environment, version, platform = nativePlatfo
   if (environment.TLDRAW_DISTRIBUTION_CONFIRMED !== 'true') throw new Error('Renderer distribution coverage needs owner confirmation.');
   const key = (environment.REACT_APP_TLDRAW_LICENSE_KEY || environment.TLDRAW_LICENSE_KEY || '').replace(/[\u200B-\u200D\uFEFF\r\n]/g, '');
   if (!key) throw new Error('A production renderer license is required. The key is never printed.');
-  return { key, url: `https://github.com/${distributionRepository}/releases/download/plugin-v${version}/${runtimeArchive({ version, platform })}`,
+  return { key, url: `https://github.com/${distributionRepository}/releases/download/v${version}/${runtimeArchive({ version, platform })}`,
     env: { ...environment, TENSORVIZ_RELEASE_VERSION: version, TLDRAW_LICENSE_KEY: key, REACT_APP_TLDRAW_LICENSE_KEY: key } };
 }
 

@@ -63,7 +63,7 @@ test('release workflows cannot execute fork PR code with secrets or write source
     assert.match(text, /persist-credentials: false/);
     assert.match(text, /ref: \$\{\{ github.sha \}\}/);
     assert.match(text, /cancel-in-progress: false/);
-    assert.doesNotMatch(text, /pull_request_target|pull_request:|git push|PLUGIN_PUBLISH_TOKEN|POSTHOG|pytorch-viz|mainbackend/);
+    assert.doesNotMatch(text, /pull_request_target|pull_request:|git push|POSTHOG|pytorch-viz|mainbackend/);
   }
 });
 
@@ -76,4 +76,16 @@ test('initial cutover cannot publish merely by merging even if an unknown reposi
     assert.match(text, /default: false/);
     assert.match(text, /RELEASE_PUBLISH: \$\{\{ vars.RELEASES_ENABLED == 'true' && inputs.publish \}\}/);
   }
+});
+
+
+test('native publishing isolates cross-repository credential from build jobs', () => {
+  const text = readFileSync(new URL('../../.github/workflows/release-plugin.yml', import.meta.url), 'utf8');
+  const [before, publish] = text.split('\n  publish:\n');
+  assert.doesNotMatch(before, /PLUGIN_PUBLISH_TOKEN|TENSORVIZ_SOURCE_TOKEN/);
+  assert.match(publish, /contents: read/);
+  assert.doesNotMatch(publish, /contents: write|npm (?:ci|install)/);
+  assert.match(publish, /GH_TOKEN: \$\{\{ secrets.PLUGIN_PUBLISH_TOKEN \}\}/);
+  assert.match(publish, /TENSORVIZ_SOURCE_TOKEN: \$\{\{ github.token \}\}/);
+  assert.match(before, /tensorviz-org\/tensorviz-plugins\/releases\/download\/v/);
 });

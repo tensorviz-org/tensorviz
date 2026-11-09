@@ -21,7 +21,7 @@ jobs:
     if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: release
+    # Build-only validation must not create or access the publishing environment.
     outputs:
       publish: ${{ steps.prepare.outputs.publish }}
       version: ${{ steps.prepare.outputs.version }}

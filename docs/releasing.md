@@ -56,6 +56,27 @@ Every release workflow has a non-cancelling concurrency group. This serializes
 same-product publication within this repository; it cannot serialize against the
 legacy repository. Disable the old publishers before activating new ones.
 
+## Build-only validation before release setup
+
+Build jobs do not reference a deployment environment. With `RELEASES_ENABLED`
+unset or `false`, dispatch `release-vsix.yml` and `release-plugin.yml` from
+`main` with `publish=false`. This validates candidates without creating the
+`release` environment or needing publisher tokens. Publication jobs still use
+that environment and retain their activation gates.
+
+Production renderer checks remain required. Before this validation, obtain owner
+approval to configure `TLDRAW_LICENSE_KEY` as a repository Actions secret using
+secure secret management; build jobs cannot read an environment-only secret.
+Confirm renderer coverage before setting repository variable
+`TLDRAW_DISTRIBUTION_CONFIRMED=true`. Never put the key in source or logs, and do
+not move publisher tokens out of the protected publishing environment.
+
+Keep `RELEASES_ENABLED` unset or `false` throughout this validation. If it is
+already true, a successful VSIX build can trigger the Open VSX job and access its
+`release` environment before the handoff rejects `publish=false`. Therefore the
+input alone is not a guarantee of environment-free validation. Build artifacts
+remain subject to repository access; artifacts of a public repository are public.
+
 ## Owner setup before activation
 
 The source repository may remain private. Native assets and the existing public
@@ -69,15 +90,17 @@ Claude marketplace commands and old runtime URLs remain valid.
    outside write/admin access and app/deploy-key bypasses. At the migration audit,
    main was unprotected and the private repository plan did not support rulesets.
    Do not change visibility or billing merely to bypass that blocker.
-2. Create `release` before running release workflows. Require a verified org team
+2. Create `release` before enabling publication. Build-only validation above does
+   not need it. Require a verified org team
    review, select only deployment **branch** `main`, and disable admin bypass.
    A referenced missing environment is automatically created unprotected.
    Public Free/Team supports environment reviewers; private repositories need an
    eligible Enterprise plan for these reviewer gates.
-3. Store `VSCE_PAT`, `OVSX_PAT`, `PLUGIN_PUBLISH_TOKEN`, and `TLDRAW_LICENSE_KEY` in that environment using
+3. Store `VSCE_PAT`, `OVSX_PAT`, and `PLUGIN_PUBLISH_TOKEN` in that environment using
    the providers' supported secret-management process. Never copy secrets into
    source or logs. Grant publisher tokens only their existing namespace scope.
-   This code has not transferred, inspected, or verified their values.
+   Keep the renderer license available to build jobs as described above.
+   This code has not transferred, inspected, or verified secret values.
 4. Set repository variable `TLDRAW_DISTRIBUTION_CONFIRMED=true` only after owner confirmation that
    renderer distribution is covered. No analytics token is needed or restored.
    `PLUGIN_PUBLISH_TOKEN` must be scoped only to `tensorviz-plugins`, with Contents

@@ -89,3 +89,29 @@ test('native publishing isolates cross-repository credential from build jobs', (
   assert.match(publish, /TENSORVIZ_SOURCE_TOKEN: \$\{\{ github.token \}\}/);
   assert.match(before, /tensorviz-org\/tensorviz-plugins\/releases\/download\/v/);
 });
+
+
+test('build-only jobs avoid environments without weakening publication or renderer gates', () => {
+  for (const name of ['release-vsix', 'release-plugin']) {
+    const text = readFileSync(new URL(`../../.github/workflows/${name}.yml`, import.meta.url), 'utf8');
+    const [before, publish] = text.split('\n  publish:\n');
+    assert.ok(publish, 'separate publishing job remains');
+    assert.doesNotMatch(before, /^\s+environment:/m, 'configuration/build/assembly do not access environments');
+    assert.match(before, /permissions:\n  contents: read/);
+    assert.doesNotMatch(before, /contents: write|VSCE_PAT|OVSX_PAT|PLUGIN_PUBLISH_TOKEN/);
+    assert.match(before, /github.ref == 'refs\/heads\/main'/);
+    assert.match(before, /github.event_name == 'workflow_dispatch'/);
+    assert.match(before, /RELEASE_PUBLISH: \$\{\{ vars.RELEASES_ENABLED == 'true' && inputs.publish \}\}/);
+    assert.match(before, /secrets.TLDRAW_LICENSE_KEY/);
+    assert.match(publish, /if: needs\.(?:build|configuration)\.outputs\.publish == 'true'/);
+    assert.match(publish, /^    environment: release$/m);
+    assert.equal((text.match(/^\s+environment:/gm) ?? []).length, 1);
+  }
+  const plugin = readFileSync(new URL('../../.github/workflows/release-plugin.yml', import.meta.url), 'utf8');
+  assert.match(plugin, /TLDRAW_DISTRIBUTION_CONFIRMED: \$\{\{ vars.TLDRAW_DISTRIBUTION_CONFIRMED \}\}/);
+  const openvsx = readFileSync(new URL('../../.github/workflows/release-openvsx.yml', import.meta.url), 'utf8');
+  assert.match(openvsx, /vars.RELEASES_ENABLED == 'true'/);
+  assert.match(openvsx, /environment: release/);
+  const runbook = readFileSync(new URL('../../docs/releasing.md', import.meta.url), 'utf8');
+  assert.match(runbook, /Keep `RELEASES_ENABLED` unset or `false` throughout this validation/);
+});

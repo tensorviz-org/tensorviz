@@ -48,6 +48,15 @@ test('previous catalogs retain exact source exclusion and checksums during docum
     await exportPublic(output, { runtimeLock: { formatVersion: 1, version: pluginVersion(),
       platform: 'darwin-arm64', pythonABI: 'cpython-312-darwin', bytes: 100,
       sha256: 'a'.repeat(64), url: 'https://example.invalid/runtime.tar.gz' } });
+    const manifest = JSON.parse(await fs.readFile(path.join(output, 'plugins/tensorviz/.codex-plugin/plugin.json'), 'utf8'));
+    const ui = manifest.interface ?? manifest.extensions?.['com.openai']?.interface;
+    assert.ok(ui, 'exported Codex interface is present');
+    for (const [key, file] of [['supportURL', 'SUPPORT.md'], ['privacyPolicyURL', 'PRIVACY.md'], ['termsOfServiceURL', 'TERMS.md']]) {
+      assert.equal(ui[key], `https://github.com/tensorviz-org/tensorviz-plugins/blob/main/${file}`);
+    }
+    const readme = await fs.readFile(path.join(output, 'README.md'), 'utf8');
+    assert.match(readme, /codex plugin marketplace add tensorviz-org\/tensorviz-plugins/);
+    assert.match(readme, /claude plugin marketplace add tensorviz-org\/tensorviz-plugins/);
     const publicationFile = path.join(output, 'PUBLICATION.json');
     const publication = JSON.parse(await fs.readFile(publicationFile, 'utf8'));
     for (const file of ['plugins/tensorviz/docs/installation.md', 'cursor/plugins/tensorviz/docs/installation.md', 'docs/installation.md']) {

@@ -5,7 +5,7 @@ const path = require('node:path');
 const os = require('node:os');
 const { execFileSync } = require('node:child_process');
 
-async function candidateFixture(t, { dirty = false, urlTag = 'plugin-v' } = {}) {
+async function candidateFixture(t, { dirty = false, urlTag = 'v' } = {}) {
   const { publicFiles } = await import('../../scripts/export-public.mjs');
   const { sha256, createReleaseCandidate, verifyReleaseCandidate } = await import('../../scripts/release-candidate.mjs');
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-candidate-audit-'));
@@ -21,7 +21,7 @@ async function candidateFixture(t, { dirty = false, urlTag = 'plugin-v' } = {}) 
   execFileSync('tar', ['-czf', archive, '-C', native, 'tensorviz-host', 'release-manifest.json']);
   const bytes = await fs.readFile(archive);
   const runtime = { formatVersion: 1, version, platform: manifest.platform, pythonABI: manifest.pythonABI, bytes: bytes.length, sha256: sha256(bytes),
-    url: `https://github.com/tensorviz-org/tensorviz/releases/download/${urlTag}${version}/${archiveName}` };
+    url: `https://github.com/tensorviz-org/tensorviz-plugins/releases/download/${urlTag}${version}/${archiveName}` };
   await fs.writeFile(`${archive}.json`, JSON.stringify(runtime));
   const integration = path.join(root, 'integration'), files = {};
   for (const file of publicFiles) {
@@ -47,7 +47,7 @@ for (const dirty of [true, 'missing']) test(`publishing rejects dirty or missing
   await assert.rejects(f.verifyReleaseCandidate(f.directory, { publishing: true }), /clean reviewed source/);
 });
 test('publishing rejects legacy extension tag namespace', async t => {
-  const f = await candidateFixture(t, { urlTag: 'v' });
+  const f = await candidateFixture(t, { urlTag: 'plugin-v' });
   await assert.rejects(f.verifyReleaseCandidate(f.directory, { publishing: true }), /exact distribution release URL/);
 });
 for (const mutation of ['extra', 'changed']) test(`catalog audit rejects ${mutation} ZIP content even if outer checksum is rewritten`, async t => {
@@ -62,11 +62,11 @@ for (const mutation of ['extra', 'changed']) test(`catalog audit rejects ${mutat
   await assert.rejects(f.verifyReleaseCandidate(f.directory), mutation === 'extra' ? /catalog ZIP differs/ : /catalog ZIP checksum mismatch/);
 });
 
-test('release build derives source repository plugin-v URLs and refuses unsafe configuration', async () => {
+test('release build derives public distribution v URLs and refuses unsafe configuration', async () => {
   const { releaseBuildConfig } = await import('../../scripts/build-release.mjs');
   const env = { TENSORVIZ_REVIEWED_SOURCE_SHA: 'a'.repeat(40), TENSORVIZ_COMPILER_PYTHON: '/venv/bin/python',
     TLDRAW_DISTRIBUTION_CONFIRMED: 'true', TLDRAW_LICENSE_KEY: 'fixture-not-a-real-license' };
-  assert.equal(releaseBuildConfig(env, '1.2.3', 'linux-x64').url, 'https://github.com/tensorviz-org/tensorviz/releases/download/plugin-v1.2.3/tensorviz-runtime-1.2.3-linux-x64.tar.gz');
+  assert.equal(releaseBuildConfig(env, '1.2.3', 'linux-x64').url, 'https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v1.2.3/tensorviz-runtime-1.2.3-linux-x64.tar.gz');
   for (const patch of [{ TENSORVIZ_REVIEWED_SOURCE_SHA: 'main' }, { TENSORVIZ_COMPILER_PYTHON: 'python' },
     { TLDRAW_DISTRIBUTION_CONFIRMED: 'false' }, { TLDRAW_LICENSE_KEY: '' }, { TENSORVIZ_RELEASE_VERSION: '9.0.0' }]) {
     assert.throws(() => releaseBuildConfig({ ...env, ...patch }, '1.2.3'));

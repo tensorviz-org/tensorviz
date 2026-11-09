@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-export const distributionRepository = 'tensorviz-org/tensorviz';
+export const distributionRepository = 'tensorviz-org/tensorviz-plugins';
 
 export function releaseVersion(base, runNumber) {
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(base)) throw new Error('Invalid plugin version.');

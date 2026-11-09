@@ -75,9 +75,9 @@ export async function exportPublic(destination, options = {}) {
           longDescription: 'A local TensorViz host for PyTorch architecture, tensor shapes and model changes. Downloads a verified compiled runtime automatically. Native runtime availability follows the pinned platform table; model execution requires matching CPython 3.12. VS Code and Node.js are not required.',
           category: 'Developer Tools',
           websiteURL: 'https://tensorviz.dev',
-          supportURL: `https://github.com/${distributionRepository}/blob/main/plugin/packaging/public/SUPPORT.md`,
-          privacyPolicyURL: `https://github.com/${distributionRepository}/blob/main/plugin/packaging/public/PRIVACY.md`,
-          termsOfServiceURL: `https://github.com/${distributionRepository}/blob/main/plugin/packaging/public/TERMS.md`,
+          supportURL: `https://github.com/${distributionRepository}/blob/main/SUPPORT.md`,
+          privacyPolicyURL: `https://github.com/${distributionRepository}/blob/main/PRIVACY.md`,
+          termsOfServiceURL: `https://github.com/${distributionRepository}/blob/main/TERMS.md`,
           defaultPrompt: ['Explain this PyTorch model and show its TensorViz graph.'],
         });
         await json(target, manifest);

@@ -28,15 +28,15 @@ local launcher and Codex tests.
 
 ## Install from a local repository
 
-Download and extract [the {{VERSION}} catalog ZIP](https://github.com/tensorviz-org/tensorviz/releases/download/plugin-v{{VERSION}}/tensorviz-catalog-{{VERSION}}.zip)
+Download and extract [the {{VERSION}} catalog ZIP](https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v{{VERSION}}/tensorviz-catalog-{{VERSION}}.zip)
 into a persistent folder, for example `~/tensorviz-catalog-{{VERSION}}`.
 It contains `.agents/plugins/marketplace.json`, `.claude-plugin/marketplace.json`,
 and the plugin directories with pinned runtime locks. The separate per-client
 plugin ZIPs do not contain the marketplace catalogs.
 
-Do not use GitHub's automatically generated source ZIP or clone source main for
-compiled installation. Source tags point to reviewed source commits, while the
-catalog ZIP is the audited installation export.
+The public distribution repository and its version tags contain the audited
+integration catalog. The private `tensorviz` source repository is not an
+installation catalog. The catalog ZIP provides the same complete export.
 
 Then choose your client, replacing the example path with the absolute path to
 the extracted catalog:

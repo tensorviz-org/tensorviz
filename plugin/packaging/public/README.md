@@ -1,6 +1,5 @@
-> Compiled release archive template. Releases are published from
-> `tensorviz-org/tensorviz` under `plugin-v{{VERSION}}`. Download the catalog ZIP
-> for local marketplace installation; source main is not a compiled catalog.
+> Compiled release archive template. Workflows run in `tensorviz-org/tensorviz`;
+> public releases and the installation catalog stay in `tensorviz-org/tensorviz-plugins`.
 
 # tensorViz for coding agents
 
@@ -47,19 +46,19 @@ from that host; SSH environment variables do not select a desktop runtime.
 
 ## Download
 
-**Codex and Claude Code users should download and extract the complete catalog ZIP**
-before running the local marketplace commands below.
+**Codex and Claude Code users can install directly** with the commands below.
+A complete catalog ZIP is also available for local marketplace installation.
 
 For a manual download, open the
-[Releases page](https://github.com/tensorviz-org/tensorviz/releases),
+[Releases page](https://github.com/tensorviz-org/tensorviz-plugins/releases),
 choose a version, expand **Assets**, and download the ZIP for your app.
-The links below are for **[preview {{VERSION}}](https://github.com/tensorviz-org/tensorviz/releases/tag/plugin-v{{VERSION}})**:
+The links below are for **[preview {{VERSION}}](https://github.com/tensorviz-org/tensorviz-plugins/releases/tag/v{{VERSION}})**:
 
 | Client | Plugin download | Installation |
 | --- | --- | --- |
-| Codex | [tensorviz-catalog-{{VERSION}}.zip](https://github.com/tensorviz-org/tensorviz/releases/download/plugin-v{{VERSION}}/tensorviz-catalog-{{VERSION}}.zip) | [Codex instructions](#install-in-codex) |
-| Claude Code | [tensorviz-catalog-{{VERSION}}.zip](https://github.com/tensorviz-org/tensorviz/releases/download/plugin-v{{VERSION}}/tensorviz-catalog-{{VERSION}}.zip) | [Claude Code instructions](#install-in-claude-code) |
-| Cursor | [tensorviz-cursor-{{VERSION}}.zip](https://github.com/tensorviz-org/tensorviz/releases/download/plugin-v{{VERSION}}/tensorviz-cursor-{{VERSION}}.zip) | [Cursor instructions](#install-in-cursor) |
+| Codex | [tensorviz-catalog-{{VERSION}}.zip](https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v{{VERSION}}/tensorviz-catalog-{{VERSION}}.zip) | [Codex instructions](#install-in-codex) |
+| Claude Code | [tensorviz-catalog-{{VERSION}}.zip](https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v{{VERSION}}/tensorviz-catalog-{{VERSION}}.zip) | [Claude Code instructions](#install-in-claude-code) |
+| Cursor | [tensorviz-cursor-{{VERSION}}.zip](https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v{{VERSION}}/tensorviz-cursor-{{VERSION}}.zip) | [Cursor instructions](#install-in-cursor) |
 
 The catalog ZIP contains the local marketplaces and both client directories.
 Extract it into a persistent directory, for example `~/tensorviz-catalog-{{VERSION}}`.
@@ -71,10 +70,9 @@ The compiled runtime downloads automatically on first connection. You do not
 need to download or unpack the separate `tensorviz-runtime-…tar.gz` release asset.
 The launcher checks its pinned SHA-256 digest before use and caches the verified
 archive for later connections. No source checkout, build tools, Node.js or VS Code
-installation is needed to use the compiled plugin. This open-source repository
-includes the visualization product (the extension, canvas, backend, and plugin
-host). The archive you install is the launcher and integration; it is not a copy
-of that source tree. Browser-delivered JavaScript remains inspectable, and
+installation is needed to use the compiled plugin. The public distribution
+repository and archives contain only the audited launcher and integration;
+the core source and its Git history are excluded. Browser-delivered JavaScript remains inspectable, and
 binaries can be reverse engineered. A GitHub release does not imply an official
 client marketplace listing.
 
@@ -83,12 +81,11 @@ client marketplace listing.
 1. Install or update the [Codex CLI](https://developers.openai.com/codex/cli/).
    It must be available as `codex` in your terminal, including when you use the
    Codex desktop app.
-2. Download and extract the catalog ZIP above, then replace the example path below
-   with its persistent absolute directory. Open a terminal on the machine where Codex executes, including the Linux
+2. Open a terminal on the machine where Codex executes, including the Linux
    server for an SSH session. Run these commands one at a time:
 
    ```sh
-   codex plugin marketplace add /absolute/path/to/tensorviz-catalog-{{VERSION}}
+   codex plugin marketplace add tensorviz-org/tensorviz-plugins
    codex plugin add tensorviz@tensorviz-standalone
    ```
 
@@ -115,11 +112,10 @@ disable that connection before using this plugin. See the
 ## Install in Claude Code
 
 Install or update [Claude Code](https://code.claude.com/docs/en/setup) first.
-Extract the catalog ZIP above into a persistent directory on the MCP execution
-host. Replace the example path with that directory, then run:
+Open a terminal on the MCP execution host, then run:
 
 ```sh
-claude plugin marketplace add /absolute/path/to/tensorviz-catalog-{{VERSION}}
+claude plugin marketplace add tensorviz-org/tensorviz-plugins
 claude plugin install tensorviz@tensorviz-standalone --scope user
 ```
 
@@ -129,7 +125,7 @@ your user account, so it is available across projects.
 Alternatively, inside an interactive Claude Code session, run:
 
 ```text
-/plugin marketplace add /absolute/path/to/tensorviz-catalog-{{VERSION}}
+/plugin marketplace add tensorviz-org/tensorviz-plugins
 /plugin install tensorviz@tensorviz-standalone
 ```
 

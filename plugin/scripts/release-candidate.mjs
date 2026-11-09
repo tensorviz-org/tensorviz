@@ -122,7 +122,7 @@ export async function verifyReleaseCandidate(directory, { publishing = false } =
     }
     if (publishing && manifest.workingTreeChanged !== false) throw new Error('Publication requires a clean reviewed source working tree.');
     if (publishing && (release.rendererDistributionCoverage !== 'owner-confirmed'
-      || entry.url !== `https://github.com/${distributionRepository}/releases/download/plugin-v${version}/${archive}`)) {
+      || entry.url !== `https://github.com/${distributionRepository}/releases/download/v${version}/${archive}`)) {
       throw new Error('Publication requires confirmed renderer coverage and the exact distribution release URL.');
     }
     const detail = execFileSync('tar', ['-tvzf', path.join(directory, archive)], { encoding: 'utf8', maxBuffer: 1024 * 1024 });

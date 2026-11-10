@@ -92,7 +92,10 @@ async function fixture(t, options = {}) {
       return JSON.stringify({ status: options.status ?? 'ahead', merge_base_commit: { sha: options.mergeBase ?? sha } });
     }
     assert.equal(settings.env.GH_TOKEN, 'distribution-test');
-    const endpoint = args[3].replace('repos/tensorviz-org/tensorviz-plugins/', '');
+    const repositoryEndpoint = 'repos/tensorviz-org/tensorviz-plugins';
+    // GitHub rejects the repository metadata endpoint with a trailing slash.
+    if (args[3] === `${repositoryEndpoint}/`) return notFound();
+    const endpoint = args[3] === repositoryEndpoint ? '' : args[3].replace(`${repositoryEndpoint}/`, '');
     const input = args.includes('--input') ? JSON.parse(readFileSync(args[args.indexOf('--input') + 1], 'utf8')) : null;
     const json = JSON.stringify;
     if (endpoint === '') return json({ private: !!options.privateDistribution, default_branch: 'main' });
@@ -118,6 +121,13 @@ async function fixture(t, options = {}) {
   return { run: () => publishRelease(root, { command, download, reviewedSource: options.reviewed ?? sha }), calls, downloads };
 }
 const writes = calls => calls.filter(c => c.includes('POST') || c[1] === 'release');
+
+test('uses the canonical repository metadata endpoint without a trailing slash', async t => {
+  const f = await fixture(t); await f.run();
+  const metadata = f.calls.filter(c => c[0] === 'gh' && c[1] === 'api' && /^repos\/tensorviz-org\/tensorviz-plugins\/?$/.test(c[4]));
+  assert.equal(metadata.length, 1);
+  assert.equal(metadata[0][4], 'repos/tensorviz-org/tensorviz-plugins');
+});
 
 test('publishes only public export and advances catalog after all downloads', async t => {
   const f = await fixture(t); const result = await f.run();

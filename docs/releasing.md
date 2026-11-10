@@ -105,6 +105,8 @@ catalog stay in `tensorviz-plugins`; do not change source visibility for cutover
 The publisher verifies source-main ancestry separately and publishes only the
 closed integration allowlist plus audited compiled artifacts. Existing Codex and
 Claude marketplace commands and old runtime URLs remain valid.
+The destination metadata check uses `repos/tensorviz-org/tensorviz-plugins`
+without a trailing slash; GitHub returns 404 for the slash-suffixed endpoint.
 
 1. Before the public launch, configure and verify [org-member merging and required org review](merge-protection.md).
    These are GitHub settings, not assertions enforced by this document. Audit

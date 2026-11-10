@@ -75,7 +75,9 @@ test('real Git publishes only public export history and safely retries', async t
       return JSON.stringify({ status: 'identical', merge_base_commit: { sha: sourceSha } });
     }
     assert.equal(options.env.GH_TOKEN, 'distribution-write-fixture');
-    const api = endpoint.replace('repos/tensorviz-org/tensorviz-plugins/', '');
+    const repositoryEndpoint = 'repos/tensorviz-org/tensorviz-plugins';
+    if (endpoint === `${repositoryEndpoint}/`) return missing();
+    const api = endpoint === repositoryEndpoint ? '' : endpoint.replace(`${repositoryEndpoint}/`, '');
     if (!api) return JSON.stringify({ private: false, default_branch: 'main' });
     if (api.startsWith('git/ref/')) {
       try { return JSON.stringify({ object: { type: 'commit', sha: git(remote, 'rev-parse', '--verify', `refs/${api.slice(8)}`) } }); } catch { return missing(); }

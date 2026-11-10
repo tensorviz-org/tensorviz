@@ -59,7 +59,7 @@ test('release workflows cannot execute fork PR code with secrets or write source
     const text = readFileSync(new URL(`../../.github/workflows/${name}.yml`, import.meta.url), 'utf8');
     assert.match(text, /github.repository == 'tensorviz-org\/tensorviz'/);
     assert.match(text, /vars.RELEASES_ENABLED == 'true'/);
-    assert.match(text, /environment: release/);
+    assert.doesNotMatch(text, /^\s+environment:/m, 'repository-secret publishing does not require a deployment environment');
     assert.match(text, /persist-credentials: false/);
     assert.match(text, /ref: \$\{\{ github.sha \}\}/);
     assert.match(text, /cancel-in-progress: false/);
@@ -91,7 +91,7 @@ test('native publishing isolates cross-repository credential from build jobs', (
 });
 
 
-test('build-only jobs avoid environments without weakening publication or renderer gates', () => {
+test('repository-secret publishing preserves manual main-only activation and build isolation', () => {
   for (const name of ['release-vsix', 'release-plugin']) {
     const text = readFileSync(new URL(`../../.github/workflows/${name}.yml`, import.meta.url), 'utf8');
     const [before, publish] = text.split('\n  publish:\n');
@@ -104,16 +104,45 @@ test('build-only jobs avoid environments without weakening publication or render
     assert.match(before, /RELEASE_PUBLISH: \$\{\{ vars.RELEASES_ENABLED == 'true' && inputs.publish \}\}/);
     assert.match(before, /secrets.TLDRAW_LICENSE_KEY/);
     assert.match(publish, /if: needs\.(?:build|configuration)\.outputs\.publish == 'true'/);
-    assert.match(publish, /^    environment: release$/m);
-    assert.equal((text.match(/^\s+environment:/gm) ?? []).length, 1);
+    assert.doesNotMatch(publish, /^\s+environment:/m);
   }
   const plugin = readFileSync(new URL('../../.github/workflows/release-plugin.yml', import.meta.url), 'utf8');
   assert.match(plugin, /TLDRAW_DISTRIBUTION_CONFIRMED: \$\{\{ vars.TLDRAW_DISTRIBUTION_CONFIRMED \}\}/);
   const openvsx = readFileSync(new URL('../../.github/workflows/release-openvsx.yml', import.meta.url), 'utf8');
   assert.match(openvsx, /vars.RELEASES_ENABLED == 'true'/);
-  assert.match(openvsx, /environment: release/);
+  assert.doesNotMatch(openvsx, /^\s+environment:/m);
+  assert.match(openvsx, /github.event_name == 'workflow_dispatch' && github.ref == 'refs\/heads\/main'/);
+  assert.match(openvsx, /github.event.workflow_run.conclusion == 'success'/);
+  assert.match(openvsx, /github.event.workflow_run.head_branch == 'main'/);
+  assert.match(openvsx, /github.event.workflow_run.head_repository.full_name == github.repository/);
   const runbook = readFileSync(new URL('../../docs/releasing.md', import.meta.url), 'utf8');
   assert.match(runbook, /Keep `RELEASES_ENABLED` unset or `false` throughout this validation/);
+});
+
+
+test('publisher credentials remain step-scoped with least-privilege repository tokens', () => {
+  for (const [name, secret] of [['release-vsix', 'VSCE_PAT'], ['release-openvsx', 'OVSX_PAT'], ['release-plugin', 'PLUGIN_PUBLISH_TOKEN']]) {
+    const text = readFileSync(new URL(`../../.github/workflows/${name}.yml`, import.meta.url), 'utf8');
+    const [before, publish] = text.split('\n  publish:\n');
+    assert.ok(publish, 'publisher remains a separate job');
+    assert.match(before, /permissions:\n  contents: read/);
+    assert.doesNotMatch(before, /VSCE_PAT|OVSX_PAT|PLUGIN_PUBLISH_TOKEN/);
+    assert.equal((publish.match(new RegExp(`secrets\\.${secret}`, 'g')) ?? []).length, 1);
+    assert.match(publish, new RegExp(`^          (?:${secret}|GH_TOKEN): \\$\\{\\{ secrets\\.${secret} \\}\\}$`, 'm'));
+    for (const other of ['VSCE_PAT', 'OVSX_PAT', 'PLUGIN_PUBLISH_TOKEN'].filter(value => value !== secret)) {
+      assert.ok(!publish.includes(other), `${name} does not receive ${other}`);
+    }
+    if (name === 'release-vsix') {
+      assert.match(publish, /permissions:\n      contents: write/);
+      assert.doesNotMatch(before, /contents: write/);
+    } else {
+      assert.doesNotMatch(text, /contents: write/);
+    }
+  }
+  const runbook = readFileSync(new URL('../../docs/releasing.md', import.meta.url), 'utf8');
+  assert.match(runbook, /repository Actions secrets/);
+  assert.match(runbook, /No deployment environment or Enterprise upgrade is required/);
+  assert.match(runbook, /Org-only review enforcement is deferred until public launch/);
 });
 
 

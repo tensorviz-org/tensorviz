@@ -1,10 +1,12 @@
 # TensorViz merge protection design
 
-Proposed only. No GitHub settings or permissions changed.
+Proposed public-launch policy, deferred until the repository is made public.
+No GitHub settings or permissions changed. Moving the release workflows now does
+not depend on this future enforcement or on adding a deployment environment.
 
 ## Verified state
 
-- `tensorviz-org/tensorviz` is private (ID 1435323397), default branch `main`; main reports `protected: false` at SHA `c7ae9e2b4c91e5098ea24bc8617463fa151c2624`.
+- At the initial migration audit, `tensorviz-org/tensorviz` was private (ID 1435323397), default branch `main`; main reported `protected: false` at SHA `c7ae9e2b4c91e5098ea24bc8617463fa151c2624`. Recheck effective settings at public launch.
 - Connected-user metadata reports admin, but the integration cannot read classic branch protection: HTTP 403, `Resource not accessible by integration`.
 - Ruleset listing returns HTTP 403: `Upgrade to GitHub Pro or make this repository public to enable this feature.` No ruleset inventory was retrieved.
 - Main has no CODEOWNERS file. Org members/teams, outside collaborators, apps/deploy keys and exact billing plan are unverified. No team name or ID should be invented.
@@ -90,15 +92,15 @@ Current GitHub supports team reviewers directly in rulesets. CODEOWNERS is unnec
 }
 ```
 
-The migration worker confirmed `GITHUB_TOKEN` creates both tag namespaces and does not update branches. This rule allows initial tag creation but blocks subsequent movement/deletion, including by Actions. Do not restrict creation to humans unless a separate approved automation exception is designed. The publisher must verify source SHA and refuse asset/tag overwrite.
+The source repository's `GITHUB_TOKEN` creates extension tags without updating source branches. Native tags and audited catalog commits go to `tensorviz-plugins` using its separately scoped publishing token. This rule allows initial tag creation but blocks subsequent movement/deletion, including by Actions. Do not restrict creation to humans unless a separate approved automation exception is designed. The publisher must verify source SHA and refuse asset/tag overwrite.
 
-### Release environment and activation order
+### Optional release environment hardening
 
-Configure `release` with the verified team as required reviewer, explicit selected deployment **branch** `main`, and admin bypass disabled. Consider preventing self-review. Store publishing secrets in that environment. A missing environment referenced in YAML is automatically created **without protection**. “Protected branches only” allows all branches if there are no branch protections, so use explicit main.
+Current release workflows use repository Actions secrets, matching the legacy setup, and do not reference `release`. No deployment environment or Enterprise upgrade is required for that publishing model. The [cutover runbook](releasing.md) retains manual/main and `RELEASES_ENABLED` gates and requires disabling the old publishers before activation.
 
-Required environment reviewers work on public Free/Team repos. Private repos need Enterprise for reviewer gates; Team alone does not unlock them.
+If separately approved later, configure `release` with the verified team as required reviewer, explicit selected deployment **branch** `main`, and admin bypass disabled before adding it to the workflows. Consider preventing self-review and store publishing secrets in that environment. A missing environment referenced in YAML is automatically created **without protection**. “Protected branches only” allows all branches if there are no branch protections, so use explicit main.
 
-The worker's proposed YAML checks exact repository/main and `RELEASES_ENABLED == 'true'`. Activate in order: verify protections and reviewed release environment, disable legacy release workflows, then set `RELEASES_ENABLED` last. This is a proposal; do not claim it is active from the YAML alone.
+Required environment reviewers work on public Free/Team repos. Private repos need Enterprise for these optional reviewer gates; Team alone does not unlock them. This is future hardening, not a prerequisite for the current migration or repository-secret publishing.
 
 ## Verification and limitations
 
@@ -107,8 +109,8 @@ The worker's proposed YAML checks exact repository/main and `RELEASES_ENABLED ==
 3. Verify at least two eligible humans: a PR author cannot approve their own PR, so a one-person team blocks that member's PRs.
 4. Apply independent rulesets, retrieve by ID and read effective rules for main, a nested feature branch and each release branch. Check active enforcement, exact targets and bypass lists.
 5. In approved disposable test PRs, verify zero approvals and outside-only approval remain blocked, eligible approval satisfies review, a new commit invalidates it, and an outsider/admin outside the team cannot merge. Check root, nested and dotfile changes. Do not claim behavior tests passed based only on setting reads.
-6. Release workflows must not commit to main, replace catalog branches, merge PRs or publish fork input. Fork PR jobs stay read-only, secret-free and isolated. Never execute PR-head code in privileged `pull_request_target` jobs.
-7. Verify environment reviewer/branch/bypass settings and tag behavior before calling complete. State plan/permission/test-actor blockers explicitly. Current tool access does not permit applying or verifying this configuration.
+6. Release workflows must not commit to source main, replace source branches, merge PRs or publish fork input. The separate public catalog may advance only after its assets and export are audited. Fork PR jobs stay read-only, secret-free and isolated. Never execute PR-head code in privileged `pull_request_target` jobs.
+7. Verify org-member merge/review enforcement and tag behavior at public launch. Verify environment reviewer/branch/bypass settings only if that optional hardening is adopted. State plan/permission/test-actor blockers explicitly. Current tool access does not permit applying or verifying this configuration.
 
 ## Official sources
 

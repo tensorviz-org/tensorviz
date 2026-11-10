@@ -9,13 +9,12 @@ identical nodes are still treated as the same conceptual layer.
 
 import hashlib
 import json
-from collections import defaultdict
+from collections import defaultdict, deque
 from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
 from models.architecture_models import (
-    ArchitectureEdge,
     ArchitectureGraph,
     ArchitectureNode,
 )
@@ -90,9 +89,9 @@ def _topo_index(graph: ArchitectureGraph) -> Dict[str, int]:
 def _diff_params(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     """Return per-key {before, after} for keys whose values differ."""
     changes: Dict[str, Dict[str, Any]] = {}
-    for key in set(a.keys()) | set(b.keys()):
+    for key in sorted(set(a.keys()) | set(b.keys())):
         va, vb = a.get(key), b.get(key)
-        if va != vb:
+        if key not in a or key not in b or va != vb:
             changes[key] = {"before": va, "after": vb}
     return changes
 
@@ -207,21 +206,22 @@ class GraphDiffService:
 
         # 6. Edge diff. Translate edges in A to their B-equivalents via
         #    the node correspondence, then compare the resulting edge
-        #    sets.
-        edges_by_pair_b: Dict[Tuple[str, str, str, str], ArchitectureEdge] = {
-            (e.source_node_id, e.source_port, e.target_node_id, e.target_port): e
-            for e in graph_b.edges
-        }
-        seen_b_pairs: set[Tuple[str, str, str, str]] = set()
+        #    multisets.
+        edges_by_pair_b: Dict[Tuple[str, str, str, str], deque[int]] = defaultdict(deque)
+        for index, edge in enumerate(graph_b.edges):
+            key = (edge.source_node_id, edge.source_port, edge.target_node_id, edge.target_port)
+            edges_by_pair_b[key].append(index)
+        seen_b_indices: set[int] = set()
         edge_diffs: List[EdgeDiff] = []
         for edge_a in graph_a.edges:
             src_b = matched_a_to_b.get(edge_a.source_node_id)
             tgt_b = matched_a_to_b.get(edge_a.target_node_id)
             if src_b and tgt_b:
                 key = (src_b, edge_a.source_port, tgt_b, edge_a.target_port)
-                if key in edges_by_pair_b:
-                    edge_b = edges_by_pair_b[key]
-                    seen_b_pairs.add(key)
+                if edges_by_pair_b.get(key):
+                    index = edges_by_pair_b[key].popleft()
+                    edge_b = graph_b.edges[index]
+                    seen_b_indices.add(index)
                     edge_diffs.append(EdgeDiff(
                         status="unchanged",
                         edge_id_a=edge_a.edge_id,
@@ -238,9 +238,8 @@ class GraphDiffService:
                 source_node_id_a=edge_a.source_node_id,
                 target_node_id_a=edge_a.target_node_id,
             ))
-        for edge_b in graph_b.edges:
-            key = (edge_b.source_node_id, edge_b.source_port, edge_b.target_node_id, edge_b.target_port)
-            if key in seen_b_pairs:
+        for index, edge_b in enumerate(graph_b.edges):
+            if index in seen_b_indices:
                 continue
             edge_diffs.append(EdgeDiff(
                 status="added",

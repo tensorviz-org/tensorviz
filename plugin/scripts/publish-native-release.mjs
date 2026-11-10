@@ -35,7 +35,7 @@ export async function publishRelease(directory, {
   const run = (tool, args, options = {}) => command(tool, args, {
     encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, cwd: sourceRoot, env, ...options,
   });
-  const api = (endpoint, args = []) => JSON.parse(run('gh', ['api', '--hostname', 'github.com', `repos/${repo}/${endpoint}`, ...args]));
+  const api = (endpoint, args = []) => JSON.parse(run('gh', ['api', '--hostname', 'github.com', `repos/${repo}${endpoint ? `/${endpoint}` : ''}`, ...args]));
   const optional = callback => {
     try { return callback(); } catch (error) {
       if (/HTTP 404\b/.test(String(error.stderr))) return null;

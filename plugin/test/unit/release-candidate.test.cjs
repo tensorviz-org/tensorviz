@@ -5,10 +5,10 @@ const path = require('node:path');
 const os = require('node:os');
 const { execFileSync } = require('node:child_process');
 
-async function candidateFixture(t, { dirty = false, urlTag = 'v' } = {}) {
+async function candidateFixture(t, { dirty = false, urlTag = 'v', relative = false, singleArchive = false } = {}) {
   const { publicFiles } = await import('../../scripts/export-public.mjs');
   const { sha256, createReleaseCandidate, verifyReleaseCandidate } = await import('../../scripts/release-candidate.mjs');
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-candidate-audit-'));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-candidate audit-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const version = '1.2.3', sourceRevision = 'a'.repeat(40), archiveName = `tensorviz-runtime-${version}-linux-x64.tar.gz`;
   const native = path.join(root, 'runtime'); await fs.mkdir(native);
@@ -30,9 +30,17 @@ async function candidateFixture(t, { dirty = false, urlTag = 'v' } = {}) {
     await fs.writeFile(path.join(integration, file), content); files[file] = sha256(content);
   }
   await fs.writeFile(path.join(integration, 'PUBLICATION.json'), JSON.stringify({ version, sourceRevision, runtime, files }));
-  const directory = await createReleaseCandidate(integration, [archive]);
+  const inputPath = file => relative ? path.relative(process.cwd(), file) : file;
+  const directory = await createReleaseCandidate(inputPath(integration), singleArchive ? inputPath(archive) : [inputPath(archive)]);
+  assert.equal(directory, path.join(root, `candidate-${version}`));
   return { directory, root, sha256, verifyReleaseCandidate, catalog: path.join(directory, `tensorviz-catalog-${version}.zip`), publicFiles };
 }
+
+for (const singleArchive of [true, false]) test(`relative candidate paths create audited ZIPs (${singleArchive ? 'single archive' : 'archive array'})`, async t => {
+  const f = await candidateFixture(t, { relative: true, singleArchive });
+  await f.verifyReleaseCandidate(f.directory, { publishing: true });
+  assert.ok(path.isAbsolute(f.directory));
+});
 
 test('catalog ZIP contains exact audited integration including local client catalogs and locks', async t => {
   const f = await candidateFixture(t); await f.verifyReleaseCandidate(f.directory, { publishing: true });

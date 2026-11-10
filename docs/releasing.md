@@ -60,7 +60,10 @@ packaging still checks the version reported by the compiled host and fails if
 its exact notice is missing.
 
 Native platform jobs audit their archives and run existing installation/capture
-checks. Assembly requires both targets. Publication audits the complete catalog,
+checks. Assembly accepts integration and archive paths relative to the caller's
+working directory or absolute paths, and returns an absolute candidate path
+beside the first archive. Final catalog assembly requires both targets.
+Publication audits the complete catalog,
 ZIP contents, runtime manifests and checksums, rejects dirty source provenance,
 and checks the exact source is on main. It publishes native assets and the audited catalog only to `tensorviz-plugins`,
 without replacing the private source tree. The source token has read-only access;

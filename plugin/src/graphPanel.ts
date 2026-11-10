@@ -16,6 +16,7 @@ import { createLocalBrowserViewTransport, type LocalBrowserSocketLike,
 interface Panel {
   id: string;
   touched: number;
+  attached: boolean;
   transport?: LocalBrowserViewTransport;
   sequence: number;
   delivered: number;
@@ -46,9 +47,17 @@ export class GraphPanels {
   constructor(private readonly host: StandaloneHost) {}
 
   open(): string {
+    // A tool call is not evidence that a host mounted the app. T3 can attach
+    // its bridge later without advertising it at MCP initialize. At capacity,
+    // expire only the oldest never-attached opener, not a live or detached
+    // frame. Keep distinct IDs: two delayed app mounts must not fight over one.
+    if (this.panels.size >= 8) {
+      const pending = [...this.panels.values()].find(panel => !panel.attached);
+      if (pending) this.close(pending.id);
+    }
     if (this.panels.size >= 8) throw new GraphToolError('PANEL_LIMIT', 'Close an unused graph panel before opening another.');
     const id = randomUUID();
-    this.panels.set(id, { id, touched: Date.now(), sequence: 0, delivered: 0, bytes: 0, events: [], controller: new AbortController() });
+    this.panels.set(id, { id, touched: Date.now(), attached: false, sequence: 0, delivered: 0, bytes: 0, events: [], controller: new AbortController() });
     return id;
   }
 
@@ -127,6 +136,7 @@ export class GraphPanels {
         // restore it, so request a fresh broker snapshot without recapturing.
         this.detach(panel);
       }
+      panel.attached = true;
       while (panel.events[0]?.sequence <= after) panel.bytes -= Buffer.byteLength(JSON.stringify(panel.events.shift()!));
       if (!panel.transport) {
         await this.connect(panel, signal);
@@ -200,8 +210,8 @@ export async function registerGraphPanel(server: McpServer, host: StandaloneHost
     _meta: { ui: { resourceUri: uri }, 'openai/ui': OpenAIUiToolMetadataSchema.parse({ entrypoints: [{ type: 'thread' }], preferredModelDisplayMode: 'fullscreen' }) },
   }, async () => {
     const panelId = panels.open();
-    return { content: [{ type: 'text', text: 'Opening the Model graph panel. Capture and display are verified separately; use list_models to check the connected view.' }],
-      structuredContent: { displayed: false }, _meta: { panelId } };
+    return { content: [{ type: 'text', text: 'Model graph panel requested; display is not confirmed. Use list_models to check the connected view. If no panel appears, use open_graph_view with the current model reference for a browser fallback instead of repeatedly opening panels. Capture and display are verified separately.' }],
+      structuredContent: { displayed: false, status: 'awaiting_view', fallbackTool: 'open_graph_view' }, _meta: { panelId } };
   });
   registerAppTool(server, 'graph_panel_exchange', {
     description: 'Private Canvas transport for the TensorViz MCP App. Does not grant execution permission.',
@@ -242,3 +252,4 @@ export async function registerGraphPanel(server: McpServer, host: StandaloneHost
   }, args => { panels.close(args.panelId, args.clientId); return { content: [] }; });
   return panels;
 }
+

@@ -52,6 +52,17 @@ Opening a graph executes one forward call. Ask to **inspect source only** if you
 
 Ask the agent to show the **Model graph** panel. Clients without a panel can open the graph in a local browser page instead. An empty panel does not start Python.
 
+The `graphPanel` capability in `list_models` describes server support, not proof
+that your client can render a panel. An opener returns `displayed: false` and
+`status: awaiting_view`; it is not a display receipt. Use the current view
+receipt from `list_models` to verify display. If no panel appears, use `open_graph_view`
+with the current model reference, open its returned private URL, and check its
+display receipt instead of repeatedly calling `open_graph_panel`. At the eight-panel limit, another open expires the oldest opener that has never
+connected, rather than asking you to close an invisible panel. Connected and
+previously connected frames are protected from this capacity eviction; the
+existing idle timeout still applies. Each opener retains a separate identity,
+so clients that attach their app bridge later can still connect normally.
+
 Closing the panel does not cancel a capture or edit source. Reopen **Model graph** if it disconnects; the capture is kept.
 
 ## Publish to tensorviz.dev
@@ -88,3 +99,4 @@ More: [environment recovery](environment-recovery.md), [setup and inputs](graph-
 ## Develop the plugin
 
 Building from source, the source archive installer, service details, and panel limits are in the [plugin reference](reference/agent-plugin.md) and [plugin build](plugin-build.md).
+

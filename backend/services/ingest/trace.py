@@ -1008,14 +1008,17 @@ def trace_model(
     # perfectly correct, and Dropout puts noise in a trace that is meant to be
     # deterministic. A `--kind train_step` run is the deliberate exception — its
     # whole point is the training path — so it keeps the mode the user's own code set.
-    was_training = model.training
-    if step is None and was_training and not preserve_mode:
-        model.eval()
+    # A root flag does not describe a mixed-mode model (for example a frozen
+    # BatchNorm under a training parent). Preserve every module independently.
+    module_modes = ([(module, module.training) for module in model.modules()]
+                    if step is None and not preserve_mode else [])
     started = time.perf_counter()
     output: Any = None
     forward_error: BaseException | None = None
     gc_prior = block_templates.raise_gc_threshold() if prov.templates is not None else None
     try:
+        if any(training for _, training in module_modes):
+            model.eval()
         if tier == "fake" and not fake_mode_active():
             with _AttentionFastPathOff(), torch.no_grad(), FakeTensorMode(allow_non_fake_inputs=True), \
                     prov.semantic.functions() if prov.semantic is not None else nullcontext(), prov:
@@ -1040,8 +1043,9 @@ def trace_model(
     finally:
         if gc_prior is not None:
             gc.set_threshold(*gc_prior)
-        if step is None and was_training and not preserve_mode:
-            model.train()
+        for module, training in module_modes:
+            # Module.train() recurses and would overwrite descendant modes.
+            module.training = training
         for handle in handles:
             handle.remove()
         if prov.templates is not None:

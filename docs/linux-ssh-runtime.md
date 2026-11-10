@@ -15,6 +15,12 @@ POSIX background startup now preserves MCP stdin through fd 3 and closes the
 duplicate, retaining signal/wait/session cleanup. Raw localhost graph links refer
 to that execution host and require forwarding for a remote desktop browser.
 
+Both native launchers place PyTorch's Inductor cache inside the private extraction
+session, overriding an inherited `TORCHINDUCTOR_CACHE_DIR`. Model-derived cache
+files are removed with that session after normal exit, failure or handled
+termination; a caller's existing cache is neither modified nor deleted. `TMPDIR`
+is unchanged so separate hosts continue to use the same cross-host lock location.
+
 ## Catalog and local assembly
 
 Format-1 locks remain compatible. Format-2 catalogs hold one pinned entry per

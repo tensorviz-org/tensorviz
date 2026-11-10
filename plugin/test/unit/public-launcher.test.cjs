@@ -125,3 +125,54 @@ for (const libc of ['glibc 2.34', 'musl 1.2']) test(`${libc} is refused before L
     assert.equal(await fs.stat(f.env.DOWNLOAD_LOG).catch(() => null), null);
   } finally { await f.close(); }
 });
+
+for (const [system, architecture, platform, abi] of [
+  ['Linux', 'x86_64', 'linux-x64', 'cpython-312-x86_64-linux-gnu'],
+  ['Darwin', 'arm64', 'darwin-arm64', 'cpython-312-darwin'],
+]) {
+  for (const mode of ['success', 'failure', 'terminated']) test(`${platform} owns and cleans the child Inductor cache on ${mode}`, async () => {
+    const f = await fixture(system, architecture);
+    try {
+      const payload = path.join(f.root, 'payload'); await fs.mkdir(payload);
+      // Reproduce Inductor's environment-selected cache, including its default
+      // outside the launcher session. No Torch installation or native build is needed.
+      await fs.writeFile(path.join(payload, 'tensorviz-host'), `#!/usr/bin/python3
+import getpass, json, os, pathlib, signal, stat, sys, tempfile, time
+cache = pathlib.Path(os.environ.get('TORCHINDUCTOR_CACHE_DIR', os.path.join(tempfile.gettempdir(), 'torchinductor_' + getpass.getuser())))
+cache.mkdir(parents=True, exist_ok=True)
+(cache / 'model-derived.py').write_text('synthetic model data')
+pathlib.Path(os.environ['CACHE_LOG']).write_text(json.dumps({
+    'cache': str(cache), 'tmp': tempfile.gettempdir(),
+    'mode': stat.S_IMODE(cache.stat().st_mode), 'uid': cache.stat().st_uid,
+}))
+if os.environ['HOST_MODE'] == 'terminated':
+    os.kill(os.getppid(), signal.SIGTERM)
+    time.sleep(30)
+sys.exit(17 if os.environ['HOST_MODE'] == 'failure' else 0)
+`, { mode: 0o755 });
+      assert.equal((await run('/usr/bin/tar', ['-czf', f.env.FIXTURE_ARCHIVE, '-C', payload, 'tensorviz-host'], { env: f.env })).status, 0);
+      const archive = await fs.readFile(f.env.FIXTURE_ARCHIVE);
+      await fs.writeFile(path.join(f.plugin, 'runtime-lock.json'), JSON.stringify({ formatVersion: 1, version: '0.3.61', platform, pythonABI: abi,
+        bytes: archive.length, sha256: createHash('sha256').update(archive).digest('hex'), url: 'https://127.0.0.1:1/runtime.tar.gz' }));
+      const externalCache = path.join(f.root, 'caller cache'); await fs.mkdir(externalCache);
+      await fs.writeFile(path.join(externalCache, 'keep'), 'caller-owned');
+      const cacheLog = path.join(f.root, 'cache.json');
+      f.env.TMPDIR = await fs.realpath(f.tmp);
+      // The default and an inherited caller-owned cache must both be isolated.
+      for (const inherited of [undefined, externalCache]) {
+        const result = await f.launch({ HOST_MODE: mode, CACHE_LOG: cacheLog, TORCHINDUCTOR_CACHE_DIR: inherited });
+        assert.equal(result.status, { success: 0, failure: 17, terminated: 143 }[mode], result.stderr);
+        const record = JSON.parse(await fs.readFile(cacheLog, 'utf8'));
+        assert.equal(path.dirname(path.dirname(record.cache)), f.env.TMPDIR, 'Cache must be inside the launcher-owned session');
+        assert.match(path.basename(path.dirname(record.cache)), /^tensorviz-native\./);
+        assert.equal(record.tmp, f.env.TMPDIR, 'Shared TMPDIR and cross-host lock location must not change');
+        assert.equal(record.mode, 0o700, 'Model-derived cache must remain private');
+        assert.equal(record.uid, process.getuid());
+        assert.equal(await fs.stat(record.cache).catch(() => null), null, 'Child cache must be removed with the session');
+        assert.deepEqual(await fs.readdir(f.tmp), [], 'No session or default Inductor cache may survive');
+        assert.deepEqual(await fs.readdir(externalCache), ['keep'], 'Do not write to or delete the caller cache');
+        assert.equal(await fs.readFile(path.join(externalCache, 'keep'), 'utf8'), 'caller-owned');
+      }
+    } finally { await f.close(); }
+  });
+}

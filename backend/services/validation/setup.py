@@ -115,9 +115,12 @@ def relative_path(value: Any) -> str:
 
 
 def workspace_file(workspace: str, value: str, max_bytes: int | None = None) -> Path:
-    path = (Path(workspace).resolve() / relative_path(value)).resolve(strict=True)
-    if not path.is_relative_to(Path(workspace).resolve()) or not path.is_file():
+    root = Path(workspace).resolve(strict=True)
+    path = (root / relative_path(value)).resolve(strict=True)
+    if not path.is_relative_to(root) or not path.is_file():
         raise ValueError("Execution files must resolve inside the workspace.")
+    if any(part.startswith(".env") for part in path.relative_to(root).parts):
+        raise ValueError("Environment files cannot be execution files.")
     if max_bytes is not None and path.stat().st_size > max_bytes:
         raise ValueError("Execution file exceeds the size limit.")
     return path
@@ -128,6 +131,8 @@ def workspace_directory(workspace: str, value: str) -> Path:
     directory = root if value == "." else (root / relative_path(value)).resolve(strict=True)
     if not directory.is_relative_to(root) or not directory.is_dir():
         raise ValueError("The execution working directory must be inside the workspace.")
+    if any(part.startswith(".env") for part in directory.relative_to(root).parts):
+        raise ValueError("Environment directories cannot be execution working directories.")
     return directory
 
 

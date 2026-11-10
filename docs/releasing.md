@@ -50,6 +50,15 @@ run's source/version artifact, checks its repository and exact SHA,
 and skips build-only results. It verifies source, package identity and byte
 checksums against Marketplace and the numbered GitHub release before uploading.
 
+The native workflow and both `pkg` targets pin Node.js `22.23.4`. The embedded
+runtime is selected by the locked `@yao-pkg/pkg-fetch` dependency, independently
+of the Node executable running the build. When updating these tools, keep the
+exact targets, workflow versions and `plugin/licenses/node-<version>.txt` notice
+aligned. Copy the unmodified `LICENSE` from the corresponding
+[upstream Node release](https://github.com/nodejs/node/blob/v22.23.4/LICENSE);
+packaging still checks the version reported by the compiled host and fails if
+its exact notice is missing.
+
 Native platform jobs audit their archives and run existing installation/capture
 checks. Assembly requires both targets. Publication audits the complete catalog,
 ZIP contents, runtime manifests and checksums, rejects dirty source provenance,

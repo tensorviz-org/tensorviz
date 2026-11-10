@@ -1,7 +1,7 @@
 /** Only supported compiled targets may enter runtime locks. */
 export const nativePlatforms = {
-  'darwin-arm64': { os: 'darwin', arch: 'arm64', machine: 'arm64', abi: 'cpython-312-darwin', pkg: 'node22-macos-arm64' },
-  'linux-x64': { os: 'linux', arch: 'x64', machine: 'x86_64', abi: 'cpython-312-x86_64-linux-gnu', pkg: 'node22-linux-x64' },
+  'darwin-arm64': { os: 'darwin', arch: 'arm64', machine: 'arm64', abi: 'cpython-312-darwin', pkg: 'node22.23.4-macos-arm64' },
+  'linux-x64': { os: 'linux', arch: 'x64', machine: 'x86_64', abi: 'cpython-312-x86_64-linux-gnu', pkg: 'node22.23.4-linux-x64' },
 };
 export function nativePlatform(platform = process.platform, arch = process.arch) {
   const key = `${platform}-${arch}`;

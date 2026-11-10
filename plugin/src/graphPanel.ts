@@ -47,13 +47,14 @@ export class GraphPanels {
   constructor(private readonly host: StandaloneHost) {}
 
   open(): string {
-    // A client without a renderer (or an iframe that failed to mount) never
-    // exchanges with its opener. Reuse that pending opener instead of filling
-    // the connection's panel budget with invisible views. Do not infer renderer
-    // support from missing capability advertisement: legacy hosts omit it.
-    const pending = [...this.panels.values()].find(panel => !panel.claimed);
-    if (pending) { pending.touched = Date.now(); return pending.id; }
-    if (this.panels.size >= 8) throw new GraphToolError('PANEL_LIMIT', 'Close an unused graph panel before opening another.');
+    if (this.panels.size >= 8) {
+      // Preserve distinct openers for concurrent mounts within the budget.
+      // At capacity, recover an opener that no renderer ever exchanged with.
+      // Missing UI capability advertisement alone does not exclude legacy hosts.
+      const pending = [...this.panels.values()].find(panel => !panel.claimed);
+      if (pending) { pending.touched = Date.now(); return pending.id; }
+      throw new GraphToolError('PANEL_LIMIT', 'Close an unused graph panel before opening another.');
+    }
     const id = randomUUID();
     this.panels.set(id, { id, touched: Date.now(), sequence: 0, delivered: 0, bytes: 0, events: [], controller: new AbortController() });
     return id;

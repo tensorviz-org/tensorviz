@@ -211,17 +211,18 @@ test(agentTest ? 'Codex selects the installed skill and captures during an ordin
     assert.equal(await fs.readFile(path.join(project, 'model.py'), 'utf8'), modelSource);
     console.log(`Captured Tiny and inspected measured shapes through Codex with ${approvals} TensorViz permission prompts.`);
     if (!agentTest) {
-      let pendingPanel;
+      const pendingPanels = new Set();
       for (let count = 0; count < 16; count++) {
         const reply = await request('mcpServer/tool/call', { threadId, server: server.name,
           tool: 'open_graph_panel', arguments: {} });
         assert.ok(!reply.isError, JSON.stringify(reply));
         assert.equal(reply.structuredContent.displayed, false);
         assert.ok(reply._meta.panelId);
-        pendingPanel ??= reply._meta.panelId;
-        assert.equal(reply._meta.panelId, pendingPanel, 'a CLI without a mounted app must reuse its pending panel');
+        if (count < 8) assert.ok(!pendingPanels.has(reply._meta.panelId), 'concurrent pending openers stay distinct');
+        else assert.ok(pendingPanels.has(reply._meta.panelId), 'at capacity a CLI reuses an unmounted opener');
+        pendingPanels.add(reply._meta.panelId);
       }
-      console.log('Sixteen unopened graph requests reused one panel through the Codex bridge.');
+      console.log('Sixteen unopened graph requests stayed within eight distinct pending panels through the Codex bridge.');
       await checkClientRecovery({ call, project, python, model: modelSource, recipe, initial: capture });
     }
     const exited = new Promise(resolve => child.once('exit', resolve));

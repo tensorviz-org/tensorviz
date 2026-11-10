@@ -98,22 +98,23 @@ test('read-only panel transport rejects a mixed action batch before forwarding a
   } finally { panels.dispose(); await client.close(); await server.close(); }
 });
 
-// A terminal or a failed iframe can request an opener repeatedly without ever
-// mounting it. Unrendered openers must not consume every slot in the connection.
-test('repeated unopened panels reuse one pending opener without replacing mounted frames', async () => {
+// Preserve distinct openers for concurrent mounts within the existing budget.
+// At capacity a terminal/failed iframe may reuse an opener that never exchanged.
+test('unmounted panels recover at capacity without replacing concurrent or mounted frames', async () => {
   const host = { graph: { list: () => ({ models: [] }) }, graphView: { cancelOwner() {} } };
   const panels = new GraphPanels(host);
   try {
     const signal = new AbortController().signal;
-    const pending = panels.open();
-    for (let count = 0; count < 32; count++) assert.equal(panels.open(), pending);
+    const pending = Array.from({ length: 8 }, () => panels.open());
+    assert.equal(new Set(pending).size, 8, 'concurrent openers must remain distinct before first exchange');
+    for (let count = 0; count < 32; count++) assert.equal(panels.open(), pending[0]);
     // Legacy hosts can exchange without clientId or UI capability advertisement.
-    assert.equal((await panels.exchange(pending, 0, [], signal)).waitingForModel, true);
-    const next = panels.open();
-    assert.notEqual(next, pending, 'a mounted panel must retain its own opener');
-    assert.equal(panels.open(), next);
-    await panels.exchange(next, 0, [], signal, 'frame-two');
-    assert.notEqual(panels.open(), next);
-    assert.equal((await panels.exchange(pending, 0, [], signal)).waitingForModel, true);
+    assert.equal((await panels.exchange(pending[0], 0, [], signal)).waitingForModel, true);
+    assert.equal(panels.open(), pending[1], 'a mounted panel must not be reused');
+    for (let index = 1; index < pending.length; index++) await panels.exchange(pending[index], 0, [], signal, `frame-${index}`);
+    assert.throws(() => panels.open(), { code: 'PANEL_LIMIT' });
+    assert.equal((await panels.exchange(pending[0], 0, [], signal)).waitingForModel, true);
+    panels.close(pending[1]);
+    assert.ok(!pending.includes(panels.open()), 'a freed slot gets a fresh opener');
   } finally { panels.dispose(); }
 });

@@ -51,7 +51,7 @@ needed or downloaded. Linux launcher branches have simulated unit coverage only.
 | Capture/context | `[2,4] → [2,3]`, 15 parameters; edit to `[2,2]`, 10 parameters | `[2,4] → [2,3]` through both CLIs; native edit matrix also passes | Actual compiled binaries and CPU execution |
 | Browser fallback/render | Pass; visible graph, inspection, selection receipt, pan, zoom, fit | Production browser code used in embedded harness; fallback unchanged | Actual browser interaction; not signed-in desktop GUI |
 | Edit/refresh | ReLU/width 3 → Sigmoid/width 2; old snapshot becomes stale; visible measured `[2,2]` | Native and bridge receipt tests pass | Before/after screenshots and native tests |
-| Repeated unmounted graph openers | 8 allocations then errors; 16 requests produce 8 errors | 16 requests, no errors; same pending panel ID in both real CLI bridges | Regression reproduced in real CLIs and native MCP |
+| Repeated unmounted graph openers | 8 allocations then errors; 16 requests produce 8 errors | Initial candidate: 16 requests, no errors; immediate opener reuse. Final candidate: eight distinct pending openers, reuse only at capacity | Regression reproduced in real CLIs and native MCP |
 | Embedded graph render | Signed-in desktop blocked | Render, zoom and refresh pass in MCP Apps iframe harness | Explicit synthetic host, real renderer; no native desktop acceptance |
 | New host/session and reconnect | Pass | Pass | Native MCP process restart, persisted task-only consent |
 | Update | Codex marketplace refresh succeeds; Claude reports latest 0.3.109 | No publication/update transition attempted | Current-to-current update only |
@@ -67,7 +67,7 @@ key or publication credential is used by the new validation workflow.
 
 1. **Invisible panels exhaust the connection.** `GraphPanels.open()` allocates a
    new slot even when no app ever exchanges with it. The ninth call fails with
-   `PANEL_LIMIT`. An unopened panel is now reused until first exchange. Mounted
+   `PANEL_LIMIT`. At the existing eight-panel capacity, an opener that never exchanged can be reused. The first eight concurrent openers remain distinct, even before mount. Mounted
    frames retain independent identities, the eight-active-panel limit, owner
    isolation, stale-frame rejection and cleanup. Legacy hosts without `clientId`
    remain supported. The regression failed on the original implementation.
@@ -216,10 +216,11 @@ automation was configured. Disposable profiles, candidates and caches remain in
 the local audit workspace for reproduction; raw local data is not committed.
 
 Next review: inspect the focused fixes and exact-head CI, then perform supported,
-verified-isolated signed-in GUI acceptance before any release decision. Review
-concurrent iframe mounts that request the same opener before their first exchange;
-mounted-frame lifecycle tests remain green, but actual supported desktop hosts
-are needed for final compatibility acceptance.
+verified-isolated signed-in GUI acceptance before any release decision. A regression
+first demonstrated that immediate opener reuse aliases concurrent mounts. The final
+fix reuses only at capacity and verifies eight distinct pending openers, subsequent
+reuse, all eight mounted frames retaining identity, and a fresh ID after closing.
+Actual supported desktop hosts are still needed for final compatibility acceptance.
 
 ## Active source port and final validation
 
@@ -229,7 +230,7 @@ Inductor-cache isolation, graph export, account/share behavior and dependency
 updates are preserved. The public catalog remains pinned to 0.3.109 until a
 separately authorized release. The scoped fix does not publish or sign in.
 
-The active source plugin unit suite passes all 154 tests and all 1,189 shared tests. The 0.3.110 native error/recovery matrix passes (see evidence/active-native.json), the 281-file compiled package audit passes, and all 81 documentation-source links resolve. The documentation build verifies 54 pages and 3,494 local links/anchors. Both actual CLI install/download/capture/uninstall flows pass against the 0.3.110 native candidate (Codex 0.165.0, Claude Code 2.1.308): each discovers 29 tools and reuses one pending panel for sixteen requests. Both clients also pass source edit/recapture with `[2,2]` and 10 parameters, changed revision, actionable shape/model failures, correction/recovery and cancellation through their own control bridges. The shared synthetic fixture is `plugin/test/fixtures/client-recovery.cjs`. The expanded local flow takes about 132 seconds across both clients; time budgets grow with the added captures while all outcome assertions remain strict. All seven release/package/native checks and the native open-graph selection/focus/refresh integration pass. Release provenance/packaging/workflow units pass 97 tests, plus the bundle-notices check. Exact-head CI results are recorded in the PR handoff. Do not treat the
+The active source plugin unit suite passes all 154 tests and all 1,189 shared tests. The 0.3.110 native error/recovery matrix passes (see evidence/active-native.json), the 281-file compiled package audit passes, and all 81 documentation-source links resolve. The documentation build verifies 54 pages and 3,494 local links/anchors. Both actual CLI install/download/capture/uninstall flows pass against the 0.3.110 native candidate (Codex 0.165.0, Claude Code 2.1.308): each discovers 29 tools. The final panel regression preserves eight concurrent opener IDs and reuses an unmounted ID at capacity across sixteen requests; final real-client/CI reruns are recorded in the PR receipt. Both clients also pass source edit/recapture with `[2,2]` and 10 parameters, changed revision, actionable shape/model failures, correction/recovery and cancellation through their own control bridges. The shared synthetic fixture is `plugin/test/fixtures/client-recovery.cjs`. The expanded local flow takes about 132 seconds across both clients; time budgets grow with the added captures while all outcome assertions remain strict. All seven release/package/native checks and the native open-graph selection/focus/refresh integration pass. Release provenance/packaging/workflow units pass 97 tests, plus the bundle-notices check. Exact-head CI results are recorded in the PR handoff. Do not treat the
 legacy 0.3.61 evidence files or screenshots as evidence for an installed 0.3.110
 release.
 

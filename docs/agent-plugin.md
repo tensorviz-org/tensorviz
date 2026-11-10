@@ -111,6 +111,7 @@ Claude Code connection, `MCP_TIMEOUT=360000 claude` is a process-only timeout
 option. Do not put `startup_timeout_sec` in portable `mcp.json`: Codex CLI 0.165.0
 rejects that field and skips the server.
 
-Requests for a graph panel reuse a pending opener until a frame connects.
+Concurrent graph requests keep distinct openers within the eight-panel budget.
+At capacity, a request reuses an opener that no frame has connected to.
 Mounted panels retain separate identities and the eight-panel limit. A client
 with no mounted UI should request the local browser graph for actual display.

@@ -16,6 +16,7 @@ import { createLocalBrowserViewTransport, type LocalBrowserSocketLike,
 interface Panel {
   id: string;
   touched: number;
+  claimed?: boolean;
   transport?: LocalBrowserViewTransport;
   sequence: number;
   delivered: number;
@@ -46,6 +47,12 @@ export class GraphPanels {
   constructor(private readonly host: StandaloneHost) {}
 
   open(): string {
+    // A client without a renderer (or an iframe that failed to mount) never
+    // exchanges with its opener. Reuse that pending opener instead of filling
+    // the connection's panel budget with invisible views. Do not infer renderer
+    // support from missing capability advertisement: legacy hosts omit it.
+    const pending = [...this.panels.values()].find(panel => !panel.claimed);
+    if (pending) { pending.touched = Date.now(); return pending.id; }
     if (this.panels.size >= 8) throw new GraphToolError('PANEL_LIMIT', 'Close an unused graph panel before opening another.');
     const id = randomUUID();
     this.panels.set(id, { id, touched: Date.now(), sequence: 0, delivered: 0, bytes: 0, events: [], controller: new AbortController() });
@@ -111,6 +118,7 @@ export class GraphPanels {
     const panel = this.panels.get(id);
     if (!panel) throw new GraphToolError('PANEL_CLOSED', 'This graph panel expired or belongs to another connection. Reopen it from this chat.');
     if (panel.exchanging) throw new GraphToolError('PANEL_BUSY', 'Wait for the current panel request to finish.');
+    panel.claimed = true;
     panel.exchanging = true;
     let finish!: () => void;
     panel.exchangeDone = new Promise<void>(resolve => { finish = resolve; });

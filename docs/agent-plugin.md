@@ -88,3 +88,29 @@ More: [environment recovery](environment-recovery.md), [setup and inputs](graph-
 ## Develop the plugin
 
 Building from source, the source archive installer, service details, and panel limits are in the [plugin reference](reference/agent-plugin.md) and [plugin build](plugin-build.md).
+
+## Runtime cache and slow first connection
+
+New source candidates support `TENSORVIZ_RUNTIME_CACHE_DIR` in the MCP server
+environment. Use an absolute directory for a task-specific verified archive
+cache. This does not isolate the coding client's profile or TensorViz permission
+and service state; configure those separately. The default archive location is
+unchanged when this variable is absent.
+
+If the first download exceeds the client's startup deadline, a new candidate's
+launcher can prepare the archive without running it:
+
+```sh
+sh /absolute/path/to/plugin/scripts/launch.sh --prepare-runtime
+```
+
+Use the same cache for prefetch and the MCP server, then reconnect. The command
+checks the pinned size and SHA-256 before returning, and does not extract or
+execute the runtime. Published 0.3.109 does not contain this flag. For its first
+Claude Code connection, `MCP_TIMEOUT=360000 claude` is a process-only timeout
+option. Do not put `startup_timeout_sec` in portable `mcp.json`: Codex CLI 0.165.0
+rejects that field and skips the server.
+
+Requests for a graph panel reuse a pending opener until a frame connects.
+Mounted panels retain separate identities and the eight-panel limit. A client
+with no mounted UI should request the local browser graph for actual display.

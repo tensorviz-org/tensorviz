@@ -61,7 +61,7 @@ test(agentTest ? 'Codex selects the installed skill and captures during an ordin
     const mcp = JSON.parse(await fs.readFile(mcpFile, 'utf8'));
     mcp.mcpServers.tensorviz.env = { ...mcp.mcpServers.tensorviz.env, TENSORVIZ_DATA_DIR: env.TENSORVIZ_DATA_DIR };
     if (process.env.TENSORVIZ_TEST_DOWNLOAD_CA) mcp.mcpServers.tensorviz.env = { ...mcp.mcpServers.tensorviz.env,
-      HOME: path.join(root, 'runtime-home'), CURL_CA_BUNDLE: process.env.TENSORVIZ_TEST_DOWNLOAD_CA };
+      TENSORVIZ_RUNTIME_CACHE_DIR: path.join(root, 'runtime-cache'), CURL_CA_BUNDLE: process.env.TENSORVIZ_TEST_DOWNLOAD_CA };
     await fs.writeFile(mcpFile, JSON.stringify(mcp));
     await fs.writeFile(path.join(marketplace, '.agents/plugins/marketplace.json'), JSON.stringify({ name: 'tensorviz-standalone', plugins: [{
       name: 'tensorviz', source: { source: 'local', path: './plugins/tensorviz' },
@@ -209,6 +209,19 @@ test(agentTest ? 'Codex selects the installed skill and captures during an ordin
     assert.equal(await fs.readFile(path.join(project, 'tensorviz.toml'), 'utf8'), recipe);
     assert.equal(await fs.readFile(path.join(project, 'model.py'), 'utf8'), modelSource);
     console.log(`Captured Tiny and inspected measured shapes through Codex with ${approvals} TensorViz permission prompts.`);
+    if (!agentTest) {
+      let pendingPanel;
+      for (let count = 0; count < 16; count++) {
+        const reply = await request('mcpServer/tool/call', { threadId, server: server.name,
+          tool: 'open_graph_panel', arguments: {} });
+        assert.ok(!reply.isError, JSON.stringify(reply));
+        assert.equal(reply.structuredContent.displayed, false);
+        assert.ok(reply._meta.panelId);
+        pendingPanel ??= reply._meta.panelId;
+        assert.equal(reply._meta.panelId, pendingPanel, 'a CLI without a mounted app must reuse its pending panel');
+      }
+      console.log('Sixteen unopened graph requests reused one panel through the Codex bridge.');
+    }
     const exited = new Promise(resolve => child.once('exit', resolve));
     child.stdin.end();
     stopGroup(child.pid);

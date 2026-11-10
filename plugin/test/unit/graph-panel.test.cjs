@@ -15,7 +15,10 @@ test('empty panels have bounded lifetimes and cannot access another connection',
     assert.equal((await panels.exchange(id, 0, [], signal)).waitingForModel, true);
     await assert.rejects(other.exchange(id, 0, [], signal), { code: 'PANEL_CLOSED' });
     await assert.rejects(panels.exchange(id, 1, [], signal), { code: 'INVALID_CURSOR' });
-    for (let i = 1; i < 8; i++) panels.open();
+    for (let i = 1; i < 8; i++) {
+      const active = panels.open();
+      await panels.exchange(active, 0, [], signal);
+    }
     assert.throws(() => panels.open(), { code: 'PANEL_LIMIT' });
     panels.close(id);
     assert.ok(cancelled.includes(`panel:${id}`));
@@ -93,4 +96,24 @@ test('read-only panel transport rejects a mixed action batch before forwarding a
       assert.deepEqual(forwarded.at(-1), messages);
     }
   } finally { panels.dispose(); await client.close(); await server.close(); }
+});
+
+// A terminal or a failed iframe can request an opener repeatedly without ever
+// mounting it. Unrendered openers must not consume every slot in the connection.
+test('repeated unopened panels reuse one pending opener without replacing mounted frames', async () => {
+  const host = { graph: { list: () => ({ models: [] }) }, graphView: { cancelOwner() {} } };
+  const panels = new GraphPanels(host);
+  try {
+    const signal = new AbortController().signal;
+    const pending = panels.open();
+    for (let count = 0; count < 32; count++) assert.equal(panels.open(), pending);
+    // Legacy hosts can exchange without clientId or UI capability advertisement.
+    assert.equal((await panels.exchange(pending, 0, [], signal)).waitingForModel, true);
+    const next = panels.open();
+    assert.notEqual(next, pending, 'a mounted panel must retain its own opener');
+    assert.equal(panels.open(), next);
+    await panels.exchange(next, 0, [], signal, 'frame-two');
+    assert.notEqual(panels.open(), next);
+    assert.equal((await panels.exchange(pending, 0, [], signal)).waitingForModel, true);
+  } finally { panels.dispose(); }
 });

@@ -24,9 +24,14 @@ repository and is not copied or deployed here.
 ## Reviewed versions and immutable sources
 
 Version bumps, matching package-lock versions, and extension changelog entries
-must be committed through a reviewed PR. The migration starts at extension
-`0.1.41` and plugin `0.3.109`, above the verified old releases `0.1.40` and
-`0.3.108`. Recheck these floors just before cutover if legacy releases continue.
+must be committed through a reviewed PR. The prepared cutover versions are extension
+`0.1.42` and plugin `0.3.110`, above the observed legacy GitHub release floors
+[extension 0.1.41](https://github.com/tensorviz-org/tensorViz-extension/releases/tag/v0.1.41)
+and [plugin 0.3.109](https://github.com/tensorviz-org/tensorviz-plugins/releases/tag/v0.3.109),
+verified on 2026-11-10. Recheck GitHub, Marketplace and Open VSX version floors
+immediately before cutover, after freezing the legacy stream. If any floor has
+advanced to a prepared version or beyond, prepare another reviewed version bump;
+never reuse or overwrite a published version.
 The workflow run number is not a version. No release job commits, pushes, merges,
 or rewrites source branches. All checkouts use the run's exact SHA.
 
@@ -122,7 +127,12 @@ Claude marketplace commands and old runtime URLs remain valid.
 7. Freeze the legacy release stream. Wait for existing publishing runs to finish,
    record their final versions, then disable `release-vsix.yml`,
    `release-openvsx.yml`, and `release-plugin.yml` in `tensorViz-extension`.
-   Confirm no queued or running publisher remains. Do not delete old releases,
+   Confirm no queued or running publisher remains. The 2026-11-10 audit still
+   reported manual runs [native 41063482462](https://github.com/tensorviz-org/tensorViz-extension/actions/runs/41063482462)
+   and [VSIX 41063477447](https://github.com/tensorviz-org/tensorViz-extension/actions/runs/41063477447)
+   queued since October 30. Recheck their current state and resolve any remaining
+   runs under owner authorization before activation; this version preparation does
+   not cancel them or disable the legacy publishers. Do not delete old releases,
    move old tags, or revoke a token still needed by another authorized workflow.
 8. Set repository variable `RELEASES_ENABLED=true` last, then explicitly dispatch
    one reviewed release with `publish=true`. Verify Marketplace, numbered GitHub,

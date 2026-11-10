@@ -1,6 +1,6 @@
 {
   "name": "@tensorviz/plugin",
-  "version": "0.3.109",
+  "version": "0.3.110",
   "private": true,
   "description": "Local tensorViz host for coding-agent plugins",
   "license": "MIT",

@@ -6,6 +6,11 @@ or `false` until the owner completes and verifies the cutover below. The initial
 even if a repository variable was already enabled. No legacy workflow, repository
 visibility, permission, secret or environment is changed by this code change.
 
+Publishing uses repository Actions secrets, matching the legacy workflows.
+No deployment environment or Enterprise upgrade is required for this migration.
+Optional deployment-environment hardening is separate from the cutover, as is
+the required org-member merge/review enforcement at public launch.
+
 ## Release inventory
 
 | Workflow | Trigger after activation | Output |
@@ -75,23 +80,22 @@ legacy repository. Disable the old publishers before activating new ones.
 
 ## Build-only validation before release setup
 
-Build jobs do not reference a deployment environment. With `RELEASES_ENABLED`
+Release jobs do not reference a deployment environment. With `RELEASES_ENABLED`
 unset or `false`, dispatch `release-vsix.yml` and `release-plugin.yml` from
-`main` with `publish=false`. This validates candidates without creating the
-`release` environment or needing publisher tokens. Publication jobs still use
-that environment and retain their activation gates.
+`main` with `publish=false`. This validates candidates without publisher tokens.
+Publication jobs retain their manual/main and activation gates. The workflows
+inject publishing credentials only into their respective publishing steps.
 
 Production renderer checks remain required. Before this validation, obtain owner
 approval to configure `TLDRAW_LICENSE_KEY` as a repository Actions secret using
 secure secret management; build jobs cannot read an environment-only secret.
 Confirm renderer coverage before setting repository variable
-`TLDRAW_DISTRIBUTION_CONFIRMED=true`. Never put the key in source or logs, and do
-not move publisher tokens out of the protected publishing environment.
+`TLDRAW_DISTRIBUTION_CONFIRMED=true`. Never put keys or tokens in source or logs.
 
 Keep `RELEASES_ENABLED` unset or `false` throughout this validation. If it is
-already true, a successful VSIX build can trigger the Open VSX job and access its
-`release` environment before the handoff rejects `publish=false`. Therefore the
-input alone is not a guarantee of environment-free validation. Build artifacts
+already true, a successful VSIX build can trigger the Open VSX job and inject its
+publisher secret before the handoff rejects `publish=false`. Therefore the
+input alone is not a guarantee of publisher-credential-free validation. Build artifacts
 remain subject to repository access; artifacts of a public repository are public.
 
 ## Owner setup before activation
@@ -107,14 +111,12 @@ Claude marketplace commands and old runtime URLs remain valid.
    outside write/admin access and app/deploy-key bypasses. At the migration audit,
    main was unprotected and the private repository plan did not support rulesets.
    Do not change visibility or billing merely to bypass that blocker.
-2. Create `release` before enabling publication. Build-only validation above does
-   not need it. Require a verified org team
-   review, select only deployment **branch** `main`, and disable admin bypass.
-   A referenced missing environment is automatically created unprotected.
-   Public Free/Team supports environment reviewers; private repositories need an
-   eligible Enterprise plan for these reviewer gates.
-3. Store `VSCE_PAT`, `OVSX_PAT`, and `PLUGIN_PUBLISH_TOKEN` in that environment using
-   the providers' supported secret-management process. Never copy secrets into
+2. Use repository Actions secrets in `tensorviz-org/tensorviz`, as in the legacy
+   publisher setup. A `release` environment is not a prerequisite. Limit repository
+   write/admin access to trusted maintainers while public-launch protections are
+   deferred; workflow gates are not a substitute for those protections.
+3. Configure `VSCE_PAT`, `OVSX_PAT`, and `PLUGIN_PUBLISH_TOKEN` as repository Actions
+   secrets using the providers' supported secret-management process. Never copy secrets into
    source or logs. Grant publisher tokens only their existing namespace scope.
    Keep the renderer license available to build jobs as described above.
    This code has not transferred, inspected, or verified secret values.
@@ -158,6 +160,21 @@ Claude marketplace commands and old runtime URLs remain valid.
    are verified. Preserve historical releases, tags and useful issue records.
    Confirm the archived state and existing download continuity afterward.
 
+## Optional deployment-environment hardening
+
+A protected `release` environment can be added later as a separately approved
+security change. It is not required to move or run the legacy publishing model.
+If adopted, configure and verify the environment before referencing it in YAML:
+require a verified org team reviewer, select only deployment **branch** `main`,
+disable admin bypass, and consider preventing self-review. A missing environment
+referenced by a workflow is automatically created without protection.
+
+Environment required reviewers are supported for public Free/Team repositories;
+private repositories need an eligible Enterprise plan for that optional feature.
+This restriction does not apply to repository-secret publishing. Keep renderer
+configuration available to build jobs if publisher secrets move into an environment.
+See the [merge protection design](merge-protection.md) for the separate public-launch policy.
+
 ## Retry and rollback
 
 Rerun the failed publish job with its original artifact and exact SHA. VSIX
@@ -180,8 +197,9 @@ until the owner has checked version ordering and excluded concurrent publishers.
 
 `Release safety checks` runs on PRs, including forks, with a read-only token and
 no secrets. It validates workflow syntax and credential-free release regressions.
-Publication never runs on `pull_request` or `pull_request_target`. Keep upstream
-main review enforcement active; workflow conditions do not replace it.
+Publication never runs on `pull_request` or `pull_request_target`. Org-only review
+enforcement is deferred until public launch; workflow conditions do not replace
+the GitHub protections that must be verified then.
 
 Local focused tests cover source/version validation, forged and stale handoffs,
 Marketplace/Open VSX parity, immutable tags/assets, draft recovery, catalog ZIP
@@ -203,5 +221,6 @@ publishers disabled before activation because concurrency groups do not span rep
 Validate build-only artifacts on macOS arm64 and Linux x64, installed-client capture,
 and public catalog/ZIP compatibility before activating publication or archiving
 `tensorViz-extension`. Source privacy is not itself a blocker for this distribution
-layout. Environment protections, credentials, renderer coverage, and live consumer
-continuity remain separate gates; this code does not configure or prove them.
+layout. Credentials, renderer coverage, and live consumer continuity remain
+cutover gates; this code does not configure or prove them. Optional environment
+protections are future hardening, not a migration prerequisite.

@@ -22,7 +22,6 @@ concurrency:
 
 jobs:
   publish:
-    environment: release
     if: >-
       github.repository == 'tensorviz-org/tensorviz' && vars.RELEASES_ENABLED == 'true' && (
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||

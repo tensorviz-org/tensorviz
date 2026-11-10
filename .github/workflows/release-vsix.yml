@@ -21,7 +21,7 @@ jobs:
     if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Build-only validation must not create or access the publishing environment.
+    # Build-only validation never receives publisher credentials.
     outputs:
       publish: ${{ steps.prepare.outputs.publish }}
       version: ${{ steps.prepare.outputs.version }}
@@ -71,7 +71,6 @@ jobs:
     if: needs.build.outputs.publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: release
     permissions:
       contents: write
     steps:
@@ -94,7 +93,7 @@ jobs:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
           RELEASE_VERSION: ${{ needs.build.outputs.version }}
         run: |
-          test -n "$VSCE_PAT" || { echo '::error::Configure VSCE_PAT in the release environment.'; exit 1; }
+          test -n "$VSCE_PAT" || { echo '::error::Configure VSCE_PAT as a repository Actions secret.'; exit 1; }
           npx --no-install vsce publish --packagePath "tensorviz-vscode-${RELEASE_VERSION}.vsix" --skip-duplicate
       - name: Sync the numbered GitHub release with Marketplace
         env:

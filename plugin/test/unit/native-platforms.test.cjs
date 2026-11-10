@@ -92,37 +92,46 @@ test('assembly refuses duplicate platforms and mixed versions before export or p
 
 // Runs unchanged in normal build shells; sandbox spawnSync restrictions are
 // reported as failures, never hidden by skipping provenance/package checks.
-test('a two-platform candidate verifies both native archives and rejects missing/tampered assets', async () => {
+for (const { entries, relative } of [
+  { entries: [darwin], relative: true }, { entries: [linux], relative: true },
+  { entries: [darwin, linux], relative: true }, { entries: [darwin, linux], relative: false },
+]) test(`${entries.map(entry => entry.platform).join('+')} assembly verifies ${relative ? 'relative CLI' : 'absolute API'} paths and rejects missing/tampered assets`, async () => {
   const { assembleNativeRelease } = await import('../../scripts/assemble-native-release.mjs');
   const { pluginVersion } = await import('../../scripts/release-version.mjs');
   const { sha256, createReleaseCandidate, verifyReleaseCandidate } = await import('../../scripts/release-candidate.mjs');
   const { runtimeArchive } = await import('../../scripts/native-platforms.mjs');
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-multi-candidate-'));
-  const run = (cmd, args) => new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] }); let output = '', error = '';
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-native candidate-'));
+  const run = (cmd, args, options = {}) => new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], ...options }); let output = '', error = '';
     child.stdout.on('data', bytes => output += bytes); child.stderr.on('data', bytes => error += bytes);
     child.once('error', reject); child.once('close', code => code === 0 ? resolve(output.trim()) : reject(new Error(error)));
   });
   try {
     const version = pluginVersion(), sourceRevision = await run('git', ['rev-parse', 'HEAD']);
+    const assets = path.join(root, entries.length === 1 ? 'plugin/dist' : 'plugin/out/native-assets');
+    await fs.mkdir(assets, { recursive: true });
+    await fs.mkdir(path.join(root, 'plugin/out'), { recursive: true });
     const archives = [];
-    for (const original of [darwin, linux]) {
+    for (const original of entries) {
       const runtime = path.join(root, original.platform); await fs.mkdir(runtime);
       await fs.writeFile(path.join(runtime, 'tensorviz-host'), 'synthetic native host');
       await fs.writeFile(path.join(runtime, 'release-manifest.json'), JSON.stringify({ version, sourceRevision,
         platform: original.platform, pythonABI: original.pythonABI, coreSourceIncluded: false,
         rendererDistributionCoverage: 'pending-owner-confirmation', files: { 'tensorviz-host': sha256(Buffer.from('synthetic native host')) } }));
-      const archive = path.join(root, runtimeArchive({ ...original, version })); archives.push(archive);
+      const archive = path.join(assets, runtimeArchive({ ...original, version })); archives.push(archive);
       await run('tar', ['-czf', archive, '-C', runtime, 'tensorviz-host', 'release-manifest.json']);
       const bytes = await fs.readFile(archive), lock = { ...original, version, bytes: bytes.length, sha256: sha256(bytes) };
       await fs.writeFile(`${archive}.json`, JSON.stringify(lock));
     }
-    const integration = path.join(root, 'integration');
-    const candidate = await assembleNativeRelease(integration, archives);
-    assert.equal((await verifyReleaseCandidate(candidate)).archives.length, 2);
-    await assert.rejects(createReleaseCandidate(integration, archives.slice(0, 1)), /platforms differ/);
-    const linuxArchive = path.join(candidate, path.basename(archives[1]));
-    await fs.appendFile(linuxArchive, 'tamper');
+    const integration = path.join(root, 'plugin/out/integration');
+    const candidate = relative ? await run(process.execPath, [path.resolve(__dirname, '../../scripts/assemble-native-release.mjs'),
+      path.relative(root, integration), ...archives.map(archive => path.relative(root, archive))], { cwd: root })
+      : await assembleNativeRelease(integration, archives);
+    assert.equal(candidate, path.join(assets, `candidate-${version}`));
+    assert.equal((await verifyReleaseCandidate(candidate)).archives.length, entries.length);
+    await assert.rejects(createReleaseCandidate(integration, archives.slice(1)), /platforms differ/);
+    const archive = path.join(candidate, path.basename(archives.at(-1)));
+    await fs.appendFile(archive, 'tamper');
     await assert.rejects(verifyReleaseCandidate(candidate), /checksum mismatch/);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });

@@ -47,9 +47,11 @@ export async function auditIntegration(directory, { allowPrevious = false } = {}
 }
 
 export async function createReleaseCandidate(integration, archive) {
+  // ZIP commands change cwd; resolve caller paths before building any assets.
+  integration = path.resolve(integration);
+  const archives = (Array.isArray(archive) ? archive : [archive]).map(file => path.resolve(file));
   const publication = await auditIntegration(integration);
   const { version } = publication;
-  const archives = Array.isArray(archive) ? archive : [archive];
   const expectedArchives = runtimeEntries(publication.runtime).map(runtimeArchive).sort();
   if (JSON.stringify(archives.map(file => path.basename(file)).sort()) !== JSON.stringify(expectedArchives)) throw new Error('Candidate runtime platforms differ from the lock.');
   const directory = path.join(path.dirname(archives[0]), `candidate-${version}`);

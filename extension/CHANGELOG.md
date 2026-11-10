@@ -3,6 +3,7 @@
 ## Contents
 
 - [Unreleased](#unreleased)
+- [0.1.42](#0142)
 - [0.1.41](#0141)
 - [0.1.36](#0136)
 - [0.1.35](#0135)
@@ -43,7 +44,7 @@
 - [0.0.2](#002)
 - [0.0.1](#001)
 
-Extension **0.1.41**. The plugin host in this repository is **0.3.109**.
+Extension **0.1.42**. The plugin host in this repository is **0.3.110**.
 
 This tree is the visualization product: Open as Graph, graph diff, execution
 cache (`off`, `shadow`, and `on`), code focus, graph export, MCP, Hugging Face open, source
@@ -51,6 +52,10 @@ proposals, JAX/Flax capture, and website sign-in and share. Latency profiling,
 training-step capture, product analytics, and the hosted website application are not in this tree.
 
 ## Unreleased
+
+## 0.1.42
+
+- Prepare the workflow cutover with a new reviewed extension version above the legacy 0.1.41 release. The companion plugin host is 0.3.110, above the public 0.3.109 release. Existing published versions and artifacts remain unchanged; publication still requires the release gates and verification checklist.
 
 ## 0.1.41
 

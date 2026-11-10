@@ -115,3 +115,27 @@ test('build-only jobs avoid environments without weakening publication or render
   const runbook = readFileSync(new URL('../../docs/releasing.md', import.meta.url), 'utf8');
   assert.match(runbook, /Keep `RELEASES_ENABLED` unset or `false` throughout this validation/);
 });
+
+
+test('prepared cutover versions exceed audited legacy floors and keep manifests, locks and docs aligned', () => {
+  const read = relative => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
+  const newer = (version, floor) => {
+    assert.match(version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
+    const left = version.split('.').map(Number), right = floor.split('.').map(Number);
+    for (let i = 0; i < 3; i++) if (left[i] !== right[i]) return left[i] > right[i];
+    return false;
+  };
+  // Snapshot of observed GitHub releases on 2026-11-10, not a live registry query.
+  // The cutover runbook requires a fresh check before activating publication.
+  for (const [product, floor] of [['extension', '0.1.41'], ['plugin', '0.3.109']]) {
+    const manifest = JSON.parse(read(`${product}/package.json`));
+    const lock = JSON.parse(read(`${product}/package-lock.json`));
+    assert.ok(newer(manifest.version, floor), `${product} must exceed the audited release floor`);
+    assert.equal(lock.version, manifest.version);
+    assert.equal(lock.packages[''].version, manifest.version);
+    for (const document of ['docs/local-setup.md', 'docs/reference.md', 'docs/releasing.md']) {
+      assert.ok(read(document).includes(manifest.version), `${document} must show the prepared ${product} version`);
+    }
+    if (product === 'extension') assert.ok(read('extension/CHANGELOG.md').includes(`## ${manifest.version}\n`));
+  }
+});

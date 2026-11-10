@@ -7,7 +7,7 @@ const https = require('node:https');
 const { spawn, execFileSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
 
-test('Codex and Claude install only the integration, download the compiled runtime, capture and uninstall', { timeout: process.platform === 'linux' ? 600000 : 300000 }, async () => {
+test('Codex and Claude install only the integration, download the compiled runtime, capture and uninstall', { timeout: process.platform === 'linux' ? 600000 : 420000 }, async () => {
   const { nativePlatform, runtimeArchive } = await import('../../scripts/native-platforms.mjs');
   const target = nativePlatform();
   const { exportPublic } = await import('../../scripts/export-public.mjs');

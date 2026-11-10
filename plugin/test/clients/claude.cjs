@@ -7,8 +7,9 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 const { createInterface } = require('node:readline');
+const { checkClientRecovery } = require('../fixtures/client-recovery.cjs');
 
-test('Claude installs the standalone plugin and captures through its native MCP bridge', { timeout: 120000 }, async () => {
+test('Claude installs the standalone plugin and captures through its native MCP bridge', { timeout: 180000 }, async () => {
   const python = process.env.TENSORVIZ_TEST_PYTHON;
   assert.ok(python && path.isAbsolute(python), 'Set TENSORVIZ_TEST_PYTHON to a compatible interpreter.');
   const cli = process.env.TENSORVIZ_TEST_CLAUDE || 'claude';
@@ -140,6 +141,7 @@ test('Claude installs the standalone plugin and captures through its native MCP 
       assert.equal(reply._meta.panelId, pendingPanel, 'a CLI without a mounted app must reuse its pending panel');
     }
     console.log('Sixteen unopened graph requests reused one panel through the Claude bridge.');
+    await checkClientRecovery({ call, project, python, model, recipe, initial: capture });
     child.stdin.end();
     await new Promise(resolve => child.once('exit', resolve));
     stop(child.pid); child = undefined;

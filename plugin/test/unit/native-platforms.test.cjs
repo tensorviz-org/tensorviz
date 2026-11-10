@@ -100,7 +100,8 @@ for (const { entries, relative } of [
   const { pluginVersion } = await import('../../scripts/release-version.mjs');
   const { sha256, createReleaseCandidate, verifyReleaseCandidate } = await import('../../scripts/release-candidate.mjs');
   const { runtimeArchive } = await import('../../scripts/native-platforms.mjs');
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-native candidate-'));
+  // Child-process cwd resolves macOS /var to /private/var; compare canonical paths.
+  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-native candidate-')));
   const run = (cmd, args, options = {}) => new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], ...options }); let output = '', error = '';
     child.stdout.on('data', bytes => output += bytes); child.stderr.on('data', bytes => error += bytes);

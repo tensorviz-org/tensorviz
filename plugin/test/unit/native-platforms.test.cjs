@@ -13,10 +13,31 @@ const table = () => ({ formatVersion: 2, version: '0.3.61', runtimes: { 'darwin-
 
 test('only native Darwin ARM64 and glibc Linux x64 targets map to exact compiler/pkg ABI contracts', async () => {
   const { nativePlatform } = await import('../../scripts/native-platforms.mjs');
-  assert.equal(nativePlatform('linux', 'x64').pkg, 'node22-linux-x64');
+  assert.equal(nativePlatform('linux', 'x64').pkg, 'node22.23.4-linux-x64');
   assert.equal(nativePlatform('linux', 'x64').abi, linux.pythonABI);
-  assert.equal(nativePlatform('darwin', 'arm64').pkg, 'node22-macos-arm64');
+  assert.equal(nativePlatform('darwin', 'arm64').pkg, 'node22.23.4-macos-arm64');
   for (const [os, arch] of [['linux', 'arm64'], ['darwin', 'x64'], ['win32', 'x64']]) assert.throws(() => nativePlatform(os, arch), /Unsupported/);
+});
+
+test('native targets, workflow Node versions and exact upstream notices stay aligned', async () => {
+  const { createHash } = require('node:crypto');
+  const { nativePlatforms } = await import('../../scripts/native-platforms.mjs');
+  const root = path.resolve(__dirname, '../../..');
+  const versions = new Set();
+  for (const target of Object.values(nativePlatforms)) {
+    const match = /^node(\d+\.\d+\.\d+)-(?:macos|linux)-(?:arm64|x64)$/.exec(target.pkg);
+    assert.ok(match, 'pkg must select an exact embedded Node version, not a floating major');
+    versions.add(match[1]);
+    const notice = await fs.readFile(path.join(root, 'plugin/licenses', `node-${match[1]}.txt`));
+    // Official nodejs/node v22.23.4 LICENSE Git blob, including bundled notices.
+    const blob = createHash('sha1').update(`blob ${notice.length}\0`).update(notice).digest('hex');
+    assert.equal(blob, 'a640a1f4708257449c53645022c8762488d7261f');
+  }
+  assert.equal(versions.size, 1);
+  const workflow = await fs.readFile(path.join(root, '.github/workflows/release-plugin.yml'), 'utf8');
+  const setup = [...workflow.matchAll(/node-version:\s*'([^']+)'/g)].map(match => match[1]);
+  assert.equal(setup.length, 4, 'configuration, build, assembly and publication all pin Node');
+  assert.deepEqual(new Set(setup), versions);
 });
 
 test('old Darwin locks and per-platform tables retain immutable HTTPS/size/digest/version/ABI checks', async () => {

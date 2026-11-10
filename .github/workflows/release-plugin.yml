@@ -31,7 +31,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.4'
       - name: Verify the reviewed plugin version and publication gate
         id: release
         env:
@@ -78,7 +78,7 @@ jobs:
         run: test "$(uname -s)-$(uname -m)" = "${{ matrix.uname }}"
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.4'
           cache: npm
           cache-dependency-path: |
             package-lock.json
@@ -168,7 +168,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.4'
       - uses: actions/download-artifact@v4
         with:
           pattern: native-plugin-*-${{ needs.configuration.outputs.version }}
@@ -202,7 +202,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.4'
       - uses: actions/download-artifact@v4
         with:
           name: compiled-plugin-${{ needs.configuration.outputs.version }}

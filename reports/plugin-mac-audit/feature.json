@@ -1,0 +1,38 @@
+{
+  "id": "plugin-mac-audit",
+  "title": "Published plugin Mac isolation and compatibility audit",
+  "priority": "P1",
+  "summary": "Audit published 0.3.109 on Apple Silicon with isolated client profiles; repair verified runtime/display defects.",
+  "baseline": "Published 0.3.109, catalog 5ae962b40ea8d0b875d0542c739c4c35c076575e; source f8caa1dddd27dcee45e43a9b367f7ab01aac591b",
+  "scope": "Owner-authorized Mac tests, synthetic fixtures, focused fixes and draft PR. No release, merge, deployment, credential or normal-profile edits.",
+  "screenshots": [
+    {
+      "file": "evidence/published-browser.png",
+      "stage": "before",
+      "caption": "Published 0.3.109, real browser fallback, measured [2,4] to [2,3].",
+      "revision": "8b74db34b74014aa62ebd726b12c14b095b948dd",
+      "scope": "Synthetic CPU fixture; native published runtime; not a desktop GUI"
+    },
+    {
+      "file": "evidence/published-refresh.png",
+      "stage": "before",
+      "caption": "Published browser updates to Sigmoid and measured [2,2] after source edit.",
+      "revision": "8b74db34b74014aa62ebd726b12c14b095b948dd",
+      "scope": "Synthetic CPU fixture; real browser fallback"
+    },
+    {
+      "file": "evidence/candidate-embedded.png",
+      "stage": "after",
+      "caption": "Local candidate renders in the real MCP Apps bridge harness; zoom control changes the view.",
+      "revision": "df2fb8a88",
+      "scope": "Synthetic MCP Apps iframe; native Codex GUI remains untested"
+    },
+    {
+      "file": "evidence/candidate-embedded-refresh.png",
+      "stage": "after",
+      "caption": "Candidate iframe refreshes from ReLU to Sigmoid after source edit and recapture.",
+      "revision": "df2fb8a88",
+      "scope": "Synthetic MCP Apps iframe, actual rendered native candidate; no signed-in GUI"
+    }
+  ]
+}

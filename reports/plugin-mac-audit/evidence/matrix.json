@@ -1,0 +1,60 @@
+{
+  "classification": "real installed CLI control bridges; synthetic elicitation; no provider turn or signed-in GUI",
+  "published": {
+    "version": "0.3.109",
+    "codex": "0.165.0",
+    "claude": "2.1.308",
+    "toolCount": 29,
+    "input": [
+      2,
+      4
+    ],
+    "output": [
+      2,
+      2
+    ],
+    "parameters": 10,
+    "unopenedPanelLimitReproduced": true
+  },
+  "candidate": {
+    "version": "0.3.61 (local source candidate, not a published downgrade)",
+    "codex": "0.165.0",
+    "claude": "2.1.308",
+    "freshHttpsFixtureDownload": true,
+    "toolCount": 29,
+    "input": [
+      2,
+      4
+    ],
+    "output": [
+      2,
+      3
+    ],
+    "unopenedPanelRequests": 16,
+    "pendingPanelReused": true,
+    "uninstallPreservedSourceAndRecipe": true
+  },
+  "localChecks": {
+    "pluginUnits": 101,
+    "sharedTests": 1230,
+    "selectedSourceIntegration": 10,
+    "nativePackaging": 6,
+    "nativeOpenGraphReceipts": 1
+  },
+  "desktop": {
+    "app": "ChatGPT",
+    "bundle": "com.openai.codex",
+    "version": "26.1103.60933",
+    "build": "25894",
+    "bundledCli": "0.167.0-alpha.3.2",
+    "result": "Computer Use denied access, including retry as Codex; isolated signed-in GUI not tested"
+  },
+  "preservation": {
+    "codexAuthFingerprintUnchanged": true,
+    "claudeSettingsFingerprintUnchanged": true,
+    "globalMarketplaceFingerprintUnchanged": true,
+    "claudeAccountIdentifiersAndMcpAndProjectsUnchanged": true,
+    "normalCodexConfigHashDrift": "app-managed worktree registration preferences; not blindly restored",
+    "normalClaudeLegacyFileDrift": "cache refreshes and oauthAccount.profileFetchedAt; identifiers unchanged"
+  }
+}

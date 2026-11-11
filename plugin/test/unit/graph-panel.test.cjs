@@ -15,10 +15,7 @@ test('empty panels have bounded lifetimes and cannot access another connection',
     assert.equal((await panels.exchange(id, 0, [], signal)).waitingForModel, true);
     await assert.rejects(other.exchange(id, 0, [], signal), { code: 'PANEL_CLOSED' });
     await assert.rejects(panels.exchange(id, 1, [], signal), { code: 'INVALID_CURSOR' });
-    for (let i = 1; i < 8; i++) {
-      const active = panels.open();
-      await panels.exchange(active, 0, [], signal);
-    }
+    for (let i = 1; i < 8; i++) await panels.exchange(panels.open(), 0, [], signal);
     assert.throws(() => panels.open(), { code: 'PANEL_LIMIT' });
     panels.close(id);
     assert.ok(cancelled.includes(`panel:${id}`));
@@ -98,23 +95,104 @@ test('read-only panel transport rejects a mixed action batch before forwarding a
   } finally { panels.dispose(); await client.close(); await server.close(); }
 });
 
-// Preserve distinct openers for concurrent mounts within the existing budget.
-// At capacity a terminal/failed iframe may reuse an opener that never exchanged.
-test('unmounted panels recover at capacity without replacing concurrent or mounted frames', async () => {
+
+for (const [name, capabilities] of [
+  ['text-only client', {}],
+  ['MCP Apps client', { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } }],
+]) test(`${name}: unmounted retries stay bounded and late bridges keep separate identities`, async () => {
+  const server = new McpServer({ name: 'panel-test', version: '1' });
   const host = { graph: { list: () => ({ models: [] }) }, graphView: { cancelOwner() {} } };
-  const panels = new GraphPanels(host);
+  const panels = await registerGraphPanel(server, host, '/unused', 'test');
+  const client = new Client({ name: 'panel-test', version: '1' }, { capabilities });
+  const [a, b] = InMemoryTransport.createLinkedPair();
   try {
-    const signal = new AbortController().signal;
-    const pending = Array.from({ length: 8 }, () => panels.open());
-    assert.equal(new Set(pending).size, 8, 'concurrent openers must remain distinct before first exchange');
-    for (let count = 0; count < 32; count++) assert.equal(panels.open(), pending[0]);
-    // Legacy hosts can exchange without clientId or UI capability advertisement.
-    assert.equal((await panels.exchange(pending[0], 0, [], signal)).waitingForModel, true);
-    assert.equal(panels.open(), pending[1], 'a mounted panel must not be reused');
-    for (let index = 1; index < pending.length; index++) await panels.exchange(pending[index], 0, [], signal, `frame-${index}`);
-    assert.throws(() => panels.open(), { code: 'PANEL_LIMIT' });
-    assert.equal((await panels.exchange(pending[0], 0, [], signal)).waitingForModel, true);
-    panels.close(pending[1]);
-    assert.ok(!pending.includes(panels.open()), 'a freed slot gets a fresh opener');
+    await server.connect(a); await client.connect(b);
+    const tools = (await client.listTools()).tools;
+    assert.equal(tools.find(tool => tool.name === 'open_graph_panel')._meta.ui.resourceUri,
+      'ui://tensorviz/graph-panel-test.html');
+    for (const name of ['graph_panel_read', 'graph_panel_exchange', 'detach_graph_panel', 'close_graph_panel']) {
+      assert.deepEqual(tools.find(tool => tool.name === name)._meta.ui.visibility, ['app']);
+    }
+    const ids = new Set();
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const result = await client.callTool({ name: 'open_graph_panel', arguments: {} });
+      assert.ok(!result.isError);
+      assert.deepEqual(result.structuredContent, { displayed: false, status: 'awaiting_view', fallbackTool: 'open_graph_view' });
+      assert.match(result.content[0].text, /display is not confirmed/);
+      assert.match(result.content[0].text, /open_graph_view/);
+      assert.match(result._meta.panelId, /^[a-f0-9-]{36}$/);
+      ids.add(result._meta.panelId);
+    }
+    assert.equal(ids.size, 20, 'each tool result keeps its own app identity');
+    const allIds = [...ids], id = allIds.at(-1), previousId = allIds.at(-2);
+    await assert.rejects(panels.exchange(allIds[0], 0, [], new AbortController().signal), { code: 'PANEL_CLOSED' });
+    // T3 can attach a separate bridge after initialize and after the opener.
+    const attached = await client.callTool({ name: 'graph_panel_read', arguments: { panelId: id, clientId: 'late-frame', after: 0 } });
+    assert.ok(!attached.isError);
+    assert.equal(attached._meta.panel.waitingForModel, true);
+    const next = await client.callTool({ name: 'open_graph_panel', arguments: {} });
+    assert.notEqual(next._meta.panelId, id, 'an attached panel is never reused as a pending opener');
+    await client.callTool({ name: 'detach_graph_panel', arguments: { panelId: id, clientId: 'late-frame' } });
+    const retry = await client.callTool({ name: 'open_graph_panel', arguments: {} });
+    assert.notEqual(retry._meta.panelId, next._meta.panelId);
+    const previous = await client.callTool({ name: 'graph_panel_read', arguments: { panelId: previousId, clientId: 'second-late-frame', after: 0 } });
+    assert.ok(!previous.isError, 'another delayed frame has its own retained opener');
+    const remounted = await client.callTool({ name: 'graph_panel_read', arguments: { panelId: id, clientId: 'remounted-frame', after: 0 } });
+    assert.ok(!remounted.isError);
+    assert.equal(remounted._meta.panel.waitingForModel, true);
+  } finally { panels.dispose(); await client.close(); await server.close(); }
+});
+
+test('pending opener cleanup and invalid requests do not exhaust or steal panel slots', async () => {
+  const host = { graph: { list: () => ({ models: [] }) }, graphView: { cancelOwner() {} } };
+  const panels = new GraphPanels(host), signal = new AbortController().signal;
+  try {
+    const pending = panels.open();
+    await assert.rejects(panels.exchange(pending, 1, [], signal), { code: 'INVALID_CURSOR' });
+    assert.notEqual(panels.open(), pending);
+    panels.close(pending);
+    const replacement = panels.open();
+    assert.notEqual(replacement, pending);
+    await assert.rejects(panels.exchange(pending, 0, [], signal), { code: 'PANEL_CLOSED' });
+    // A legacy frame without clientId also counts as attached.
+    await panels.exchange(replacement, 0, [], signal);
+    assert.notEqual(panels.open(), replacement);
+  } finally { panels.dispose(); }
+});
+
+test('only the latest eight unmounted openers survive, and late frames attach independently', async () => {
+  const cancelled = [];
+  const host = { graph: { list: () => ({ models: [] }) }, graphView: { cancelOwner: id => cancelled.push(id) } };
+  const panels = new GraphPanels(host), signal = new AbortController().signal;
+  try {
+    const ids = Array.from({ length: 20 }, () => panels.open());
+    assert.equal(new Set(ids).size, 20);
+    for (const id of ids.slice(0, -8)) await assert.rejects(panels.exchange(id, 0, [], signal), { code: 'PANEL_CLOSED' });
+    const kept = ids.slice(-8);
+    for (const [index, id] of kept.entries()) {
+      assert.equal((await panels.exchange(id, 0, [], signal, `frame-${index}`)).waitingForModel, true);
+    }
+    const cancellations = cancelled.length;
+    for (const [index, id] of kept.entries()) await panels.exchange(id, 0, [], signal, `frame-${index}`);
+    assert.equal(cancelled.length, cancellations, 'independent frames never replace one another');
+    await panels.disconnect(kept[0], 'frame-0');
+    assert.throws(() => panels.open(), { code: 'PANEL_LIMIT' }, 'detached frames retain their slot for remount');
+    assert.equal((await panels.exchange(kept[0], 0, [], signal, 'remounted-frame')).waitingForModel, true);
+  } finally { panels.dispose(); }
+});
+
+test('an attachment in flight is protected from retry eviction', async () => {
+  let finishOpening;
+  const host = { graph: { list: () => ({ models: [] }) }, graphView: { cancelOwner() {} },
+    openingView: () => new Promise(resolve => { finishOpening = resolve; }) };
+  const panels = new GraphPanels(host), signal = new AbortController().signal;
+  try {
+    const id = panels.open();
+    const connection = panels.exchange(id, 0, [], signal, 'slow-frame');
+    for (let attempt = 0; attempt < 20; attempt++) assert.notEqual(panels.open(), id);
+    finishOpening(undefined);
+    assert.equal((await connection).waitingForModel, true);
+    host.openingView = undefined;
+    assert.equal((await panels.exchange(id, 0, [], signal, 'slow-frame')).waitingForModel, true);
   } finally { panels.dispose(); }
 });

@@ -52,6 +52,17 @@ Opening a graph executes one forward call. Ask to **inspect source only** if you
 
 Ask the agent to show the **Model graph** panel. Clients without a panel can open the graph in a local browser page instead. An empty panel does not start Python.
 
+The `graphPanel` capability in `list_models` describes server support, not proof
+that your client can render a panel. An opener returns `displayed: false` and
+`status: awaiting_view`; it is not a display receipt. Use the current view
+receipt from `list_models` to verify display. If no panel appears, use `open_graph_view`
+with the current model reference, open its returned private URL, and check its
+display receipt instead of repeatedly calling `open_graph_panel`. At the eight-panel limit, another open expires the oldest opener that has never
+connected, rather than asking you to close an invisible panel. Connected and
+previously connected frames are protected from this capacity eviction; the
+existing idle timeout still applies. Each opener retains a separate identity,
+so clients that attach their app bridge later can still connect normally.
+
 Closing the panel does not cancel a capture or edit source. Reopen **Model graph** if it disconnects; the capture is kept.
 
 ## Publish to tensorviz.dev
@@ -104,14 +115,14 @@ launcher can prepare the archive without running it:
 sh /absolute/path/to/plugin/scripts/launch.sh --prepare-runtime
 ```
 
+A truly empty-cache check with Codex CLI 0.165.0 exceeded its 30-second MCP
+handshake deadline while downloading published 0.3.109. A cached successful
+connection does not cover this first-download failure. The new prefetch command
+is an explicit recovery path, not a guarantee of cold-network startup.
+
 Use the same cache for prefetch and the MCP server, then reconnect. The command
 checks the pinned size and SHA-256 before returning, and does not extract or
 execute the runtime. Published 0.3.109 does not contain this flag. For its first
 Claude Code connection, `MCP_TIMEOUT=360000 claude` is a process-only timeout
 option. Do not put `startup_timeout_sec` in portable `mcp.json`: Codex CLI 0.165.0
 rejects that field and skips the server.
-
-Concurrent graph requests keep distinct openers within the eight-panel budget.
-At capacity, a request reuses an opener that no frame has connected to.
-Mounted panels retain separate identities and the eight-panel limit. A client
-with no mounted UI should request the local browser graph for actual display.

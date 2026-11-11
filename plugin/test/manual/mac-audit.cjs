@@ -57,9 +57,18 @@ const recipe = width => `version=1\n[profiles.tiny]\nkind="model"\nmodel="model:
     const before = await call('get_model_context', old), fc = before.modules.find(m => m.paths.includes('fc'));
     assert.deepEqual(fc.calls[0].inputs.tensors[0].shape, [2, 4]);
     assert.deepEqual(fc.calls[0].outputs.tensors[0].shape, [2, 3]); assert.equal(fc.calls[0].parameterCount, 15);
-    let firstPanel, panelErrors = 0;
-    for (let n = 0; n < 16; n++) { const r = await raw('open_graph_panel'); if (r.isError) panelErrors++; else firstPanel ??= r._meta.panelId; }
-    report.unmountedPanels = { requests: 16, errors: panelErrors };
+    const panelIds = new Set();
+    for (let n = 0; n < 16; n++) {
+      const r = await raw('open_graph_panel');
+      assert.ok(!r.isError, JSON.stringify(r.structuredContent));
+      assert.equal(r.structuredContent.displayed, false);
+      assert.equal(r.structuredContent.status, 'awaiting_view');
+      assert.equal(r.structuredContent.fallbackTool, 'open_graph_view');
+      assert.ok(r._meta.panelId);
+      assert.ok(!panelIds.has(r._meta.panelId), 'even over capacity, separate tool results must have separate frame identities');
+      panelIds.add(r._meta.panelId);
+    }
+    report.unmountedPanels = { requests: 16, errors: 0, distinctIds: panelIds.size };
     await write(source(2, undefined, 'Sigmoid'));
     const changed = await poll(await open()); assert.equal(changed.status, 'ready'); record('changed-capture', changed);
     assert.notEqual(changed.models[0].revision, old.revision);

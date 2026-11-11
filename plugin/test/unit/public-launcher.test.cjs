@@ -13,6 +13,9 @@ const run = (command, args, options, input = '') => new Promise((resolve, reject
   child.stderr.on('data', bytes => stderr += bytes);
   child.once('error', reject);
   child.once('close', (status, signal) => resolve({ status, signal, stdout, stderr }));
+  // Rejection paths may exit before the fixture finishes writing stdin. Keep
+  // checking their exit status and stderr; only the resulting EPIPE is benign.
+  child.stdin.on('error', error => { if (error.code !== 'EPIPE') reject(error); });
   child.stdin.end(input);
 });
 const ssh = { SSH_CONNECTION: '192.0.2.1 12345 192.0.2.2 22', SSH_CLIENT: '192.0.2.1 12345 22',

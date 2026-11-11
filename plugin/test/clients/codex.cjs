@@ -218,11 +218,12 @@ test(agentTest ? 'Codex selects the installed skill and captures during an ordin
         assert.ok(!reply.isError, JSON.stringify(reply));
         assert.equal(reply.structuredContent.displayed, false);
         assert.ok(reply._meta.panelId);
-        if (count < 8) assert.ok(!pendingPanels.has(reply._meta.panelId), 'concurrent pending openers stay distinct');
-        else assert.ok(pendingPanels.has(reply._meta.panelId), 'at capacity a CLI reuses an unmounted opener');
+        assert.ok(!pendingPanels.has(reply._meta.panelId), 'every opener keeps a distinct frame identity, including at capacity');
+        assert.equal(reply.structuredContent.status, 'awaiting_view');
+        assert.equal(reply.structuredContent.fallbackTool, 'open_graph_view');
         pendingPanels.add(reply._meta.panelId);
       }
-      console.log('Sixteen unopened graph requests stayed within eight distinct pending panels through the Codex bridge.');
+      console.log('Sixteen unopened graph requests retained distinct identities without exhausting the panel budget through the Codex bridge.');
       await checkClientRecovery({ call, project, python, model: modelSource, recipe, initial: capture });
     }
     const exited = new Promise(resolve => child.once('exit', resolve));

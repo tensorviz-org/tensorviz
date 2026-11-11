@@ -73,6 +73,8 @@ import time
 from contextlib import redirect_stdout
 from typing import Any, Dict, List, Optional, Tuple
 
+from .torch_cache import prepare_cache
+
 #: Bumped when the envelope below changes incompatibly. The extension refuses a
 #: mismatch loudly rather than guessing which half it understands.
 PROTOCOL_VERSION = 1
@@ -1035,7 +1037,7 @@ def main(argv: Optional[List[str]] = None, *, envelope: Optional[_Envelope] = No
                 # otherwise land inside the audit window, so a plain model looks
                 # like it wrote a file. Paying for it here keeps a fresh worker
                 # and a standby worker on the same side of the window.
-                import torch._dynamo.package  # noqa: F401
+                prepare_cache()
                 if reuse_audit is not None:
                     reuse_audit.start()
                 try:

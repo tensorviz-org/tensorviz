@@ -13,10 +13,12 @@ The coding-agent plugin source is `plugin/` (host) and `plugins/tensorviz/`
 - `plugin/scripts/export-public.mjs`, which copies a fixed client file list when
   you already have a runtime lock JSON
 
-## What this repo does not publish
+## Releases from this repository
 
-This repository does not publish Marketplace, Open VSX, or compiled runtime
-archives. CI does not build a runtime and has no release credentials.
+Marketplace, Open VSX and compiled runtime workflows now live here. The initial
+cutover is manual-only and publication requires explicit setup and activation;
+merging code does not publish. See [releasing](releasing.md) for credential setup,
+source provenance, private-repository limits and the legacy archive checklist.
 `export-public.mjs` does not compile or upload anything. It only assembles a
 folder from files already in the tree, and only when you pass a lock that
 describes an HTTPS artifact.
@@ -40,12 +42,26 @@ The archives are written to `plugin/dist/`:
 
 Each archive has a sibling `.sha256` file. `<version>` is the plugin host version in the [versions table](local-setup.md#versions).
 
+That is the checked-in release version. New compiled releases use a reviewed
+version bump, not a workflow run number. To build a local source-development
+package that replaces an installed release, give the whole build a higher
+version with `TENSORVIZ_RELEASE_VERSION`:
+
+```sh
+TENSORVIZ_RELEASE_VERSION=0.3.110 npm run package:source-development --prefix plugin
+```
+
+The host, the browser and panel builds, and every plugin manifest in the archive then carry
+that version. Packaging refuses a host built with a different version.
+
 The canvas build reads `REACT_APP_TLDRAW_LICENSE_KEY` or
 `TENSORVIZ_BROWSER_LICENSE_KEY` from the environment. Leave them unset for a
 local build. Do not commit a key. A local build and the dev `package` script
 do not need a tldraw production key, and they do not print one.
-`node scripts/package.mjs --release` (the plugin script `package:release`) fails
-when the key is unset. Source-development packaging stays unverified. See
+`npm run package:release --prefix plugin` builds a native archive and requires an
+exact reviewed source SHA, compiler environment, owner-confirmed distribution
+coverage and a production renderer key (`TLDRAW_LICENSE_KEY` or
+`REACT_APP_TLDRAW_LICENSE_KEY`). It fails when those requirements are missing. Source-development packaging stays unverified. See
 [licensing](licensing.md) before you give a build to other people.
 
 Cursor can also use the VS Code extension in this repo (`extension/`) without
@@ -55,6 +71,13 @@ The plugin service binds `127.0.0.1` and requires a launch token. It does not
 listen on `0.0.0.0`. The shared backend has the same loopback default: a public
 bind needs `TENSORVIZ_LOCAL_TOKEN`, and `AUTH_DISABLED` does not grant one.
 See [service bind](local-setup.md#service-bind).
+
+## Compiled Linux runtime
+
+The local compiled builders, per-platform catalog assembly, ABI/privacy gates and
+release limits are described in [Linux SSH runtime](linux-ssh-runtime.md). This
+is separate from the new native release workflow and does not change
+source-development packaging.
 
 ## Capture-role tests
 

@@ -263,6 +263,8 @@ interface ChildLayout {
   positions: Map<string, Pos>;
   width: number;
   height: number;
+  /** Clearance applied to saved positions when a wrapped module header grows. */
+  restoredHeaderShift?: number;
 }
 
 /** Lay a module's internal children out locally (relative to the module
@@ -293,7 +295,17 @@ function layoutChildren(
   // design's vertical sub-layer column) so the module stays narrow beside its
   // neighbours in the top-level row. A horizontal canvas runs them in a row.
   const row = direction === 'horizontal';
-  const local = dagreLayout(ids, sizes, internalEdges, {
+  // Restore uses the first child's saved position for each id. If every one
+  // is present, Dagre's positions would all be discarded; bounds still need
+  // the current card sizes below. Keep the full layout for partial restores.
+  const savedPositions = new Map<string, Pos>();
+  if (preservePositions) {
+    for (const child of children) {
+      if (!savedPositions.has(child.id)) savedPositions.set(child.id, child.position);
+    }
+  }
+  const allPositionsSaved = preservePositions && ids.every(id => savedPositions.get(id) != null);
+  const local = allPositionsSaved ? new Map<string, Pos>() : dagreLayout(ids, sizes, internalEdges, {
     rankdir: row ? 'LR' : 'TB',
     nodesep: 24,
     ranksep: 48,
@@ -306,7 +318,7 @@ function layoutChildren(
   const positions = new Map<string, Pos>();
   for (const id of ids) {
     const p = local.get(id) || { x: MODULE_PAD, y: MODULE_PAD };
-    const saved = preservePositions ? children.find(child => child.id === id)?.position : undefined;
+    const saved = savedPositions.get(id);
     const placed = saved ? { ...saved } : { x: p.x + MODULE_PAD, y: p.y + MODULE_HEADER };
     positions.set(id, placed);
     const sz = childSizes.get(id) || CHILD_SIZE;
@@ -332,6 +344,7 @@ function layoutChildren(
   if (neededClearance) positions.forEach(position => { position.y += neededClearance; });
   return {
     positions,
+    restoredHeaderShift: preservePositions ? neededClearance : 0,
     // Floor the expanded width so the module header fits without truncating.
     width,
     height: Math.max(MODULE_COLLAPSED_H, maxBottom + MODULE_PAD + (row ? reserve : 0) + neededClearance),
@@ -517,51 +530,6 @@ export function reconcileModuleView(
       : node.data.captureRef.kind === 'invocation' && node.data.expanded ? [] : node.data.capturePorts ?? [] };
   }
 
-  // Bucket every layout edge to the ONE expanded module whose direct canonical
-  // children its endpoints resolve to. Computing this per module (the old
-  // `layoutEdges.flatMap` inside the loop below) rescanned every edge for every
-  // expanded frame — O(modules × edges) — which dominated a fully-expanded graph.
-  // Each node's ancestor→direct-child map is built once; an edge can be internal
-  // to at most its lowest common expanded module.
-  const canonicalChildren = new Map<string, Set<string>>();
-  for (const id of moduleIdList) {
-    const set = new Set<string>();
-    for (const child of childrenByModule.get(id) || []) {
-      if (!child.data?.repeatHidden && !passThroughHidden(child) && !child.data.operationGroupHiddenBy) set.add(child.id);
-    }
-    canonicalChildren.set(id, set);
-  }
-  const childUnder = new Map<string, Map<string, string>>();
-  for (const node of nodes) {
-    const under = new Map<string, string>();
-    let child = node.data.operationGroupHiddenBy ?? node.id;
-    let parent = parentOf(node);
-    const seen = new Set<string>();
-    while (parent && !seen.has(parent)) {
-      seen.add(parent);
-      if (canonicalChildren.get(parent)?.has(child)) under.set(parent, child);
-      child = parent;
-      const parentNode = byId.get(parent);
-      parent = parentNode ? parentOf(parentNode) : undefined;
-    }
-    childUnder.set(node.id, under);
-  }
-  const internalByModule = new Map<string, ModelEdge[]>();
-  for (const edge of layoutEdges) {
-    const source = childUnder.get(edge.source);
-    const target = childUnder.get(edge.target);
-    if (!source || !target) continue;
-    const [small, large] = source.size <= target.size ? [source, target] : [target, source];
-    small.forEach((child, moduleId) => {
-      const other = large.get(moduleId);
-      if (other === undefined || other === child) return;
-      const mapped: ModelEdge = { ...edge, source: source.get(moduleId)!, target: target.get(moduleId)! };
-      const bucket = internalByModule.get(moduleId);
-      if (bucket) bucket.push(mapped);
-      else internalByModule.set(moduleId, [mapped]);
-    });
-  }
-
   const isHiddenChild = (id: string): boolean => {
     const node = byId.get(id);
     if (!node) return false;
@@ -571,20 +539,70 @@ export function reconcileModuleView(
     return !ancestorsExpanded(node);
   };
 
-  // A skip entering an expanded frame needs a clear lane beside its header.
-  // Use the same displayed topology as the router, including collapsed ends.
-  const displayedEdges = layoutEdges.map(edge => ({ ...edge,
-    source: displayNode(edge.source), target: displayNode(edge.target), hidden: false,
-  })).filter(edge => edge.source !== edge.target);
-  const skips = skipEdgeIds(displayedEdges, id => byId.has(id) && !isHiddenChild(id));
-  const laneFrames = new Set<string>();
-  for (const edge of displayedEdges) {
-    if (!skips.has(edge.id) || !parentOf(byId.get(edge.source)!) || !parentOf(byId.get(edge.target)!)) continue;
-    const sourceAncestors = childUnder.get(edge.source);
-    childUnder.get(edge.target)?.forEach((_child, id) => {
-      if (expandedOf(id) && !sourceAncestors?.has(id)) laneFrames.add(id);
-    });
-  }
+  // Build these inputs once, only if a visible expanded module needs layout.
+  const prepareChildLayoutInputs = () => {
+    // Bucket every layout edge to the ONE expanded module whose direct canonical
+    // children its endpoints resolve to. Computing this per module (the old
+    // `layoutEdges.flatMap` inside the loop below) rescanned every edge for every
+    // expanded frame — O(modules × edges) — which dominated a fully-expanded graph.
+    // Each node's ancestor→direct-child map is built once; an edge can be internal
+    // to at most its lowest common expanded module.
+    const canonicalChildren = new Map<string, Set<string>>();
+    for (const id of moduleIdList) {
+      const set = new Set<string>();
+      for (const child of childrenByModule.get(id) || []) {
+        if (!child.data?.repeatHidden && !passThroughHidden(child) && !child.data.operationGroupHiddenBy) set.add(child.id);
+      }
+      canonicalChildren.set(id, set);
+    }
+    const childUnder = new Map<string, Map<string, string>>();
+    for (const node of nodes) {
+      const under = new Map<string, string>();
+      let child = node.data.operationGroupHiddenBy ?? node.id;
+      let parent = parentOf(node);
+      const seen = new Set<string>();
+      while (parent && !seen.has(parent)) {
+        seen.add(parent);
+        if (canonicalChildren.get(parent)?.has(child)) under.set(parent, child);
+        child = parent;
+        const parentNode = byId.get(parent);
+        parent = parentNode ? parentOf(parentNode) : undefined;
+      }
+      childUnder.set(node.id, under);
+    }
+    const internalByModule = new Map<string, ModelEdge[]>();
+    for (const edge of layoutEdges) {
+      const source = childUnder.get(edge.source);
+      const target = childUnder.get(edge.target);
+      if (!source || !target) continue;
+      const [small, large] = source.size <= target.size ? [source, target] : [target, source];
+      small.forEach((child, moduleId) => {
+        const other = large.get(moduleId);
+        if (other === undefined || other === child) return;
+        const mapped: ModelEdge = { ...edge, source: source.get(moduleId)!, target: target.get(moduleId)! };
+        const bucket = internalByModule.get(moduleId);
+        if (bucket) bucket.push(mapped);
+        else internalByModule.set(moduleId, [mapped]);
+      });
+    }
+
+    // A skip entering an expanded frame needs a clear lane beside its header.
+    // Use the same displayed topology as the router, including collapsed ends.
+    const displayedEdges = layoutEdges.map(edge => ({ ...edge,
+      source: displayNode(edge.source), target: displayNode(edge.target), hidden: false,
+    })).filter(edge => edge.source !== edge.target);
+    const skips = skipEdgeIds(displayedEdges, id => byId.has(id) && !isHiddenChild(id));
+    const laneFrames = new Set<string>();
+    for (const edge of displayedEdges) {
+      if (!skips.has(edge.id) || !parentOf(byId.get(edge.source)!) || !parentOf(byId.get(edge.target)!)) continue;
+      const sourceAncestors = childUnder.get(edge.source);
+      childUnder.get(edge.target)?.forEach((_child, id) => {
+        if (expandedOf(id) && !sourceAncestors?.has(id)) laneFrames.add(id);
+      });
+    }
+    return { internalByModule, laneFrames };
+  };
+  let childLayoutInputs: ReturnType<typeof prepareChildLayoutInputs> | undefined;
 
   // Per-module child layout + resulting module footprint. A repeated module
   // (×N) lays out and is sized for ONE canonical instance — its other instances
@@ -616,6 +634,7 @@ export function reconcileModuleView(
     if (opts.skipChildLayout) continue;
     const children = childrenByModule.get(id) || [];
     const canonical = children.filter((c) => !c.data?.repeatHidden && !passThroughHidden(c) && !c.data.operationGroupHiddenBy);
+    const { internalByModule, laneFrames } = childLayoutInputs ?? (childLayoutInputs = prepareChildLayoutInputs());
     const internalEdges = internalByModule.get(id) || [];
     const layout = layoutChildren(canonical, internalEdges, moduleSize,
       opts.preserveChildPositions && (!opts.relayout || moduleNode.data.moduleLayoutState === 'custom'),
@@ -626,34 +645,39 @@ export function reconcileModuleView(
 
   // ── Top-level layout (modules + standalone nodes) ──────────────────────
   const topLevel = nodes.filter((n) => !parentOf(n));
-  const topIds = topLevel.filter(n => !n.data.operationGroupHiddenBy).map((n) => n.id);
-  const topSizes = new Map<string, { w: number; h: number }>();
-  for (const n of topLevel) {
-    topSizes.set(n.id, moduleSize.get(n.id) ?? nodeCardSize(n));
-  }
-
-  // Map any endpoint to the top-level node that represents it (a child folds
-  // into its module) so the top-level DAG is connected.
-  const toTop = (id: string): string | undefined => {
-    let node = byId.get(id);
-    if (!node) return undefined;
-    const seen = new Set<string>();
-    while (parentOf(node) && !seen.has(node.id)) {
-      seen.add(node.id);
-      node = byId.get(parentOf(node)!) ?? node;
+  // Saved-position reconciliation never consumes top-level layout inputs.
+  // Build them only when this call actually requests a new top-level layout.
+  const computeTopPositions = () => {
+    const topIds = topLevel.filter(n => !n.data.operationGroupHiddenBy).map((n) => n.id);
+    const topSizes = new Map<string, { w: number; h: number }>();
+    for (const n of topLevel) {
+      topSizes.set(n.id, moduleSize.get(n.id) ?? nodeCardSize(n));
     }
-    return node.id;
-  };
-  const topEdges: Array<LayoutEdge & { flow: boolean }> = [];
-  for (const e of activeEdges) {
-    const s = toTop(e.source);
-    const t = toTop(e.target);
-    if (s && t && s !== t) topEdges.push({ source: s, target: t, flow: isFlowEdge(e) });
-  }
 
+    // Map any endpoint to the top-level node that represents it (a child folds
+    // into its module) so the top-level DAG is connected.
+    const toTop = (id: string): string | undefined => {
+      let node = byId.get(id);
+      if (!node) return undefined;
+      const seen = new Set<string>();
+      while (parentOf(node) && !seen.has(node.id)) {
+        seen.add(node.id);
+        node = byId.get(parentOf(node)!) ?? node;
+      }
+      return node.id;
+    };
+    const topEdges: Array<LayoutEdge & { flow: boolean }> = [];
+    for (const e of activeEdges) {
+      const s = toTop(e.source);
+      const t = toTop(e.target);
+      if (s && t && s !== t) topEdges.push({ source: s, target: t, flow: isFlowEdge(e) });
+    }
+
+    return layoutByStory(topIds, topSizes, topEdges, opts.direction);
+  };
   const doRelayout = opts.relayout ?? false;
   const topPos = doRelayout
-    ? layoutByStory(topIds, topSizes, topEdges, opts.direction)
+    ? computeTopPositions()
     : new Map(topLevel.map((n) => [n.id, n.position || { x: 0, y: 0 }] as const));
 
   // ── Assemble render nodes (parents before children) ───────────────────
@@ -712,7 +736,11 @@ export function reconcileModuleView(
         extent: 'parent',
         expandParent: (expanded && !repeatHidden) || undefined,
         hidden,
-        position: layout?.positions.get(child.id) || child.position || { x: MODULE_PAD, y: MODULE_HEADER },
+        position: opts.preserveChildPositions && !opts.relayout
+          ? layout?.restoredHeaderShift && child.position
+            ? { ...child.position, y: child.position.y + layout.restoredHeaderShift }
+            : child.position
+          : layout?.positions.get(child.id) || child.position || { x: MODULE_PAD, y: MODULE_HEADER },
         ...(childModuleSize
           ? { style: { ...(child.style || {}), width: childModuleSize.w, height: childModuleSize.h } }
           : {}),

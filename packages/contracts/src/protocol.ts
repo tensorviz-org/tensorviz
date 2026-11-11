@@ -433,6 +433,32 @@ export type LocalBrowserCaptureExportResultMessage = LocalBrowserEnvelope<'captu
   capture: unknown | null; detail: string;
 };
 
+/** Publish to tensorviz.dev: the website's graph-file limit, checked before the file leaves the view. */
+export const LOCAL_BROWSER_PUBLISH_MAX_BYTES = 10 * 1024 * 1024;
+/** The gzipped graph file in base64, with room for gzip framing around an incompressible file. */
+export const LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH = 4 * Math.ceil((LOCAL_BROWSER_PUBLISH_MAX_BYTES + 65536) / 3);
+/** A graph the website accepted: its page, and the page that opens its Share dialog. */
+export interface LocalBrowserPublishedGraph { id: string; title: string; url: string; shareUrl: string }
+export type LocalBrowserGraphPublishRequestMessage = LocalBrowserEnvelope<'graphPublishRequest'> & {
+  target: LocalBrowserTargetIdentity; requestId: string;
+  /** The graph file Export graph saves, gzipped, in base64. The host checks it again. */
+  file: string;
+};
+export type LocalBrowserGraphPublishCancelMessage = LocalBrowserEnvelope<'graphPublishCancel'> & {
+  target: LocalBrowserTargetIdentity; requestId: string;
+};
+/** Progress for the asking view only. While signing in it carries the website's connect
+ *  page, which the view opens when the member asks; nothing opens a browser on its own. */
+export type LocalBrowserGraphPublishStateMessage = LocalBrowserEnvelope<'graphPublishState'> & {
+  target: LocalBrowserTargetIdentity; requestId: string; phase: 'signing_in' | 'uploading'; detail: string;
+  signInUrl?: string;
+};
+export type LocalBrowserGraphPublishResultMessage = LocalBrowserEnvelope<'graphPublishResult'> & {
+  target: LocalBrowserTargetIdentity; requestId: string; status: 'published' | 'failed' | 'cancelled'; detail: string;
+  /** Present exactly when published. */
+  graph: LocalBrowserPublishedGraph | null;
+};
+
 export type SourceEditValue = string | number | boolean | null | SourceEditValue[];
 export type LocalBrowserSourceEdit =
   | (CapturedSourceEdit & { nodeId: string })
@@ -1040,6 +1066,10 @@ export type LocalBrowserMessage =
   | LocalBrowserCaptureExportRequestMessage
   | LocalBrowserCaptureExportCancelMessage
   | LocalBrowserCaptureExportResultMessage
+  | LocalBrowserGraphPublishRequestMessage
+  | LocalBrowserGraphPublishCancelMessage
+  | LocalBrowserGraphPublishStateMessage
+  | LocalBrowserGraphPublishResultMessage
   | LocalBrowserCaptureInspectRequestMessage
   | LocalBrowserCaptureInspectCancelMessage
   | LocalBrowserCaptureInspectResultMessage
@@ -1084,6 +1114,7 @@ export const LOCAL_BROWSER_MESSAGE_TYPES = [
   'graphReviewRequest', 'graphReviewState', 'graphReviewFocus', 'graphReviewApplied',
   'graphOpening', 'graphSetupRequest',
   'captureExportRequest', 'captureExportCancel', 'captureExportResult',
+  'graphPublishRequest', 'graphPublishCancel', 'graphPublishState', 'graphPublishResult',
   'captureInspectRequest', 'captureInspectCancel', 'captureInspectResult',
   'viewState', 'viewSelection', 'focusView', 'viewFocusResult',
   'connected',
@@ -1453,6 +1484,21 @@ export function isModelImportDiagnostic(value: unknown): value is ModelImportDia
 export function isCaptureExportReference(value: unknown): value is CaptureExportReference {
   return isRecord(value) && Object.keys(value).length === 2
     && isBoundedString(value.captureId, 128) && isBoundedString(value.sourceId, 128);
+}
+
+/** An http(s) page a view may open for the member: never a script, file or credentialed URL. */
+function isWebPageUrl(value: unknown): value is string {
+  if (!isBoundedString(value, 2048) || !/^https?:\/\//.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return (url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password;
+  } catch { return false; }
+}
+
+export function isLocalBrowserPublishedGraph(value: unknown): value is LocalBrowserPublishedGraph {
+  return isRecord(value) && Object.keys(value).length === 4
+    && isBoundedString(value.id, 128) && /^[A-Za-z0-9]+$/.test(value.id) && isBoundedString(value.title, 128)
+    && isWebPageUrl(value.url) && isWebPageUrl(value.shareUrl);
 }
 
 function isPortableCaptureEnvelope(value: unknown): boolean {
@@ -2135,6 +2181,19 @@ export function isLocalBrowserMessage(
       return Object.keys(record).length === 9 && isLocalBrowserTarget(record.target)
         && isBoundedString(record.requestId, 128) && isBoundedString(record.detail, 512)
         && isCaptureExportReference(record.reference) && (record.capture === null || isPortableCaptureEnvelope(record.capture));
+    case 'graphPublishRequest':
+      return Object.keys(record).length === 7 && isLocalBrowserTarget(record.target)
+        && isBoundedString(record.requestId, LOCAL_BROWSER_REQUEST_ID_MAX_LENGTH)
+        && isBoundedString(record.file, LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH) && /^[A-Za-z0-9+/]+={0,2}$/.test(record.file);
+    case 'graphPublishState':
+      return Object.keys(record).length === 8 + Number(record.signInUrl !== undefined) && isLocalBrowserTarget(record.target)
+        && isBoundedString(record.requestId, LOCAL_BROWSER_REQUEST_ID_MAX_LENGTH) && isBoundedString(record.detail, 512)
+        && (record.phase === 'signing_in' ? isWebPageUrl(record.signInUrl) : record.phase === 'uploading' && record.signInUrl === undefined);
+    case 'graphPublishResult':
+      return Object.keys(record).length === 9 && isLocalBrowserTarget(record.target)
+        && isBoundedString(record.requestId, LOCAL_BROWSER_REQUEST_ID_MAX_LENGTH) && isBoundedString(record.detail, 512)
+        && (record.status === 'published' ? isLocalBrowserPublishedGraph(record.graph)
+          : (record.status === 'failed' || record.status === 'cancelled') && record.graph === null);
     case 'captureInspectRequest':
       return Object.keys(record).length === 7 && isLocalBrowserTarget(record.target)
         && isBoundedString(record.requestId, 128) && isCaptureInspectionQuery(record.query);
@@ -2148,6 +2207,7 @@ export function isLocalBrowserMessage(
       return Object.keys(record).length === 8 && isLocalBrowserTarget(record.target) && isBoundedString(record.openingId, 128)
         && isBoundedString(record.requestId, 128) && isGraphSetupAction(record.action);
     case 'captureExportCancel':
+    case 'graphPublishCancel':
     case 'captureInspectCancel':
     case 'validateCancel':
       return Object.keys(record).length === 6 && isLocalBrowserTarget(record.target) &&

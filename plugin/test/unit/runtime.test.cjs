@@ -4,7 +4,7 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
-const { ManagedRuntime } = require('../../out/host/runtime.cjs');
+const { ManagedRuntime, managedRequirements } = require('../../out/host/runtime.cjs');
 const { withResourceLock } = require('../../out/host/locks.cjs');
 
 test('a second host waits for shared provisioning, reuses its result and can cancel without disturbing its owner', async () => {
@@ -58,7 +58,7 @@ test('managed provisioning writes nothing on decline and trusts only matching co
       await assert.rejects(runtime.provision(root, new AbortController().signal), /declined/);
       await assert.rejects(fs.stat(storage), { code: 'ENOENT' });
       assert.equal(reviewed.facts.sha256.length, 64);
-      assert.ok(reviewed.facts.requirements.includes('torch==2.14.1'));
+      assert.ok(reviewed.facts.requirements.includes(`torch==2.14.1${process.platform === 'linux' || process.platform === 'win32' ? '+cpu' : ''}`));
       assert.ok(!reviewed.facts.requirements.some(name => name.startsWith('fastapi')), 'managed capture Python has only worker requirements');
       const directory = path.dirname(path.dirname(path.dirname(reviewed.interpreter)));
       const digest = value => createHash('sha256').update(value).digest('hex');
@@ -191,4 +191,12 @@ test('managed availability and venv paths follow supported platform pins', async
         error => error.code === 'MANAGED_RUNTIME_UNSUPPORTED');
     }
   }
+});
+
+
+test('managed requirements evaluate bundled Python markers before the guarded planner', () => {
+  const text = '# owned file\ntorch\ntomli>=2.0; python_version < "3.11"\n';
+  assert.deepEqual(managedRequirements(text, '3.12.14'), ['torch']);
+  assert.deepEqual(managedRequirements(text, '3.10.9'), ['torch', 'tomli>=2.0']);
+  assert.throws(() => managedRequirements('x; arbitrary marker', '3.12.14'), { code: 'MANAGED_REQUIREMENTS_UNSUPPORTED' });
 });

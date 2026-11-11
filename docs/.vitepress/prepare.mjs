@@ -27,7 +27,7 @@ function resolveRef() {
     branch = ''
   }
   // Actions checks out a detached commit. GITHUB_REF is still refs/heads/main
-  // on a main build, and linking the branch keeps Edit on GitHub current.
+  // on a main build, and linking the branch keeps repository references current.
   if (branch === 'main' || process.env.GITHUB_REF === 'refs/heads/main') return 'main'
   return commit
 }
@@ -45,7 +45,7 @@ function normalizeBase(value) {
   return base
 }
 
-// DOCS_BASE is the site prefix (`/` locally, `/tensorviz/` on GitHub Pages).
+// DOCS_BASE is the site prefix (`/` on the docs host, or a local preview prefix).
 const base = normalizeBase(process.env.DOCS_BASE)
 
 // Absolute site paths. VitePress prefixes `base` on Markdown links itself;
@@ -61,7 +61,15 @@ function withBase(url) {
 fs.rmSync(OUT, { recursive: true, force: true })
 fs.mkdirSync(OUT, { recursive: true })
 fs.cpSync(path.join(SRC, 'docs/public'), path.join(OUT, 'public'), { recursive: true })
-fs.cpSync(path.join(SRC, 'docs/images'), path.join(OUT, 'public/docs/images'), { recursive: true })
+fs.cpSync(path.join(SRC, 'docs/images'), path.join(OUT, 'public/images'), { recursive: true })
+fs.mkdirSync(path.join(OUT, 'public/licenses'), { recursive: true })
+for (const font of ['geist', 'geist-mono']) {
+  fs.copyFileSync(path.join(SRC, 'docs/node_modules/@fontsource-variable', font, 'LICENSE'),
+    path.join(OUT, 'public/licenses', `${font}-OFL.txt`))
+}
+fs.writeFileSync(path.join(OUT, 'public/build-info.json'), JSON.stringify({
+  source: GH, revision: commit, ref: REF, base,
+}, null, 2) + '\n')
 
 function walk(dir, pred, acc = []) {
   if (!fs.existsSync(dir)) return acc
@@ -88,7 +96,7 @@ const rewriteTarget = (fromPath, target) => {
   const rel = m[1], tail = m[2]
   const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(fromPath), rel))
   if (fileSet.has(resolved)) return route(resolved) + tail
-  if (resolved.startsWith('docs/images/') && fs.existsSync(path.join(SRC, resolved))) return `/${resolved}${tail}`
+  if (resolved.startsWith('docs/images/') && fs.existsSync(path.join(SRC, resolved))) return `/${resolved.slice(5)}${tail}`
   // not a doc in the site: point at the repository
   if (resolved.startsWith('..')) return target
   const kind = rel.endsWith('/') ? 'tree' : 'blob'
@@ -112,7 +120,7 @@ const transformMd = (p, text, interactive = true) => {
 
 function exportMarkdown(source, output, content) {
   const markdown = transformMd(source, content, false)
-    .replace(/<InstallOptions\b[^>]*\/>/g, `[Install TensorViz](${withBase('/docs/install.html')})`)
+    .replace(/<InstallOptions\b[^>]*\/>/g, `[Install TensorViz](${withBase('/install.html')})`)
     .replace(/<\/?div\b[^>]*>/g, '')
     .replace(/<p\b[^>]*>(.*?)<\/p>/gs, '$1\n')
     .replace(/\]\((\/[^)]*)\)/g, (_, url) => `](${withBase(url)})`)

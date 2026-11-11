@@ -1,0 +1,223 @@
+name: Release compiled plugin
+
+# Initial cutover is manual-only. Merging this workflow never publishes.
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the verified runtime and integration catalog
+        type: boolean
+        default: false
+
+# Never cancel an upload or catalog promotion halfway through.
+concurrency:
+  group: release-compiled-plugin
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  configuration:
+    if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      publish: ${{ steps.release.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - name: Verify the reviewed plugin version and publication gate
+        id: release
+        env:
+          RELEASE_PUBLISH: ${{ vars.RELEASES_ENABLED == 'true' && inputs.publish }}
+          TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
+        run: |
+          node --input-type=module <<'JS'
+          import { appendFileSync, readFileSync } from 'node:fs';
+          import { releaseVersion } from './plugin/scripts/release-version.mjs';
+          const publish = process.env.RELEASE_PUBLISH === 'true';
+          if (publish && process.env.TLDRAW_DISTRIBUTION_CONFIRMED !== 'true') throw new Error('Owner confirmation of renderer distribution coverage is required.');
+          const version = releaseVersion(JSON.parse(readFileSync('plugin/package.json', 'utf8')).version);
+          const lock = JSON.parse(readFileSync('plugin/package-lock.json', 'utf8'));
+          if (lock.version !== version || lock.packages[''].version !== version) throw new Error('Reviewed plugin manifest and lockfile versions differ.');
+          appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\npublish=${publish}\n`);
+          JS
+
+  build:
+    needs: configuration
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            platform: darwin-arm64
+            uname: Darwin-arm64
+          - runner: ubuntu-22.04
+            platform: linux-x64
+            uname: Linux-x86_64
+    # Build-only validation never receives publisher credentials.
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    env:
+      TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
+      TENSORVIZ_RELEASE_VERSION: ${{ needs.configuration.outputs.version }}
+      TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
+      TENSORVIZ_RUNTIME_URL: https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v${{ needs.configuration.outputs.version }}/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify the supported native target
+        run: test "$(uname -s)-$(uname -m)" = "${{ matrix.uname }}"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            plugin/package-lock.json
+            canvas/package-lock.json
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: '0.11.26'
+          python-version: '3.12.13'
+          enable-cache: true
+          cache-python: true
+          cache-dependency-glob: |
+            plugin/compiler-requirements.txt
+            backend/requirements-standalone.txt
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pkg-cache
+            ~/Library/Caches/Nuitka
+            ~/Library/Caches/ccache
+            ~/.cache/Nuitka
+            ~/.cache/ccache
+          key: native-plugin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('plugin/package-lock.json', 'plugin/compiler-requirements.txt') }}
+      - name: Install locked build tools and test clients
+        run: |
+          npm ci
+          npm ci --prefix plugin
+          npm ci --prefix canvas
+          npm install --global @openai/codex@0.158.0-alpha.2.1 @anthropic-ai/claude-code@2.1.285
+          uv venv --python 3.12.13 plugin/out/compiler-venv
+          uv venv --python 3.12.13 plugin/out/test-venv
+          uv pip install --python plugin/out/compiler-venv/bin/python -r plugin/compiler-requirements.txt
+          if [ "${{ matrix.platform }}" = linux-x64 ]; then
+            uv pip install --python plugin/out/test-venv/bin/python torch==2.7.1 --index-url https://download.pytorch.org/whl/cpu
+          fi
+          uv pip install --python plugin/out/test-venv/bin/python -r backend/requirements-standalone.txt
+          {
+            echo "TENSORVIZ_COMPILER_PYTHON=$PWD/plugin/out/compiler-venv/bin/python"
+            echo "TENSORVIZ_TEST_PYTHON=$PWD/plugin/out/test-venv/bin/python"
+            echo "TENSORVIZ_TEST_BACKEND=$PWD/plugin/out/native-runtime/backend"
+          } >> "$GITHUB_ENV"
+          if [ "${{ matrix.platform }}" = darwin-arm64 ]; then echo "$(brew --prefix openssl@3)/bin" >> "$GITHUB_PATH"; fi
+      - name: Check shared behavior and plugin units
+        run: |
+          npm test --prefix plugin
+          npm test --prefix packages/graph-host
+      - name: Build and audit the compiled runtime and thin plugin packages
+        env:
+          TLDRAW_LICENSE_KEY: ${{ secrets.TLDRAW_LICENSE_KEY }}
+        run: |
+          node plugin/scripts/build-release.mjs --native-archive
+          node plugin/scripts/assemble-native-release.mjs plugin/out/integration \
+            "plugin/dist/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-${{ matrix.platform }}.tar.gz"
+      - name: Verify real client installation, downloads and capture
+        run: |
+          npm run test:release --prefix plugin
+          TENSORVIZ_TEST_RUNTIME="$PWD/plugin/out/native-runtime" node --test plugin/test/integration/open-graph.test.cjs
+          claude --bare plugin validate --strict "plugin/dist/candidate-$TENSORVIZ_RELEASE_VERSION/integration/plugins/tensorviz"
+      - name: Verify Linux launcher with a local archive and real CPU capture
+        if: matrix.platform == 'linux-x64'
+        run: TENSORVIZ_TEST_RUNTIME="$PWD/plugin/out/native-runtime" node --test plugin/test/linux/launcher-capture.cjs
+      - name: Retain only verified release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-plugin-${{ matrix.platform }}-${{ needs.configuration.outputs.version }}
+          path: |
+            plugin/dist/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz
+            plugin/dist/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+      - name: Record candidate status
+        run: |
+          echo "Verified compiled plugin $TENSORVIZ_RELEASE_VERSION. Public publication is handled only by the publish job; build-only runs retain a candidate artifact; public repository artifacts are public." >> "$GITHUB_STEP_SUMMARY"
+
+  assemble:
+    needs: [configuration, build]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
+      TENSORVIZ_RELEASE_VERSION: ${{ needs.configuration.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-plugin-*-${{ needs.configuration.outputs.version }}
+          merge-multiple: true
+          path: plugin/out/native-assets
+      - name: Require both native jobs before creating one catalog
+        run: |
+          node plugin/scripts/assemble-native-release.mjs plugin/out/integration \
+            plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-darwin-arm64.tar.gz \
+            plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-linux-x64.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compiled-plugin-${{ needs.configuration.outputs.version }}
+          path: plugin/out/native-assets/candidate-${{ needs.configuration.outputs.version }}/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: [configuration, assemble]
+    if: needs.configuration.outputs.publish == 'true'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: actions/download-artifact@v4
+        with:
+          name: compiled-plugin-${{ needs.configuration.outputs.version }}
+          path: plugin/out/release-candidate
+      - name: Publish immutable public assets and advance the audited catalog
+        env:
+          TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ secrets.PLUGIN_PUBLISH_TOKEN }}
+          TENSORVIZ_SOURCE_TOKEN: ${{ github.token }}
+          TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
+          TLDRAW_LICENSE_KEY: ${{ secrets.TLDRAW_LICENSE_KEY }}
+        run: |
+          node plugin/scripts/renderer-license.mjs
+          node plugin/scripts/publish-native-release.mjs plugin/out/release-candidate > plugin/out/release-result.json
+          node --input-type=module <<'JS'
+          import { appendFileSync, readFileSync } from 'node:fs';
+          const release = JSON.parse(readFileSync('plugin/out/release-result.json', 'utf8'));
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Published [TensorViz ${release.version}](${release.release}) with its downloadable integration catalog. Vendor directory approval is separate.\n`);
+          JS

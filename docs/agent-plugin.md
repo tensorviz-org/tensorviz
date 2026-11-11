@@ -10,7 +10,7 @@ Use one TensorViz host per agent. Do not connect the same agent to both the plug
 
 Use your client’s terminal CLI. If it is not installed, start with the [installation requirements](install.md#plugin).
 
-The published plugin is a preview for Apple Silicon macOS with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js installation. Allow internet access for that first download.
+The published plugin is a preview for Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js installation. Allow internet access for that first download.
 
 Codex:
 
@@ -38,6 +38,8 @@ T3 Code uses your Codex profile. See the [public catalog](https://github.com/ten
 
 Start a new chat afterward. Platform limits and source builds are on the [Install](install.md) page.
 
+Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin. See [Linux SSH runtime](linux-ssh-runtime.md) for execution-host requirements and the limits of local validation. Published platform availability does not establish real SSH-network or installed-client acceptance.
+
 ## First graph
 
 1. Open your model project in the client and start a new chat.
@@ -51,6 +53,15 @@ Opening a graph executes one forward call. Ask to **inspect source only** if you
 Ask the agent to show the **Model graph** panel. Clients without a panel can open the graph in a local browser page instead. An empty panel does not start Python.
 
 Closing the panel does not cancel a capture or edit source. Reopen **Model graph** if it disconnects; the capture is kept.
+
+## Publish to tensorviz.dev
+
+**Publish**, in the panel and browser graph toolbars, adds the open graph to your
+[tensorviz.dev](https://tensorviz.dev/explore/) account as private, as the editor
+extension does. The first time, choose **Continue in browser** to sign in with Google.
+Then open the graph's Share dialog to choose who can see it. Publish is a button in
+the graph, not an agent tool. To sign out, run `node scripts/launch.cjs --sign-out`
+from the installed plugin directory. Details: [Add graphs to tensorViz](share-to-website.md#publish-from-the-coding-agent-plugin).
 
 ## Permissions
 

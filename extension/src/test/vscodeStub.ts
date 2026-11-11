@@ -16,6 +16,7 @@ export interface StubFolder {
 }
 
 export interface StubExtension {
+  exports?: unknown;
   activate(): Promise<unknown>;
 }
 

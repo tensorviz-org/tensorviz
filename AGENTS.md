@@ -20,7 +20,9 @@ Python service. `packages/contracts` and `packages/graph-host` are shared.
 - Do not commit secrets. `REACT_APP_TLDRAW_LICENSE_KEY` is environment-only. Release packaging fails when that key is unset and does not print it.
 - Do not add the hosted website app (`canvas/src/hosted` is not in this repo).
 - Keep the public Firebase web config in `extension/src/websiteAccount.ts` as
-  client configuration. Do not add service-account keys.
+  client configuration, with the plugin's identical copy in `plugin/src/website.ts`
+  (`tooling/test/public-firebase-config.test.mjs` checks they match). Do not add
+  service-account keys.
 - After a contract change, regenerate with `npm run semantic:generate` and
   `npm run validation:generate`, then `npm run protocol:sync`, and commit the
   generated files.

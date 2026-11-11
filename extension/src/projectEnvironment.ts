@@ -160,6 +160,7 @@ export async function discoverEnvironments(context: Context, backendDir: string,
   resource?: vscode.Uri; workspaceRoot?: string; signal: AbortSignal; managerPython?: string; runner?: EnvironmentRunner;
   readyManaged?: () => Promise<string | undefined>;
   cancelled?: () => boolean;
+  enumerateOnly?: boolean;
   /** Also check each candidate for this model's libraries (opening only). */
   model?: { workspaceFolder: string; file: string; missingModules?: string[] };
 }): Promise<GraphEnvironmentCandidate[]> {
@@ -168,10 +169,18 @@ export async function discoverEnvironments(context: Context, backendDir: string,
   const root = environmentFolder(resource)?.uri;
   const configured = vscode.workspace.getConfiguration('tensorviz', resource ?? root).get<string>('pythonPath', '').trim();
   const saved = savedEnvironment(context, resource);
+  // Cached paths only in the picker: activation/resolution can itself probe Python.
+  const cached = options.enumerateOnly ? vscode.extensions.getExtension('ms-python.python')?.exports as {
+    environments?: { getActiveEnvironmentPath?(resource: vscode.Uri): { path?: string };
+      known?: ReadonlyArray<{ path?: string; executable?: { uri?: vscode.Uri } }> } } | undefined : undefined;
   const [active, known, managed] = await Promise.all([
-    resource || root ? userInterpreter(resource ?? root!) : Promise.resolve(undefined),
+    resource || root ? options.enumerateOnly
+      ? Promise.resolve().then(() => cached?.environments?.getActiveEnvironmentPath?.(resource ?? root!)?.path).catch(() => undefined)
+      : userInterpreter(resource ?? root!) : Promise.resolve(undefined),
     (async () => {
       try {
+        if (options.enumerateOnly) return (cached?.environments?.known ?? []).slice(0, 64)
+          .map(env => env.executable?.uri?.fsPath ?? env.path ?? '');
         const api = await vscode.extensions.getExtension('ms-python.python')?.activate() as {
           environments?: { known?: ReadonlyArray<{ path?: string; executable?: { uri?: vscode.Uri } }> } } | undefined;
         return (api?.environments?.known ?? []).slice(0, 64).map(env => env.executable?.uri?.fsPath ?? env.path ?? '');
@@ -209,7 +218,7 @@ export async function discoverEnvironments(context: Context, backendDir: string,
 }
 
 async function pickEnvironment(context: Context, backendDir: string, options: Parameters<typeof discoverEnvironments>[2] & { selectionOnly?: true }): Promise<EnvironmentChoice | undefined> {
-  const candidates = await discoverEnvironments(context, backendDir, options);
+  const candidates = await discoverEnvironments(context, backendDir, { ...options, enumerateOnly: true, readyManaged: undefined });
   if (options.cancelled?.()) return undefined;
   const items: Array<vscode.QuickPickItem & { choice?: EnvironmentChoice; action?: string }> = candidates.map(candidate => ({
     label: candidate.interpreter,
@@ -217,7 +226,7 @@ async function pickEnvironment(context: Context, backendDir: string, options: Pa
     detail: [candidate.python ? `Python ${candidate.python}` : '', candidate.torch ? `Torch ${candidate.torch}` : '',
       candidate.status === 'libraries_present' ? 'Capture libraries present' : candidate.status === 'missing_libraries'
         ? `Needs ${candidate.missing?.length} capture libraries: ${candidate.missing?.join(', ')}`
-        : candidate.status === 'incompatible' ? `Incompatible: ${candidate.incompatible?.join(', ')}` : 'Not available'].filter(Boolean).join(' · '),
+        : candidate.status === 'incompatible' ? `Incompatible: ${candidate.incompatible?.join(', ')}` : candidate.detail ?? 'Not available'].filter(Boolean).join(' · '),
     choice: candidate.managed ? { kind: 'managed', explicit: true } : { kind: 'project', interpreter: candidate.interpreter, explicit: true },
   }));
   items.push({ label: 'Enter Python or environment path…', action: 'path' },
@@ -251,7 +260,9 @@ export async function selectProjectEnvironment(context: Context, backendDir: str
 ): Promise<{ ok: true; banner: string } | Extract<EnvironmentResult, { ok: false }>> {
   if (!vscode.workspace.isTrusted) return { ok: false, message: 'Trust this workspace before selecting its Python environment.', detail: '' };
   if (!environmentFolder(options.resource)) return { ok: false, message: 'Select a model in a workspace folder before choosing its Python environment.', detail: '' };
-  const cancelled = options.isCancelled ?? (() => false);
+  const scope = environmentScope(options.resource);
+  const cancelled = () => !!options.isCancelled?.() || !vscode.workspace.isTrusted
+    || environmentScope(options.resource) !== scope;
   if (cancelled()) return cancellation();
   const choice = await (options.picker?.() ?? pickEnvironment(context, backendDir, { ...options, cancelled,
     selectionOnly: true, signal: new AbortController().signal,
@@ -273,7 +284,9 @@ export async function resolveCaptureEnvironment(
 ): Promise<EnvironmentResult> {
   if (!vscode.workspace.isTrusted) return { ok: false, message: 'Trust this workspace before selecting or running its Python environment.', detail: '' };
   if (!environmentFolder(options.resource)) return { ok: false, message: 'Select a model in a workspace folder before choosing its Python environment.', detail: '' };
-  const cancelled = options.isCancelled ?? (() => false);
+  const scope = environmentScope(options.resource);
+  const cancelled = () => !!options.isCancelled?.() || !vscode.workspace.isTrusted
+    || environmentScope(options.resource) !== scope;
   const run: EnvironmentRunner = (python, backend, args, ...rest) => (options.runner ?? runEnvironmentHelper)(
     options.managerPython ?? python, backend, options.managerPython ? ['--target-python', python, ...args] : args, ...rest);
   let choice = options.forcePicker ? undefined : savedEnvironment(context, options.resource);

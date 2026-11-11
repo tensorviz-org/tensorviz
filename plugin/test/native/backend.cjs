@@ -21,7 +21,17 @@ const inspect = args => {
 test('compiled environment inspection and model probes work without Python source or public package collisions', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-native-probe-'));
   try {
-    assert.ok(await fs.stat(path.join(backend, 'native-backend.json')));
+    const metadata = JSON.parse(await fs.readFile(path.join(backend, 'native-backend.json'), 'utf8'));
+    const binary = path.join(backend, metadata.binary);
+    assert.ok(!(await fs.readFile(binary)).includes(Buffer.from(path.resolve(__dirname, '../../..'))),
+      'Shipped native backend must not disclose the repository build path');
+    if (process.platform === 'linux') {
+      const sections = spawnSync('readelf', ['--sections', '--wide', binary], { encoding: 'utf8', maxBuffer: 1024 * 1024 });
+      assert.ifError(sections.error);
+      assert.equal(sections.status, 0, sections.stderr);
+      assert.doesNotMatch(sections.stdout, /\]\s+\.(?:debug|zdebug)_(?:info|str)\b/,
+        'Shipped ELF must exclude compiler DWARF debug information');
+    }
     const entries = await fs.readdir(backend, { recursive: true });
     assert.ok(!entries.some(name => /\.(py|pyc|pyo)$/.test(name)), 'Native runtime must contain no backend Python source or bytecode');
     const inspected = inspect(['inspect']);

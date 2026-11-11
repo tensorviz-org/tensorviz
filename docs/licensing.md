@@ -43,7 +43,8 @@ summary is [NOTICE](../NOTICE) and [extension/THIRD_PARTY_NOTICES.md](../extensi
 ## Website client configuration
 
 Sign-in uses the public Firebase web configuration in
-`extension/src/websiteAccount.ts` (`apiKey`, `projectId`). Those identifiers are
+`extension/src/websiteAccount.ts` (`apiKey`, `projectId`), repeated for the plugin in
+`plugin/src/website.ts`. Those identifiers are
 meant to be in a client. They are not admin credentials. Firebase Admin is not
 a backend dependency. `backend/auth.py` does not accept bearer tokens: `AUTH_DISABLED`
 selects the dev principal, then `TENSORVIZ_LOCAL_TOKEN`, and any other credential

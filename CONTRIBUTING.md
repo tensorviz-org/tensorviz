@@ -4,9 +4,62 @@ Issues and pull requests go to [tensorviz-org/tensorviz](https://github.com/tens
 
 ## Setup
 
+For documentation-only changes, use the section below; product setup is not required.
+
 Follow [Build from source](docs/local-setup.md).
 Node.js and Python versions are in the [versions table](docs/local-setup.md#versions).
 Install the CPU PyTorch requirements before running backend tests.
+
+## Documentation contributions
+
+Documentation is maintained here in `docs/` and published independently at
+<https://docs.tensorviz.dev/>. You need Git, Node.js 22 (with npm) and Python 3.12
+for the standard-library link/reference check. You do not need product packages,
+PyTorch, a Python virtualenv, model weights, Firebase credentials or a Canvas key.
+The marketing website stays private and is not needed to contribute or build docs.
+
+Once you have repository access, fork `tensorviz-org/tensorviz` on GitHub, clone
+your fork and create a branch from current upstream `main`:
+
+```sh
+git clone https://github.com/YOUR-USERNAME/tensorviz.git
+cd tensorviz
+git remote add upstream https://github.com/tensorviz-org/tensorviz.git
+git fetch upstream main
+git switch -c docs/my-change upstream/main
+npm ci --prefix docs --no-audit --no-fund
+npm run dev --prefix docs
+```
+
+Edit the source Markdown under `docs/`, not `.vitepress/cache/` or
+`.vitepress/dist/`. **Edit this page on GitHub** also points to the original
+source. Before pushing your branch, run from the repository root:
+
+```sh
+python3 tooling/docs/check_links.py
+DOCS_BASE=/tensorviz/ npm run build --prefix docs
+npm run build --prefix docs
+git diff --check
+```
+
+The source check validates local links, anchors, commands and generated references;
+it does not fetch external URLs. Both builds verify the rendered site, including
+links and downloads. Preview and output details are in
+[Build the documentation](docs/documentation-site.md).
+
+Commit your source changes, push the branch to your fork and open a PR against
+`tensorviz-org/tensorviz:main`. Include the checks you ran. Documentation CI runs
+on every PR, including fork PRs, with read-only repository access and no deployment
+credentials. GitHub may require a maintainer to approve a new contributor's
+workflow run; wait for that approval rather than supplying credentials. Only
+accepted changes on trusted upstream `main` (or a maintainer's manual run there)
+can publish. Fork builds never publish to the upstream docs project.
+
+The repository is currently private; outside contributors need access until the
+owner makes it public. Public visibility is an owner decision. The existing
+[MIT license](LICENSE) remains in effect; any licensing change requires an owner
+decision before publication. Dependencies retain their own terms in
+[Licensing](docs/licensing.md).
 
 ## What belongs here
 
@@ -64,3 +117,10 @@ Then the package you changed:
 
 Describe the behavior change and the checks you ran. Keep a PR to one coherent
 change. Update the doc in `docs/` that describes the behavior you changed.
+
+
+At public launch, all PRs must require at least one approving review from an
+eligible TensorViz org member, and only eligible org members may merge. Enforcement
+is deferred until the repository is made public. Maintainers must configure the actual
+[GitHub protections](docs/merge-protection.md); this text alone does not enforce
+them. [Release changes](docs/releasing.md) follow the same reviewed-PR process.

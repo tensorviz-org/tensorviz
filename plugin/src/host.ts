@@ -21,7 +21,12 @@ import { CaptureInspector } from '@tensorviz/graph-host/captureInspection';
 import { graphDebugContext, type GraphDebugBaseline } from '@tensorviz/graph-host/graphDebug';
 import { sameTargetIdentity } from '@tensorviz/graph-host/graphIdentity';
 import { type GraphEnvironmentRecovery, type GraphOpeningState, type LocalBrowserTargetIdentity,
-  type ProjectionPayload, type LocalBrowserSnapshotState, type LocalBrowserValidationSummary } from '@tensorviz/contracts/protocol';
+  type ProjectionPayload, type LocalBrowserSnapshotState, type LocalBrowserValidationSummary,
+  type LocalBrowserCaptureExportRequestMessage, type LocalBrowserGraphPublishRequestMessage,
+  type LocalBrowserPublishedGraph } from '@tensorviz/contracts/protocol';
+import type { LocalBrowserHostTransport } from '@tensorviz/graph-host/localBrowserHostTransport';
+import { PortableExportError } from '@tensorviz/graph-host/portableCapture';
+import { WebsiteError } from '@tensorviz/graph-host/websiteAccount';
 import type { ValidationPreparation } from '@tensorviz/graph-host/validationController';
 import type { ProfileLookup } from '@tensorviz/graph-host/profileValidation';
 import type { MultifileProjectionBody } from '@tensorviz/graph-host/workspaceSourceCore';
@@ -37,6 +42,7 @@ import { readSetup, sameSetup } from './setupFiles';
 import { ManagedRuntime } from './runtime';
 import { collectSourceSet, isNormalizedPythonPath } from '@tensorviz/graph-host/workspaceSourceCore';
 import { StandaloneReview } from './review';
+import { WebsitePublisher } from './website';
 
 interface Selection {
   root: string;
@@ -106,9 +112,14 @@ export class StandaloneHost {
   private debugBaseline?: GraphDebugBaseline;
   private readonly profiles: ProfileChoices;
   private profileChoices: string[] = [];
+  /** Publish to tensorviz.dev, asked for by a click in the view; never by a tool. */
+  readonly website: WebsitePublisher;
+  private publishing?: { requestId: string; controller: AbortController };
+  private captureExport?: { requestId: string; controller: AbortController };
 
   constructor(readonly directory: string, readonly browser: string, readonly approvals: ApprovalGate, storage?: string) {
     this.environments = new Environments(directory, storage);
+    this.website = new WebsitePublisher({ storage: this.environments.storage });
     this.profiles = new ProfileChoices(this.environments.storage);
     this.runtime = new ManagedRuntime(directory, this.environments.storage, approvals);
     this.backend = new Backend(directory, browser);
@@ -712,6 +723,10 @@ export class StandaloneHost {
         } catch { detail = 'This retained capture is unavailable. Refresh the graph and choose a current capture.'; }
         transport.publish({ type: 'captureInspectResult', target: message.target, requestId: message.requestId, page, detail });
       }
+      if (message.type === 'captureExportRequest') void this.exportCapture(transport, message);
+      if (message.type === 'captureExportCancel' && this.captureExport?.requestId === message.requestId) this.captureExport.controller.abort();
+      if (message.type === 'graphPublishRequest') void this.publishGraph(transport, message);
+      if (message.type === 'graphPublishCancel' && this.publishing?.requestId === message.requestId) this.publishing.controller.abort();
       if (!this.review.active && message.type === 'graphSetupRequest' && this.opening.state) {
         // Browser setup writes/capture still go through the same approval gate.
         const target = this.opening.state.target;
@@ -725,6 +740,61 @@ export class StandaloneHost {
     });
     transport.onStatusChange(status => { if (status.phase === 'connected') this.publishSnapshot(); });
     this.publishSnapshot();
+  }
+
+  /** The displayed capture, detached for a graph file, as the editor's Export graph does. */
+  private async exportCapture(transport: LocalBrowserHostTransport, request: LocalBrowserCaptureExportRequestMessage): Promise<void> {
+    const reply = (capture: unknown | null, detail: string) => transport.publish({ type: 'captureExportResult',
+      target: request.target, requestId: request.requestId, reference: request.reference, capture, detail });
+    if (this.captureExport) { reply(null, 'Another capture export is being prepared. Try again when it finishes.'); return; }
+    const pending = { requestId: request.requestId, controller: new AbortController() };
+    this.captureExport = pending;
+    const retained = () => {
+      const model = this.model;
+      if (!model || !sameTargetIdentity(model.target, request.target)
+        || this.captures.list(model.target).displayedCaptureId !== request.reference.captureId) {
+        throw new GraphToolError('STALE_TARGET', 'The displayed capture changed. Export the current graph again.');
+      }
+      return this.captures.retained(model.target, request.reference.captureId, request.reference.sourceId);
+    };
+    try {
+      const portable = await this.backend.portable(retained(), AbortSignal.any([pending.controller.signal, this.lifetime.signal]));
+      retained(); // Eviction, retargeting or a newer projection cannot race the reply.
+      if (!pending.controller.signal.aborted) reply(portable, 'Portable capture prepared without executing the model.');
+    } catch (error) {
+      if (!pending.controller.signal.aborted) reply(null,
+        error instanceof GraphToolError || error instanceof PortableExportError ? error.message : 'The retained capture could not be exported.');
+    } finally { if (this.captureExport === pending) this.captureExport = undefined; }
+  }
+
+  /** Publish from the view: the graph file it would export, signed in and uploaded here. */
+  private async publishGraph(transport: LocalBrowserHostTransport, request: LocalBrowserGraphPublishRequestMessage): Promise<void> {
+    const { target, requestId } = request;
+    const result = (status: 'published' | 'failed' | 'cancelled', detail: string, graph: LocalBrowserPublishedGraph | null = null) =>
+      transport.publish({ type: 'graphPublishResult', target, requestId, status, detail: detail.slice(0, 512), graph });
+    if (this.publishing) { result('failed', 'tensorViz is still publishing your last graph.'); return; }
+    const pending = { requestId, controller: new AbortController() };
+    this.publishing = pending;
+    // A new broker epoch drops this request: stop waiting for a sign-in no view can finish.
+    const epoch = transport.status.epoch;
+    const offStatus = transport.onStatusChange(status => {
+      if (status.phase !== 'connected' || status.epoch !== epoch) pending.controller.abort();
+    });
+    const signal = AbortSignal.any([pending.controller.signal, this.lifetime.signal]);
+    try {
+      const graph = await this.website.publish(request.file, {
+        signingIn: (signInUrl, detail) => !signal.aborted
+          && !!transport.publish({ type: 'graphPublishState', target, requestId, phase: 'signing_in', detail: detail.slice(0, 512), signInUrl }),
+        uploading: detail => { transport.publish({ type: 'graphPublishState', target, requestId, phase: 'uploading', detail: detail.slice(0, 512) }); },
+      }, signal);
+      result('published', `${graph.title} is on tensorViz, visible only to you. Choose who can see it on its Share page.`, graph);
+    } catch (error) {
+      if (signal.aborted || error instanceof WebsiteError && error.code === 'cancelled') result('cancelled', 'Publishing was cancelled.');
+      else result('failed', error instanceof WebsiteError ? error.message : 'Could not publish the graph to tensorViz.');
+    } finally {
+      offStatus();
+      if (this.publishing === pending) this.publishing = undefined;
+    }
   }
 
   async openingView(signal: AbortSignal) {
@@ -792,6 +862,7 @@ export class StandaloneHost {
 
   dispose(): void {
     this.lifetime.abort(); this.authorized = false;
+    this.website.dispose();
     if (this.watcher) clearInterval(this.watcher);
     this.openGraph.cancelOwner(this.id); this.graphView.cancelOwner(this.id); this.views.cancelOwner(this.id);
     this.runs.clear();

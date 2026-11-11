@@ -66,7 +66,8 @@ function moveTab(event: KeyboardEvent, index: number) {
           <button v-for="name in ['Codex', 'Claude Code', 'Cursor']" :key="name" type="button"
             :aria-pressed="client === name" @click="client = name">{{ name }}</button>
         </div>
-        <p class="install-requirements">Plugin preview · Apple Silicon Mac · CPython 3.12 · CPU capture</p>
+        <p class="install-requirements">Plugin preview · Apple Silicon macOS (ARM64) or Linux x64 (glibc &gt;=2.35) · CPython 3.12 · CPU capture</p>
+        <p>Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin.</p>
       </template>
       <template v-else-if="active === 'extension'">
         <h2>Keep the graph beside your code.</h2>
@@ -75,7 +76,7 @@ function moveTab(event: KeyboardEvent, index: number) {
           <button v-for="name in ['VS Code', 'Cursor', 'VSCodium']" :key="name" type="button"
             :aria-pressed="editor === name" @click="editor = name">{{ name }}</button>
         </div>
-        <p class="install-requirements">VS Code 1.106+ compatible editor · Python and your model’s dependencies</p>
+        <p class="install-requirements">macOS, Windows, or Linux · VS Code 1.106+ compatible editor · Python and your model’s dependencies</p>
       </template>
       <template v-else>
         <h2>Build this repository locally.</h2>
@@ -90,26 +91,26 @@ function moveTab(event: KeyboardEvent, index: number) {
 
       <template v-if="active === 'plugin'">
         <template v-if="client === 'Cursor'">
-          <a class="install-primary" href="https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.3.61/tensorviz-cursor-0.3.61.zip">Download Cursor plugin</a>
+          <a class="install-primary" href="https://github.com/tensorviz-org/tensorviz-plugins#install-in-cursor">Get current Cursor plugin</a>
           <p>Import the Cursor ZIP using the <a href="https://github.com/tensorviz-org/tensorviz-plugins#install-in-cursor">Cursor setup steps</a>.</p>
         </template>
         <p v-else class="install-next">Run both commands in a terminal with {{ client }} installed. Open your model project and start a <strong>new chat</strong>.</p>
-        <a :href="withBase('/docs/agent-plugin.html')">Plugin setup, permissions &amp; other clients →</a>
+        <a :href="withBase('/agent-plugin.html')">Plugin setup, permissions &amp; other clients →</a>
       </template>
       <template v-else-if="active === 'extension'">
         <div class="install-actions">
           <a class="install-primary" href="https://marketplace.visualstudio.com/items?itemName=tensorviz.tensorviz-vscode">VS Code Marketplace</a>
           <a href="https://open-vsx.org/extension/tensorviz/tensorviz-vscode">Open VSX</a>
-          <a href="https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.36/file/tensorviz.tensorviz-vscode-0.1.36.vsix">Download VSIX</a>
+          <a href="https://open-vsx.org/extension/tensorviz/tensorviz-vscode">Get current VSIX</a>
         </div>
         <p class="install-next">For a downloaded file, run <strong>Extensions: Install from VSIX…</strong> in your editor.</p>
-        <a :href="withBase('/docs/install.html#editor-extension')">More installation options →</a>
+        <a :href="withBase('/install.html#editor-extension')">More installation options →</a>
       </template>
       <template v-else>
         <p>Continue with Node, Python, and packaging in the build guide.</p>
         <div class="install-actions">
-          <a class="install-primary" :href="withBase('/docs/local-setup.html')">Build the extension</a>
-          <a :href="withBase('/docs/plugin-build.html')">Build the plugin</a>
+          <a class="install-primary" :href="withBase('/local-setup.html')">Build the extension</a>
+          <a :href="withBase('/plugin-build.html')">Build the plugin</a>
         </div>
         <p class="install-next">The published packages and this source checkout have separate versions.</p>
       </template>

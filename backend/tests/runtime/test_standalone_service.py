@@ -9,6 +9,7 @@ import sys
 from fastapi.testclient import TestClient
 
 from standalone_server import create_app
+from tests.capture.test_semantic_contracts import snapshot  # noqa: F401 - pytest fixture
 
 
 TOKEN = "standalone-test-token-that-is-not-a-production-secret"
@@ -75,6 +76,28 @@ def test_malformed_source_and_streamed_oversize_are_refused(monkeypatch):
         assert client.post("/local/bootstrap", content=iter([b"x" * 3000, b"y" * 3000])).status_code == 413
         assert client.post("/api/ide/graph-setup/discover", json={"secret": "private"}, headers=headers).json() == {
             "detail": "Invalid local-service request."}
+
+
+def test_portable_capture_for_publish_needs_token_and_never_echoes_literals(monkeypatch, snapshot):
+    import standalone_server
+    from services.semantic.portable import portable_capture
+    monkeypatch.setenv("TENSORVIZ_LOCAL_TOKEN", TOKEN)
+    headers = {"X-tensorViz-Token": TOKEN}
+    route = "/api/ide/capture/portable"
+    with TestClient(create_app(TOKEN), base_url="http://127.0.0.1") as client:
+        assert client.post(route, json=snapshot).status_code == 401
+        reply = client.post(route, json=snapshot, headers=headers)
+        assert reply.status_code == 200, reply.text
+        assert reply.json() == portable_capture(snapshot).model_dump(mode="json")
+        assert reply.headers["cache-control"] == "no-store"
+        secret = "PRIVATE_TOKEN_MUST_NOT_APPEAR"
+        private = json.loads(json.dumps(snapshot))
+        private["operations"][0]["arguments"]["kwargs"]["token"] = {"kind": "str", "value": secret}
+        refused = client.post(route, json=private, headers=headers)
+        assert refused.status_code == 400 and secret not in refused.text
+        monkeypatch.setattr(standalone_server, "PORTABLE_CAPTURE_MAX_BYTES", 10)
+        limited = client.post(route, json=snapshot, headers=headers)
+        assert limited.status_code == 413 and "Nothing was truncated" in limited.text
 
 
 def test_standalone_broker_does_not_offer_native_source_proposals(monkeypatch):

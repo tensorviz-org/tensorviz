@@ -27,3 +27,20 @@ test('native runtime packaging rejects source, sourcemaps, symbolic links and in
     await assert.rejects(auditNativeRuntime(root), /incomplete/);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
+
+test('Linux GLIBC audit handles a pkg version table over 1 MiB and rejects newer symbols at its end', async () => {
+  const { verifyLinuxGlibc } = await import('../../scripts/package-native.mjs');
+  const prefix = ' '.repeat(1418885);
+  const command = suffix => (tool, args, options) => {
+    assert.equal(tool, 'readelf');
+    assert.deepEqual(args, ['--version-info', '/fixture/native host']);
+    const output = prefix + suffix;
+    // Emulate execFileSync's default limit; removing the explicit buffer fails.
+    assert.ok(output.length < (options.maxBuffer ?? 1024 * 1024));
+    assert.ok(options.maxBuffer <= 8 * 1024 * 1024, 'The output bound must remain finite');
+    return output;
+  };
+  verifyLinuxGlibc('/fixture/native host', command(' GLIBC_2.28 GLIBC_2.35'));
+  assert.throws(() => verifyLinuxGlibc('/fixture/native host', command(' GLIBC_2.35 GLIBC_2.38')), /newer than 2.35/);
+  assert.throws(() => verifyLinuxGlibc('/fixture/native host', () => { throw new Error('ENOBUFS'); }), /ENOBUFS/);
+});

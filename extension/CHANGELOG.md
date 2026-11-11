@@ -3,6 +3,8 @@
 ## Contents
 
 - [Unreleased](#unreleased)
+- [0.1.42](#0142)
+- [0.1.41](#0141)
 - [0.1.36](#0136)
 - [0.1.35](#0135)
 - [0.1.34](#0134)
@@ -42,13 +44,12 @@
 - [0.0.2](#002)
 - [0.0.1](#001)
 
-Extension **0.1.36**. The plugin host in this repository is **0.3.61**.
+Extension **0.1.42**. The plugin host in this repository is **0.3.110**.
 
 This tree is the visualization product: Open as Graph, graph diff, execution
 cache (`off`, `shadow`, and `on`), code focus, graph export, MCP, Hugging Face open, source
 proposals, JAX/Flax capture, and website sign-in and share. Latency profiling,
-training-step capture, product analytics, the hosted website application, and
-release publication are not in this tree.
+training-step capture, product analytics, and the hosted website application are not in this tree.
 
 ## Unreleased
 
@@ -59,6 +60,14 @@ release publication are not in this tree.
 - Resolve selected-node signatures and author docstrings from source without an agent. Prefer source documentation over standard-layer reference text, preserve full details and citations, and keep ambiguous or dynamic targets unresolved.
 
 - Explain selected nodes with compact source facts, standard-layer descriptions and optional source-grounded agent interpretations. Keep exact callables, execution evidence and linked sources inspectable; invalidate explanations when source, capture or agent settings change.
+
+## 0.1.42
+
+- Prepare the workflow cutover with a new reviewed extension version above the legacy 0.1.41 release. The companion plugin host is 0.3.110, above the public 0.3.109 release. Existing published versions and artifacts remain unchanged; publication still requires the release gates and verification checklist.
+
+## 0.1.41
+
+- Release the visualization product directly from tensorviz-org/tensorviz, with reviewed source versions and identical VSIX bytes on Marketplace, GitHub, and Open VSX.
 
 - Show runtime download totals when available, update transferred bytes during smaller downloads, and use an accurate setup progress title. Keep cancellation and download verification unchanged.
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { GraphFile, GRAPH_FILE_MAX_BYTES, parseGraphFile } from '../services/graphFile';
 import { downloadGraphFile } from '../ide/graphFileExport';
 import GraphFileCanvas, { GraphFileCanvasHandle } from './GraphFileCanvas';
@@ -9,6 +9,10 @@ import { comparisonCounterpart } from '../services/capturedGraphComparison';
 import DiscussionPanel, { DiscussionDraft } from './DiscussionPanel';
 import { annotationId, captureAnchor, GraphTarget, SavedGraphView, updateArchitecture } from '../services/graphCollaboration';
 import './graphFileViewer.css';
+
+// Imported files are owned by this viewer; annotation edits replace the file.
+// Keep this boundary local: callers of ComparisonPanel may hold mutable inputs.
+const ViewerComparisonPanel = React.memo(ComparisonPanel);
 
 type Panel = 'walkthrough' | 'discussions' | 'views' | 'compare' | null;
 const statusLabels = {
@@ -47,9 +51,9 @@ export default function GraphFileViewer(): React.ReactElement {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [unsaved]);
-  const showError = (error: unknown) => setError(error instanceof Error ? error.message : 'This action could not be completed.');
+  const showError = useCallback((error: unknown) => setError(error instanceof Error ? error.message : 'This action could not be completed.'), []);
   const clearComparison = () => { setComparison(null); setComparisonSide('after'); setInitialTarget(undefined); comparisonViews.current = {}; };
-  const navigateComparison = (side: ComparisonSide, target?: GraphTarget, followSelection = true) => {
+  const navigateComparison = useCallback((side: ComparisonSide, target?: GraphTarget, followSelection = true) => {
     try {
       if (side === comparisonSide) { if (target) canvasRef.current?.focusTarget(target); return true; }
       if (canvasRef.current) {
@@ -59,11 +63,13 @@ export default function GraphFileViewer(): React.ReactElement {
       }
       setSelectedTarget(null); setInitialTarget(target); setComparisonSide(side); return true;
     } catch (error) { showError(error); return false; }
-  };
-  const switchPanel = (next: Panel) => {
+  }, [comparisonSide, comparison, file, showError]);
+  const switchPanel = useCallback((next: Panel) => {
     if (comparisonSide === 'before' && !navigateComparison('after', undefined, false)) return;
     setPanel(next);
-  };
+  }, [comparisonSide, navigateComparison]);
+  const chooseComparison = useCallback(() => comparisonInputRef.current?.click(), []);
+  const closeComparison = useCallback(() => switchPanel(null), [switchPanel]);
   const replace = (next: GraphFile) => {
     clearComparison();
     setFile(next); setDirty(false); setPendingFile(null); setPanel(next.collaboration.openingViewId ? 'views' : null); setDraft(null); setSelectedTarget(null); setError(null); setRevision(value => value + 1);
@@ -165,7 +171,7 @@ export default function GraphFileViewer(): React.ReactElement {
     {error && <div className="graph-viewer-notice graph-viewer-error" role="alert">{error}{file && ' The previous graph is still open with your notes.'}</div>}
     {file ? <div className={`graph-viewer-workspace${panel === 'compare' ? ' is-comparing' : ''}`}>
       <GraphFileCanvas ref={canvasRef} key={`${revision}-${comparisonSide}`} file={displayedFile!} initialView={canvasInitialView} initialTarget={initialTarget} focusPanelWidth={panel === 'compare' ? 452 : panel ? 382 : 0} panelOpen={panel !== null} onTargetChange={setSelectedTarget} onDiscuss={target => { setSelectedTarget(target); setPanel('discussions'); }} />
-      {panel === 'compare' && <ComparisonPanel before={comparison} after={file} side={comparisonSide} onChoose={() => comparisonInputRef.current?.click()} onNavigate={navigateComparison} onClose={() => switchPanel(null)} />}
+      {panel === 'compare' && <ViewerComparisonPanel before={comparison} after={file} side={comparisonSide} onChoose={chooseComparison} onNavigate={navigateComparison} onClose={closeComparison} />}
       <div hidden={panel !== 'views'}><SavedViewsPanel key={`views-${revision}`} file={file} onChange={change} onClose={() => setPanel(null)} onError={showError}
         capture={() => { if (!canvasRef.current) throw new Error('The canvas is still loading.'); return canvasRef.current.captureView(); }}
         restore={view => canvasRef.current?.restoreView(view)} /></div>

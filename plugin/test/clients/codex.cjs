@@ -11,7 +11,7 @@ const agentTest = process.env.TENSORVIZ_TEST_CODEX_AGENT === '1';
 const installationConsent = process.env.TENSORVIZ_TEST_INSTALL_PERMISSIONS === '1';
 
 test(agentTest ? 'Codex selects the installed skill and captures during an ordinary model task'
-  : 'Codex installs the copied plugin, captures through native elicitation, and uninstalls cleanly', { timeout: agentTest ? 300000 : 120000 }, async () => {
+  : 'Codex installs the copied plugin, captures through native elicitation, and uninstalls cleanly', { timeout: agentTest ? 300000 : process.platform === 'linux' ? 240000 : 120000 }, async () => {
   const python = process.env.TENSORVIZ_TEST_PYTHON;
   assert.ok(python && path.isAbsolute(python), 'Set TENSORVIZ_TEST_PYTHON to an existing compatible interpreter.');
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-codex-client-')));

@@ -5,6 +5,8 @@ import { ownedTemporaryDirectory } from './ownedTemporary';
 
 export interface DependencyInstallOptions {
   python: string;
+  /** Exact CPU builds in a new TensorViz-owned environment only. */
+  managedCpu?: boolean;
   /** Tool-owned installer; the project target does not need pip or packaging. */
   managerPython?: string;
   backendDir: string;
@@ -35,8 +37,8 @@ export async function installDependencies(options: DependencyInstallOptions, hos
     cancelled, host.isolated, host.parentPipe);
   try {
     options.progress?.('Resolving and downloading compatible model libraries…');
-    let plan = await run(['plan-packages', directory, JSON.stringify(options.packages)]);
-    if (!plan.ok && plan.code === 'NO_COMPATIBLE_WHEEL') {
+    let plan = await run([options.managedCpu ? 'plan-packages-managed-cpu' : 'plan-packages', directory, JSON.stringify(options.packages)]);
+    if (!plan.ok && plan.code === 'NO_COMPATIBLE_WHEEL' && !options.managedCpu) {
       if (cancelled() || !host.trusted() || !await options.current()) throw new GraphToolError('STALE_TARGET', 'The model or environment changed before source-build review.');
       if (plan.requirement) {
         options.progress?.(`Checking availability of ${plan.requirement}…`);

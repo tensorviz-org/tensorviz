@@ -1,0 +1,29 @@
+name: Release safety checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: false
+      - name: Validate Actions syntax
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 -shellcheck=
+      - name: Test release provenance, safety and retries without credentials
+        run: node --test tooling/test/extension-*release*.test.mjs plugin/test/unit/native-publisher*.test.cjs plugin/test/unit/native-platforms.test.cjs plugin/test/unit/native-package.test.cjs plugin/test/unit/release-candidate.test.cjs plugin/test/unit/release-workflow.test.cjs

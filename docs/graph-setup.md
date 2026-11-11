@@ -15,7 +15,7 @@ configuration. If you close setup, choose **Complete setup** to return.
 3. Fill in missing constructor values and input shapes. Choose a Python factory when your model needs custom initialization.
 4. Review the setup and save it.
 
-A complete initial setup saves `tensorviz.toml` and starts the capture. Suggested values are examples; check that they make sense for your model.
+A complete initial setup saves `tensorviz.toml` and starts the capture. Suggested values are examples; check that they make sense for your model. Automatic examples honor explicit layer dtypes, including positional dtype arguments and PyTorch aliases such as `torch.double`. If a dtype cannot be resolved from source, input setup remains incomplete rather than assuming float32. Embedding inputs remain integer indices regardless of the weight dtype.
 
 If automatic input inference cannot resolve the forward inputs, fill them in the setup form. Agents can call `suggest_graph_inputs` or `configure_graph_setup`. The failure includes known unresolved input names and available worker details; manual inputs can still capture the model.
 

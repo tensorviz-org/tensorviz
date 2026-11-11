@@ -15,6 +15,17 @@ const compareVersions = (a, b) => {
   return 0;
 };
 
+/** Keep the rolling download monotonic when an older run is retried later. */
+export function shouldUpdateRollingRelease({ repository, version, command = execFileSync }) {
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repository ?? '') || !stableVersion(version ?? '')) throw new Error('Expected a repository and stable extension version.');
+  const pages = JSON.parse(command('gh', ['api', '--paginate', '--slurp', `repos/${repository}/releases?per_page=100`],
+    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }));
+  const versions = pages.flat().filter(item => !item.draft && !item.prerelease
+    && item.tag_name?.startsWith('v') && stableVersion(item.tag_name.slice(1))).map(item => item.tag_name.slice(1));
+  if (!versions.includes(version)) throw new Error('Rolling download requires the published numbered release.');
+  return !versions.some(other => compareVersions(other, version) > 0);
+}
+
 export function syncGithubRelease({ repository, source, vsix, command = execFileSync }) {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository) || !/^[a-f0-9]{40}$/.test(source)) {
     throw new Error('A GitHub repository and full source commit are required.');
@@ -49,8 +60,19 @@ export function syncGithubRelease({ repository, source, vsix, command = execFile
     }
     const pages = JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repository}/releases?per_page=100`]));
     const releases = pages.flat();
-    let release = releases.find(item => item.tag_name === tag);
-    if (!release) {
+    const matches = releases.filter(item => item.tag_name === tag);
+    if (matches.length > 1) throw new Error(`Multiple releases exist for ${tag}; resolve duplicate drafts before publishing.`);
+    let release = matches[0];
+    const verifyTag = () => {
+      const ref = optional(`git/ref/tags/${tag}`);
+      const commit = ref ? api(`commits/${tag}`) : null;
+      if (commit && commit.sha !== source) throw new Error(`${tag} already points to another commit; refusing to move it.`);
+      if (!commit && release && (!release.draft || release.target_commitish !== source)) {
+        throw new Error('Existing release without a source tag must be a draft targeting the exact reviewed source commit.');
+      }
+      return commit;
+    };
+    {
       // Rebuilt ZIP timestamps may differ on retry; every file must still match.
       const contents = archive => {
         const entries = String(run('unzip', ['-Z1', archive])).trim().split('\n').filter(entry => !entry.endsWith('/')).sort();
@@ -59,9 +81,9 @@ export function syncGithubRelease({ repository, source, vsix, command = execFile
       if (sha256(readFileSync(vsix)) !== sha256(bytes) && contents(vsix) !== contents(file)) {
         throw new Error('This version is already published with different contents. Use its original source/package or bump the version; refusing to tag this build.');
       }
-      const tagRef = optional(`git/ref/tags/${tag}`);
-      const existingTag = tagRef ? api(`commits/${tag}`) : null;
-      if (existingTag && existingTag.sha !== source) throw new Error(`${tag} already points to another commit; refusing to move it.`);
+      verifyTag();
+    }
+    if (!release) {
       // vsce archives CHANGELOG.md as extension/changelog.md; read the name it stored.
       const entry = String(run('unzip', ['-Z1', file])).split('\n').find(name => name.toLowerCase() === 'extension/changelog.md');
       const changelog = entry ? String(unzip(file, entry)) : '';
@@ -74,15 +96,22 @@ export function syncGithubRelease({ repository, source, vsix, command = execFile
     }
     const checksum = `${sha256(bytes)}  ${asset}\n`;
     writeFileSync(`${file}.sha256`, checksum);
+    const missing = [];
     for (const path of [file, `${file}.sha256`]) {
-      const existing = release.assets.find(item => item.name === basename(path));
+      const matches = release.assets.filter(item => item.name === basename(path));
+      if (matches.length > 1) throw new Error(`Duplicate release asset: ${basename(path)}.`);
+      const existing = matches[0];
       if (existing) {
         const hosted = gh(['api', `repos/${repository}/releases/assets/${existing.id}`, '-H', 'Accept: application/octet-stream']);
         if (sha256(hosted) !== sha256(readFileSync(path))) throw new Error(`Existing ${basename(path)} differs from Marketplace; refusing to replace it.`);
       } else {
-        gh(['release', 'upload', tag, path, '--repo', repository]);
+        if (!release.draft) throw new Error(`Published release is missing ${basename(path)}; refusing to modify it.`);
+        missing.push(path);
       }
     }
+    // Audit all existing bytes before resuming any missing draft uploads.
+    for (const path of missing) gh(['release', 'upload', tag, path, '--repo', repository]);
+    verifyTag();
     const newer = releases.some(item => !item.draft && !item.prerelease && stableVersion(item.tag_name.slice(1))
       && item.tag_name.startsWith('v') && compareVersions(item.tag_name.slice(1), version) > 0);
     const latest = optional('releases/latest');
@@ -90,6 +119,8 @@ export function syncGithubRelease({ repository, source, vsix, command = execFile
       const request = join(directory, 'promote.json');
       writeFileSync(request, JSON.stringify({ draft: false, prerelease: false, make_latest: newer ? 'false' : 'true' }));
       gh(['api', '--method', 'PATCH', `repos/${repository}/releases/${release.id}`, '--input', request]);
+      const publishedTag = verifyTag();
+      if (!publishedTag) throw new Error('Published release source tag is missing; verify the release before retrying.');
     }
     return { version, sha256: sha256(bytes), url: `https://github.com/${repository}/releases/tag/${tag}` };
   } finally {
@@ -98,6 +129,11 @@ export function syncGithubRelease({ repository, source, vsix, command = execFile
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv[2] === '--check-rolling') {
+    if (process.argv.length !== 4) throw new Error('Usage: sync-github-release.mjs --check-rolling VERSION');
+    console.log(shouldUpdateRollingRelease({ repository: process.env.GITHUB_REPOSITORY, version: process.argv[3] }));
+    process.exit(0);
+  }
   if (!process.argv.includes('--publish')) {
     console.error('Maintainer-only. Pass --publish with GITHUB_REPOSITORY, GITHUB_SHA, and a GitHub token. Nothing was published.');
     process.exit(1);
@@ -108,6 +144,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   }
   const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url)));
   const result = syncGithubRelease({ repository: process.env.GITHUB_REPOSITORY, source: process.env.RELEASE_SOURCE || process.env.GITHUB_SHA,
-    vsix: resolve(process.argv[2] || `extension/${manifest.name}-${manifest.version}.vsix`) });
+    vsix: resolve(process.argv.slice(2).find(argument => !argument.startsWith('--')) || `extension/${manifest.name}-${manifest.version}.vsix`) });
   console.log(`GitHub and Marketplace match: ${result.version}, SHA-256 ${result.sha256}\n${result.url}`);
 }

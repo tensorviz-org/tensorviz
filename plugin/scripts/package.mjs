@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeBundleNotices } from '../../tooling/packaging/bundle-notices.mjs';
 import { verifyRendererLicense } from './renderer-license.mjs';
+import { pluginVersion } from './release-version.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const plugin = path.join(root, 'plugins/tensorviz');
@@ -54,6 +55,19 @@ export async function verifyRelease(directory) {
   return manifest;
 }
 
+/** A local build can carry a release version (TENSORVIZ_RELEASE_VERSION), as the host and
+ *  Canvas builds do, so it can replace a published release, which is numbered from the base
+ *  version by its release run. Tracked manifests keep the base; staged copies are stamped. */
+export async function stampVersion(pluginRoot, version) {
+  for (const name of ['plugin.json', '.codex-plugin/plugin.json', '.claude-plugin/plugin.json']) {
+    const file = path.join(pluginRoot, name);
+    const manifest = await json(file);
+    if (manifest.version === version) continue;
+    manifest.version = version;
+    await fs.writeFile(file, JSON.stringify(manifest, null, 2) + '\n');
+  }
+}
+
 const runtimeBuildHint = 'The plugin runtime has not been built. From plugin/, run npm run build, npm run build:browser, and npm run build:panel before packaging.';
 
 async function readBuilt(file) {
@@ -91,7 +105,10 @@ async function assertProductionLicense() {
 
 async function pack({ release = false } = {}) {
   const productionTldrawLicense = release ? await assertProductionLicense() : 'unverified';
-  const version = (await json(path.join(root, 'plugin/package.json'))).version;
+  const version = pluginVersion();
+  // The host refuses to start beside a manifest of another version.
+  const built = (await readBuilt(path.join(root, 'plugin/out/host-version.json'))).version;
+  if (built !== version) throw new Error(`The plugin host was built as ${built}, not ${version}. Build it again with the same TENSORVIZ_RELEASE_VERSION before packaging.`);
   const tracked = new Set(execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean));
   const host = await readBuilt(path.join(root, 'plugin/out/host-inputs.json'));
   const browser = await readBuilt(path.join(root, 'plugin/out/browser-modules.json'));
@@ -121,6 +138,7 @@ async function pack({ release = false } = {}) {
     for (const file of tracked) if (file.startsWith('plugins/tensorviz/') && !file.endsWith('/.gitignore')) {
       await copy(path.join(root, file), path.join(staging, file));
     }
+    await stampVersion(destination, version);
     for (const folder of ['runtime', 'backend', 'browser']) {
       let built;
       try { built = await files(path.join(plugin, folder)); }

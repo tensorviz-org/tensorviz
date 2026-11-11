@@ -7,11 +7,13 @@ const https = require('node:https');
 const { spawn, execFileSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
 
-test('Codex and Claude install only the integration, download the compiled runtime, capture and uninstall', { timeout: 300000 }, async () => {
+test('Codex and Claude install only the integration, download the compiled runtime, capture and uninstall', { timeout: process.platform === 'linux' ? 600000 : 300000 }, async () => {
+  const { nativePlatform, runtimeArchive } = await import('../../scripts/native-platforms.mjs');
+  const target = nativePlatform();
   const { exportPublic } = await import('../../scripts/export-public.mjs');
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-native-clients-'));
   const version = (await import('../../scripts/release-version.mjs')).pluginVersion();
-  const archive = await fs.readFile(path.resolve(__dirname, `../../dist/tensorviz-runtime-${version}-darwin-arm64.tar.gz`));
+  const archive = await fs.readFile(path.resolve(__dirname, `../../dist/${runtimeArchive({ version, platform: target.key })}`));
   let server;
   try {
     execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=localhost',
@@ -21,7 +23,7 @@ test('Codex and Claude install only the integration, download the compiled runti
       requests++; res.writeHead(200, { 'Content-Length': archive.length }); res.end(archive);
     });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-    const runtimeLock = { formatVersion: 1, version, platform: 'darwin-arm64', pythonABI: 'cpython-312-darwin',
+    const runtimeLock = { formatVersion: 1, version, platform: target.key, pythonABI: target.abi,
       url: `https://127.0.0.1:${server.address().port}/runtime.tar.gz`, bytes: archive.length,
       sha256: createHash('sha256').update(archive).digest('hex') };
     const integration = path.join(root, 'integration');

@@ -527,8 +527,29 @@ class Resolver:
                 width = override
         if type(width) is not int or not 0 < width <= 1_000_000:
             return None
-        dtype = layer.kwargs.get('dtype')
-        dtype = dtype.name.removeprefix('torch.') if isinstance(dtype, Symbol) and not dtype.file else 'float32'
+        # Public constructors also accept dtype positionally. Preserve that
+        # evidence rather than marking a float32 example complete for float64 weights.
+        dtype_positions = {
+            'torch.nn.Linear': 4, 'torch.nn.Conv1d': 10, 'torch.nn.Conv2d': 10,
+            'torch.nn.Conv3d': 10, 'torch.nn.ConvTranspose1d': 11,
+            'torch.nn.ConvTranspose2d': 11, 'torch.nn.ConvTranspose3d': 11,
+            'torch.nn.MultiheadAttention': 10, 'torch.nn.Transformer': 14,
+            'torch.nn.TransformerEncoderLayer': 10, 'torch.nn.TransformerDecoderLayer': 10,
+            'torch.nn.RNN': 10, 'torch.nn.GRU': 9, 'torch.nn.LSTM': 9,
+        }
+        dtype_position = dtype_positions.get(name)
+        dtype = layer.kwargs.get('dtype', layer.args[dtype_position]
+                                 if dtype_position is not None and len(layer.args) > dtype_position else None)
+        if name.endswith('Embedding'):
+            # Embedding weights may be floating point; its indices are always integers.
+            dtype = 'int64'
+        elif dtype is None:
+            dtype = 'float32'
+        elif isinstance(dtype, Symbol) and not dtype.file:
+            dtype = dtype.name.removeprefix('torch.')
+            dtype = {'float': 'float32', 'double': 'float64', 'half': 'float16'}.get(dtype, dtype)
+        else:
+            return None
         assumptions = ['batch size 1', 'synthetic values']
         generator = dict(kind='normal', mean=0, std=1, seed=0)
         if attention or recurrent:

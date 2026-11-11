@@ -23,8 +23,8 @@ These are the versions in this source checkout. Published packages have their ow
 | --- | --- |
 | Development Node.js | 22. CI uses Node.js 22. The plugin host requires Node.js 22 or newer. |
 | Development Python | 3.12. CI uses Python 3.12. |
-| Extension | 0.1.36 (`extension/package.json`) |
-| Plugin host | 0.3.61 (`plugin/package.json`) |
+| Extension | 0.1.42 (`extension/package.json`) |
+| Plugin host | 0.3.110 (`plugin/package.json`) |
 | VS Code | 1.106 or newer (`engines.vscode` is `^1.106.0`). Cursor and VSCodium can install the same VSIX. |
 | Backend service | Python 3.11 or newer (`MIN_BACKEND_PYTHON` in `extension/src/runtime.ts`, `backend/extension_environment.py`) |
 | Capture interpreter | Python 3.10 or newer (`backend/capture_environment.py`). Expression-level source positions are not recorded on Python 3.10. |
@@ -73,13 +73,17 @@ Point **tensorViz: Select Python Environment** at `venv/bin/python` when the pic
 
 Canvas hot reload is the dev server (`npm start --prefix canvas`) with `REACT_APP_IDE=true`. The packaged sidebar uses `npm run build:webview --prefix extension`, which builds `canvas/` and stages it into the extension.
 
+Graph projection keeps node and edge creation in the same tldraw batches. When the page is focused and every existing shape uses tldraw's default child-rejection behavior, the bridge supplies the page parent directly instead of searching the whole page for every new shape. Custom containers and focused groups keep tldraw's normal parent discovery. The real-Editor canvas regression test checks this against the installed tldraw version.
+
 ## Documentation website
 
 Run `npm ci --prefix docs` and `npm run dev --prefix docs` for a local
 preview. The documentation workflow builds on matching pull requests and main
-updates. Deployment requires a configured GitHub Pages site and the repository
-Actions variable `PAGES_ENABLED=true`; it is off by default. See the
-[documentation guide](documentation-site.md).
+updates. Deployment uses the isolated Firebase Hosting documentation project
+and requires `DOCS_PUBLISH_ENABLED=true` plus the configured repository Actions
+variables for the project, site, workload identity provider, and deploy service
+account. Only trusted upstream `main` push or manual runs can deploy; fork PRs
+only validate the docs. See the [documentation guide](documentation-site.md).
 
 The docs header and favicon use the original mark from
 [`canvas/public/favicon.svg`](../canvas/public/favicon.svg). Keep the three logo
@@ -129,3 +133,18 @@ The default host is `127.0.0.1`. `start.sh` and `python backend/server_v2.py` ca
 When `TENSORVIZ_LOCAL_TOKEN` is set, unauthenticated `GET /health` keeps `device` and `capabilities` and omits Torch and Python versions and the library list. `/openapi.json`, `/docs`, and `/redoc` are not registered in that mode.
 
 The plugin service (`backend/standalone_server.py`) binds `127.0.0.1`, requires a launch token of at least 32 characters, and does not bind `0.0.0.0`. `backend/auth.py` accepts `AUTH_DISABLED` (the dev principal) and then the local token. Any other credential, including a bearer token, is 401. Firebase Admin is not a backend dependency.
+
+### Model Python and the local service
+
+**Select Python Environment** saves the interpreter for model execution even when
+service setup is pending, cancelled, or has failed. Workspace Trust is still
+required. Selecting a model interpreter does not install or start the local web
+service. **Open as Graph** requires the separate TensorViz service setup; approve
+that setup or retry **Repair Runtime** after correcting its reported prerequisite.
+The selected model interpreter retains its installed Torch/CUDA versions.
+
+New TensorViz-owned Linux/Windows environments request Torch 2.14.1+cpu from the
+official PyTorch CPU index. The extension also requests torchvision 0.29.1+cpu.
+This CPU policy selects a new managed cache identity; existing live managed
+and user environments are preserved. Missing CPU wheels fail setup without
+falling back to a source build or a GPU distribution.

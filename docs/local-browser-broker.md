@@ -52,6 +52,9 @@ carries its own session-scoped credential model.
   `staleState`, `focusNode`, `ack`, `error`) broadcasts to every view; view traffic
   (`snapshotRequest`, `revealNode`, `ack`, `error`) goes only to the host and is never echoed to
   other views. Broker-owned types (`connected`, `connectionState`, handshakes) cannot be injected.
+- Each host-state broadcast is encoded once and the same bounded wire text is sent to
+  every recipient. Inbound decoding, contract validation, session checks and ordering
+  still run before broadcast; a failed recipient is removed without stopping the others.
 - A view connecting before the host receives `connectionState: disconnected`; views are told
   `connected`/`disconnected` as the host arrives and leaves. A host disconnect clears the session's
   host, notifies every view, and restarts the ordering epoch when a new host registers.
@@ -95,6 +98,14 @@ Capture inspection and portable export use the same private correlation/ownershi
 rules. Their reply kinds cannot settle each other or another request type. Detached
 captures are bounded to 16 MiB UTF-8 JSON, never broadcast and never stored in reconnect
 snapshots. A disconnected view cancels its export preparation.
+
+Publish (`graphPublishRequest`/`graphPublishCancel`) follows the same rules. The request
+carries the graph file gzipped in base64, bounded by the website's 10 MB file limit; the
+broker remembers who asked, not the file. The host answers the asking view with
+`graphPublishState` progress (`signing_in` with the website's http(s) connect page, then
+`uploading`) and one terminal `graphPublishResult`: `published` with the graph's page and
+Share page, `failed`, or `cancelled`. The view opens those pages only on the member's
+click. See [Add graphs to tensorViz](share-to-website.md#publish-from-the-coding-agent-plugin).
 
 ## Expiry
 

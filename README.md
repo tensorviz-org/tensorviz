@@ -9,7 +9,9 @@ Explore your PyTorch or JAX/Flax model as an interactive graph. Follow tensor sh
 
 ## Install
 
-**Coding-agent plugin** (preview: Apple Silicon macOS, CPython 3.12, CPU capture):
+**Coding-agent plugin** (preview: Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture):
+
+Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin.
 
 Codex:
 
@@ -36,9 +38,13 @@ code --install-extension tensorviz.tensorviz-vscode
 
 All options, VSIX files, and platform limits are on the [Install](docs/install.md) page. Then open your first graph with the [quickstart](docs/quickstart.md).
 
-Published packages are maintained separately from this source tree. To build from source, see [local setup](docs/local-setup.md) and [plugin build](docs/plugin-build.md). This repository is currently private, so GitHub links to it (source files, issues, releases) need read access until it is made public.
+Release automation now lives in this repository. The installation links above still serve the last verified packages until the [maintainer cutover](docs/releasing.md) is completed. To build from source, see [local setup](docs/local-setup.md) and [plugin build](docs/plugin-build.md). This repository is currently private, so GitHub links to it (source files, issues, releases) need read access until it is made public.
 
 ## Docs
+
+Read the independently hosted documentation at <https://docs.tensorviz.dev/>.
+To edit or preview it, follow the [docs contribution guide](CONTRIBUTING.md#documentation-contributions).
+Only this repository and the docs dependencies are needed.
 
 - [Install](docs/install.md)
 - [Quickstart](docs/quickstart.md)

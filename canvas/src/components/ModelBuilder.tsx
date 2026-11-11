@@ -2608,6 +2608,9 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
       if (command === 'export-graph-file' || command === 'share-graph-file') {
         const sharing = command === 'share-graph-file';
         if (graphExportPending.current) return;
+        // A plugin view publishes through its host, which reports each step beside the button.
+        const publishing = sharing ? localContextRef.current?.publishing ?? null : null;
+        if (publishing && !publishing.start()) return;
         graphExportPending.current = true;
         void (async () => {
           try {
@@ -2617,6 +2620,11 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
               return { graph: { nodes: nodesRef.current, edges: edgesRef.current }, page: context.page, displayed: currentProjection(),
                 direction: layoutDirectionRef.current, connected: context.status?.phase === 'connected' && context.status.hostLink === 'connected' };
             }, localContextRef.current?.portableExports);
+            if (publishing) {
+              // The same file Export graph saves; the plugin host signs in and uploads it.
+              publishing.publish(JSON.stringify(file));
+              return;
+            }
             if (sharing) {
               // The same file Export graph saves; VS Code uploads it and reports back.
               const json = new Blob([JSON.stringify(file)], { type: 'application/json' });
@@ -2631,8 +2639,10 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
               detail: { label: 'Graph exported', detail: 'Open the file in the graph viewer to explore or share it.', status: 'ok' },
             }));
           } catch (error) {
-            window.dispatchEvent(new CustomEvent('builder-toast', {
-              detail: { label: sharing ? 'Could not add graph to tensorViz' : 'Could not export graph', detail: error instanceof Error ? error.message : 'Try opening the model again.', status: 'error' },
+            const detail = error instanceof Error ? error.message : 'Try opening the model again.';
+            if (publishing) publishing.fail(detail);
+            else window.dispatchEvent(new CustomEvent('builder-toast', {
+              detail: { label: sharing ? 'Could not add graph to tensorViz' : 'Could not export graph', detail, status: 'error' },
             }));
           } finally { graphExportPending.current = false; }
         })();

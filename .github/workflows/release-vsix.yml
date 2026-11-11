@@ -1,0 +1,124 @@
+name: Release VSIX
+
+# Initial cutover is manual-only. Merging this workflow never publishes.
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the reviewed extension version (requires completed release setup)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-vsix
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Build-only validation never receives publisher credentials.
+    outputs:
+      publish: ${{ steps.prepare.outputs.publish }}
+      version: ${{ steps.prepare.outputs.version }}
+      source: ${{ steps.prepare.outputs.source }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            extension/package-lock.json
+            canvas/package-lock.json
+      - name: Verify the reviewed release version
+        id: prepare
+        env:
+          RELEASE_PUBLISH: ${{ vars.RELEASES_ENABLED == 'true' && inputs.publish }}
+        run: node tooling/release/extension-release.mjs
+      - name: Record this run's reviewed source
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-release-${{ github.run_id }}
+          path: ${{ runner.temp }}/tensorviz-release.json
+          if-no-files-found: error
+          retention-days: 30
+          overwrite: true
+      - name: Install locked build dependencies
+        run: npm ci && npm ci --prefix extension && npm ci --prefix canvas
+      - name: Build and verify the VSIX archive
+        env:
+          REACT_APP_TLDRAW_LICENSE_KEY: ${{ secrets.TLDRAW_LICENSE_KEY }}
+        run: npm run vsix --prefix extension
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension-vsix-${{ github.run_id }}
+          path: extension/tensorviz-vscode-${{ steps.prepare.outputs.version }}.vsix
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
+
+  publish:
+    needs: build
+    if: needs.build.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: extension-vsix-${{ github.run_id }}
+          path: extension
+      - name: Install the locked Marketplace publisher
+        run: npm ci --prefix extension --ignore-scripts
+      - name: Publish the verified VSIX to the Marketplace
+        working-directory: extension
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          test -n "$VSCE_PAT" || { echo '::error::Configure VSCE_PAT as a repository Actions secret.'; exit 1; }
+          npx --no-install vsce publish --packagePath "tensorviz-vscode-${RELEASE_VERSION}.vsix" --skip-duplicate
+      - name: Sync the numbered GitHub release with Marketplace
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SOURCE: ${{ needs.build.outputs.source }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: node extension/scripts/sync-github-release.mjs "extension/tensorviz-vscode-${RELEASE_VERSION}.vsix" --publish
+      - name: Update the rolling GitHub VSIX download
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SOURCE: ${{ needs.build.outputs.source }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "$(node extension/scripts/sync-github-release.mjs --check-rolling "$RELEASE_VERSION")" != true ]; then
+            echo 'A newer numbered extension release exists; keeping the rolling download unchanged.'
+            exit 0
+          fi
+          asset=tensorviz-vscode-main.vsix
+          gh release download "v${RELEASE_VERSION}" --pattern "tensorviz-vscode-${RELEASE_VERSION}.vsix" --output "$asset"
+          sha256sum "$asset" > "${asset}.sha256"
+          printf 'Exact Marketplace package from https://github.com/%s/releases/tag/v%s.\n\nSource: %s\n\nThe latest tag is an immutable download anchor; use the numbered release for source.\n' "$GITHUB_REPOSITORY" "$RELEASE_VERSION" "$RELEASE_SOURCE" > release-notes.md
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest "$asset" "${asset}.sha256" --clobber
+            gh release edit latest --title 'tensorViz latest extension' --notes-file release-notes.md --prerelease
+          else
+            gh release create latest "$asset" "${asset}.sha256" --title 'tensorViz latest extension' --notes-file release-notes.md --target "$RELEASE_SOURCE" --prerelease
+          fi

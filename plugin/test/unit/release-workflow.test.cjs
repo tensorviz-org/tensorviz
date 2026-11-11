@@ -14,6 +14,30 @@ test('release versions advance for each run, retain their identity on retry and 
   assert.throws(() => releaseVersion('0.3.0-dev', '1'));
 });
 
+test('a local build carries its release version into every client manifest', async () => {
+  const { stampVersion } = await import('../../scripts/package.mjs');
+  const source = path.resolve(__dirname, '../../../plugins/tensorviz');
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-stamp-'));
+  const manifests = ['plugin.json', '.codex-plugin/plugin.json', '.claude-plugin/plugin.json'];
+  try {
+    for (const name of manifests) {
+      await fs.mkdir(path.dirname(path.join(root, name)), { recursive: true });
+      await fs.copyFile(path.join(source, name), path.join(root, name));
+    }
+    const base = JSON.parse(await fs.readFile(path.join(source, 'plugin.json'), 'utf8')).version;
+    await stampVersion(root, base);
+    for (const name of manifests) {
+      assert.deepEqual(await fs.readFile(path.join(root, name)), await fs.readFile(path.join(source, name)), 'the base version leaves manifests unchanged');
+    }
+    await stampVersion(root, '0.3.105');
+    for (const name of manifests) {
+      const stamped = JSON.parse(await fs.readFile(path.join(root, name), 'utf8'));
+      const tracked = JSON.parse(await fs.readFile(path.join(source, name), 'utf8'));
+      assert.deepEqual(stamped, { ...tracked, version: '0.3.105' });
+    }
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+
 test('previous catalogs retain exact source exclusion and checksums during documentation migration', async () => {
   const { exportPublic } = await import('../../scripts/export-public.mjs');
   const { pluginVersion } = await import('../../scripts/release-version.mjs');
@@ -24,6 +48,15 @@ test('previous catalogs retain exact source exclusion and checksums during docum
     await exportPublic(output, { runtimeLock: { formatVersion: 1, version: pluginVersion(),
       platform: 'darwin-arm64', pythonABI: 'cpython-312-darwin', bytes: 100,
       sha256: 'a'.repeat(64), url: 'https://example.invalid/runtime.tar.gz' } });
+    const manifest = JSON.parse(await fs.readFile(path.join(output, 'plugins/tensorviz/.codex-plugin/plugin.json'), 'utf8'));
+    const ui = manifest.interface ?? manifest.extensions?.['com.openai']?.interface;
+    assert.ok(ui, 'exported Codex interface is present');
+    for (const [key, file] of [['supportURL', 'SUPPORT.md'], ['privacyPolicyURL', 'PRIVACY.md'], ['termsOfServiceURL', 'TERMS.md']]) {
+      assert.equal(ui[key], `https://github.com/tensorviz-org/tensorviz-plugins/blob/main/${file}`);
+    }
+    const readme = await fs.readFile(path.join(output, 'README.md'), 'utf8');
+    assert.match(readme, /codex plugin marketplace add tensorviz-org\/tensorviz-plugins/);
+    assert.match(readme, /claude plugin marketplace add tensorviz-org\/tensorviz-plugins/);
     const publicationFile = path.join(output, 'PUBLICATION.json');
     const publication = JSON.parse(await fs.readFile(publicationFile, 'utf8'));
     for (const file of ['plugins/tensorviz/docs/installation.md', 'cursor/plugins/tensorviz/docs/installation.md', 'docs/installation.md']) {

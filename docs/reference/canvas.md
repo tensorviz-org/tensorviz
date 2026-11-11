@@ -355,7 +355,9 @@ saved-graph ID. It is limited to 4 MiB, in memory for this window only. Node and
 expansion changes checkpoint immediately; camera gestures coalesce for 100 ms
 and flush on pointer release, blur or page hide. **Hide Canvas waits for an
 authenticated checkpoint round trip**, reading the current camera even before
-the store listener has run. A newer Show/Hide request wins over an older pending
+the store listener has run. The requested snapshot is sent once, in the response
+with that request ID, rather than also publishing an unsolicited copy. Ordinary
+store and gesture checkpoints continue independently. A newer Show/Hide request wins over an older pending
 hide. An unresponsive renderer times out after one second, logs the checkpoint
 failure, and retains its last checkpoint. Unexpected renderer termination can
 recover only the last delivered checkpoint; full window reload persistence is
@@ -383,6 +385,11 @@ captured ports, diagnostics and review content. Expanded modules place their
 children with 48px between ranks. Inputs sit beside the first visible entry;
 outputs sit beside the final visible exit. This keeps boundary connections short
 instead of drawing diagonal lines through a tall module.
+
+Reconciliation prepares internal connections and skip-lane clearance only when a
+visible expanded module needs child layout. Flat graphs, collapsed contents and
+module-focus projections skip that preparation. Visibility, diagnostics, boundary
+ports and display connections are still derived in every case.
 
 The footer **Layout direction** button, beside Fit, offers **Auto**,
 **Horizontal** and **Vertical**. It stays available when the toolbar is
@@ -419,8 +426,18 @@ Use **Expand toolbar → More tools → Auto layout** to apply the new placement
 an existing arrangement, including the contents of expanded modules, in the
 current direction. Saved views and ordinary source refreshes preserve top-level
 positions.
+
+When reconciliation preserves those positions, it skips preparing top-level card
+sizes and folded layout connections. Visibility, module sizing, boundary ports
+and display connections are still reconciled; an explicit relayout prepares and
+uses the complete layout inputs as before.
+
 Switching to another model starts its own layout even when the two models share
 Input/Output node IDs. **Fit** changes the camera, not placement.
+
+IDE projection merges classify new cards during the merge pass, including when a
+saved view opens into an empty canvas. Saved positions and existing canvas state
+are retained; only new, unplaced cards need layout.
 
 Saved workspace views keep their existing format; portable exports record the direction:
 
@@ -748,6 +765,13 @@ Entering a module gives its immediate children the canvas. Ancestors stay in a b
 The compact navigation row is the only persistent scope identity: Back, Overview, ancestor and current breadcrumbs, sibling menus, and Flow. After navigation, keyboard focus moves to the current breadcrumb. Its tooltip keeps the module type and direct-child count. There is no second title banner and no bottom module-name bar.
 
 On first entry the canvas compares horizontal and vertical layouts and keeps the orientation that fits, staying with horizontal unless the other orientation is clearly better. Resizing does not rotate the graph. Entering, going back, changing layout, and finishing a recapture fit the destination after its shapes are committed. Selection, dragging, and pan or zoom keep the camera.
+
+The first committed measurement reuses the layout computed during rendering only
+when its graph layout key, viewport dimensions and requested orientation match
+exactly. A changed measurement still computes the measured layout; a late editor
+can reuse a fallback layout only if the actual inputs match it. Fitting,
+selection restoration and scene-commit readiness follow
+the same path in either case.
 
 ## Operation input and output shapes
 

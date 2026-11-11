@@ -2,7 +2,7 @@
 
 Open a small PyTorch model, inspect its tensor shapes, and find a layer's Python. You can follow the same steps with your own model.
 
-Before you start, [install TensorViz](install.md) and choose a Python environment with PyTorch installed. The coding-agent plugin preview requires Apple Silicon macOS, CPython 3.12, and CPU capture. For JAX and Flax in the editor, see the [framework guide](jax-support.md).
+Before you start, [install TensorViz](install.md) and choose a Python environment with PyTorch installed. The coding-agent plugin preview requires Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture. For JAX and Flax in the editor, see the [framework guide](jax-support.md).
 
 <a id="install-the-extension"></a>
 <a id="plugin-instead-of-the-extension"></a>

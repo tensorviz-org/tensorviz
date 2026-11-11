@@ -29,6 +29,8 @@ import { graphEdges, graphNodes } from './graphQueryState';
 import { graphIsReadOnly } from './graphAccess';
 import { NodeExplanationContext } from './NodeExplanationContext';
 import { explainedGraphPresentation } from './nodeExplanationPresentation';
+import { planExpandedModuleOrder } from './expandedModuleOrder';
+import { createGraphShapes } from './graphShapeCreation';
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
@@ -528,7 +530,7 @@ export function useTldrawBridge({
             editor.deleteShapes(shapesToRecreate as any);
           }
           if (shapesToCreate.length > 0) {
-            editor.createShapes(shapesToCreate);
+            createGraphShapes(editor, shapesToCreate);
           }
           if (shapesToUpdate.length > 0) {
             editor.updateShapes(shapesToUpdate);
@@ -657,7 +659,7 @@ export function useTldrawBridge({
           editor.deleteShapes(toDelete);
         }
         if (toCreate.length > 0) {
-          editor.createShapes(toCreate.map((edge) => ({
+          createGraphShapes(editor, toCreate.map((edge) => ({
             id: edge.id, type: EDGE_SHAPE_TYPE as any, x: edge.x, y: edge.y, isLocked: true, props: edge.props as any,
           })));
         }
@@ -683,9 +685,11 @@ export function useTldrawBridge({
               }
               return seen.size;
             };
-            nodes.filter(node => node.type === 'moduleNode' && node.data.expanded && !node.hidden)
+            const moduleIds = nodes.filter(node => node.type === 'moduleNode' && node.data.expanded && !node.hidden)
               .sort((a, b) => depth(b) - depth(a))
-              .forEach(node => editor.sendToBack([nodeIdToShapeId(node.id)]));
+              .map(node => nodeIdToShapeId(node.id));
+            const moduleOrder = planExpandedModuleOrder(editor, moduleIds);
+            if (moduleOrder.length > 0) editor.updateShapes(moduleOrder);
           }, { history: 'ignore', ignoreShapeLock: true }));
         } catch (e) {
           // Ordering is cosmetic; stale/deleted edge records should not break sync.

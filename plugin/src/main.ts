@@ -10,6 +10,7 @@ import { pinAssets } from './assets';
 import { StandaloneHost } from './host';
 import { HostError } from './workspace';
 import { registerGraphPanel } from './graphPanel';
+import { WebsitePublisher } from './website';
 import { graphToolResult, GraphToolError, modelRefSchema } from '@tensorviz/graph-host/mcpGraph';
 import { registerMcpViewTools } from '@tensorviz/graph-host/mcpViews';
 import { registerMcpCaptureTools } from '@tensorviz/graph-host/mcpCaptures';
@@ -20,7 +21,16 @@ declare const TENSORVIZ_VERSION: string;
 const version = TENSORVIZ_VERSION;
 async function start(): Promise<void> {
   if (process.argv.slice(2).length) {
-    if (process.argv.length !== 3 || process.argv[2] !== '--revoke-permission') throw new Error('Supported command: --revoke-permission');
+    const command = process.argv[2];
+    if (process.argv.length !== 3 || !['--revoke-permission', '--sign-out'].includes(command)) {
+      throw new Error('Supported commands: --revoke-permission, --sign-out');
+    }
+    if (command === '--sign-out') {
+      // Forgets the tensorviz.dev sign-in that Publish keeps on this computer.
+      const signedIn = await new WebsitePublisher({ storage: process.env.TENSORVIZ_DATA_DIR }).signOut();
+      process.stderr.write(signedIn ? 'Signed out of tensorViz.\n' : 'You are not signed in to tensorViz.\n');
+      return;
+    }
     await new PluginPermissions().save('denied');
     process.stderr.write('TensorViz permission revoked.\n');
     return;

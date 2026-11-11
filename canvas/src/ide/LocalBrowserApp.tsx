@@ -72,10 +72,13 @@ import LocalBrowserModelMenu from './LocalBrowserModelMenu';
 import PublishGraphButton from './PublishGraphButton';
 import { useCompactHeader } from './useCompactHeader';
 import { createLocalBrowserPortableClient, type LocalBrowserPortableClient } from './localBrowserPortableClient';
+import { createLocalBrowserPublishClient, type LocalBrowserPublishClient } from './localBrowserPublishClient';
 
 export interface LocalBrowserAppProps {
   hostKind?: 'extension' | 'standalone';
   hostControls?: React.ReactNode;
+  /** Opens a website page on the member's click: the sign-in page and a published graph's Share page. */
+  openLink?: (url: string) => void;
   /** Transport factory; tests inject a scripted transport, production uses the
    *  real one (fragment bootstrap, cookie, WebSocket — all inside there). */
   createTransport?: () => LocalBrowserViewTransport;
@@ -151,6 +154,7 @@ export default function LocalBrowserApp({
   createTransport,
   hostKind = 'extension',
   hostControls,
+  openLink,
 }: LocalBrowserAppProps): React.ReactElement {
   const standalone = hostKind === 'standalone';
   const [sourceNotice, setSourceNotice] = React.useState<string | null>(null);
@@ -375,6 +379,7 @@ export default function LocalBrowserApp({
   const [sourceEdits, setSourceEdits] = React.useState<LocalBrowserSourceEditClient | null>(null);
   const [captures, setCaptures] = React.useState<LocalBrowserCaptureClient | null>(null);
   const [portableExports, setPortableExports] = React.useState<LocalBrowserPortableClient | null>(null);
+  const [publishing, setPublishing] = React.useState<LocalBrowserPublishClient | null>(null);
 
   React.useEffect(() => {
     const transport = (createTransport ?? createLocalBrowserViewTransport)();
@@ -388,11 +393,14 @@ export default function LocalBrowserApp({
     setValidation(validator);
     const captureClient = createLocalBrowserCaptureClient(transport, () => targetRef.current);
     setCaptures(captureClient);
-    const portableClient = standalone ? null : createLocalBrowserPortableClient(transport, () => targetRef.current);
+    const portableClient = createLocalBrowserPortableClient(transport, () => targetRef.current, standalone ? 'the tensorViz plugin' : 'VS Code');
     setPortableExports(portableClient);
     const explanationArrivals = new Map<string, number>();
     let explanationArrival = 0;
     let explanationRoute: { selected: string; account: string; defaultModel?: string } | undefined;
+    // The plugin host publishes to tensorviz.dev itself; the extension's page saves a file instead.
+    const publishClient = standalone ? createLocalBrowserPublishClient(transport, () => targetRef.current) : null;
+    setPublishing(publishClient);
     const offMessage = transport.onMessage(message => {
       if (message.type === 'modelCatalog' && message.viewId === transport.session?.viewId
         && !standalone && !reviewRef.current.state && !pageRef.current.greyed
@@ -666,7 +674,9 @@ export default function LocalBrowserApp({
       edits?.dispose();
       validator.dispose();
       captureClient.dispose();
-      portableClient?.dispose();
+      portableClient.dispose();
+      publishClient?.dispose();
+      setPublishing(null);
       setCaptures(null);
       setValidation(null);
       setSourceEdits(null);
@@ -873,7 +883,7 @@ export default function LocalBrowserApp({
         : 'Not run for this version';
 
   const localContext = React.useMemo(
-    () => ({ page, status, sourceEdits, captures, portableExports,
+    () => ({ page, status, sourceEdits, captures, portableExports, publishing,
       codeFocus: !standalone && !review && page.activeTarget ? {
         options: codeFocus?.options ?? DEFAULT_CODE_FOCUS,
         parameter: codeFocus && sameValidationTarget(codeFocus.target, page.activeTarget) ? codeFocus.parameter : false,
@@ -931,7 +941,7 @@ export default function LocalBrowserApp({
         },
         cancel: () => { if (openingBusy) openingAction({ kind: 'cancel' }); else validation?.cancel(); },
       } }),
-    [page, status, sourceEdits, captures, portableExports, codeFocus, validating, validationDisabledReason,
+    [page, status, sourceEdits, captures, portableExports, publishing, codeFocus, validating, validationDisabledReason,
      validationStatusLabel, validationReceipt, receiptIsCurrent, runValidation, validation, executionPending,
      review, guessedInput, projection, openingBusy, runReopens, showOpening, hasOpeningPanel, openingAction, headerTools, footerTools, compactHeader, standalone],
   );
@@ -1137,7 +1147,8 @@ export default function LocalBrowserApp({
             onClick={() => transportRef.current?.send({ type: 'graphReviewRequest', action: 'openPR' })}><GitPullRequest size={15} aria-hidden="true" /><span className="local-canvas-control-label">Open PR</span></button>}
           {nativeCanvasMode() && !review && page.activeTarget && <button type="button" className="local-canvas-control" aria-label="Review model changes" title="Compare this model across Git revisions"
             onClick={() => transportRef.current?.send({ type: 'graphReviewRequest', action: 'open' })}><GitCompareArrows size={15} aria-hidden="true" /><span className="local-canvas-control-label">Review changes</span></button>}
-          {!standalone && !review && <PublishGraphButton disabled={showOpening || openingBusy || !canExportGraphFile(page)} />}
+          {!review && (!standalone || publishing) && <PublishGraphButton disabled={showOpening || openingBusy || !canExportGraphFile(page)}
+            publishing={publishing} openLink={openLink} />}
           </div>
         </div>
         {!review && <>

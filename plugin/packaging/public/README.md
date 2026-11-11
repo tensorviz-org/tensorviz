@@ -1,8 +1,5 @@
-> Template for the compiled archive. `plugin/scripts/export-public.mjs` copies
-> `plugin/packaging/public/` into that archive. The documentation index does not link
-> here. This source repository does not publish those zips or a Marketplace listing.
-> Build from source with [plugin-build.md](https://github.com/tensorviz-org/tensorviz/blob/main/docs/plugin-build.md). The commands below
-> apply only after a maintainer has published a compiled runtime.
+> Compiled release archive template. Workflows run in `tensorviz-org/tensorviz`;
+> public releases and the installation catalog stay in `tensorviz-org/tensorviz-plugins`.
 
 # tensorViz for coding agents
 
@@ -25,14 +22,15 @@ refresh the graph after editing your model.
 [Claude Code](#install-in-claude-code) · [Cursor](#install-in-cursor) ·
 [T3 Code](#install-in-t3-code)
 
-This is a **preview for Apple Silicon Macs**. The plugin runs locally and does
+This compiled candidate supports **Apple Silicon Macs and Linux x64 with glibc 2.35+**. The plugin runs locally and does
 not require the tensorViz VS Code extension or a separate Node.js installation.
 
 ## Requirements
 
-- **macOS on Apple Silicon** (an M-series chip). To check, open the Apple menu →
-  **About This Mac** and look at **Chip**. This compiled preview targets CPU
-  capture; Windows, Linux, Intel Macs and CUDA are not verified targets.
+- **macOS on Apple Silicon or Linux x64 with glibc 2.35 or newer**. Linux also
+  needs `/usr/bin/python3` for launcher metadata, `curl`, `sha256sum` and `tar`.
+  This compiled preview targets CPU capture. Windows, Linux ARM64, Intel Macs
+  and musl are unsupported; CUDA capture remains unverified.
 - **CPython 3.12** with compatible PyTorch and your model's dependencies, or
   tensorViz's managed Python setup when no compatible environment is available.
 - A local PyTorch model project and **Codex, Claude Code, Cursor, or T3 Code with its Codex provider** with plugins
@@ -40,35 +38,41 @@ not require the tensorViz VS Code extension or a separate Node.js installation.
   tensorViz does not require its own account or provider API key.
 - Internet access for the initial runtime download and any approved Python setup.
 
+The launcher selects the **MCP execution host** with `uname`, not the desktop
+showing your client. Linux needs a catalog that actually pins a Linux asset;
+installed 0.3.104 remains Darwin-only until a new runtime is published. This source
+change does not update existing releases. Remote browser links require forwarding
+from that host; SSH environment variables do not select a desktop runtime.
+
 ## Download
 
 **Codex and Claude Code users can install directly** with the commands below.
-Those commands download the plugin for you; no manual download is needed.
+A complete catalog ZIP is also available for local marketplace installation.
 
 For a manual download, open the
-[Releases page](https://github.com/tensorviz-org/tensorviz/releases),
+[Releases page](https://github.com/tensorviz-org/tensorviz-plugins/releases),
 choose a version, expand **Assets**, and download the ZIP for your app.
-The links below are for **[preview {{VERSION}}](https://github.com/tensorviz-org/tensorviz/releases/tag/v{{VERSION}})**:
+The links below are for **[preview {{VERSION}}](https://github.com/tensorviz-org/tensorviz-plugins/releases/tag/v{{VERSION}})**:
 
 | Client | Plugin download | Installation |
 | --- | --- | --- |
-| Codex | [tensorviz-{{VERSION}}.zip](https://github.com/tensorviz-org/tensorviz/releases/download/v{{VERSION}}/tensorviz-{{VERSION}}.zip) | [Codex instructions](#install-in-codex) |
-| Claude Code | [tensorviz-{{VERSION}}.zip](https://github.com/tensorviz-org/tensorviz/releases/download/v{{VERSION}}/tensorviz-{{VERSION}}.zip) | [Claude Code instructions](#install-in-claude-code) |
-| Cursor | [tensorviz-cursor-{{VERSION}}.zip](https://github.com/tensorviz-org/tensorviz/releases/download/v{{VERSION}}/tensorviz-cursor-{{VERSION}}.zip) | [Cursor instructions](#install-in-cursor) |
+| Codex | [tensorviz-catalog-{{VERSION}}.zip](https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v{{VERSION}}/tensorviz-catalog-{{VERSION}}.zip) | [Codex instructions](#install-in-codex) |
+| Claude Code | [tensorviz-catalog-{{VERSION}}.zip](https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v{{VERSION}}/tensorviz-catalog-{{VERSION}}.zip) | [Claude Code instructions](#install-in-claude-code) |
+| Cursor | [tensorviz-cursor-{{VERSION}}.zip](https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v{{VERSION}}/tensorviz-cursor-{{VERSION}}.zip) | [Cursor instructions](#install-in-cursor) |
 
-The ZIPs contain a single plugin, not a marketplace catalog (the list of plugins
-your app can install). Do not pass an extracted plugin ZIP to a
-`plugin marketplace add` command. To install from a local repository download,
-see [local installation](docs/installation.md#install-from-a-local-repository).
+The catalog ZIP contains the local marketplaces and both client directories.
+Extract it into a persistent directory, for example `~/tensorviz-catalog-{{VERSION}}`.
+The separate `tensorviz-{{VERSION}}.zip` and Cursor ZIP contain single plugins,
+not catalogs; do not pass those to `plugin marketplace add`. See
+[local installation](docs/installation.md#install-from-a-local-repository).
 
 The compiled runtime downloads automatically on first connection. You do not
 need to download or unpack the separate `tensorviz-runtime-…tar.gz` release asset.
 The launcher checks its pinned SHA-256 digest before use and caches the verified
 archive for later connections. No source checkout, build tools, Node.js or VS Code
-installation is needed to use the compiled plugin. This open-source repository
-includes the visualization product (the extension, canvas, backend, and plugin
-host). The archive you install is the launcher and integration; it is not a copy
-of that source tree. Browser-delivered JavaScript remains inspectable, and
+installation is needed to use the compiled plugin. The public distribution
+repository and archives contain only the audited launcher and integration;
+the core source and its Git history are excluded. Browser-delivered JavaScript remains inspectable, and
 binaries can be reverse engineered. A GitHub release does not imply an official
 client marketplace listing.
 
@@ -77,11 +81,11 @@ client marketplace listing.
 1. Install or update the [Codex CLI](https://developers.openai.com/codex/cli/).
    It must be available as `codex` in your terminal, including when you use the
    Codex desktop app.
-2. Open the macOS **Terminal** app (press **Command + Space**, type `Terminal`,
-   and press **Return**). Run these commands one at a time:
+2. Open a terminal on the machine where Codex executes, including the Linux
+   server for an SSH session. Run these commands one at a time:
 
    ```sh
-   codex plugin marketplace add tensorviz-org/tensorviz
+   codex plugin marketplace add tensorviz-org/tensorviz-plugins
    codex plugin add tensorviz@tensorviz-standalone
    ```
 
@@ -108,10 +112,10 @@ disable that connection before using this plugin. See the
 ## Install in Claude Code
 
 Install or update [Claude Code](https://code.claude.com/docs/en/setup) first.
-Open the macOS **Terminal** app and run these commands one at a time:
+Open a terminal on the MCP execution host, then run:
 
 ```sh
-claude plugin marketplace add tensorviz-org/tensorviz
+claude plugin marketplace add tensorviz-org/tensorviz-plugins
 claude plugin install tensorviz@tensorviz-standalone --scope user
 ```
 
@@ -121,7 +125,7 @@ your user account, so it is available across projects.
 Alternatively, inside an interactive Claude Code session, run:
 
 ```text
-/plugin marketplace add tensorviz-org/tensorviz
+/plugin marketplace add tensorviz-org/tensorviz-plugins
 /plugin install tensorviz@tensorviz-standalone
 ```
 
@@ -187,6 +191,14 @@ retains the normal approval flow. Desktop acceptance used
 with a local browser graph, but did not render the embedded panel in testing.
 See the [T3 setup and troubleshooting guide](BUILD.md#t3-code), including custom
 Codex profiles and agent-session lifetime.
+
+## Included integration
+
+The plugin ships the `model-workflow` skill and a local MCP server with **29
+tools**: 25 agent tools and four tools reserved for the Model graph app. See the
+[tool inventory and integration boundaries](BUILD.md#tools-and-integration-boundaries).
+There are no separate bundled slash commands. T3 uses the Codex integration;
+Claude Cowork and other clients have not been verified for this release.
 
 ## Use tensorViz
 

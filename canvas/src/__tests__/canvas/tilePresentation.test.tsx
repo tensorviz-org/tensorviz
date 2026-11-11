@@ -4,8 +4,11 @@ import { InputShapeUtil } from '../../canvas/InputShapeUtil';
 import { OutputShapeUtil } from '../../canvas/OutputShapeUtil';
 import { LayerShapeUtil } from '../../canvas/LayerShapeUtil';
 import { layerCardHeight } from '../../canvas/cardMetrics';
-import { CapturePort, ModelNodeData } from '../../types';
+import { CapturePort, ModelNode, ModelNodeData } from '../../types';
 import fixture from '../../test/fixtures/canvas/capture-document.json';
+import { NodeExplanationContext } from '../../canvas/NodeExplanationContext';
+import type { NodeExplanationState } from '../../ide/nodeExplanation.generated';
+import { NodeUnderstanding } from '../../canvas/NodeUnderstanding';
 
 jest.mock('tldraw', () => ({
   BaseBoxShapeUtil: class {}, HTMLContainer: ({ children }: any) => <div>{children}</div>,
@@ -30,6 +33,25 @@ function renderCard(util: InputShapeUtil | OutputShapeUtil | LayerShapeUtil, nod
   return render(util.component({ id: 'shape:tile', props: { nodeData, w: 240, h: 140 } } as any));
 }
 
+it.each([InputShapeUtil, OutputShapeUtil])('explains a boundary without hiding its technical input/output evidence (%p)', Util => {
+  const util = new Util();
+  (util as any).editor = { getSelectedShapeIds: () => [], getHoveredShapeId: () => null };
+  const state: NodeExplanationState = { requestId: 'view', nodeId: 'tile', revision: 'source-a', status: 'ready', explanation: {
+    title: 'Select sample-rate conditioning', purpose: 'This bucket selects how the decoder adapts its audio features.',
+    inputs: [], outputs: ['Sample-rate bucket index'], steps: [], uncertainties: [],
+    citations: [{ id: 'source', file: 'audio_vae_v2.py', sourceDigest: 'a'.repeat(64), startLine: 321, endLine: 330 }],
+  } };
+  const card = util.component({ id: 'shape:tile', props: { nodeData: data({ parameters: { name: 'sr_cond' } }), w: 280, h: 300 } } as any);
+  const context = { states: { tile: state }, annotationsVisible: true, retry: jest.fn(), reveal: jest.fn() };
+  const view = render(<NodeExplanationContext.Provider value={context}>{card}</NodeExplanationContext.Provider>);
+  expect(view.container.querySelector('.node-explanation-purpose')).toHaveTextContent(state.explanation!.purpose);
+  expect(view.container.querySelector('.ui2-node-title')).toHaveTextContent(Util === InputShapeUtil ? 'Input' : 'Output');
+  expect(view.container).toHaveTextContent('sr_cond');
+  view.rerender(<NodeExplanationContext.Provider value={{ ...context, annotationsVisible: false }}>{card}</NodeExplanationContext.Provider>);
+  expect(view.container.querySelector('.node-explanation-annotation')).toBeNull();
+  expect(view.container).toHaveTextContent('sr_cond');
+});
+
 describe.each(['overview', 'working', 'inspection'])('%s zoom', detail => {
   beforeEach(() => { mockDetail = detail; });
 
@@ -41,8 +63,8 @@ describe.each(['overview', 'working', 'inspection'])('%s zoom', detail => {
         _source_calls: ['unsqueeze', 'to', 'unsqueeze', 'where'],
         _source_result_call: { name: 'where', target: 'torch.where' } },
     }));
-    expect(screen.getByText('Select by condition')).toBeVisible();
-    expect(screen.getByText('torch.where', { exact: true })).toBeVisible();
+    expect(screen.getByTitle('Select by condition')).toHaveTextContent('Select by condition');
+    expect(screen.getByTitle('torch.where')).toHaveTextContent('torch.where');
     expect(screen.queryByText('python@DinoVisionTransformer#2')).not.toBeInTheDocument();
     expect(screen.queryByText(/unsqueeze →/)).not.toBeInTheDocument();
   });
@@ -77,7 +99,8 @@ describe.each(['overview', 'working', 'inspection'])('%s zoom', detail => {
     expect(container.querySelector('.ui2-node-title')).toHaveTextContent('Permute axes');
     expect(screen.queryByText('permute@DinoVisionTransformer#0')).not.toBeInTheDocument();
     expect(container.querySelector('.ui2-node-expr')).toBeNull();
-    if (detail === 'inspection') expect(screen.getByText('(0, 3, 1, 2)')).toBeVisible();
+    if (review) expect(screen.getByText('(0, 3, 1, 2)')).toBeVisible();
+    else expect(screen.queryByText('(0, 3, 1, 2)')).not.toBeInTheDocument();
   });
 
   it('shows symbolic source shapes on review cards without claiming measured shapes', () => {
@@ -89,7 +112,7 @@ describe.each(['overview', 'working', 'inspection'])('%s zoom', detail => {
     }));
     expect(container.querySelector('.ui2-node-title')).toHaveTextContent('Reshape');
     expect(container.querySelectorAll('.ui2-node-tensor-row')).toHaveLength(0);
-    if (detail === 'inspection') expect(screen.getByText('(1, M, M, dim)')).toBeVisible();
+    expect(screen.getByText('(1, M, M, dim)')).toBeVisible();
   });
 
   it.each(['input', 'output'])('keeps the %s boundary shape and dtype visible', kind => {
@@ -136,7 +159,7 @@ describe.each(['overview', 'working', 'inspection'])('%s zoom', detail => {
       captureRef: { kind: 'operation' } as ModelNodeData['captureRef'], captureLabel: target,
     }));
     expect(container.querySelector('.ui2-node-title')).toHaveTextContent(title);
-    expect(screen.queryByText(target)).not.toBeInTheDocument();
+    expect(container.querySelector('.ui2-node-subtitle')).toHaveTextContent(target);
     expect(container.querySelector('.ui2-node-expr')).toBeNull();
   });
 
@@ -155,8 +178,42 @@ describe.each(['overview', 'working', 'inspection'])('%s zoom', detail => {
       layerType: { ...data().layerType, name: target, displayName: target },
     }));
     expect(container.querySelector('.ui2-node-title')).toHaveTextContent('Max pool 2D');
-    expect(screen.queryByText(target)).not.toBeInTheDocument();
+    expect(container.querySelector('.ui2-node-subtitle')).toHaveTextContent(target);
   });
+});
+
+it('keeps technical card identity stable while a cached interpretation appears in the selection details', () => {
+  const nodeData = data({ layerType: { ...data().layerType, id: 'python', name: 'Python', displayName: 'Python' },
+    shapeEvidence: 'unknown', debugEvidence: 'source', inputShape: undefined, outputShape: undefined,
+    captureLabel: 'python@Model#4', parameters: { _raw_call: 'scores = self.compare(features, question)', _source_result_call: { name: 'compare' } } });
+  const state: NodeExplanationState = { requestId: 'request', nodeId: 'tile', revision: 'source-a', status: 'ready', explanation: {
+    title: 'Compare representations', purpose: 'Compare the representations.', inputs: [], outputs: [], steps: [], uncertainties: [],
+    citations: [{ id: 'source', file: 'model.py', sourceDigest: 'a'.repeat(64), startLine: 3, endLine: 4 }],
+  } };
+  const util = new LayerShapeUtil();
+  (util as any).editor = { getSelectedShapeIds: () => [], getHoveredShapeId: () => null };
+  const card = util.component({ id: 'shape:tile', props: { nodeData, w: 200, h: layerCardHeight(nodeData) } } as any);
+  const node: ModelNode = { id: 'tile', type: 'layerNode', position: { x: 0, y: 0 }, data: nodeData };
+  const before = JSON.stringify(nodeData);
+  const view = render(<NodeExplanationContext.Provider value={{ states: { tile: state }, retry: jest.fn(), reveal: jest.fn() }}>
+    <div data-testid="technical-card">{card}</div><NodeUnderstanding node={node} />
+  </NodeExplanationContext.Provider>);
+  const technical = screen.getByTestId('technical-card');
+  const technicalHtml = technical.innerHTML;
+  expect(technical.querySelector('.ui2-node-title')).toHaveTextContent('compare');
+  expect(technical.querySelector('.ui2-node-subtitle')).toBeNull();
+  expect(screen.getByText('Compare the representations.')).toBeVisible();
+  expect(screen.getAllByText('Agent interpretation')[0]).toBeVisible();
+  expect(screen.getByRole('img', { name: 'Read from code; tensor shapes have not been recorded.' })).toHaveAttribute('title', 'Read from code; tensor shapes have not been recorded.');
+  expect(technical.querySelector('.ui2-node-title')).toHaveAttribute('title', 'compare');
+  expect(technical).not.toHaveTextContent('Compare the representations.');
+  expect(technical).not.toHaveTextContent('scores = self.compare(features, question)');
+  expect(view.container).not.toHaveTextContent('python@Model#4');
+  expect(JSON.stringify(nodeData)).toBe(before);
+  view.rerender(<NodeExplanationContext.Provider value={null}><div data-testid="technical-card">{card}</div><NodeUnderstanding node={node} /></NodeExplanationContext.Provider>);
+  expect(view.container.querySelector('.ui2-node-title')).toHaveTextContent('compare');
+  expect(screen.getByTestId('technical-card').innerHTML).toBe(technicalHtml);
+  expect(screen.queryByText('Compare the representations.')).not.toBeInTheDocument();
 });
 
 it('retains stale attribution on an overview operation without drawing its source note', () => {
@@ -177,7 +234,7 @@ describe.each(['overview', 'working', 'inspection'])('source notes at %s zoom', 
     const { container } = renderCard(new LayerShapeUtil(), data({ debugEvidence: 'source',
       resolutionCode: 'EXTERNAL_PACKAGE', resolutionSeverity: 'info', resolutionDetail: note }));
     expect(container).not.toHaveTextContent('external to the workspace');
-    expect(container.querySelector(`[title="${note}"]`)).toHaveTextContent('Source only');
+    expect(screen.getByRole('img', { name: 'Read from code; tensor shapes have not been recorded.' })).toHaveAttribute('title', expect.stringContaining(note));
   });
 
   it('flags a resolution warning with the issue badge instead of a sentence', () => {

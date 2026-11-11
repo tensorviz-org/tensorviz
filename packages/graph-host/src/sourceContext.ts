@@ -5,6 +5,7 @@ import type { CaptureSnapshot } from './semanticCapture';
 import { sourceConfigurationImpact } from './sourceConfigurationImpact';
 import { sourceShapeImpact } from './sourceShapeImpact';
 import { sourceComputationImpact } from './sourceComputationImpact';
+import { SOURCE_DOCUMENTATION_REASONS } from '@tensorviz/contracts/nodeExplanation';
 
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const id = z.string().regex(/^source:[a-f0-9]{64}$/);
@@ -31,6 +32,12 @@ const relationSchema = z.object({ kind: z.literal('relation'), source: id, targe
 }).strict();
 const anchorSchema = z.object({ file, digest, startLine: z.number().int().min(1), endLine: z.number().int().min(1),
   startColumn: z.number().int().min(0).max(262144), endColumn: z.number().int().min(0).max(262144), scope: z.string().max(512), tokenDigest: digest.nullable() }).strict();
+const documentationSchema = z.union([
+  z.object({ status: z.literal('resolved'), qualifiedName: z.string().min(1).max(512),
+    kind: z.enum(['function', 'method', 'class']), signature: z.string().min(1).max(2048),
+    docstring: z.string().min(1).max(4096).optional(), truncated: z.boolean(), declaration: anchorSchema }).strict(),
+  z.object({ status: z.literal('unavailable'), reason: z.enum(SOURCE_DOCUMENTATION_REASONS) }).strict(),
+]);
 const scalarChange = z.union([
   z.object({ status: z.literal('derived'), before: integer, after: integer, reason: z.literal('integer_expression') }).strict(),
   z.object({ status: z.literal('unknown'), before: z.null(), after: z.null(), reason: z.enum([
@@ -65,6 +72,7 @@ const recordSchema = z.object({ id, kind: z.enum(['definition', 'reference', 'ca
   configurationChange: configurationChange.optional(),
 }).strict();
 const pageSchema = z.object({ version: z.literal(1), indexId: digest, evidence: z.literal('source_only'), scope: z.literal('supplied_python_files'),
+  documentation: documentationSchema.optional(),
   files: z.array(z.object({ file, digest }).strict()).min(1).max(16),
   assumptions: z.array(z.string().max(512)).max(8), limitations: z.array(z.string().max(512)).max(8),
   diagnostics: z.array(z.object({ file, line: z.number().int().min(1),
@@ -98,6 +106,12 @@ export function sourceContextPage(value: unknown, sources: IndexedSource[], requ
     || (page.nextOffset !== null && (page.nextOffset !== query.offset + page.items.length || page.nextOffset >= page.total || !page.items.length))
     || (page.nextOffset === null && query.offset + page.items.length !== Math.max(query.offset, page.total))) return refuse();
   const byFile = new Map(sources.map(source => [source.file, source]));
+  if (page.documentation?.status === 'resolved') {
+    const anchor = page.documentation.declaration, source = byFile.get(anchor.file), lines = source?.source.split('\n');
+    if (!source || anchor.digest !== source.digest || !lines || anchor.endLine < anchor.startLine || anchor.endLine > lines.length
+      || anchor.startColumn > lines[anchor.startLine - 1].length || anchor.endColumn > lines[anchor.endLine - 1].length
+      || anchor.startLine === anchor.endLine && anchor.endColumn < anchor.startColumn) return refuse();
+  }
   for (const item of page.items) {
     if (item.kind === 'relation' || item.kind === 'boundary') continue;
     const source = byFile.get(item.anchor.file), anchor = item.anchor, lines = source?.source.split('\n');

@@ -16,13 +16,21 @@ export interface AgentRunInput {
   selectionEvidence?: Record<string, unknown>;
   messages: CanvasAgentTurn[];
   settings?: CanvasAgentSettings;
-  intent?: 'open_graph';
+  intent?: 'open_graph' | 'node_explanation' | 'model_explanation';
 }
 export type AgentWarmInput = Omit<AgentRunInput, 'messages' | 'context'> & { context?: string; preparation?: { context: string } };
 export type AgentRunEvent = { kind: 'text'; text: string } | { kind: 'activity'; text: string }
   | { kind: 'opened_graph'; text: string; target: LocalBrowserTargetIdentity }
   | { kind: 'setup_evidence'; opening: GraphOpeningState };
 export type CanvasAgentPermissionRequester = (request: CanvasAgentPermissionRequest, signal: AbortSignal) => Promise<boolean | undefined>;
+export interface CanvasAgentRoute {
+  provider: CanvasAgentProvider;
+  settings: CanvasAgentSettings;
+  resolvedModel?: string;
+  detail?: string;
+  ready: boolean;
+  busy: boolean;
+}
 export interface CanvasAgentOptions {
   prepare(target: LocalBrowserTargetIdentity, nodeIds: string[], draftId: string | undefined, signal: AbortSignal, intent?: 'open_graph', viewId?: string): Promise<{ cwd: string; context: string; selectionEvidence?: Record<string, unknown> }>;
   prepareWarm?(viewId: string, signal: AbortSignal): Promise<{ cwd: string; context: string } | undefined>;
@@ -39,6 +47,8 @@ export interface CanvasAgentOptions {
   remember?(preferences: { provider: CanvasAgentProvider; selections: CanvasAgentSelections }): void;
   invalidate?(): void;
   finishTurn?(signal: AbortSignal): void;
+  /** Explicit source interpretation takes priority over speculative chat preparation. */
+  externalBusy?(): boolean;
   projectWork?: { running(signal?: AbortSignal): boolean; wait(signal: AbortSignal, waitMs: number): Promise<void>; unread(signal: AbortSignal): readonly string[] };
 }
 
@@ -85,6 +95,45 @@ export class CanvasAgent {
   }
 
   disconnect(viewId: string): void { this.views.delete(viewId); }
+
+  /** Read account routing without changing settings, discovering or starting a chat. */
+  routing(override?: CanvasAgentSettings): CanvasAgentRoute {
+    const provider = this.state.provider, availability = this.state.agents?.[provider];
+    const settings = this.runSettings(provider, override ?? this.state.selections?.[provider] ?? {});
+    let invalid: string | undefined;
+    if (availability?.status === 'ready') {
+      try { validateAgentSettings(availability, settings); }
+      catch (error) { invalid = error instanceof Error ? error.message : 'Choose an available agent model and effort.'; }
+    }
+    return { provider, settings: { ...settings }, resolvedModel: settings.model ?? availability?.defaultModel,
+      ready: !this.disposed && availability?.status === 'ready' && !invalid, detail: invalid ?? availability?.detail, busy: !!this.active || !!this.warming || !!this.discovery };
+  }
+
+  /** Explicit source interpretation checks its configured provider without opening or warming chat. */
+  async prepareExplanation(signal: AbortSignal, override?: CanvasAgentSettings): Promise<CanvasAgentRoute> {
+    signal.throwIfAborted();
+    // A detached copy prevents the caller changing a pending pass during discovery.
+    const settings = override === undefined ? undefined : { ...override };
+    const route = this.routing(settings);
+    if (route.busy || this.disposed) return route;
+    const provider = route.provider, selection = JSON.stringify(this.state.selections?.[provider] ?? {});
+    let checked = this.state.agents?.[provider];
+    if (checked?.status !== 'ready' && this.options.inspect) {
+      checked = await this.options.inspect(provider, false, signal);
+      signal.throwIfAborted();
+      if (this.disposed || this.state.provider !== provider || settings === undefined && JSON.stringify(this.state.selections?.[provider] ?? {}) !== selection) {
+        throw new Error('The configured agent changed. Explain this model again.');
+      }
+      if (this.active || this.discovery || this.warming) return this.routing(settings);
+      this.state.agents![provider] = checked; this.publish();
+    }
+    const ready = this.routing(settings);
+    if (checked?.status === 'ready') {
+      try { validateAgentSettings(checked, ready.settings); }
+      catch (error) { return { ...ready, ready: false, detail: error instanceof Error ? error.message : 'Choose an available model in agent settings.' }; }
+    }
+    return ready;
+  }
 
   /** Tool authority is captured from the active host turn, never supplied by model arguments. */
   captureOperation(): { target: LocalBrowserTargetIdentity; signal: AbortSignal; approve: CanvasAgentPermissionRequester; current(): boolean } {
@@ -238,12 +287,12 @@ export class CanvasAgent {
     if (this.disposed) return;
     const knownView = this.views.has(message.viewId);
     if (message.action !== 'permission' && message.action !== 'permission_mode') this.views.add(message.viewId);
-    if (['discover', 'configure', 'clear'].includes(message.action)) this.warmViewId = message.viewId;
+    if (['discover', 'configure', 'clear'].includes(message.action) && !(message.action === 'discover' && message.catalogOnly)) this.warmViewId = message.viewId;
     // Every accepted or refused action acknowledges its own ID. Background state
     // publications must never be mistaken for acknowledgement of a later action.
     this.state.ack = 'requestId' in message && message.requestId ? message.requestId : message.messageId;
     if (message.action === 'sync') { this.options.publish(message.viewId, structuredClone(this.state)); return; }
-    if (message.action === 'discover') { if (!this.active) void this.discover(!!message.refresh); return; }
+    if (message.action === 'discover') { if (!this.active) void this.discover(!!message.refresh, !!message.catalogOnly); return; }
     if (message.action === 'permission_mode') {
       if (!knownView || !isCanvasAgentPermissionMode(message.mode)) { this.options.publish(message.viewId, structuredClone(this.state)); return; }
       this.state.permissionMode = message.mode;
@@ -311,26 +360,29 @@ export class CanvasAgent {
     this.options.remember?.({ provider: this.state.provider, selections: structuredClone(this.state.selections ?? {}) });
   }
 
-  private async discover(refresh: boolean): Promise<void> {
+  private async discover(refresh: boolean, catalogOnly = false): Promise<void> {
     if (!this.options.inspect || this.discovery) return;
+    if (!refresh && this.options.externalBusy?.()) { this.publish(); return; }
+    if (catalogOnly && this.warming) { this.publish(); return; }
     this.cancelWarm();
     const controller = this.discovery = new AbortController();
     const current = () => !this.disposed && this.discovery === controller && !controller.signal.aborted;
     const timer = setTimeout(() => controller.abort(), 45_000);
-    for (const provider of ['codex', 'claude'] as const) this.state.agents![provider] = { ...this.state.agents![provider], status: 'checking', detail: 'Checking agent and sign-in…' };
+    const providers = catalogOnly ? [this.state.provider] : ['codex', 'claude'] as const;
+    for (const provider of providers) this.state.agents![provider] = { ...this.state.agents![provider], status: 'checking', detail: 'Checking agent and sign-in…' };
     this.publish();
     try {
-      await Promise.all((['codex', 'claude'] as const).map(async provider => {
+      await Promise.all(providers.map(async provider => {
         let checked: CanvasAgentAvailability;
         try { checked = await this.options.inspect!(provider, refresh, controller.signal); }
         catch { checked = { status: 'error', detail: 'Could not check this agent. Refresh to try again.', models: [] }; }
         if (current()) {
           this.state.agents![provider] = checked;
-          if (provider === this.state.provider) await this.warm(controller.signal);
+          if (!catalogOnly && provider === this.state.provider) await this.warm(controller.signal);
           if (current()) this.publish();
         }
       }));
-      if (current() && !this.active && !this.hasPreference && !this.state.messages.length) {
+      if (!catalogOnly && current() && !this.active && !this.hasPreference && !this.state.messages.length) {
         const ready = (['codex', 'claude'] as const).filter(provider => this.state.agents![provider].status === 'ready');
         if (ready.length === 1 && this.state.provider !== ready[0]) {
           this.state.provider = ready[0]; await this.warm(controller.signal);
@@ -363,7 +415,7 @@ export class CanvasAgent {
   }
 
   private async warm(signal?: AbortSignal): Promise<void> {
-    if (!this.options.warm || this.active || this.disposed) return;
+    if (!this.options.warm || this.active || this.disposed || this.options.externalBusy?.()) return;
     const provider = this.state.provider, checked = this.state.agents![provider];
     const settings = this.state.selections?.[provider] ?? {};
     try { validateAgentSettings(checked, settings); } catch { return; }

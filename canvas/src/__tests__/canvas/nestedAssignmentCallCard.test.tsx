@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import fixture from '../../test/fixtures/canvas/nestedAssignmentCapture.json';
 import { ModuleShapeUtil } from '../../canvas/ModuleShapeUtil';
-import { moduleCardHeight } from '../../canvas/cardMetrics';
+import { moduleCardHeight, moduleCardHeader } from '../../canvas/cardMetrics';
 import { buildGraphReview } from '../../ide/graphReview';
 import { draftAssignmentReview } from '../../ide/capturedGraphReview';
 import { assignmentContext } from '../../ide/assignmentContext';
@@ -96,5 +96,5 @@ test.each(['complete', 'partial'] as const)('%s assignment cards reserve space f
   // was clipped in the installed app when this section had no layout budget.
   // The rest of this fixture needs 131px, including the source action. Removing
   // sourceReplacement for a comparison would reintroduce the old tensor rows.
-  expect(moduleCardHeight(replaced)).toBe(131 + (coverage === 'partial' ? 28 : 14) + 8);
+  expect(moduleCardHeight(replaced)).toBe(131 + (coverage === 'partial' ? 28 : 14) + 8 + moduleCardHeader(replaced).height - 56);
 });

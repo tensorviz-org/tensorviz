@@ -276,7 +276,11 @@ test('switching to SVG fits displayed bounds and switching back waits for native
 
 test('huge focus scopes automatically fit every child below 5% and overview restores its zoom range', () => {
   const { result, props, rerender, editor, resize } = setup();
-  const nodes = [node('root', undefined, true), ...Array.from({ length: 240 }, (_, i) => node(`root.${i}`, 'root'))];
+  const nodes = [node('root', undefined, true), ...Array.from({ length: 240 }, (_, i) => {
+    const child = node(`root.${i}`, 'root');
+    return { ...child, data: { ...child.data, shapeEvidence: 'measured' as const,
+      inputShape: [2, 512], outputShape: [2, 512] } };
+  })];
   const edges = nodes.slice(2).map((target, i) => ({ id: `edge-${i}`, source: nodes[i + 1].id, target: target.id }));
   rerender({ ...props, nodes, edges });
   act(() => result.current.navigate('root')); settle();

@@ -2,6 +2,7 @@ import { edgeBow, edgeControlPoints, edgeCurveBounds, distanceToEdgeCurve, edgeC
 import type { AnchorSide } from '../../canvas/edgeAnchors';
 import { createEdgeRouter, routedShapeGeometry, skipEdgeIds } from '../../canvas/edgeRouting';
 import { graphToSvg } from '../../services/graphSvg';
+import { nodeCardSize } from '../../canvas/cardMetrics';
 import type { ModelEdge, ModelNode } from '../../types';
 
 const cubic = (t: number, a: number, b: number, c: number, d: number) =>
@@ -115,7 +116,7 @@ it('uses identical captured port slots in the live route and SVG, and reads live
       data: { layerType: { id: 'linear', name: 'Linear' }, parameters: {}, capturePorts: [port('in-1', 'in'), port('in-2', 'in')] } },
   ] as unknown as ModelNode[];
   const edge = { id: 'e', source: 'a', target: 'b', targetHandle: 'in-2' } as ModelEdge;
-  const boxes = new Map([['a', { x: 0, y: 0, w: 200, h: 120 }], ['b', { x: 400, y: 150, w: 200, h: 120 }]]);
+  const boxes = new Map(nodes.map(node => [node.id, { ...node.position, ...nodeCardSize(node) }]));
   const router = createEdgeRouter(nodes), route = router.route(edge, id => boxes.get(id))!;
   expect(route.startSide).toBe('right'); expect(route.endSide).toBe('top');
   expect(route.end.x).toBeCloseTo(400 + 200 * 2 / 3); expect(route.end.y).toBe(150);

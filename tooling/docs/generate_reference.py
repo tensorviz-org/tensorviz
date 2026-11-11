@@ -21,7 +21,7 @@ PLUGIN_PKG = ROOT / "plugin" / "package.json"
 CONTRACTS = ROOT / "backend" / "services" / "validation" / "contracts.py"
 
 TOOL_RE = re.compile(
-    r"""register(?:App)?Tool\(\s*(?:[A-Za-z0-9_$.]+\s*,\s*)?['"]([a-z][a-z0-9_]*)['"]"""
+    r"""(?:register(?:App)?Tool|tools\.set)\(\s*(?:[A-Za-z0-9_$.]+\s*,\s*)?['"]([a-z][a-z0-9_]*)['"]"""
 )
 DESC_RE = re.compile(r"""description:\s*['"]((?:\\.|[^'"])*)['"]""")
 SCAN_ROOTS = (
@@ -108,7 +108,7 @@ def _audiences(path: Path, index: int, text: str) -> list[str]:
     signature = text[before:before + 90] if before != -1 else ""
     rel = path.as_posix()
     if "registerCanvasCodeTools" in signature or path.name in {
-        "canvasAgentPermissionTools.ts", "canvasAgentProjectTools.ts",
+        "canvasAgentPermissionTools.ts", "canvasAgentProjectTools.ts", "canvasNodeExplanation.ts", "canvasModelExplanation.ts",
     }:
         return ["canvas agent"]
     if rel.endswith("plugin/src/graphPanel.ts"):
@@ -285,7 +285,7 @@ Palette titles use the category `tensorViz` plus the title, for example **tensor
 
 ## MCP tools
 
-Names below are every `registerTool` and `registerAppTool` registration under `extension/src`, `packages/graph-host/src`, and `plugin/src`, excluding tests: {len(tool_records())} distinct names across the hosts. Shared toolsets show both **extension** and **plugin** where registered. **canvas agent** tools use only the private in-canvas agent endpoint: source review tools from `registerCanvasCodeTools`, permission explanation tools and reviewed project diagnostic tools. They are not exposed by the standalone plugin or the external extension MCP endpoint. `configure_graph_environment` is a shared setup tool; each host retains its own environment capabilities and approval flow. **plugin panel** tools with app visibility are the panel transport; the model-workflow skill tells the agent not to call those transport tools. Behavior and arguments: [MCP tools](mcp-tools.md).
+Names below cover `registerTool`, `registerAppTool` and private agent tool-map registrations under `extension/src`, `packages/graph-host/src`, and `plugin/src`, excluding tests: {len(tool_records())} distinct names across the hosts. Shared toolsets show both **extension** and **plugin** where registered. **canvas agent** tools use only the private in-canvas agent endpoint: source review tools from `registerCanvasCodeTools`, permission explanation tools, reviewed project diagnostic tools and source-grounded node interpretation tools. They are not exposed by the standalone plugin or the external extension MCP endpoint. `configure_graph_environment` is a shared setup tool; each host retains its own environment capabilities and approval flow. **plugin panel** tools with app visibility are the panel transport; the model-workflow skill tells the agent not to call those transport tools. Behavior and arguments: [MCP tools](mcp-tools.md).
 
 {_tools_table()}
 

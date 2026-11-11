@@ -8,7 +8,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const copies = [
   ['packages/contracts/src/protocol.ts', 'canvas/src/ide/protocol.generated.ts'],
   ['packages/contracts/src/validationContracts.generated.ts', 'canvas/src/ide/validationContracts.generated.ts'],
-  ...['captureReader', 'captureCorrespondence', 'captureComparison', 'initializerArguments', 'graphHelpRequest', 'sourceShapeCall', 'graphSetupWorkflow'].map(name =>
+  ...['captureReader', 'captureCorrespondence', 'captureComparison', 'initializerArguments', 'graphHelpRequest', 'sourceShapeCall', 'graphSetupWorkflow', 'nodeExplanation', 'modelCatalog'].map(name =>
     [`packages/contracts/src/${name}.ts`, `canvas/src/ide/${name}.generated.ts`]),
   ['packages/graph-host/src/viewTransport.ts', 'canvas/src/ide/localBrowserViewTransport.ts'],
   ['packages/graph-host/src/viewWire.ts', 'canvas/src/ide/localBrowserWire.ts'],
@@ -24,6 +24,8 @@ for (const [source, target] of copies) {
     .replaceAll("'./protocol'", "'./protocol.generated'")
     .replaceAll("'@tensorviz/contracts/protocol'", "'./protocol.generated'")
     .replaceAll("'./captureCorrespondence'", "'./captureCorrespondence.generated'")
+    .replaceAll("'./nodeExplanation'", "'./nodeExplanation.generated'")
+    .replaceAll("'./modelCatalog'", "'./modelCatalog.generated'")
     .replaceAll("'./viewWire'", "'./localBrowserWire'");
   const generated = header + content;
   let current;

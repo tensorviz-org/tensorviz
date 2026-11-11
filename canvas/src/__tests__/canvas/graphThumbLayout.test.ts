@@ -1,5 +1,5 @@
 import { computeThumbLayout } from '../../components/ui2/GraphThumb';
-import { layerCardHeight, IO_CARD_HEIGHT } from '../../canvas/cardMetrics';
+import { layerCardHeight, ioCardHeight } from '../../canvas/cardMetrics';
 import { ModelNode } from '../../types';
 
 /**
@@ -114,7 +114,7 @@ describe('real canvas positions', () => {
     expect(new Set(positions).size).toBe(positions.length);
   });
 
-  it('honours the real card sizes, so an IO marker is shorter than a layer', () => {
+  it('honours the actual content height of both interface and layer cards', () => {
     // Both are 200 wide, but the heights come from the canvas's own cardMetrics —
     // the expectation is derived from that module rather than hardcoded, so this
     // tracks the card geometry instead of drifting from it.
@@ -122,8 +122,16 @@ describe('real canvas positions', () => {
     const layout = computeThumbLayout(nodes, [{ source: 'in', target: 'l' }])!;
     const [inp, lay] = layout.placed;
     expect(inp.w).toBeCloseTo(lay.w, 5);
-    expect(inp.h).toBeLessThan(lay.h);
-    expect(lay.h / inp.h).toBeCloseTo(layerCardHeight({}) / IO_CARD_HEIGHT, 2);
+    expect(lay.h / inp.h).toBeCloseTo(layerCardHeight(nodes[1].data) / ioCardHeight(nodes[0].data, 'input'), 2);
+  });
+
+  it('keeps an empty output header-only when its saved layer type is mismatched', () => {
+    const input = io('in', 0, 0, 'input');
+    const output = { ...io('out', 300, 0, 'input'), type: 'outputNode' };
+    const layout = computeThumbLayout([input, output], [{ source: 'in', target: 'out' }])!;
+    const [left, right] = layout.placed;
+    expect(right.h / left.h).toBeCloseTo(ioCardHeight(output.data, 'output') / ioCardHeight(input.data, 'input'), 2);
+    expect(right.h).toBeLessThan(left.h);
   });
 
   it('gives each node the accent its layer category has on the canvas', () => {
@@ -145,13 +153,15 @@ describe('real canvas positions', () => {
 });
 
 describe('an ordinary chain', () => {
-  const { nodes, edges } = chain(5);
+  const graph = chain(5);
+  const nodes = graph.nodes.map(node => ({ ...node, data: { ...node.data, inputShape: [2, 16], outputShape: [2, 32] } }));
+  const { edges } = graph;
   const layout = computeThumbLayout(nodes, edges)!;
 
   it('scales uniformly, so node proportions are not a lie', () => {
-    // Every node is 200x120 on the canvas; the ratio must survive.
-    for (const p of layout.placed) {
-      expect(p.w / p.h).toBeCloseTo(200 / 120, 1);
+    // An ordinary measured graph stays outside the extreme-ribbon aspect clamp.
+    for (const [index, p] of layout.placed.entries()) {
+      expect(p.w / p.h).toBeCloseTo(200 / layerCardHeight(nodes[index].data), 1);
     }
   });
 

@@ -138,7 +138,9 @@ export function classifyBlock(data: Classifiable | undefined, nodeType?: string)
     return family ? withModifier(family) : withModifier('unknown');
   }
   if (captured === 'operation' || captured === 'value') return withModifier('unknown');
-  if (id === 'module' || id === 'custom_code' || id === 'python') return withModifier('composite');
+  // A source call is not evidence of a module or of the operation's purpose.
+  if (id === 'python') return { kind: 'unknown', label: 'Python call' };
+  if (id === 'module' || id === 'custom_code') return withModifier('composite');
   const torchTarget = /^torch\.(?:nn\.functional\.|nn\.)?([A-Za-z0-9_]+)$/.exec(name);
   if (torchTarget) {
     const module = moduleClass(torchTarget[1]);

@@ -4,6 +4,7 @@ import { CanvasAgentChatTransport, agentUIMessages, type AgentUIMessage } from '
 import { ArrowUp, Check, ChevronDown, Circle, Copy, Crosshair, LoaderCircle, LockKeyhole, MessageCircle, Minus, RefreshCw, Shield, ShieldCheck, ShieldQuestion, SlidersHorizontal, Square, SquarePen, TriangleAlert, WifiOff, X } from 'lucide-react';
 import CanvasTooltip from '../components/CanvasTooltip';
 import CanvasPopover from './CanvasPopover';
+import AgentModelPicker from './AgentModelPicker';
 import { newLocalBrowserMessageId, type CanvasAgentAction, type CanvasAgentAvailability, type CanvasAgentModel, type CanvasAgentPermission, type CanvasAgentPermissionMode, type CanvasAgentProvider, type CanvasAgentSettings, type CanvasAgentState, type LocalBrowserTargetIdentity } from './protocol.generated';
 import type { LocalBrowserViewTransport } from './localBrowserViewTransport';
 import { bridgeActive, readClipboardText, writeClipboardText } from './bridge';
@@ -322,10 +323,7 @@ export function CanvasAgentChat({ transport, target, connected, draftReview }: P
   const selectedModel = models.find(model => model.id === settings.model);
   const effortModel = models.find(model => model.id === (settings.model ?? agent?.defaultModel));
   const defaultModel = models.find(model => model.id === agent?.defaultModel);
-  // Claude's `default` alias is what the empty choice names, so it is listed only when explicitly saved.
-  const listedModels = models.filter(model => provider !== 'claude' || model.id !== 'default' || settings.model === 'default');
   const defaultLabel = defaultModel ? `Default (${defaultModel.label})` : 'Default';
-  const modelDescription = (settings.model ? selectedModel : defaultModel)?.description;
   const efforts = effortModel?.efforts ?? [];
   const missingModel = ready && !!settings.model && !selectedModel;
   const missingEffort = ready && !missingModel && !!settings.effort && !efforts.includes(settings.effort);
@@ -513,7 +511,7 @@ export function CanvasAgentChat({ transport, target, connected, draftReview }: P
     {confirmClear && <div className="canvas-agent-clear" role="alert"><span>Clear this conversation, draft and pending proposals?</span><button type="button" onClick={() => {
       if (sendAction({ action: 'clear' })) { setDraft(''); setNotice(null); setConfirmClear(false); input.current?.focus(); }
     }}>Clear</button><button type="button" autoFocus onClick={cancelClear}>Cancel</button></div>}
-    {/* Preference rows: each row is its native select; the label and chevron are drawn over it and let clicks through. */}
+    {/* Provider and connection utilities stay in settings; model and effort are beside the prompt. */}
     {settingsOpen && <div ref={settingsPanel} id={settingsId} className="canvas-agent-settings" role="group" aria-label="Agent settings">
       <div className="canvas-agent-setting" title={state?.messages.length ? 'Start a new chat to switch agents.' : undefined}>
         <label htmlFor={`${settingsId}-agent`}>Agent</label>
@@ -528,30 +526,6 @@ export function CanvasAgentChat({ transport, target, connected, draftReview }: P
         <ChevronDown size={14} />
       </div>
       {!!state?.messages.length && <span id={providerHintId} className="canvas-agent-announcement">Start a new chat to switch agents.</span>}
-      <div className="canvas-agent-setting">
-        <label htmlFor={`${settingsId}-model`}>Model</label>
-        {/* The description is on demand: the row's tooltip, and the select's accessible description. */}
-        <select id={`${settingsId}-model`} value={settings.model ?? ''} disabled={configDisabled} aria-invalid={missingModel || undefined}
-          title={modelDescription ? `${modelLabel} — ${modelDescription}` : modelLabel}
-          aria-describedby={modelDescription ? `${settingsId}-model-description` : undefined}
-          onChange={event => configure({ provider, settings: event.target.value ? { model: event.target.value } : {} })}>
-          <option value="">{defaultLabel}</option>
-          {settings.model && !selectedModel && <option value={settings.model}>{ready ? `${settings.model} (unavailable)` : settings.model}</option>}
-          {listedModels.map(model => <option key={model.id} value={model.id} title={model.description}>{model.label}</option>)}
-        </select>
-        <ChevronDown size={14} />
-        {modelDescription && <span id={`${settingsId}-model-description`} className="canvas-agent-announcement">{modelDescription}</span>}
-      </div>
-      {showEffort && <div className="canvas-agent-setting">
-        <label htmlFor={`${settingsId}-effort`}>Effort</label>
-        <select id={`${settingsId}-effort`} value={settings.effort ?? ''} disabled={configDisabled} aria-invalid={missingEffort || undefined}
-          onChange={event => configure({ provider, settings: { ...(settings.model ? { model: settings.model } : {}), ...(event.target.value ? { effort: event.target.value } : {}) } })}>
-          <option value="">{effortModel?.defaultEffort ? `Default (${effortModel.defaultEffort})` : 'Default'}</option>
-          {settings.effort && !efforts.includes(settings.effort) && <option value={settings.effort}>{ready ? `${settings.effort} (unavailable)` : settings.effort}</option>}
-          {efforts.map(effort => <option key={effort} value={effort}>{effort}</option>)}
-        </select>
-        <ChevronDown size={14} />
-      </div>}
       {readinessRow}
     </div>}
     {hasHistory && <div ref={history} className="canvas-agent-history" role="log" tabIndex={0} aria-label="Agent conversation" aria-live={running ? 'off' : 'polite'} aria-busy={running && !needsApproval}
@@ -614,6 +588,9 @@ export function CanvasAgentChat({ transport, target, connected, draftReview }: P
           if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit(); }
         }} />
       <div className="canvas-agent-composer-tools">
+        <AgentModelPicker availability={agent} settings={settings} labelPrefix="Chat" disabled={configDisabled}
+          onChange={next => configure({ provider, settings: next })}
+          onRefresh={() => { sendAction({ action: 'discover', catalogOnly: true, refresh: true }); }} />
         <CanvasPopover label={`Setup permissions: ${permissionModeOption.label}`} title="Setup permissions" role="menu" width={252}
           help={permissionModeChoice ? 'Updating permissions…' : `${permissionModeOption.label}. ${permissionModeOption.description} ${PERMISSION_MODE_REVIEW} This chat only; new chats reset to Ask every time.`}
           className={`canvas-agent-mode-toggle canvas-agent-mode-${permissionMode}`} panelClassName="canvas-agent-mode-menu"

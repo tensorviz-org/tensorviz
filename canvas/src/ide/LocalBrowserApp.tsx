@@ -8,7 +8,8 @@ import GraphOpeningPanel from './GraphOpeningPanel';
 import { GraphSetupBoundary } from './GraphSetupBoundary';
 import { GraphRunNotice } from './GraphRunNotice';
 import { graphSetupWorkflow } from './graphSetupWorkflow.generated';
-import { newLocalBrowserMessageId, DEFAULT_CODE_FOCUS, type CodeFocusState, type GraphSetupAction } from './protocol.generated';
+import { newLocalBrowserMessageId, DEFAULT_CODE_FOCUS, type CanvasAgentState, type CanvasAgentSettings, type CodeFocusState, type GraphSetupAction } from './protocol.generated';
+import { readExplanationSettings, saveExplanationSettings } from './explanationSettings';
 import { createLocalBrowserViewControl } from './localBrowserViewControl';
 /** External browser view of one VS Code window's authenticated broker session.
  * The page presents the host-owned projection, freshness and validation evidence.
@@ -35,6 +36,11 @@ import { ProjectStatusBar } from './ProjectStatusBar';
 import { ProjectSuggestions, inferredEdgesOf } from './ProjectSuggestions';
 import { receiveProjection, setBrowserRevealNodeSink, setBrowserProjectExpandSink } from './projection';
 import { LocalBrowserContext } from './localBrowserContext';
+import { NodeExplanationContext, type NodeExplanationContextValue } from '../canvas/NodeExplanationContext';
+import type { ModelExplanationState, NodeExplanationState } from './nodeExplanation.generated';
+import { nodeExplanationRevision } from './nodeExplanationRevision';
+import type { ModelCatalog } from './modelCatalog.generated';
+import { ExplanationWatchdog, EXPLANATION_ACK_TIMEOUT_MS, NODE_EXPLANATION_IDLE_TIMEOUT_MS, MODEL_EXPLANATION_IDLE_TIMEOUT_MS } from './explanationWatchdog';
 import { CandidateReviewPanel } from './CandidateReviewPanel';
 import { createLocalBrowserCaptureClient, LocalBrowserCaptureClient } from './localBrowserCaptureClient';
 import { createLocalBrowserSourceEditClient, LocalBrowserSourceEditClient } from './localBrowserSourceEditClient';
@@ -152,7 +158,22 @@ export default function LocalBrowserApp({
 }: LocalBrowserAppProps): React.ReactElement {
   const standalone = hostKind === 'standalone';
   const [sourceNotice, setSourceNotice] = React.useState<string | null>(null);
+  const [modelCatalog, setModelCatalog] = React.useState<{ scope: string; catalog?: ModelCatalog }>({ scope: '' });
+  const modelCatalogRef = React.useRef(modelCatalog); modelCatalogRef.current = modelCatalog;
+  const modelCatalogRequestRef = React.useRef<{ scope: string; requestId: string; settled: boolean; timer?: ReturnType<typeof setTimeout> } | null>(null);
+  const modelCatalogSequence = React.useRef(0);
   const [codeFocus, setCodeFocus] = React.useState<CodeFocusState | null>(null);
+  const [nodeExplanations, setNodeExplanations] = React.useState<{ scope: string; states: Record<string, NodeExplanationState> }>({ scope: '', states: {} });
+  const [nodeAnnotations, setNodeAnnotations] = React.useState<{ scope: string; states: Record<string, NodeExplanationState> }>({ scope: '', states: {} });
+  const [modelExplanation, setModelExplanation] = React.useState<{ scope: string; state?: ModelExplanationState; visible: boolean }>({ scope: '', visible: false });
+  const modelExplanationRequestRef = React.useRef<{ scope: string; requestId: string; settings?: CanvasAgentSettings } | null>(null);
+  const [explanationAgent, setExplanationAgent] = React.useState<CanvasAgentState | null>(null);
+  const [explanationPreferences, setExplanationPreferences] = React.useState(readExplanationSettings);
+  const explanationProvider = explanationAgent?.provider ?? 'codex';
+  const explanationSettings = explanationPreferences[explanationProvider] ?? explanationAgent?.selections?.[explanationProvider] ?? {};
+  const explanationSettingsRef = React.useRef<CanvasAgentSettings | undefined>(undefined);
+  explanationSettingsRef.current = explanationAgent || explanationPreferences[explanationProvider] ? explanationSettings : undefined;
+  const [explanationWatchdog] = React.useState(() => new ExplanationWatchdog());
   const [page, dispatch] = React.useReducer(
     reduceLocalBrowserViewMessage,
     EMPTY_LOCAL_BROWSER_PAGE_STATE,
@@ -179,6 +200,30 @@ export default function LocalBrowserApp({
     void navigator.clipboard.writeText(reference).then(() => setSourceNotice(`Copied ${reference}`), () => setSourceNotice(reference));
   }, []);
   pageRef.current = page;
+  const explanationScope = !page.greyed && !review && page.activeTarget && page.projection
+    ? JSON.stringify([page.activeTarget, page.projection.projectionDigest]) : '';
+  const explanationScopeRef = React.useRef(explanationScope);
+  explanationScopeRef.current = explanationScope;
+  const explanationStatesRef = React.useRef(nodeExplanations);
+  const explanationConnection = React.useRef(0);
+  explanationStatesRef.current = nodeExplanations;
+  const expireNodeExplanation = React.useCallback((scope: string, nodeId: string, requestId: string, reason: 'timeout' | 'provider') => {
+    if (explanationScopeRef.current !== scope) return;
+    setNodeExplanations(previous => {
+      const state = previous.states[nodeId];
+      if (previous.scope !== scope || state?.requestId !== requestId || (state.status !== 'queued' && state.status !== 'loading')) return previous;
+      return { ...previous, states: { ...previous.states, [nodeId]: { ...state, status: 'unavailable',
+        detail: reason === 'provider' ? 'The agent changed. Retry with the current agent.'
+          : 'The explanation stopped responding. Retry; source details remain available.' } } };
+    });
+  }, []);
+  React.useEffect(() => {
+    explanationWatchdog.clear();
+    setNodeExplanations({ scope: explanationScope, states: {} });
+    setNodeAnnotations({ scope: explanationScope, states: {} });
+    setModelExplanation({ scope: explanationScope, visible: false });
+    modelExplanationRequestRef.current = null;
+  }, [explanationScope, explanationWatchdog]);
   const reviewRef = React.useRef({ state: review, presentation: reviewPresentation, mode: reviewMode, index: reviewIndex });
   const focusedReview = React.useRef<string | null>(null);
   const acceptedFocus = React.useRef<{ workspaceFolder?: string; file: string; cls: string; sourceDigest: string; nodeIds: string[] } | null>(null);
@@ -289,6 +334,39 @@ export default function LocalBrowserApp({
     targetRef.current = review ? null : page.activeTarget;
   }, [page.activeTarget, review]);
 
+  const clearModelCatalogRequest = React.useCallback(() => {
+    clearTimeout(modelCatalogRequestRef.current?.timer);
+    modelCatalogRequestRef.current = null;
+  }, []);
+  const requestModelCatalog = React.useCallback((modelId?: string) => {
+    const transport = transportRef.current, target = targetRef.current, scope = explanationScopeRef.current;
+    const viewId = transport?.session?.viewId;
+    if (standalone || !transport || !target || !scope || !viewId
+      || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') return;
+    if (modelId && (modelCatalogRef.current.scope !== scope || !modelCatalogRef.current.catalog?.models.some(model => model.id === modelId))) return;
+    clearModelCatalogRequest();
+    const request = { scope, requestId: `models-${++modelCatalogSequence.current}-${newLocalBrowserMessageId()}`, settled: false,
+      timer: undefined as ReturnType<typeof setTimeout> | undefined };
+    modelCatalogRequestRef.current = request;
+    setModelCatalog(previous => ({ scope, catalog: { ...(previous.scope === scope ? previous.catalog : undefined), status: 'loading',
+      models: previous.scope === scope ? previous.catalog?.models ?? [] : [] } }));
+    request.timer = setTimeout(() => {
+      if (modelCatalogRequestRef.current !== request || explanationScopeRef.current !== scope || transportRef.current !== transport) return;
+      request.settled = true;
+      setModelCatalog(previous => previous.scope === scope ? { ...previous, catalog: { ...previous.catalog, models: previous.catalog?.models ?? [],
+        status: 'unavailable', detail: 'The graph host did not reply. Refresh the model list to try again.' } } : previous);
+    }, 15000);
+    const base = { type: 'modelCatalogRequest' as const, viewId, target, requestId: request.requestId };
+    if (modelId) transport.send({ ...base, action: 'select', modelId });
+    else transport.send({ ...base, action: 'list' });
+  }, [standalone, clearModelCatalogRequest]);
+  React.useEffect(() => {
+    clearModelCatalogRequest();
+    setModelCatalog({ scope: explanationScope });
+    if (explanationScope && status?.phase === 'connected' && status.hostLink === 'connected') requestModelCatalog();
+    return clearModelCatalogRequest;
+  }, [explanationScope, status?.phase, status?.hostLink, clearModelCatalogRequest, requestModelCatalog]);
+
   // The rail below reads the session through this state, so it observes the
   // same transport and page reducer the strip renders from.
   const [agentValidation, setAgentValidation] = React.useState<LocalBrowserValidationSummary | null>(null);
@@ -317,10 +395,120 @@ export default function LocalBrowserApp({
     setCaptures(captureClient);
     const portableClient = createLocalBrowserPortableClient(transport, () => targetRef.current, standalone ? 'the tensorViz plugin' : 'VS Code');
     setPortableExports(portableClient);
+    const explanationArrivals = new Map<string, number>();
+    let explanationArrival = 0;
+    let explanationRoute: { selected: string; account: string; defaultModel?: string } | undefined;
     // The plugin host publishes to tensorviz.dev itself; the extension's page saves a file instead.
     const publishClient = standalone ? createLocalBrowserPublishClient(transport, () => targetRef.current) : null;
     setPublishing(publishClient);
     const offMessage = transport.onMessage(message => {
+      if (message.type === 'modelCatalog' && message.viewId === transport.session?.viewId
+        && !standalone && !reviewRef.current.state && !pageRef.current.greyed
+        && sameValidationTarget(message.target, pageRef.current.activeTarget)) {
+        const request = modelCatalogRequestRef.current;
+        if (request && !request.settled && request.requestId === message.requestId && request.scope === explanationScopeRef.current) {
+          if (message.catalog.status !== 'loading') { request.settled = true; clearTimeout(request.timer); }
+          setModelCatalog({ scope: request.scope, catalog: message.catalog });
+        }
+      }
+      if (message.type === 'agentState' && message.viewId === transport.session?.viewId) {
+        const state = message.state;
+        setExplanationAgent(state);
+        const account = JSON.stringify([state.sessionId, state.provider]);
+        const selected = JSON.stringify([state.sessionId, state.provider, state.selections?.[state.provider]]);
+        const defaultModel = state.agents?.[state.provider]?.defaultModel;
+        const sameSelection = explanationRoute?.selected === selected;
+        // Discovering an unchecked provider resolves its default during the same request.
+        // Only explicit route changes or changes between known defaults retire that request.
+        if (explanationRoute && (!sameSelection || (explanationRoute.defaultModel && defaultModel
+          && explanationRoute.defaultModel !== defaultModel))) {
+          const accountChanged = explanationRoute.account !== account;
+          // Explicit passes own their settings. Chat model/effort edits only retire node reads.
+          explanationWatchdog.interrupt(key => {
+            const pass = modelExplanationRequestRef.current;
+            const belongsToPass = key === 'model' || (key.startsWith('node:')
+              && explanationStatesRef.current.states[key.slice(5)]?.requestId === pass?.requestId);
+            return accountChanged || !belongsToPass || pass?.settings === undefined;
+          });
+        }
+        explanationRoute = { selected, account, defaultModel: defaultModel ?? (sameSelection ? explanationRoute?.defaultModel : undefined) };
+      }
+      if (message.type === 'modelExplanation' && message.viewId === transport.session?.viewId
+        && !standalone && !reviewRef.current.state && !pageRef.current.greyed
+        && sameValidationTarget(message.target, pageRef.current.activeTarget)) {
+        const scope = explanationScopeRef.current, connection = explanationConnection.current;
+        const request = modelExplanationRequestRef.current;
+        const projection = pageRef.current.projection;
+        if (scope && projection && request?.scope === scope && request.requestId === message.state.requestId) {
+          void nodeExplanationRevision(message.target, projection.projectionDigest).then(revision => {
+            if (scope !== explanationScopeRef.current || connection !== explanationConnection.current || transportRef.current !== transport
+              || modelExplanationRequestRef.current !== request || message.state.revision !== revision
+              || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') return;
+            if (!explanationWatchdog.observe('model', message.state.requestId, message.state.status, {
+              timeoutMs: MODEL_EXPLANATION_IDLE_TIMEOUT_MS,
+              expire: reason => {
+                if (explanationScopeRef.current !== scope || modelExplanationRequestRef.current !== request
+                  || transportRef.current !== transport || transport.session?.viewId !== message.viewId) return;
+                setModelExplanation(previous => previous.scope === scope && previous.state?.requestId === request.requestId && previous.state.status === 'loading'
+                  ? { ...previous, state: { ...previous.state, status: 'unavailable', detail: reason === 'provider'
+                    ? 'The agent changed. Explain again with the current agent.'
+                    : 'The explanation stopped responding. Completed node details remain available; retry to continue.' } } : previous);
+                transport.send({ type: 'modelExplanationRequest', viewId: message.viewId, target: message.target, requestId: request.requestId, action: 'cancel', nodeIds: [] });
+              },
+            }, message.state.completed, message.state.detail)) return;
+            setModelExplanation(previous => {
+              if (previous.scope !== scope || previous.state?.requestId !== message.state.requestId) return previous;
+              // Late progress can never reopen a settled request.
+              if (previous.state.status !== 'loading') return previous;
+              if (message.state.completed < previous.state.completed) return previous;
+              return { ...previous, state: message.state };
+            });
+          }).catch(() => {});
+        }
+      }
+      if (message.type === 'nodeExplanation' && message.viewId === transport.session?.viewId
+        && !standalone && !reviewRef.current.state && !pageRef.current.greyed
+        && sameValidationTarget(message.target, pageRef.current.activeTarget)) {
+        if (explanationWatchdog.expired('model', message.state.requestId)
+          || !explanationWatchdog.accepts(`node:${message.state.nodeId}`, message.state.requestId, message.state.status)) return;
+        const scope = explanationScopeRef.current;
+        const connection = explanationConnection.current;
+        const arrival = ++explanationArrival;
+        explanationArrivals.set(message.state.nodeId, arrival);
+        const projection = pageRef.current.projection;
+        const semantic = (projection?.document as { semantic?: { nodes?: Array<{ node_id?: string }> } } | undefined)?.semantic;
+        const semanticNodes = semantic?.nodes;
+        const live = projection && (Object.prototype.hasOwnProperty.call(projection.spanmap, message.state.nodeId)
+          || (Array.isArray(semanticNodes) && semanticNodes.some(node => node.node_id === message.state.nodeId)));
+        if (scope && projection && live) void nodeExplanationRevision(message.target, projection.projectionDigest).then(revision => {
+          if (scope !== explanationScopeRef.current || connection !== explanationConnection.current || transportRef.current !== transport
+            || explanationArrivals.get(message.state.nodeId) !== arrival
+            || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected'
+            || message.state.revision !== revision) return;
+          if (explanationWatchdog.expired('model', message.state.requestId)
+            || !explanationWatchdog.observe(`node:${message.state.nodeId}`, message.state.requestId, message.state.status, {
+              timeoutMs: NODE_EXPLANATION_IDLE_TIMEOUT_MS,
+              expire: reason => expireNodeExplanation(scope, message.state.nodeId, message.state.requestId, reason),
+            })) return;
+          setNodeExplanations(previous => {
+            const states = previous.scope === scope ? previous.states : {};
+            const before = states[message.state.nodeId];
+            if (before?.requestId === message.state.requestId && before.status === 'ready' && message.state.status !== 'ready') return previous;
+            // The explicit pass covers up to 128 cards, plus independent selection details.
+            const bounded = { ...states, [message.state.nodeId]: {
+              ...message.state, documentation: message.state.documentation ?? before?.documentation,
+            } };
+            while (Object.keys(bounded).length > 256) delete bounded[Object.keys(bounded)[0]];
+            return { scope, states: bounded };
+          });
+          if (message.state.status === 'ready') setNodeAnnotations(previous => {
+            const states = previous.scope === scope ? previous.states : {};
+            const bounded = { ...states, [message.state.nodeId]: message.state };
+            while (Object.keys(bounded).length > 256) delete bounded[Object.keys(bounded)[0]];
+            return { scope, states: bounded };
+          });
+        }).catch(() => { /* Unsupported cryptography cannot weaken revision checks. */ });
+      }
       if (message.type === 'codeFocusState' && message.viewId === transport.session?.viewId
         && targetRef.current && sameValidationTarget(message.target, targetRef.current)) setCodeFocus(message);
       dispatch(message);
@@ -384,7 +572,21 @@ export default function LocalBrowserApp({
       }
     };
     window.addEventListener('tensorviz-projection-rendered', reviewRendered);
-    const offStatus = transport.onStatusChange(setStatus);
+    const offStatus = transport.onStatusChange(next => {
+      setStatus(next);
+      if (next.phase !== 'connected' || next.hostLink !== 'connected') {
+        explanationConnection.current += 1;
+        explanationWatchdog.clear();
+        clearModelCatalogRequest();
+        setModelCatalog({ scope: '' });
+        explanationRoute = undefined;
+        setExplanationAgent(null);
+        setNodeExplanations({ scope: '', states: {} });
+        setNodeAnnotations({ scope: '', states: {} });
+        setModelExplanation({ scope: '', visible: false });
+        modelExplanationRequestRef.current = null;
+      }
+    });
     // Cursor focus from the editor focuses the node here — through the same
     // builder-command bus the framed bridge dispatches on (bridge.ts), so the
     // canvas never knows which surface it lives in. The bus itself cannot
@@ -460,6 +662,8 @@ export default function LocalBrowserApp({
     // rejection carries nothing extra to poll-handling here.
     transport.connect().catch(() => undefined);
     return () => {
+      clearModelCatalogRequest();
+      explanationWatchdog.clear();
       dropoutInsertionReveal.clear();
       window.removeEventListener('tensorviz-projection-rendered', reviewRendered);
       if (transportRef.current === transport) transportRef.current = null;
@@ -481,7 +685,7 @@ export default function LocalBrowserApp({
       offStatus();
       transport.dispose();
     };
-  }, [createTransport, standalone, copySource, copyReviewSource, focusReviewNode]);
+  }, [createTransport, standalone, copySource, copyReviewSource, focusReviewNode, explanationWatchdog, expireNodeExplanation, clearModelCatalogRequest]);
 
   // Every projection the reducer admits is handed to the canvas through the
   // same builder-command bus the framed bridge uses — one way into the canvas,
@@ -778,6 +982,110 @@ export default function LocalBrowserApp({
   const summary = diagnosticSummary(diagnostics);
   const selectedEnvironment = page.opening?.environment?.reason === 'ready'
     ? page.opening.environment.candidates.find(candidate => candidate.id === page.opening?.environment?.selectedId) : undefined;
+  const explanationRequest = (state: NodeExplanationState, citationId?: string) => {
+    const transport = transportRef.current, target = targetRef.current, viewId = transport?.session?.viewId;
+    const current = explanationStatesRef.current;
+    if (standalone || !viewId || !target || !transport || !explanationScopeRef.current
+      || current.scope !== explanationScopeRef.current || current.states[state.nodeId]?.requestId !== state.requestId
+      || reviewRef.current.state || pageRef.current.greyed
+      || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') return;
+    const request = { type: 'nodeExplanationRequest' as const, viewId, target, nodeId: state.nodeId, requestId: state.requestId };
+    if (citationId) transport.send({ ...request, action: 'reveal', citationId });
+    else {
+      const scope = explanationScopeRef.current;
+      explanationWatchdog.retry(`node:${state.nodeId}`, state.requestId, { timeoutMs: EXPLANATION_ACK_TIMEOUT_MS,
+        expire: reason => expireNodeExplanation(scope, state.nodeId, state.requestId, reason) });
+      setNodeExplanations(previous => previous.scope === scope && previous.states[state.nodeId]?.requestId === state.requestId
+        ? { ...previous, states: { ...previous.states, [state.nodeId]: { ...previous.states[state.nodeId], status: 'queued', explanation: undefined, detail: undefined } } } : previous);
+      transport.send({ ...request, action: 'retry' });
+    }
+  };
+  const startModelExplanation = async (nodeIds: string[]) => {
+    const transport = transportRef.current, target = targetRef.current, viewId = transport?.session?.viewId;
+    const scope = explanationScopeRef.current, projection = pageRef.current.projection;
+    if (standalone || !transport || !target || !viewId || !scope || !projection || reviewRef.current.state || pageRef.current.greyed
+      || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') return;
+    const states = nodeAnnotations.scope === scope ? nodeAnnotations.states : {};
+    const semantic = (projection.document as Partial<GraphDocumentV2> | undefined)?.semantic;
+    const semanticNodes = semantic?.nodes;
+    const knownIds = new Set([...Object.keys(projection.spanmap), ...(Array.isArray(semanticNodes) ? semanticNodes.map(node => node.node_id) : [])]);
+    const ids = [...new Set(nodeIds)].filter(id => knownIds.has(id));
+    // Cover unexplained components first on later passes through a large view.
+    ids.sort((left, right) => Number(states[left]?.status === 'ready') - Number(states[right]?.status === 'ready'));
+    const bounded = ids.slice(0, 128);
+    if (ids.length > bounded.length) setSourceNotice(`Explaining ${bounded.length} of ${ids.length} visible nodes. Zoom into a smaller area to explain the rest.`);
+    const settings = explanationSettingsRef.current;
+    const request = { scope, requestId: crypto.randomUUID(), ...(settings ? { settings: { ...settings } } : {}) };
+    const previous = modelExplanationRequestRef.current;
+    if (previous?.scope === scope) transport.send({ type: 'modelExplanationRequest', viewId, target,
+      action: 'cancel', requestId: previous.requestId, nodeIds: [] });
+    modelExplanationRequestRef.current = request;
+    try {
+      const revision = await nodeExplanationRevision(target, projection.projectionDigest);
+      if (modelExplanationRequestRef.current !== request || explanationScopeRef.current !== scope || transportRef.current !== transport
+        || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') return;
+      const state: ModelExplanationState = { requestId: request.requestId, revision, status: bounded.length ? 'loading' : 'unavailable',
+        completed: 0, total: bounded.length, ...(bounded.length ? {} : { detail: 'No model nodes are visible. Move to a model component, then explain this view.' }) };
+      setModelExplanation({ scope, state, visible: true });
+      if (bounded.length) {
+        explanationWatchdog.observe('model', request.requestId, 'loading', { timeoutMs: EXPLANATION_ACK_TIMEOUT_MS,
+          expire: reason => {
+            if (explanationScopeRef.current !== scope || modelExplanationRequestRef.current !== request
+              || transportRef.current !== transport || transport.session?.viewId !== viewId) return;
+            setModelExplanation(previous => previous.scope === scope && previous.state?.requestId === request.requestId && previous.state.status === 'loading'
+              ? { ...previous, state: { ...previous.state, status: 'unavailable', detail: reason === 'provider'
+                ? 'The agent changed. Explain again with the current agent.'
+                : 'The graph host did not acknowledge this explanation request. Retry or reload the Canvas.' } } : previous);
+            transport.send({ type: 'modelExplanationRequest', viewId, target, requestId: request.requestId, action: 'cancel', nodeIds: [] });
+          } });
+        transport.send({ type: 'modelExplanationRequest', viewId, target, action: 'start', requestId: request.requestId, nodeIds: bounded,
+          ...(request.settings ? { settings: request.settings } : {}) });
+      }
+    } catch {
+      if (modelExplanationRequestRef.current !== request || explanationScopeRef.current !== scope || transportRef.current !== transport) return;
+      if (previous?.scope === scope) explanationWatchdog.observe('model', previous.requestId, 'cancelled');
+      // A retry can fail verification before it replaces the prior loading state.
+      // Settle that state using its verified revision rather than inventing one.
+      setModelExplanation(current => current.scope === scope && current.state?.status === 'loading'
+        ? { ...current, state: { ...current.state, status: 'unavailable', detail: 'The graph revision could not be verified. Reload the Canvas, then retry.' } } : current);
+      setSourceNotice('Model explanations are unavailable because the graph revision could not be verified.');
+    }
+  };
+  const cancelModelExplanation = () => {
+    const request = modelExplanationRequestRef.current, transport = transportRef.current, target = targetRef.current;
+    const viewId = transport?.session?.viewId;
+    if (!request || request.scope !== explanationScopeRef.current || !transport || !target || !viewId) return;
+    transport.send({ type: 'modelExplanationRequest', viewId, target, action: 'cancel', requestId: request.requestId, nodeIds: [] });
+  };
+  const explanationContext: NodeExplanationContextValue | null = standalone ? null : {
+    states: nodeExplanations.scope === explanationScope ? nodeExplanations.states : {},
+    annotations: nodeAnnotations.scope === explanationScope ? nodeAnnotations.states : {},
+    annotationsVisible: modelExplanation.scope === explanationScope && modelExplanation.visible,
+    model: {
+      state: modelExplanation.scope === explanationScope ? modelExplanation.state : undefined,
+      disabledReason: !explanationScope ? 'Open a current model graph first.'
+        : status?.phase !== 'connected' || status.hostLink !== 'connected' ? 'Reconnect to the graph host first.'
+          : validating || agentValidating ? 'Wait for the model capture to finish.' : undefined,
+      configuration: {
+        availability: explanationAgent?.agents?.[explanationProvider],
+        settings: explanationSettings,
+        followsChat: explanationPreferences[explanationProvider] === undefined,
+        disabled: status?.phase !== 'connected' || status.hostLink !== 'connected' || explanationAgent?.status === 'running',
+        choose: settings => setExplanationPreferences(previous => saveExplanationSettings(previous, explanationProvider, settings)),
+        discover: (refresh = false) => {
+          const transport = transportRef.current;
+          if (!transport?.session?.viewId || transport.status.phase !== 'connected' || transport.status.hostLink !== 'connected') return;
+          transport.send({ type: 'agentRequest', viewId: transport.session.viewId, action: 'discover', catalogOnly: true, ...(refresh ? { refresh: true } : {}) });
+        },
+      },
+      start: nodeIds => { void startModelExplanation(nodeIds); },
+      cancel: cancelModelExplanation,
+      toggle: () => setModelExplanation(previous => previous.scope === explanationScope
+        ? { ...previous, visible: !previous.visible } : previous),
+    },
+    retry: state => explanationRequest(state),
+    reveal: (state, citationId) => explanationRequest(state, citationId),
+  };
   if (!review && nativeCanvasMode() && page.activeTarget === null && page.projectIndex === null) {
     if (status?.phase !== 'connected' || status.hostLink !== 'connected') {
       return <CanvasStateScreen title={status?.phase === 'connected' ? 'Reconnect to Canvas'
@@ -803,7 +1111,12 @@ export default function LocalBrowserApp({
             {review ? <div className="local-browser-compact-title" title={review ? reviewRevisions : page.activeTarget ? `${page.activeTarget.cls} · ${page.activeTarget.file}` : 'tensorViz'}>
               <strong>{review ? review.proposal ? 'Draft graph' : review.title || 'Graph diff' : page.activeTarget?.cls ?? 'tensorViz'}</strong>
               {review ? <span>{review.beforeLabel} → {review.afterLabel}</span> : page.activeTarget && <span>{page.activeTarget.file}</span>}
-            </div> : <LocalBrowserModelMenu target={page.activeTarget}>
+            </div> : <LocalBrowserModelMenu target={page.activeTarget}
+              catalog={modelCatalog.scope === explanationScope ? modelCatalog.catalog : undefined}
+              onSelect={standalone ? undefined : id => requestModelCatalog(id)} onRefresh={standalone ? undefined : () => requestModelCatalog()}
+              disabledReason={!explanationScope ? 'Open a current model graph first.'
+                : status?.phase !== 'connected' || status.hostLink !== 'connected' ? 'Reconnect to the graph host first.'
+                  : openingBusy ? 'Finish the active model task first.' : modelCatalog.catalog?.status === 'loading' ? 'Loading models…' : undefined}>
               {selectedEnvironment && <div className="local-browser-model-detail" title={selectedEnvironment.interpreter}>
                 <p>Used by tensorViz · Python {selectedEnvironment.python} · Torch {selectedEnvironment.torch}</p>
                 <button type="button" disabled={openingBusy || status?.phase !== 'connected' || status.hostLink !== 'connected'}
@@ -873,6 +1186,7 @@ export default function LocalBrowserApp({
         onChange={changeReview}
         onRefresh={refreshReview} />}
       <LocalBrowserContext.Provider value={localContext}>
+      <NodeExplanationContext.Provider value={explanationContext}>
         {sourceNotice && <div role="status" className="local-browser-saved-profile"><span>{sourceNotice}</span><button type="button" onClick={() => setSourceNotice(null)}>Dismiss</button></div>}
         {!standalone && (!review || review.proposal?.canRevise === false) && <CandidateReviewPanel />}
         {!review && !executionPending && openingView.compact && <GraphRunNotice page={page} standalone={standalone} connected={status?.phase === 'connected' && status.hostLink === 'connected'} onAction={openingAction} />}
@@ -995,6 +1309,7 @@ export default function LocalBrowserApp({
             draftReview={review?.proposal ? { id: review.proposal.id, stale: review.stale, canRevise: review.proposal.canRevise } : undefined}
             connected={status?.phase === 'connected' && status.hostLink === 'connected'} />}
         </div>
+      </NodeExplanationContext.Provider>
       </LocalBrowserContext.Provider>
       <footer className="local-browser-footer" aria-label="Canvas status and navigation">
         <div className="local-browser-status">

@@ -2,6 +2,9 @@ import { ExecutionReview } from '@tensorviz/graph-host/executionReview';
 import { executionResources } from './executionResources';
 import { unsupportedRemote } from './remoteSupport';
 import { CanvasAgent, type CanvasAgentOptions } from './canvasAgent';
+import { CanvasModelExplanation, modelExplanationNodeContext, modelExplanationScope } from './canvasModelExplanation';
+import { CanvasModelCatalog, type IndexedModelClass } from './canvasModelCatalog';
+import { CanvasNodeExplanation, nodeSourceDocumentationSymbol, type CanvasNodeExplanationOptions } from './canvasNodeExplanation';
 import { isHostFile, matchesHostFile } from './workspaceFiles';
 import { GraphReview, type GraphReviewSpec } from './graphReview';
 import { SourceDrafts } from './sourceDraft';
@@ -30,6 +33,7 @@ import { LocalBrowserValidation } from './localBrowserValidation';
 import { ValidationSummaryStore, validationPhaseDetails } from '@tensorviz/graph-host/validationSummary';
 import { GraphOpeningController, GraphOpeningError, waitForGraphOpeningUpdate, type EnvironmentRecoveryAction } from '@tensorviz/graph-host/graphOpening';
 import { graphSetupWorkflow } from '@tensorviz/contracts/graphSetupWorkflow';
+import type { NodeSourceDocumentation } from '@tensorviz/contracts/nodeExplanation';
 import { GraphSetupHost } from './graphSetupHost';
 import { modelProjectRoot } from './modelProjectRoot';
 import { ValidationSetup } from './validationSetup';
@@ -58,7 +62,7 @@ import {
   vscodeProjectSourceIO,
 } from './projectSources';
 import { buildProjectDocument } from './projectDocument';
-import { GraphToolError, type McpModel, type ModelRef, type JsonObject } from '@tensorviz/graph-host/mcpGraph';
+import { GraphToolError, object, type McpModel, type ModelRef, type JsonObject } from '@tensorviz/graph-host/mcpGraph';
 import {
   LocalBrowserHostTransport,
   LocalBrowserHostPublish,
@@ -109,6 +113,8 @@ export interface LocalBrowserBackendEndpoint {
 }
 
 export interface LocalBrowserGraphOptions {
+  /** AST-indexed model classes in this project; refresh revalidates a selection. */
+  modelClasses?(folder: string, refresh: boolean): Promise<readonly IndexedModelClass[]>;
   /** Optional local user-test recording, independent of analytics and agent permissions. */
   observeAgent?(event: Record<string, unknown>): void;
   agent?: Pick<CanvasAgentOptions, 'run' | 'clear' | 'inspect' | 'warm' | 'preferences' | 'remember' | 'invalidate' | 'projectWork'> & {
@@ -116,6 +122,7 @@ export interface LocalBrowserGraphOptions {
     selection?(reference: ModelRef, nodeIds: string[]): JsonObject;
     graph?(reference: ModelRef, maxBytes?: number): JsonObject;
     modelContext?(reference: ModelRef): JsonObject;
+    explanation?: Pick<CanvasNodeExplanationOptions, 'runtime' | 'tools'>;
   };
   rememberOpen?(record: { workspaceFolder: string; file: string; cls: string }): void;
   channel: { appendLine(line: string): void };
@@ -160,6 +167,9 @@ export interface LocalBrowserGraphOptions {
 }
 
 export class LocalBrowserGraph implements vscode.Disposable {
+  private readonly modelCatalog: CanvasModelCatalog;
+  private nodeExplanation?: CanvasNodeExplanation;
+  private modelExplanation?: CanvasModelExplanation;
   private readonly validationSummaries = new ValidationSummaryStore(summary => {
     if (summary.status === 'passed' && summary.evidence?.origin === 'automatic'
       && summary.projectionRevision !== undefined && this.sync.currentTarget()?.backendRevision === summary.projectionRevision) {
@@ -235,6 +245,8 @@ export class LocalBrowserGraph implements vscode.Disposable {
         && matchesHostFile(document.uri, path.join(operation.target.workspaceFolder, operation.target.file))) };
   }
 
+  invalidateNodeExplanations(): void { this.nodeExplanation?.invalidate(); this.modelExplanation?.invalidate(); }
+
   constructor(private readonly options: LocalBrowserGraphOptions) {
     this.executionReview = new ExecutionReview({
       current: target => this.openingSourceCurrent(target),
@@ -302,7 +314,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
     this.mcpViews = new McpViewRegistry(() => this.mcpModel, message => this.publish(message));
     const agentOptions: CanvasAgentOptions | undefined = options.agent ? {
       ...options.agent,
-      publish: (viewId, state) => this.publish({ type: 'agentState', viewId, state }),
+      publish: (viewId, state) => { this.publish({ type: 'agentState', viewId, state }); this.nodeExplanation?.refresh(); this.modelExplanation?.refresh(); },
       finishTurn: signal => this.mcpProposals.endRevision(signal),
       openingPending: target => {
         const state = this.opening?.state;
@@ -415,6 +427,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
       },
     } : undefined;
     if (agentOptions) {
+      agentOptions.externalBusy = () => !!this.modelExplanation?.busy;
       agentOptions.prepareWarm = async (viewId, signal) => {
         const model = this.mcpModel;
         if (!model?.current || this.reviewState || this.sourceDrafts.current
@@ -426,6 +439,116 @@ export class LocalBrowserGraph implements vscode.Disposable {
         return agentOptions.prepare(model.target, selected.nodeIds, undefined, signal, undefined, viewId);
       };
       this.agent = new CanvasAgent(agentOptions);
+    }
+    if (this.agent && options.agent?.explanation) {
+      const current: CanvasNodeExplanationOptions['current'] = (selection, revision) => {
+        const model = this.mcpModel;
+        if (!vscode.workspace.isTrusted || !model?.current || this.reviewState || this.busy
+          || !sameTargetIdentity(model.target, selection.target)
+          || revision && options.agent?.reference?.(model).revision !== revision) return false;
+        try {
+          const selected = this.mcpViews.selection(selection.viewId, selection.target);
+          return !selected.tooLarge && selected.nodeIds.length === 1 && !selected.edgeIds.length
+            && selected.nodeIds[0] === selection.nodeIds[0];
+        } catch { return false; }
+      };
+      const documentationCache = new Map<string, NodeSourceDocumentation>();
+      const sourceDocumentation = async (target: LocalBrowserTargetIdentity, nodeId: string, signal: AbortSignal, isCurrent: () => boolean): Promise<NodeSourceDocumentation | undefined> => {
+        signal.throwIfAborted();
+        if (!isCurrent()) throw new Error('The selected graph is no longer current.');
+        const model = this.mcpModel!, ref = options.agent!.reference!(model);
+        const key = JSON.stringify([ref, nodeId]);
+        const cached = documentationCache.get(key); if (cached) return structuredClone(cached);
+        const nodes = object(object(model.projection.document).semantic).nodes;
+        const node = Array.isArray(nodes) ? nodes.find(item => object(item).node_id === nodeId) : undefined;
+        const span = object(model.projection.spanmap[nodeId]), start = span.start;
+        const symbol = nodeSourceDocumentationSymbol(object(node).params);
+        if (!symbol || typeof span.file !== 'string' || !Array.isArray(start) || !Number.isSafeInteger(start[0]) || start[0] < 1) {
+          return { status: 'unavailable', reason: 'unsupported_callable' };
+        }
+        const page = await this.sourceEdits.querySourceContext(target, { file: span.file, symbol, line: start[0],
+          direction: 'upstream', depth: 0, maxEntities: 8, limit: 8 }, signal);
+        signal.throwIfAborted();
+        if (!isCurrent() || options.agent!.reference!(this.mcpModel!).revision !== ref.revision) throw new Error('The selected source or graph changed.');
+        const documentation = page.documentation;
+        if (!documentation) return;
+        if (documentation.status === 'unavailable') {
+          documentationCache.set(key, documentation); while (documentationCache.size > 128) documentationCache.delete(documentationCache.keys().next().value!);
+          return documentation;
+        }
+        const { declaration, ...authored } = documentation;
+        const result: NodeSourceDocumentation = { ...authored, citation: {
+          id: `documentation-${createHash('sha256').update(JSON.stringify([ref, declaration])).digest('hex')}`,
+          file: declaration.file, sourceDigest: declaration.digest, startLine: declaration.startLine, endLine: declaration.endLine,
+        } };
+        documentationCache.set(key, result); while (documentationCache.size > 128) documentationCache.delete(documentationCache.keys().next().value!);
+        return result;
+      };
+      this.nodeExplanation = new CanvasNodeExplanation({ ...options.agent.explanation,
+        route: () => { const route = this.agent!.routing(); return { ...route, busy: route.busy || !!this.modelExplanation?.busy }; }, current,
+        cached: (selection, ref, route) => this.modelExplanation?.cached(selection, ref, route),
+        reference: selection => {
+          if (!current(selection)) throw new Error('The selected graph is no longer current.');
+          return options.agent!.reference!(this.mcpModel!);
+        },
+        prepare: async (selection, signal) => {
+          signal.throwIfAborted();
+          if (!current(selection)) throw new Error('The selected graph is no longer current.');
+          const model = this.mcpModel!, ref = options.agent!.reference!(model);
+          const nodeId = selection.nodeIds[0], inspection = options.agent!.selection!(ref, [nodeId]);
+          const span = model.projection.spanmap[nodeId] as { file?: unknown; start?: unknown } | undefined;
+          if (!span || typeof span.file !== 'string' || !Array.isArray(span.start) || !Number.isSafeInteger(span.start[0]) || span.start[0] < 1
+            || Buffer.byteLength(JSON.stringify(inspection)) > 24 * 1024) throw new Error('Bounded source context is unavailable for this node.');
+          return { ref, context: { target: model.target, ...ref, nodeId, selectionInspection: inspection },
+            source: { file: span.file, startLine: span.start[0] } };
+        },
+        read: (target, file) => this.sourceEdits.readModelSource(target, file),
+        documentation: (selection, signal) => sourceDocumentation(selection.target, selection.nodeIds[0], signal, () => current(selection)),
+        publish: (viewId, target, state) => this.publish({ type: 'nodeExplanation', viewId, target, state }),
+        reveal: async (target, citation, current) => {
+          const read = await this.sourceEdits.readModelSource(target, citation.file);
+          if (!current() || read.digest !== citation.sourceDigest) return;
+          const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(target.workspaceFolder, citation.file)));
+          if (!current() || document.isDirty || createHash('sha256').update(document.getText()).digest('hex') !== citation.sourceDigest) return;
+          const range = new vscode.Range(citation.startLine - 1, 0, citation.endLine - 1, 0);
+          await vscode.window.showTextDocument(document, { selection: range, preserveFocus: false, preview: true });
+        },
+      });
+      const modelCurrent = (request: import('@tensorviz/contracts/protocol').LocalBrowserModelExplanationRequest, revision?: string): boolean => {
+        const model = this.mcpModel;
+        if (!vscode.workspace.isTrusted || !model?.current || this.reviewState || this.busy
+          || !sameTargetIdentity(model.target, request.target) || !this.mcpViews.displays(request.viewId, request.target)
+          || revision && options.agent?.reference?.(model).revision !== revision) return false;
+        const nodes = object(object(model.projection.document).semantic).nodes;
+        const ids = new Set(Array.isArray(nodes) ? nodes.map(node => object(node).node_id) : []);
+        return request.nodeIds.every(id => ids.has(id));
+      };
+      this.modelExplanation = new CanvasModelExplanation({ ...options.agent.explanation,
+        route: settings => this.agent!.routing(settings), prepareRoute: (signal, settings) => this.agent!.prepareExplanation(signal, settings), current: modelCurrent,
+        refusal: request => {
+          const model = this.mcpModel;
+          if (!model || !sameTargetIdentity(model.target, request.target) || !this.mcpViews.list().some(view => view.viewId === request.viewId)) return;
+          const detail = !vscode.workspace.isTrusted ? 'Trust this workspace in VS Code, then explain again.'
+            : this.reviewState ? 'Finish or close the source review before explaining this model.'
+              : this.busy || !model.current ? 'The graph is updating. Explain again when it is ready.'
+                : !this.mcpViews.displays(request.viewId, request.target) ? 'The canvas has not confirmed this graph yet. Try Explain model again.'
+                  : 'Some components are no longer in this graph. Explain the current view again.';
+          return { ref: options.agent!.reference!(model), detail };
+        },
+        reference: request => { if (!modelCurrent(request)) throw new Error('The graph changed.'); return options.agent!.reference!(this.mcpModel!); },
+        scope: request => { if (!modelCurrent(request)) throw new Error('The graph changed.'); return modelExplanationScope(this.mcpModel!, request.nodeIds); },
+        prepare: async (request, nodeId, signal) => {
+          signal.throwIfAborted(); if (!modelCurrent(request)) throw new Error('The graph changed.');
+          const model = this.mcpModel!, ref = options.agent!.reference!(model);
+          const inspection = options.agent!.selection!(ref, [nodeId]);
+          return modelExplanationNodeContext(model, inspection, nodeId);
+        },
+        read: (target, file) => this.sourceEdits.readModelSource(target, file),
+        documentation: (request, nodeId, signal) => sourceDocumentation(request.target, nodeId, signal, () => modelCurrent(request)),
+        publish: (viewId, target, state) => this.publish({ type: 'modelExplanation', viewId, target, state }),
+        publishNode: (viewId, target, state) => { this.publish({ type: 'nodeExplanation', viewId, target, state }); void this.nodeExplanation?.accept(viewId, target, state).catch(() => {}); },
+        changed: () => this.nodeExplanation?.refresh(),
+      });
     }
     this.project = new ProjectSync({
       index: (folder) =>
@@ -651,6 +774,20 @@ export class LocalBrowserGraph implements vscode.Disposable {
     this.mcpProposals = new McpProposals(this.sourceEdits);
     this.browserReviews = new BrowserSourceReviews(this.sourceEdits, message => this.host?.transport.publish(message));
     this.canvasReviews = new BrowserSourceReviews(this.sourceEdits, message => this.canvasPost?.(message));
+    this.modelCatalog = new CanvasModelCatalog({
+      target: () => this.projectFolder ? undefined : this.sync.currentTarget(),
+      connected: viewId => this.mcpViews.list().some(view => view.viewId === viewId),
+      reviewing: () => !!this.sourceDrafts.active || !!this.graphReview?.active,
+      captured: target => {
+        const active = this.sync.currentTarget();
+        return !!active && !!this.sync.snapshotState()?.traced && sameTargetIdentity(active, target);
+      },
+      classes: (folder, refresh) => options.modelClasses?.(folder, refresh)
+        ?? Promise.reject(new Error('The project model index is unavailable. Refresh the model list and try again.')),
+      select: (model, folder, native, current) => this.open({ uri: vscode.Uri.file(path.join(folder, model.file)).toString(), cls: model.cls },
+        native ? 'canvas' : 'browser', 'human', current),
+      publish: message => this.publish(message),
+    });
   }
 
   // One controller authority, two transports. Detaching a native view is never
@@ -671,7 +808,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
   }
 
   setCanvasView(viewId: string, connected: boolean): void {
-    if (!connected) this.agent?.disconnect(viewId);
+    if (!connected) { this.agent?.disconnect(viewId); this.nodeExplanation?.disconnect(viewId); this.modelExplanation?.disconnect(viewId); }
     if (this.canvasViewId && this.canvasViewId !== viewId) {
       this.mcpViews.connection(this.canvasViewId, false);
       this.codeFocus.clear(this.canvasViewId);
@@ -695,8 +832,8 @@ export class LocalBrowserGraph implements vscode.Disposable {
     }
     // A displayed source draft is a graph review; like Git review, it clears code focus.
     if (['activeTarget', 'projection', 'staleState'].includes(message.type)
-      || (message.type === 'graphReviewState' && message.state)) this.codeFocus?.clear();
-    if (message.type === 'focusView' || message.type === 'codeFocusState' || message.type === 'agentState') {
+      || (message.type === 'graphReviewState' && message.state)) { this.codeFocus?.clear(); this.nodeExplanation?.invalidate(); this.modelExplanation?.invalidate(); }
+    if (message.type === 'focusView' || message.type === 'codeFocusState' || message.type === 'agentState' || message.type === 'nodeExplanation' || message.type === 'modelExplanation' || message.type === 'modelCatalog') {
       // A native receipt cannot be satisfied by another browser tab (or vice versa).
       return message.viewId === this.canvasViewId
         ? this.canvasPost?.(message) : this.host?.transport.publish(message);
@@ -1162,7 +1299,8 @@ export class LocalBrowserGraph implements vscode.Disposable {
    * PROJECT, because since 2.5 no surface asks the user which class they meant.
    * When a class is named the identity is built from the LIVE buffer, so the page
    * and the file the user is editing cannot silently diverge. */
-  async open(argument?: { uri?: string; cls?: string; sourceOnly?: boolean; restart?: boolean; focusChild?: { file: string; cls: string; attribute: string } }, surface: 'browser' | 'canvas' = 'browser', actor: GraphOpenActor = 'human'): Promise<void> {
+  async open(argument?: { uri?: string; cls?: string; sourceOnly?: boolean; restart?: boolean; focusChild?: { file: string; cls: string; attribute: string } }, surface: 'browser' | 'canvas' = 'browser', actor: GraphOpenActor = 'human', current: () => boolean = () => true): Promise<void> {
+    if (!current()) return;
     if (!argument?.cls) return this.openProject(undefined, surface, actor);
     // Refuse unsupported hosts before backend, network or source work.
     const unsupported = unsupportedRemote(this.options.remoteName());
@@ -1212,6 +1350,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
     if (!(await this.options.ensureBackend())) {
       return;
     }
+    if (!current()) return;
     const origin = this.options.backend.origin();
     const token = this.options.backend.launchToken();
     if (!origin || !token) {
@@ -1232,6 +1371,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
     // unsaved-buffer contract: a class typed a second ago and never written to
     // disk resolves like any other.
     const fresh = await vscode.workspace.openTextDocument(uri);
+    if (!current()) return;
     const text = fresh.getText();
     const folder = modelProjectRoot(uri.fsPath, vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath);
     const target: LocalBrowserTargetIdentity = {
@@ -1250,6 +1390,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
     // buffer stops parsing.
     if (this.graphReview?.active) await this.graphReview.close();
     this.sync.setTarget(uri, target);
+    this.modelCatalog.opened(target);
     this.restoring = false;
     this.options.rememberOpen?.({ workspaceFolder: target.workspaceFolder, file: target.file, cls: target.cls });
     const announcedTransport = this.host?.transport;
@@ -1459,7 +1600,10 @@ export class LocalBrowserGraph implements vscode.Disposable {
       if (this.options.observeAgent) this.observeAgent({ kind: 'agent_request', message });
       this.agent?.handle(message); return;
     }
-    if (message.type === 'viewState' && 'viewId' in message && !message.connected) this.agent?.disconnect(message.viewId);
+    if (message.type === 'modelExplanationRequest') { this.modelExplanation?.request(message); return; }
+    if (message.type === 'modelCatalogRequest') { void this.modelCatalog.request(message, native); return; }
+    if (message.type === 'nodeExplanationRequest') { void this.nodeExplanation?.request(message).catch(() => {}); return; }
+    if (message.type === 'viewState' && 'viewId' in message && !message.connected) { this.agent?.disconnect(message.viewId); this.nodeExplanation?.disconnect(message.viewId); this.modelExplanation?.disconnect(message.viewId); }
     const transport = this.host?.transport;
     const reply = publish ?? ((message: LocalBrowserHostPublish) => transport?.publish(message));
     const reviews = native ? this.canvasReviews : this.browserReviews;
@@ -1527,6 +1671,7 @@ export class LocalBrowserGraph implements vscode.Disposable {
       return;
     }
     this.mcpViews.handle(message);
+    if (message.type === 'viewSelection') this.nodeExplanation?.select(message);
     if (message.type === 'viewState' && 'viewId' in message && !message.connected) this.codeFocus.clear(message.viewId);
     if (message.type === 'viewSelection' && this.mcpViews.displays(message.viewId, message.target)) {
       void this.codeFocus.select(message);
@@ -1673,6 +1818,9 @@ export class LocalBrowserGraph implements vscode.Disposable {
   }
 
   dispose(): void {
+    this.modelCatalog.dispose();
+    this.nodeExplanation?.dispose();
+    this.modelExplanation?.dispose();
     this.cancelSavedRun();
     this.saveRunEnabled = false;
     this.executionReview.cancel();

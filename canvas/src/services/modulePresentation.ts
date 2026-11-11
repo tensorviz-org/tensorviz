@@ -2,6 +2,7 @@ import { ModelNodeData } from '../types';
 import { tensorEvidence, tensorShapes, coverageLabel } from '../canvas/graphSemantics';
 import { portLabel, portType } from '../canvas/capturePorts';
 import { cardParams } from '../ide/cardParams';
+import { boundaryTextLayout } from '../canvas/cardContentLayout';
 
 /** Short boundary labels (In, Out, In x) share one line with their value; longer
  *  names keep the two-line row. Shared by the renderer and cardMetrics. */
@@ -50,6 +51,10 @@ export function moduleBoundaryRows(data: ModelNodeData): Array<{ id: string; lab
   ];
 }
 
+export function moduleBoundaryLayout(data: ModelNodeData, width: number) {
+  return moduleBoundaryRows(data).map(row => ({ ...row, ...boundaryTextLayout(row.label, row.value, width, compactBoundaryLabel(row.label)) }));
+}
+
 /** Captured operation counts belong in capture details, not on module tiles. */
 export function moduleContents(data: ModelNodeData) {
   const count = data.moduleLayerCount || 0;
@@ -70,7 +75,7 @@ export function moduleContents(data: ModelNodeData) {
   return {
     canExpand,
     label: canExpand ? `${count} ${captured ? 'captured ' : ''}layer${count === 1 ? '' : 's'}`
-      : limited ? 'Depth-limited' : declared ? `Declared: ${declared}` : 'Contents unavailable',
+      : limited ? 'Depth-limited' : declared ? `Declared: ${declared}` : '',
     detail: limited
       ? `Internal trace contents not captured at depth ${data.moduleCapture!.maxDepth}.`
       : !canExpand ? 'No internal contents are available in this graph.' : '',
@@ -81,7 +86,7 @@ export function moduleContents(data: ModelNodeData) {
 export function moduleEvidenceLabel(data: ModelNodeData): string | undefined {
   if (data.sourceReplacement) return 'Not run';
   if (data.debugEvidence === 'previous') return 'Previous run';
-  if (data.debugEvidence === 'source') return 'Source only';
+  if (data.debugEvidence === 'source') return '';
   if (data.shapeEvidence === 'stale') return 'Stale shapes';
   const coverage = coverageLabel(data);
   if (coverage) return coverage;

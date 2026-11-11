@@ -68,24 +68,24 @@
 .tldraw-canvas-wrapper .operation-tensor-rows { display: flex; flex-direction: column; gap: 6px; }
 .tldraw-canvas-wrapper .operation-tensor-rows > div { display: flex; align-items: baseline; gap: 8px; padding: 0 8px; border-left: 2px solid var(--tv-hairline); border-radius: 0 6px 6px 0; line-height: 21px; }
 .tldraw-canvas-wrapper .operation-tensor-rows > [data-direction='out'] { border-left-color: var(--tv-text-3); background: var(--tv-hairline); }
-.tldraw-canvas-wrapper .operation-tensor-label { flex: none; max-width: 65px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: 600; color: var(--tv-text-2); }
-.tldraw-canvas-wrapper .operation-tensor-rows code { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.tldraw-canvas-wrapper .operation-tensor-label { flex: none; font-size: 10px; font-weight: 600; color: var(--tv-text-2); }
+.tldraw-canvas-wrapper .operation-tensor-rows code { min-width: 0; font-size: 13px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-summary-label { display: flex; justify-content: space-between; align-items: center; gap: 5px; font-size: 10px; line-height: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--graph-muted); }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-evidence { font-size: 9px; letter-spacing: 0; text-transform: capitalize; }
 .tldraw-canvas-wrapper [data-evidence='stale'] .graph-evidence { color: #f5c778; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-shape-flow { display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 21px; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-shape-flow > span { display: flex; align-items: baseline; gap: 8px; padding: 0 8px; border-left: 2px solid var(--tv-hairline); border-radius: 0 6px 6px 0; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-shape-flow > [data-direction='out'] { border-left-color: var(--tv-text-3); background: var(--tv-hairline); }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-flow-label { font-size: 10px; font-weight: 600; letter-spacing: .06em; color: var(--tv-text-2); min-width: 24px; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-shape-flow code { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-flow-label { font-size: 10px; font-weight: 600; letter-spacing: .06em; color: var(--tv-text-2); min-width: 24px; flex-shrink: 0; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-shape-flow code { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-dimension-changed { color: var(--tv-text); font-weight: 600; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-parameter-flow { display: flex; align-items: center; gap: 12px; font-size: 20px; letter-spacing: -.03em; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-shapes-unknown { font-size: 11px; color: var(--graph-muted); }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-summary-warning { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #f5c778; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-parameter-flow { display: flex; align-items: center; gap: 12px; font-size: 20px; line-height: 26px; letter-spacing: -.03em; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-shapes-unknown { font-size: 11px; line-height: 16px; color: var(--graph-muted); }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-summary-warning { display: flex; align-items: center; gap: 5px; font-size: 10px; line-height: 14px; color: #f5c778; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-summary-warning span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-tensor-summary.compact { padding: 7px 12px; gap: 4px; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-tensor-summary.compact .graph-shape-flow { gap: 4px; font-size: 13px; line-height: 16.5px; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-tensor-summary.compact .graph-parameter-flow { font-size: 16px; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .graph-tensor-summary.compact .graph-parameter-flow { font-size: 16px; line-height: 21px; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .ui2-node-axis-hot { color: var(--tv-text); font-weight: 600; font-style: normal; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .ui2-node-tensor-row { padding: 0 8px; border-left: 2px solid var(--tv-hairline); border-radius: 0 6px 6px 0; gap: 8px; font-size: 10px; line-height: 16.5px; text-transform: uppercase; letter-spacing: .06em; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .ui2-node-tensor-row > svg { display: none; }
@@ -171,12 +171,6 @@
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .module-route { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10px; color: var(--graph-muted); margin: 0; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .module-mini-map { padding: 0; background: transparent; border: 0; margin: 0; height: 42px; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .module-sublayer-list { display: none; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .module-source-link,
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .module-route,
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .module-mini-map,
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .module-header-actions .expand-button { display: none; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .layer-name { font-size: 20px; letter-spacing: -.017em; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .module-pill { font-size: 16px; }
 .tldraw-canvas-wrapper button:focus-visible { outline: 2px solid var(--tv-focus-ring); outline-offset: 2px; }
 .node-source-location { display: flex; align-items: center; gap: 5px; max-width: 100%; min-height: 17px; padding: 0; background: transparent; border: 0; color: var(--graph-muted); font: 10px/15px var(--font-mono); cursor: pointer; pointer-events: auto; text-align: left; }
 .node-source-location span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -335,6 +329,42 @@
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.capture-boundary-dtype, .module-node .module-boundary-dtype) { font: 400 10.5px var(--font-mono); color: var(--tv-text-3); }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .node-source-location { font: 400 10.5px/15px var(--font-mono); color: var(--tv-text-3); padding-left: 0; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .node-source-location:hover { color: var(--tv-text); }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .card-content-lines {
+  display: block; min-width: 0; white-space: normal; overflow: visible; text-overflow: clip;
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .card-content-lines > span { display: block; white-space: pre; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .capture-boundary-row .card-content-lines.ui2-node-subtitle { font: 400 9px/14px var(--font-mono); }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.capture-boundary-value, .module-node .module-boundary-value).card-content-lines { display: block; line-height: 18px; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .ui2-node-shape-row .ui2-node-shape.card-content-lines { font: 400 11px/16.5px var(--font-mono); }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-source-evidence { display: inline-flex; flex: none; color: var(--tv-text-3); }
+
+/* Module metadata uses one left-aligned text column, including wrapped paths. */
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .module-route, .node-source-location) {
+  display: flex; align-items: flex-start; justify-content: flex-start; gap: 5px;
+  min-width: 0; max-width: 100%; margin: 0; text-align: left;
+  white-space: normal; overflow: visible; text-overflow: clip;
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .module-route) {
+  font: 400 10px/15px var(--font-mono); color: var(--tv-text-3);
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .node-source-location) {
+  appearance: none; border: 0; border-radius: 2px; padding: 0; background: transparent;
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .node-source-location):is(:hover, :focus-visible) {
+  background: transparent; color: var(--tv-text); text-decoration: none;
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .node-source-location):is(:hover, :focus-visible) .card-content-lines {
+  text-decoration: underline;
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .node-source-location):focus-visible {
+  outline: 2px solid var(--tv-focus-ring); outline-offset: 2px;
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node, .module-container) :is(.module-source-link, .module-route, .node-source-location) > svg {
+  flex: none; margin-top: 2px;
+}
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-container .module-resolution-block {
+  padding: 0 12px; box-sizing: border-box;
+}
 
 /* Captured module tile anatomy (see cardMetrics). */
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .module-header {
@@ -344,6 +374,7 @@
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .node-body {
   display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px; height: calc(100% - 56px); box-sizing: border-box;
 }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .node-body:empty { display: none; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .node-body > .node-source-location { height: 18px; min-height: 18px; flex: none; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .node-body > .node-source-location:not(:first-child) { margin-top: -2px; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-param-grid {
@@ -362,6 +393,8 @@
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .module-boundary-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 14px; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .module-boundary-value { display: flex; align-items: baseline; flex: 1; min-width: 0; line-height: 18px; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .module-boundary-dimensions { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .module-boundary-label.card-content-lines { white-space: normal; overflow: visible; text-overflow: clip; line-height: 14px; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node .module-boundary-value.card-content-lines { display: block; line-height: 18px; }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.module-node .module-header-actions, .module-container-header) :is(.expand-button, .icon-button) {
   width: 26px; height: 26px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--tv-text-2); cursor: pointer;
 }
@@ -391,11 +424,17 @@
   color: var(--graph-diff-ink); background: color-mix(in srgb, var(--graph-diff-color) 14%, transparent);
 }
 
-/* Detail tiers: overview drops shadows, ports and secondary text; outline and title remain. */
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.ui2-node-card, .module-node)[data-detail='overview']:not(.selected) { box-shadow: none !important; }
-.tldraw-canvas-wrapper :is(.ui2-node-card, .module-node)[data-detail='overview'] ~ .model-node-port { display: none; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] :is(.module-param-grid, .layer-id) { visibility: hidden; }
-.tldraw-canvas-wrapper.tldraw-canvas-wrapper .module-node[data-detail='overview'] .layer-id.source-call-label { visibility: visible; }
+/* Zoom only scales cards. Exact identity and structure keep the same home. */
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .ui2-node-header { display: grid; grid-template-columns: 30px minmax(0, 1fr) 24px; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.ui2-node-title, .ui2-node-subtitle, .module-node .layer-name, .module-node .layer-id) {
+  white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
+}
+.tldraw-canvas-wrapper .node-identity-line { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .ui2-node-header > .graph-state-badge { justify-self: end; max-width: 24px; overflow-wrap: anywhere; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .ui2-node-card[data-empty-body] .ui2-node-header { border-bottom: 0; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .node-compact-expand { padding: 6px 12px !important; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .passthrough-node { padding: 0; }
+.tldraw-canvas-wrapper.tldraw-canvas-wrapper .passthrough-node > .passthrough-detail { margin: 0; padding: 7px 12px; }
 
 @media (prefers-reduced-motion: reduce) {
   .tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.ui2-node-card, .module-node.collapsed, .passthrough-node) { transition: none; }

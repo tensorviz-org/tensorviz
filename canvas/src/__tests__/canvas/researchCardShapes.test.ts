@@ -48,8 +48,8 @@ describe('a measured shape is still drawn', () => {
     const params = { _kind: 'model', _label: 'TinyLM', bases: 'nn.Module', call: 'subclasses nn.Module' };
     const measured = layerCardHeight({ layerType: { id: 'custom_code' }, parameters: params, ...shapes });
     const bare = layerCardHeight({ layerType: { id: 'custom_code' }, parameters: params });
-    // A bare card sits on the 120px floor; two measured rows have to lift it off.
-    expect(bare).toBe(120);
-    expect(measured).toBeGreaterThan(120);
+    // Unrecorded shapes reserve no body; measured facts add their actual rows.
+    expect(bare).toBe(53);
+    expect(measured).toBeGreaterThan(bare);
   });
 });

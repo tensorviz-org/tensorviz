@@ -9,6 +9,11 @@ const source = (id: string, name = id) => ({ layerType: { id, name } } as ModelN
 const family = (data: ModelNodeData, type?: string) => classifyBlock(data, type).kind;
 
 describe('block family classification', () => {
+  it('labels an unclassified source call without claiming it is a composite module', () => {
+    expect(classifyBlock(source('python', 'Python'))).toEqual({ kind: 'unknown', label: 'Python call' });
+    expect(classifyBlock(source('python', 'aten.relu.default')).kind).toBe('activation');
+    expect(classifyBlock(source('custom_code', 'Custom Code')).kind).toBe('composite');
+  });
   it.each([
     ['torch.nn.modules.conv.Conv2d', 'convolution'], ['torch.nn.modules.conv.ConvTranspose2d', 'convolution'],
     ['torch.nn.modules.linear.Linear', 'linear'], ['torch.nn.modules.linear.Bilinear', 'linear'],

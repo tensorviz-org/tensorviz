@@ -3,6 +3,10 @@ import { render, screen } from '@testing-library/react';
 import { TensorSummary } from '../../canvas/TensorSummary';
 import { layerCardHeight } from '../../canvas/cardMetrics';
 import { ModelNodeData, CapturePort } from '../../types';
+import { tensorRowLayout } from '../../canvas/cardContentLayout';
+import { tensorSummaryData } from '../../canvas/tensorSummaryData';
+import { graphToSvg, graphSvgBounds } from '../../services/graphSvg';
+import type { ModelNode } from '../../types';
 
 const port = (id: string, direction: 'in' | 'out', shape: number[] | null, index = 0): CapturePort => ({
   id, nodeId: 'op', direction, shape, dtype: 'torch.float32', device: 'cpu',
@@ -74,4 +78,61 @@ it('retains stale attribution and sizes cards for all input rows', () => {
   render(<TensorSummary data={many} />);
   expect(screen.getByText('stale')).toBeVisible();
   expect(layerCardHeight(many)).toBeGreaterThanOrEqual(layerCardHeight(one) + 54);
+});
+
+it('wraps complete high-rank operation operands and grows the card at its actual width', () => {
+  const shape = Array.from({ length: 32 }, (_, index) => 128 + index);
+  const value = `(${shape.join(', ')})`;
+  const captured = data([port('features', 'in', shape), port('result', 'out', shape)]);
+  const view = render(<TensorSummary data={captured} width={200} />);
+  const rows = Array.from(view.container.querySelectorAll('.operation-tensor-rows > div'));
+  expect(rows).toHaveLength(2);
+  expect(rows[0].querySelector('code')!.textContent).toBe(value);
+  expect(rows[0].querySelector('code')!.children.length).toBeGreaterThan(1);
+  expect(rows[0]).toHaveStyle({ height: `${tensorRowLayout('IN', value, 200).height}px` });
+  expect(layerCardHeight(captured, 200)).toBeGreaterThan(layerCardHeight(captured, 360));
+  expect(tensorSummaryData(captured, 200).height).toBeGreaterThan(tensorSummaryData(captured, 360).height);
+  const node = { id: 'op', type: 'layerNode', position: { x: 0, y: 0 }, data: captured } as ModelNode;
+  const document = new DOMParser().parseFromString(graphToSvg([node], []), 'image/svg+xml');
+  const svgRows = document.querySelectorAll('[data-tensor-row]');
+  expect(svgRows).toHaveLength(2);
+  expect(svgRows[0].querySelectorAll('text')[1].textContent).toBe(value);
+  expect(graphSvgBounds([node])[0].h).toBe(layerCardHeight(captured));
+});
+
+it('retains complete ordinary tensor shapes and changed dimensions across line wraps', () => {
+  const inputShape = Array.from({ length: 24 }, (_, index) => index + 1);
+  const outputShape = [...inputShape]; outputShape[12] = 4096;
+  const ordinary = data([], { captureRef: undefined, capturePorts: undefined,
+    layerType: { ...data([]).layerType, id: 'linear', name: 'Linear', displayName: 'Linear' },
+    inputShape, outputShape, parameters: {} });
+  const { container } = render(<TensorSummary data={ordinary} width={200} />);
+  const values = container.querySelectorAll('.graph-shape-flow code');
+  expect(values[0].textContent).toBe(`(${inputShape.join(', ')})`);
+  expect(values[1].textContent).toBe(`(${outputShape.join(', ')})`);
+  expect(Array.from(values[1].querySelectorAll('.graph-dimension-changed'), part => part.textContent).join('')).toBe('4096');
+  expect(values[1].children.length).toBeGreaterThan(1);
+  expect(layerCardHeight(ordinary, 200)).toBeGreaterThan(layerCardHeight(ordinary, 420));
+});
+
+it('keeps the full operand label when its label column wraps', () => {
+  const label = 'IN 12345678901234567890';
+  const layout = tensorRowLayout(label, '(1, 128)', 200);
+  expect(layout.labelLines.join('')).toBe(label);
+  expect(layout.labelLines.length).toBeGreaterThan(1);
+  expect(layout.height).toBeGreaterThanOrEqual(layout.labelLines.length * 14);
+});
+
+it('exports failed operation facts inside their reserved summary slot beside recorded inputs', () => {
+  const captured = data([port('features', 'in', [8, 32])], { error: 'Invalid reshape',
+    captureDiagnostic: { code: 'invalid_shape', actualShape: [8, 32], expectedShape: [8, 96] } as ModelNodeData['captureDiagnostic'] });
+  const node = { id: 'op', type: 'layerNode', position: { x: 0, y: 0 }, data: captured } as ModelNode;
+  const document = new DOMParser().parseFromString(graphToSvg([node], []), 'image/svg+xml');
+  const height = graphSvgBounds([node])[0].h;
+  expect(document.querySelector('[data-tensor-row]')!.textContent).toContain('(8, 32)');
+  for (const label of ['Incompatible shape', 'Expected [8, 96]', 'Received [8, 32]']) {
+    const matches = Array.from(document.querySelectorAll('text')).filter(element => element.textContent === label);
+    expect(matches).toHaveLength(1);
+    expect(Number(matches[0].getAttribute('y'))).toBeLessThan(height);
+  }
 });

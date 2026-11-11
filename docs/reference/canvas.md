@@ -19,6 +19,7 @@ For the short walkthrough, see [the user guide](../canvas.md). This page keeps t
   - [Active toolbar layout](#active-toolbar-layout)
 - [Controls](#controls)
 - [Module tiles](#module-tiles)
+- [Node understanding](#node-understanding)
 - [Source controls](#source-controls)
 - [Canvas appearance](#canvas-appearance)
 - [Search](#search)
@@ -30,6 +31,109 @@ For the short walkthrough, see [the user guide](../canvas.md). This page keeps t
 The sidebar Canvas, then navigation, search, overlays, and appearance. Opening a model is [open a graph](../graph-opening.md).
 
 The persistent **Canvas** receives **Open as Graph**, per-class CodeLens, and Models selections in the `tensorviz.sidebarCanvas` webview, initially in the `tensorviz-canvas` secondary-sidebar container. The editor version is in the [versions table](../local-setup.md#versions). The view stays wherever you move it.
+
+## Node understanding
+
+Graph cards use one compact presentation at every zoom. Ordinary parameter grids,
+call snippets and validation explanations live in the existing selection details.
+Technical names wrap in shared explicit lines; deterministic widths and header
+heights are reused by layout, hit bounds, connection anchors and SVG. Longer names
+can grow layer cards to 320px and module cards to 340px. Names are never shortened
+with an ellipsis. Technical names remain intact; explicit view explanations add readable purposes to cards.
+The full parameter list, including structured values and source expressions, grows
+with its content. Signatures, docstrings and connections also use the outer selection
+panel's scroll area rather than nested height limits. Review/source-assignment cards
+retain their evidence.
+The local overlay is bounded by its Canvas container rather than window height,
+so details and bottom actions stay reachable in short embedded views. Component
+reading has its own activity label and never implies a tensor capture is running.
+Native sidebar requests relay through the same explanation controller as browser
+views. Delivery and inactivity deadlines settle missing replies, retain available
+documentation and annotations, and reject late progress for expired work. Optional
+documentation reads have their own deadline and do not block agent generation.
+Explain this view discovers the saved provider independently of chat visibility, without
+warming a chat session or changing its provider/model settings. Connection and
+source-reading phases renew the inactivity deadline once per distinct phase;
+replayed phases cannot keep a stalled request alive.
+
+
+**Explain this view** captures the nonhidden nodes intersecting the current viewport,
+including boundary inputs/outputs without individual source spans. The renderer sends
+only known graph IDs; the host rechecks them against the authoritative projection.
+Boundary explanations use explicitly contextual neighboring or entry-source evidence.
+Camera movement and component expansion do not start additional generation.
+
+The typed result contains a full requested node snapshot, a shared summary, bounded
+callouts and labels for existing directed graph connections. Host validation rejects
+out-of-scope references, invented edges and citations not actually supplied. Generated
+callouts select existing nodes; source controls select a proof-bearing component before
+revealing its current verified source. A source-structure connection never proves an
+observed tensor dependency. View results remain presentation-only, separate from model
+records, saved layout and capture evidence.
+
+View passes process at most three components per batch and publish completed batches
+without waiting for the full view. Each submission tool accepts only the current
+batch's node IDs. Later batches reuse the summary and add new connection meanings and
+callouts instead of repeating the view. Source reads and generation remain bounded;
+these explanations never require a model forward pass.
+
+Node purposes and I/O role labels use measured wrapping in live cards and SVG export.
+Connection meanings are available on their arrows and in the collapsible view overview.
+The main action always explains the current viewport; hide/show is in its details menu.
+Scope-specific view and node caches reduce repeated source/model requests. Up to 128
+visible IDs are requested per explicit pass; a larger viewport reports its bounded scope.
+
+The model title opens a searchable project model catalogue backed by the existing
+AST class index. It lists discovered PyTorch model classes without importing or
+executing project code. Opened classes remain a separate group; execution evidence
+is labelled only when the host can substantiate it. Source and definition paths
+use a common left text column, and route rows reserve their complete wrapped height.
+The host supplies opaque selection handles and revalidates the indexed class,
+workspace, target, requesting view and source-review state before switching through
+the normal graph opener. Switching updates graph, source and agent context together.
+List delivery and indexing have bounded waits and a refresh path; standalone hosts
+without catalogue support keep their existing file/setup utilities.
+Root I/O height follows actual rows; an output without boundary data has no body.
+
+The existing selection panel shows deterministic node identity, source documentation,
+source controls and known graph inputs/outputs. Internal Python graph
+IDs are omitted from card labels. Full calls and further details are expandable.
+
+Selecting a node also requests its declaration through the existing bounded lexical
+source index, independently of agent availability. A uniquely resolved function, method
+or class supplies a normalized declaration signature, its cleaned author-written
+docstring and an exact source citation. The summary comes from that docstring; a
+standard-layer catalogue description is only a fallback. Complete available text and
+the declared signature remain in **More details**. A class declaration is labeled as
+such, rather than presented as a forward-call or runtime constructor signature.
+
+Resolution reads only the live model and graph-recorded Python dependencies, reuses the
+digest-keyed parser index and never imports or executes project code. Missing,
+ambiguous, dynamic and unsupported targets remain unresolved. Long docstrings are
+bounded and marked when truncated. A separate bounded source-revision cache preserves
+documentation when agent settings change or an agent task fails. Source citations are
+revalidated before navigation, and documentation is neither a shape observation nor
+an agent interpretation.
+
+An already connected agent can interpret a settled single-node selection in an isolated,
+read-only task. It uses the existing provider adapters with a versioned `node_explanation`
+prompt in `extension/src/canvasAgentPrompts.ts`, independently of chat history. The only
+tools available are bounded source reads, source-context queries and the private typed
+`submit_node_explanation` result tool. Selection never starts sign-in, environment setup,
+commands, model execution or source proposals. Foreground chat takes priority.
+
+The host issues citation IDs for inspected source ranges, validates source digests again
+before publication/navigation, and accepts only a bounded structured result. An
+interpretation never supplies graph shapes, capture evidence or permission authority.
+The UI marks generated purpose and meaning as **Agent interpretation** and keeps exact
+callables and graph evidence accessible. Unknown domain meaning remains explicit.
+
+Successful explanations use a bounded in-memory cache keyed by model/graph revision,
+node, provider, model, effort and prompt version. Source/capture changes, stale graphs,
+review, selection changes, disconnects and provider changes cancel obsolete work.
+The renderer independently checks the current view, complete target and graph revision.
+Generated text is neither persisted into graph metadata nor included in portable graph
+files or SVG exports; those retain deterministic technical names.
 
 ## Automatic readiness and one starting screen
 
@@ -138,7 +242,7 @@ revision. An external browser connection change cannot cancel a native export.
 
 ## Module input and output shapes
 
-At inspection zoom, collapsed model module cards show **In** and **Out** rows
+At every zoom, collapsed model module cards show **In** and **Out** rows
 below their capture/evidence badges. For example, the TinyTransformer `encoder`
 and `norm` cards show the captured `(1, 10, 32)` shape and `float32` dtype in
 both directions. These rows also appear in the ReactFlow module renderer.
@@ -549,21 +653,28 @@ including recorded shape/dtype facts, with Locate in graph and available source 
 
 ## Module tiles
 
+Ordinary cards keep the same information at every zoom. Their full technical names,
+paths, boundary values and source links wrap, and shared measurements size the card,
+layout and ports from that content. Missing module internals do not add a
+**Contents unavailable** pill or a nonfunctional expand control. A quiet code icon
+explains on hover that the graph was read from code and tensor shapes were not recorded.
+Warnings and failures retain their own evidence. See [Understand a node](../canvas.md#understand-a-node)
+for the explicit **Explain model** pass and the existing selection details.
+
 Input and output shapes stay visible on collapsed modules at every zoom tier.
-Zooming in adds source links and editing controls;
-it is no longer required to reveal the tensor dimensions. Shape values use larger
+Selection reveals technical depth without changing card content. Shape values use larger
 text than their In/Out labels. Each captured input/output keeps its own row,
 including scalar, non-tensor and unknown values.
 
 Captured-operation counts and the **Measured boundary** badge are removed from
 tiles and expanded-module headers. Unchanged calls say **Input unchanged** without
-an operation count. Stale, unavailable, source-only and limited evidence, plus
+an operation count. Stale and limited evidence, plus
 actionable issue badges, remain visible. Capture records and their details are
 unchanged.
 
 Captured tiles reserve height for the header and shape rows, adding
 room for source links, warnings and other content when present. A normal tile with
-two shape rows and a source link is 195 canvas pixels tall. Layout
+two shape rows and a source link grows from the actual wrapped content. Layout
 and port geometry use that same height; multiple inputs or outputs grow the tile.
 
 The tile styling uses a soft border, a small module icon well and a clear title/path

@@ -122,16 +122,9 @@ describe('a card draws parameters, not data structures', () => {
     expect(entries.map(([key]) => key)).toEqual(['in_features', 'out_features']);
   });
 
-  it('reserves height for the summary line it draws', () => {
-    // cardMetrics is what tldraw's shape box, selection handles and hit area are computed
-    // from, so a line rendered and not counted is a card that overflows its own shape —
-    // the same desynchronisation its own docstring records for the stats rows.
+  it('keeps constructor values and member metadata out of compact card geometry', () => {
     const shapes = { inputShape: [1, 16], outputShape: [1, 16] };
-    // The card cardMetrics' docstring measures: 2 param rows + 2 shape rows = 157.
     const plain = layerCardHeight({ parameters: { in_features: 16, out_features: 16 }, ...shapes });
-    expect(plain).toBe(157);
-    // Same two rows, plus the summary line that stands in for the member list: one more
-    // 16.5px row and its 4px gap.
     const container = layerCardHeight({
       parameters: {
         in_features: 16,
@@ -140,27 +133,21 @@ describe('a card draws parameters, not data structures', () => {
       },
       ...shapes,
     });
-    expect(container).toBe(178);
-    // And a structured value that says nothing worth a line costs no line: it used to be
-    // counted here AND drawn as `cfg  [object Object]`, so the card reserved a row to
-    // print nothing readable in it.
+    expect(container).toBe(plain);
     const opaque = layerCardHeight({
       parameters: { in_features: 16, out_features: 16, cfg: { hidden: 8 } },
       ...shapes,
     });
-    expect(opaque).toBe(157);
+    expect(opaque).toBe(plain);
   });
 
-  it('reserves height for the Input card row that says nobody chose the tensor', () => {
-    // Same desynchronisation, on the one card whose height was a constant: the note is
-    // one more `.ui2-node-shape-row`, so it costs 16.5px and the 4px gap above it. An
-    // Output card and a declared Input still draw exactly two rows and must not grow —
-    // a box taller than its own content misplaces the handles the other way.
+  it('reserves only the actual input/output rows, including input provenance', () => {
     expect(ioCardHeight({ parameters: { shape: '2,8', _input_provenance: 'declared' } }))
       .toBe(IO_CARD_HEIGHT);
-    expect(ioCardHeight({ parameters: { name: 'Output' } })).toBe(IO_CARD_HEIGHT);
+    expect(ioCardHeight({ parameters: { name: 'Output' } }, 'output')).toBe(IO_CARD_HEIGHT);
+    expect(ioCardHeight(undefined, 'output')).toBe(53);
     expect(ioCardHeight(undefined)).toBe(IO_CARD_HEIGHT);
     expect(ioCardHeight({ parameters: { shape: '1,8', _input_provenance: 'seed-from-first-layer' } }))
-      .toBe(IO_CARD_HEIGHT + 21);
+      .toBe(106);
   });
 });

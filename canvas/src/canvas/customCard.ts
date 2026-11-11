@@ -54,8 +54,10 @@ export interface CustomCardModel {
   projectExpandable?: boolean;
 }
 
-const TITLE_MAX = 40;
 const SNIPPET_MAX = 52;
+
+/** Names are identities. Layout wraps them; it must never discard their suffix. */
+const identity = (value: unknown): string => typeof value === 'string' ? value.trim() : '';
 
 /** A card is one line tall per row: a statement spanning lines is shown as its
  *  first line, and an over-long one is cut where it stops being readable. */
@@ -93,7 +95,7 @@ function containerTitle(parameters: Record<string, unknown>): string {
     entry && typeof entry === 'object' && typeof (entry as { op?: unknown }).op === 'string'
       ? (entry as { op: string }).op : '');
   if (names.some(name => !name) || new Set(names).size !== 1) return '';
-  return oneLine(names.length > 1 ? `${names[0]} ×${names.length}` : names[0], TITLE_MAX);
+  return names.length > 1 ? `${names[0]} ×${names.length}` : names[0];
 }
 
 /** The index's verdict on this node, when it carried one. Read defensively: the
@@ -128,11 +130,11 @@ export function customCardModel(
 
   if (layerTypeId === 'python') {
     const result = params._source_result_call as { name?: unknown; target?: unknown } | undefined;
-    const name = oneLine(result?.name, TITLE_MAX);
+    const name = identity(result?.name);
     const readable = sourceOperationDisplayName(result?.target);
     return {
       op: 'python',
-      title: readable || name || oneLine(params._raw_call, TITLE_MAX) || 'Python',
+      title: readable || name || identity(params._raw_call) || 'Python',
       callable: readable ? oneLine(result?.target, SNIPPET_MAX) : undefined,
       // Keep nested argument preparation in the source detail. A flat list of
       // calls is neither the purpose of this statement nor its dataflow.
@@ -158,7 +160,7 @@ export function customCardModel(
     const label = typeof params._label === 'string' ? params._label : '';
     return {
       op: 'custom_code',
-      title: oneLine(label, TITLE_MAX) || containerTitle(params) || oneLine(params._class, TITLE_MAX) || kind,
+      title: identity(label) || containerTitle(params) || identity(params._class) || kind,
       // The reason is the snippet row: it is the useful thing to read under the
       // name, and a research card has no single statement to quote anyway.
       snippet: oneLine(params._reason, SNIPPET_MAX),

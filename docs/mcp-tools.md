@@ -569,6 +569,11 @@ evidence, which can legitimately reveal changed shapes or checkpoint incompatibi
 
 ## Source context and computation queries
 
+An exact call or declaration selector can also return `documentation`: a normalized
+declared signature, cleaned author docstring, qualified name and source declaration
+anchor, or an explicit unresolved reason. This is static source evidence, available
+without an agent. It does not inspect a live Python object or execute imports.
+
 `query_source_context` follows bounded lexical dependencies in the live model and graph-recorded workspace Python files. Start with a file/symbol anchor, then follow pages and explicit boundaries. It distinguishes defaults, possible links and unresolved expressions from runtime observations. `assumeValue` performs supported conditional integer arithmetic and reports constructor, reshape/view, flatten and LayerNorm shape effects under the captured conditions. These results do not establish full forward or checkpoint compatibility.
 
 Retained capture queries can find computation entities and traverse canonical value/operation relationships with bounded depth and pages. Capture/source identities pin the evidence; projected layout edges are not substituted for runtime tensor flow. Unsupported shape rules remain unknown.

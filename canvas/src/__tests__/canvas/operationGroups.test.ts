@@ -8,6 +8,7 @@ import { planCanvasFocus } from '../../canvas/focusSelection';
 import { revealGraphNode } from '../../viewer/graphFileView';
 import { operationTensorRows } from '../../canvas/operationTensorData';
 import { operationDisplayName } from '../../canvas/operationDisplayName';
+import { layerCardHeader, nodeCardSize } from '../../canvas/cardMetrics';
 
 jest.mock('tldraw', () => ({ atom: (_name: string, value: unknown) => ({ get: () => value, set: () => {} }) }));
 
@@ -43,6 +44,11 @@ test('folds a tensor-layout chain with exact boundary ports and preserves canoni
   const summary = layers.nodes.find(n => n.id === 'view')!;
   expect(summary.data.operationGroup?.members).toEqual(['permute', 'view']);
   expect(operationGroupCard(summary.data).layerType.displayName).toBe('Tensor layout');
+  const size = nodeCardSize(summary);
+  const header = layerCardHeader(operationGroupCard(summary.data), size.w);
+  // Folding changes the card's title and adds a structural reveal row. The
+  // geometry must reserve both, including any wrapped identity lines.
+  expect(size.h).toBeGreaterThanOrEqual(header.height + 32);
   expect(summary.data.captureDisplayPorts).toEqual(expect.arrayContaining([
     expect.objectContaining({ id: 'boundary:permute:in', memberPortId: 'permute:in', valueId: 'a' }),
     expect.objectContaining({ id: 'view:out', valueId: 'c' }),
@@ -57,7 +63,8 @@ test('folds a tensor-layout chain with exact boundary ports and preserves canoni
   const context = { name: 'Model', revision: 1 };
   expect(modelGraphToDocumentV2(layers, context).semantic).toEqual(modelGraphToDocumentV2(operations, context).semantic);
   expect(JSON.stringify(original)).toBe(before);
-  expect(graphToSvg(layers.nodes, layers.edges)).toContain('Tensor layout');
+  const svg = new DOMParser().parseFromString(graphToSvg(layers.nodes, layers.edges), 'image/svg+xml');
+  expect(Array.from(svg.querySelectorAll('[data-card-title]'), element => element.textContent)).toContain('Tensor layout');
 });
 
 test.each(['failure', 'stale', 'unknown', 'effect', 'branch', 'join', 'scope', 'opaque', 'diff'])(

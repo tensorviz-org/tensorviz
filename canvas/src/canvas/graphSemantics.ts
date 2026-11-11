@@ -19,9 +19,9 @@ export function coverageLabel(data: Pick<ModelNodeData, 'parameters'>, compact =
   if (coverage.status === 'state') return Array.isArray(coverage.stateValueIds) && coverage.stateValueIds.length
     ? compact ? 'State' : 'State value observed' : compact ? 'No state' : 'State value not recorded';
   if (compact) return ({ not_observed: 'Not observed', capture_limited: 'Limited',
-    static_only: 'Source only', unresolved: 'Unmapped', failed: 'Failed' } as Record<string, string>)[coverage.status];
+    static_only: '', unresolved: 'Unmapped', failed: 'Failed' } as Record<string, string>)[coverage.status];
   const labels: Record<string, string> = { not_observed: 'Not observed in this run', capture_limited: 'Capture limited',
-    static_only: 'Source only', unresolved: 'Source mapping unresolved', failed: 'Call failed' };
+    static_only: 'Read from code; tensor shapes have not been recorded.', unresolved: 'Source mapping unresolved', failed: 'Call failed' };
   return labels[coverage.status];
 }
 

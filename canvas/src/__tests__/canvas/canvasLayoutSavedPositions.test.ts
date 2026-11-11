@@ -1,4 +1,5 @@
 import dagre from 'dagre';
+import { moduleExpandedHeaderHeight } from '../../canvas/cardMetrics';
 import { reconcileModuleView } from '../../services/canvasLayout';
 import { ModelNode, ModelEdge } from '../../types';
 import { hierarchicalToFlat } from '../../services/hierarchicalToFlat';
@@ -102,4 +103,23 @@ it.each(['bert_base.hierarchical.json', 'f5tts_real.json'])('restores expanded r
   expect(layout).not.toHaveBeenCalled();
   expect(result.nodes).toHaveLength(logical.nodes.length);
   expect(JSON.stringify(logical)).toBe(before);
+});
+
+it('restores saved children below a wrapped source header without rerunning layout or moving them relative to each other', () => {
+  const input = graph();
+  input.nodes[1].data.parameters = { _class: 'TemporalConditionedDecoder'.repeat(24), _defined_in: 'models/audio/decoder.py' };
+  for (const child of input.nodes.slice(2)) child.position.y -= 80;
+  const before = JSON.stringify(input), layout = jest.spyOn(dagre, 'layout');
+  const result = reconcileModuleView(input.nodes, input.edges, { preserveChildPositions: true });
+  const parent = result.nodes.find(node => node.id === 'inner')!;
+  const children = result.nodes.filter(node => node.data.parentId === 'inner');
+  const headerBottom = moduleExpandedHeaderHeight(parent.data, Number(parent.style!.width));
+  expect(Math.min(...children.map(node => node.position.y))).toBeGreaterThanOrEqual(headerBottom);
+  const shifts = children.map(node => node.position.y - input.nodes.find(original => original.id === node.id)!.position.y);
+  expect(shifts[0]).toBeGreaterThan(0);
+  expect(new Set(shifts).size).toBe(1);
+  expect(layout).not.toHaveBeenCalled();
+  expect(JSON.stringify(input)).toBe(before);
+  const again = reconcileModuleView(result.nodes, result.edges, { preserveChildPositions: true });
+  expect(again.nodes.map(node => node.position)).toEqual(result.nodes.map(node => node.position));
 });

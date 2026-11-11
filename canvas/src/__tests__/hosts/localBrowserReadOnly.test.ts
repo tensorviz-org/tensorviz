@@ -117,7 +117,7 @@ describe('the external extension page is read-only', () => {
     const moduleShape = readSource('canvas', 'ModuleShapeUtil.tsx');
     expect(moduleShape).toContain('export function statusLabelForModule');
     expect(moduleShape).toContain("ok: 'No issues recorded'");
-    expect(moduleShape).toContain("if (status === 'ok' && localBrowserMode()) return 'Source-only';");
+    expect(moduleShape).toContain("if (status === 'ok' && localBrowserMode()) return '';");
     expect(moduleShape).toContain('statusLabelForModule(moduleStatus, data)');
   });
 

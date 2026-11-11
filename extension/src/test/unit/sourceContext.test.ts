@@ -158,4 +158,22 @@ suite('host source dependency context', () => {
     assert.ok(sent.reduce((size: number, item: any) => size + Buffer.byteLength(item.source), 0) <= 1048576);
     assert.equal(result.collection.omittedFiles, dependencies.size - sent.length); assert.ok(result.collection.omittedFiles > 0);
   });
+
+  test('a cancelled selection cannot start a source documentation request', async () => {
+    const controller = new AbortController(); controller.abort();
+    await assert.rejects(host.querySourceContext(model.target, query, controller.signal));
+    assert.equal(requests.length, 0);
+  });
+
+  test('selection cancellation aborts the in-flight bounded parser request', async () => {
+    const controller = new AbortController();
+    respond = () => new Promise((_resolve, reject) => {
+      const signal = requests[0].init.signal!;
+      signal.addEventListener('abort', () => reject(new Error('Stopped by fixture selection.')), { once: true });
+    });
+    const pending = host.querySourceContext(model.target, query, controller.signal);
+    while (!requests.length) await new Promise(resolve => setImmediate(resolve));
+    controller.abort(); await assert.rejects(pending, /failed or timed out/);
+    assert.equal(requests[0].init.signal!.aborted, true); assert.equal(editorState.appliedEdits.length, 0);
+  });
 });

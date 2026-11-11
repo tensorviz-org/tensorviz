@@ -4,6 +4,9 @@ import { ModelEdgeShape } from './types';
 import { edgeControlPoints } from './edgeCurve';
 import { selectedEdgeId } from './edgeSelection';
 import { graphFocus } from './graphFocus';
+import { NodeExplanationContext } from './NodeExplanationContext';
+import { graphNodes } from './graphQueryState';
+import { applicableViewExplanation, viewExplanationConnection, viewConnectionLabelLayout } from './viewExplanationPresentation';
 
 /** The pipeline relationships, as research/contracts.py names them. Shared with
  *  the layout, which straightens these and lets the others go slack. */
@@ -73,6 +76,9 @@ export class ModelEdgeShapeUtil extends BaseBoxShapeUtil<ModelEdgeShape> {
 const ModelConnection = track(function ModelConnection({ shape, editor }: { shape: ModelEdgeShape; editor: Editor }) {
     const { w, h, startX, startY, endX, endY, curveOffset = 0, startSide, endSide, diffStatus, edgeId, relationship, role, connectionCount = 1 } = shape.props;
     const exporting = useSvgExportContext();
+    const explanations = React.useContext(NodeExplanationContext);
+    const view = applicableViewExplanation(explanations?.model?.state, explanations?.annotationsVisible, graphNodes.get());
+    const meaning = viewExplanationConnection(view, shape.props.sourceId, shape.props.targetId);
     const focus = graphFocus(editor).focus.get();
     const focused = !exporting && focus.active && focus.edgeIds.has(edgeId ?? '');
     // A focused edge that touches the selection is coloured by which way its
@@ -91,6 +97,9 @@ const ModelConnection = track(function ModelConnection({ shape, editor }: { shap
     const { c1x, c1y, c2x, c2y } = edgeControlPoints(startX, startY, endX, endY, curveOffset, startSide, endSide);
     const path = `M ${startX} ${startY} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${endX} ${endY}`;
     const angle = Math.atan2(endY - c2y, endX - c2x) * 180 / Math.PI;
+    const labelX = (startX + 3 * c1x + 3 * c2x + endX) / 8;
+    const labelY = (startY + 3 * c1y + 3 * c2y + endY) / 8;
+    const meaningLayout = meaning && viewConnectionLabelLayout(meaning.label, Math.abs(endX - startX) - 24);
 
     const diffClass = (diffStatus === 'added' ? ' diff-added' : diffStatus === 'removed' ? ' diff-removed' : diffStatus === 'modified' ? ' diff-modified' : '') + (isSelected ? ' selected' : '') + (focused ? ' neighborhood' : '') + (incoming ? ' in-edge' : outgoing ? ' out-edge' : '') + (quiet && !isSelected ? ' unrelated' : '') + (role === 'residual' ? ' residual' : '');
     // A project graph draws its pipeline and its call graph on one canvas. Drawn
@@ -118,6 +127,10 @@ const ModelConnection = track(function ModelConnection({ shape, editor }: { shap
           {(connectionCount > 1 || diffStatus) && <text className={`model-edge-label${diffClass}`} x={(startX + 3 * c1x + 3 * c2x + endX) / 8} y={(startY + 3 * c1y + 3 * c2y + endY) / 8 - 9} textAnchor="middle">
             {diffStatus === 'added' ? '+ ' : diffStatus === 'removed' ? '− ' : diffStatus === 'modified' ? '~ ' : ''}{connectionCount > 1 ? `${role === 'mixed' ? 'Mixed ' : ''}×${connectionCount}` : diffStatus}
           </text>}
+          {meaning && meaningLayout && <g data-agent-connection="true" className={`model-edge-explanation${quiet && !isSelected ? ' unrelated' : ''}`}>
+            <title>{meaning.label}{meaning.detail ? `. ${meaning.detail}` : ''}</title>
+            {meaningLayout.lines.map((line, index) => <text key={index} x={labelX} y={labelY + 18 + index * 15} textAnchor="middle">{line}</text>)}
+          </g>}
         </svg>
       </HTMLContainer>
     );

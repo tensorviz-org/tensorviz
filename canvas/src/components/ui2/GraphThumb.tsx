@@ -93,10 +93,12 @@ type Rect = { id: string; x: number; y: number; w: number; h: number; color: str
 function nodeSize(node: ModelNode): { w: number; h: number } {
   const data = node.data;
   const kind = String(data?.layerType?.id || data?.type || node.type || '').toLowerCase();
+  const ioKind = node.type === 'inputNode' ? 'input' : node.type === 'outputNode' ? 'output'
+    : kind === 'input' || kind === 'output' ? kind : undefined;
+  if (ioKind) return { w: NODE_W, h: ioCardHeight(data, ioKind) };
   if (data?.isGroup || kind === 'module' || kind === 'group' || kind === 'modulenode') {
     return { w: MODULE_W, h: MODULE_H };
   }
-  if (kind === 'input' || kind === 'output') return { w: NODE_W, h: ioCardHeight(data) };
   // The real rendered height: a card grows with its parameter and shape rows, so
   // a Conv2d with six params is genuinely taller than a ReLU.
   return { w: NODE_W, h: layerCardHeight(data ?? {}) };

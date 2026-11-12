@@ -100,3 +100,49 @@ jobs:
       - name: Summarize validation scope
         run: |
           echo 'PR merge-result native candidate checks only. No provider turn, signed-in GUI, release upload, catalog promotion or deployment.' >> "$GITHUB_STEP_SUMMARY"
+
+  model-acceptance:
+    # Offline CPU model checks complement native CLI tests; not manual GUI acceptance.
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      HF_HUB_OFFLINE: '1'
+      TRANSFORMERS_OFFLINE: '1'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Record tested merge result
+        run: git log -1 --format='%H %P'
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: '0.11.26'
+          python-version: '3.12.13'
+      - name: Install pinned CPU model acceptance dependencies
+        run: |
+          uv venv --python 3.12.13 .acceptance-venv
+          uv pip install --python .acceptance-venv/bin/python torch==2.14.1+cpu torchvision==0.29.1+cpu --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .acceptance-venv/bin/python -r backend/requirements.txt -r backend/requirements-test.txt
+          .acceptance-venv/bin/python -c 'import torch, transformers, diffusers, timm; print(torch.__version__, transformers.__version__, diffusers.__version__, timm.__version__)'
+      - name: Validate real model inputs, capture, saved profiles and environment reuse
+        working-directory: backend
+        run: |
+          ../.acceptance-venv/bin/python -m pytest -q -s tests/capture/test_graph_library_inputs.py
+          ../.acceptance-venv/bin/python -m pytest -q -s tests/capture/test_graph_diffusion_inputs.py
+          ../.acceptance-venv/bin/python -m pytest -q -s tests/capture/test_graph_timm_inputs.py
+          ../.acceptance-venv/bin/python -m pytest -q tests/discovery/test_graph_setup_input_flow.py tests/api/test_graph_setup_errors.py tests/runtime/test_environment_snapshot_reuse.py tests/capture/test_forward_diagnostics.py
+      - name: Validate GPT-2 template in isolated processes
+        working-directory: backend
+        run: |
+          for test in test_gpt2_is_discoverable test_gpt2_decoder_stack_repeats_12 test_gpt2_passes_shape_inference_and_forward test_gpt2_exported_code_runs; do
+            ../.acceptance-venv/bin/python -m pytest -q "tests/templates/test_gpt2_template.py::$test"
+          done
+      - name: Record acceptance boundaries
+        if: always()
+        run: |
+          echo 'Offline random-weight CPU model fixtures only: BERT/T5/ViT/DINOv2, conditional UNet, timm, and the GPT-2 product template. No pretrained downloads, full Stable Diffusion pipeline, external Karpathy/F5-AEC/Nemotron project, signed-in GUI, website upload, release, or deployment.' >> "$GITHUB_STEP_SUMMARY"

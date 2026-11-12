@@ -1,3 +1,4 @@
+const { copyBuiltPlugin } = require('../fixtures/plugin.cjs');
 const { readyService } = require('../fixtures/service.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -19,7 +20,7 @@ test('copied plugin retains explicit runs, compares captures, rejects stale appr
   let client;
   try {
     await fs.mkdir(project);
-    await fs.cp(path.resolve(__dirname, '../../../plugins/tensorviz'), plugin, { recursive: true });
+    await copyBuiltPlugin(plugin);
     await readyService(plugin, path.join(root, 'state'));
     const source = `import time\nfrom pathlib import Path\nfrom torch import nn\nclass Tiny(nn.Module):\n def __init__(self, pause=0):\n  super().__init__()\n  self.pause = pause\n  self.fc = nn.Linear(4, 3)\n def forward(self, x):\n  if self.pause:\n   Path(${JSON.stringify(marker)}).write_text('running')\n   time.sleep(self.pause)\n  return self.fc(x).relu()\n`;
     await fs.writeFile(path.join(project, 'model.py'), source);

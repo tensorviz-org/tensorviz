@@ -1,3 +1,4 @@
+const { copyBuiltPlugin } = require('../fixtures/plugin.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
@@ -26,7 +27,7 @@ test('installed plugin captures in pipless project Python and keeps its service 
   let client;
   try {
     await fs.mkdir(project);
-    await fs.cp(path.resolve(__dirname, '../../../plugins/tensorviz'), plugin, { recursive: true });
+    await copyBuiltPlugin(plugin);
     await readyService(plugin, storage);
     await fs.writeFile(path.join(project, 'model.py'), 'from torch import nn\nclass Tiny(nn.Module):\n def __init__(self):\n  super().__init__()\n  self.fc = nn.Linear(4, 3)\n def forward(self, x): return self.fc(x)\n');
     await fs.writeFile(path.join(project, 'tensorviz.toml'), 'version=1\n[profiles.tiny]\nkind="model"\nmodel="model:Tiny"\nmode="eval"\ngrad_enabled=false\ndevice="cpu"\ninit={args=[],kwargs={}}\ninputs={args=[{kind="tensor",shape=[2,4],dtype="float32",requires_grad=false,generator={kind="full",value=1.0}}],kwargs={}}\n');
@@ -74,7 +75,7 @@ test('installed plugin Canvas selects, repairs and resumes the retained model, w
   try {
     await fs.mkdir(path.join(project, 'pkg'), { recursive: true });
     await fs.symlink(path.dirname(path.dirname(missing)), path.join(project, '.venv'));
-    await fs.cp(path.resolve(__dirname, '../../../plugins/tensorviz'), plugin, { recursive: true });
+    await copyBuiltPlugin(plugin);
     await readyService(plugin, storage);
     const marker = path.join(project, 'initializer-ran');
     await fs.writeFile(path.join(project, 'pkg/__init__.py'), `import torchmetrics, cv2, scipy\nfrom pathlib import Path\nPath(${JSON.stringify(marker)}).touch()\nINITIALIZED=True\n`);
@@ -178,7 +179,7 @@ test('declined plugin permission requires explicit recovery, and a missing choic
   const project = path.join(root, 'project'), plugin = path.join(root, 'plugin'), storage = path.join(root, 'state');
   let client;
   try {
-    await fs.mkdir(project); await fs.cp(path.resolve(__dirname, '../../../plugins/tensorviz'), plugin, { recursive: true });
+    await fs.mkdir(project); await copyBuiltPlugin(plugin);
     await readyService(plugin, storage);
     await fs.symlink(path.dirname(path.dirname(python)), path.join(project, '.venv'));
     const marker = path.join(project, 'imported');

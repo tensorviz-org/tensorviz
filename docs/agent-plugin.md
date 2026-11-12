@@ -63,6 +63,8 @@ previously connected frames are protected from this capacity eviction; the
 existing idle timeout still applies. Each opener retains a separate identity,
 so clients that attach their app bridge later can still connect normally.
 
+A replaced panel frame cannot reclaim the same opener with its old client ID. After 64 replacements, reopen **Model graph** to get a fresh opener; the current frame continues working.
+
 Closing the panel does not cancel a capture or edit source. Reopen **Model graph** if it disconnects; the capture is kept.
 
 ## Publish to tensorviz.dev

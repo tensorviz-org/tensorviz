@@ -196,3 +196,46 @@ test('an attachment in flight is protected from retry eviction', async () => {
     assert.equal((await panels.exchange(id, 0, [], signal, 'slow-frame')).waitingForModel, true);
   } finally { panels.dispose(); }
 });
+
+test('retired panel clients cannot reclaim ownership or mutate queued state', async () => {
+  const cancelled = [];
+  const host = { graph: { list: () => ({ models: [] }) }, graphView: { cancelOwner: id => cancelled.push(id) } };
+  const panels = new GraphPanels(host), signal = new AbortController().signal;
+  try {
+    const id = panels.open();
+    await panels.exchange(id, 0, [], signal, 'old');
+    await panels.exchange(id, 0, [], signal, 'current');
+    const panel = panels.panels.get(id);
+    panel.events.push({ sequence: 1, wire: 'queued' });
+    panel.sequence = 1; panel.bytes = 6; panel.touched = 123;
+    const controller = panel.controller, cancellations = cancelled.length;
+    await assert.rejects(panels.exchange(id, 0, [], signal, 'old'), { code: 'PANEL_REPLACED' });
+    assert.equal(panel.clientId, 'current');
+    assert.equal(panel.controller, controller);
+    assert.equal(cancelled.length, cancellations);
+    assert.equal(panel.touched, 123);
+    assert.deepEqual(panel.events, [{ sequence: 1, wire: 'queued' }]);
+    assert.equal(panel.bytes, 6);
+    assert.equal(panel.sequence, 1);
+    await panels.exchange(id, 0, [], signal, 'current');
+  } finally { panels.dispose(); }
+});
+
+test('panel retirement is bounded and fails closed without replacing its current owner', async () => {
+  const host = { graph: { list: () => ({ models: [] }) }, graphView: { cancelOwner() {} } };
+  const panels = new GraphPanels(host), signal = new AbortController().signal;
+  try {
+    const id = panels.open();
+    for (let i = 0; i <= 64; i++) await panels.exchange(id, 0, [], signal, `frame-${i}`);
+    const panel = panels.panels.get(id), controller = panel.controller;
+    assert.equal(panel.retiredClientIds.size, 64);
+    for (let i = 65; i < 80; i++) {
+      await assert.rejects(panels.exchange(id, 0, [], signal, `frame-${i}`), { code: 'PANEL_REPLACED' });
+    }
+    assert.equal(panel.retiredClientIds.size, 64);
+    assert.equal(panel.clientId, 'frame-64');
+    assert.equal(panel.controller, controller);
+    await panels.exchange(id, 0, [], signal, 'frame-64');
+    await panels.exchange(id, 0, [], signal); // Legacy clients remain supported.
+  } finally { panels.dispose(); }
+});

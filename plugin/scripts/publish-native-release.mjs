@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { auditIntegration, sha256, verifyReleaseCandidate } from './release-candidate.mjs';
 import { distributionRepository } from './release-version.mjs';
+import { verifyAlignment } from './version-alignment.mjs';
 
 const sourceRoot = fileURLToPath(new URL('../..', import.meta.url));
 const sourceRepository = 'tensorviz-org/tensorviz';
@@ -45,6 +46,8 @@ export async function publishRelease(directory, {
   if (run('git', ['rev-parse', 'HEAD']).trim() !== reviewedSource) throw new Error('Checkout does not match reviewed source SHA.');
   const sourceVersion = JSON.parse(run('git', ['show', `${reviewedSource}:plugin/package.json`])).version;
   if (sourceVersion !== release.version) throw new Error('Release version must equal the reviewed, checked-in plugin version.');
+  const extensionVersion = JSON.parse(run('git', ['show', `${reviewedSource}:extension/package.json`])).version;
+  if (extensionVersion !== release.version) throw new Error('Plugin releases must match the reviewed extension version.');
   const comparison = JSON.parse(run('gh', ['api', '--hostname', 'github.com', `repos/${sourceRepository}/compare/${reviewedSource}...main`],
     { env: { ...env, GH_TOKEN: process.env.TENSORVIZ_SOURCE_TOKEN } }));
   if (!['ahead', 'identical'].includes(comparison.status) || comparison.merge_base_commit?.sha !== reviewedSource) {
@@ -64,7 +67,13 @@ export async function publishRelease(directory, {
       return auditIntegration(copy, { allowPrevious: true });
     };
     const previous = await auditCheckout('previous');
-    if (newerVersion(previous.version, release.version)) throw new Error('Refusing to roll the public catalog back to an older release.');
+    if (newerVersion(previous.version, release.version)) {
+      const receiptDirectory = process.env.TENSORVIZ_MIGRATION_RECEIPTS;
+      if (!receiptDirectory) throw new Error('Refusing to roll the public catalog back to an older release without native migration evidence.');
+      const receipts = await Promise.all(['darwin-arm64', 'linux-x64'].map(async platform =>
+        JSON.parse(await fs.readFile(path.join(receiptDirectory, `${platform}.json`), 'utf8'))));
+      verifyAlignment({ previous, initialMain, release, extensionVersion, receipts });
+    }
     const existingTag = optional(() => api(`git/ref/tags/${tag}`));
     let commit;
     if (existingTag) {
@@ -140,3 +149,4 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (process.argv.length !== 3) throw new Error('Usage: node publish-native-release.mjs CANDIDATE_DIRECTORY');
   console.log(JSON.stringify(await publishRelease(process.argv[2])));
 }
+

@@ -141,6 +141,47 @@ jobs:
       - name: Verify Linux launcher with a local archive and real CPU capture
         if: matrix.platform == 'linux-x64'
         run: TENSORVIZ_TEST_RUNTIME="$PWD/plugin/out/native-runtime" node --test plugin/test/linux/launcher-capture.cjs
+      - name: Checkout the immutable previous public plugin export
+        if: env.TENSORVIZ_RELEASE_VERSION == '0.1.43'
+        uses: actions/checkout@v4
+        with:
+          repository: tensorviz-org/tensorviz-plugins
+          ref: 1a3c3618082603030b5ef68b793d9834b8bb7f3d
+          path: plugin/out/migration-old-catalog
+          persist-credentials: false
+      - name: Retrieve the pinned previous native runtime
+        if: env.TENSORVIZ_RELEASE_VERSION == '0.1.43'
+        env:
+          MIGRATION_PLATFORM: ${{ matrix.platform }}
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          import {execFileSync} from 'node:child_process';
+          const publication = JSON.parse(readFileSync('plugin/out/migration-old-catalog/PUBLICATION.json','utf8'));
+          if(publication.version !== '0.3.110') throw new Error('Unexpected previous release');
+          const runtime = publication.runtime.formatVersion === 2 ? publication.runtime.runtimes[process.env.MIGRATION_PLATFORM] : publication.runtime;
+          const expected = `https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.3.110/tensorviz-runtime-0.3.110-${process.env.MIGRATION_PLATFORM}.tar.gz`;
+          if(runtime.url !== expected || runtime.version !== '0.3.110' || runtime.platform !== process.env.MIGRATION_PLATFORM) throw new Error('Previous runtime provenance mismatch');
+          execFileSync('curl',['--fail','--silent','--show-error','--location','--proto','=https','--proto-redir','=https','--max-time','300','--output','plugin/out/migration-old-runtime.tar.gz',runtime.url],{stdio:'inherit'});
+          JS
+      - name: Verify native installed-client version migration and rollback
+        if: env.TENSORVIZ_RELEASE_VERSION == '0.1.43'
+        env:
+          TENSORVIZ_MIGRATION_OLD_CATALOG: ${{ github.workspace }}/plugin/out/migration-old-catalog
+          TENSORVIZ_MIGRATION_NEW_CATALOG: ${{ github.workspace }}/plugin/dist/candidate-0.1.43/integration
+          TENSORVIZ_MIGRATION_OLD_ARCHIVE: ${{ github.workspace }}/plugin/out/migration-old-runtime.tar.gz
+          TENSORVIZ_MIGRATION_NEW_ARCHIVE: ${{ github.workspace }}/plugin/dist/tensorviz-runtime-0.1.43-${{ matrix.platform }}.tar.gz
+          TENSORVIZ_MIGRATION_RECEIPT: ${{ github.workspace }}/plugin/out/migration-receipts/${{ matrix.platform }}.json
+        run: node --test plugin/test/migration/native-version-transition.cjs
+      - name: Retain verified migration receipt
+        if: env.TENSORVIZ_RELEASE_VERSION == '0.1.43'
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-migration-${{ matrix.platform }}
+          path: plugin/out/migration-receipts/${{ matrix.platform }}.json
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Retain only verified release files
         uses: actions/upload-artifact@v4
         with:
@@ -207,9 +248,16 @@ jobs:
         with:
           name: compiled-plugin-${{ needs.configuration.outputs.version }}
           path: plugin/out/release-candidate
+      - uses: actions/download-artifact@v4
+        if: needs.configuration.outputs.version == '0.1.43'
+        with:
+          pattern: plugin-migration-*
+          merge-multiple: true
+          path: plugin/out/migration-receipts
       - name: Publish immutable public assets and advance the audited catalog
         env:
           TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
+          TENSORVIZ_MIGRATION_RECEIPTS: ${{ github.workspace }}/plugin/out/migration-receipts
           GH_TOKEN: ${{ secrets.PLUGIN_PUBLISH_TOKEN }}
           TENSORVIZ_SOURCE_TOKEN: ${{ github.token }}
           TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
@@ -222,3 +270,4 @@ jobs:
           const release = JSON.parse(readFileSync('plugin/out/release-result.json', 'utf8'));
           appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Published [TensorViz ${release.version}](${release.release}) with its downloadable integration catalog. Vendor directory approval is separate.\n`);
           JS
+

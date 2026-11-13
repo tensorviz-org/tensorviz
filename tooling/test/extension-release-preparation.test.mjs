@@ -154,9 +154,11 @@ test('prepared cutover versions exceed audited legacy floors and keep manifests,
     for (let i = 0; i < 3; i++) if (left[i] !== right[i]) return left[i] > right[i];
     return false;
   };
-  // Snapshot of observed GitHub releases on 2026-11-10, not a live registry query.
+  // Unified candidate follows extension history; exact legacy plugin transition
+  // is separately guarded by version-alignment policy and native receipts.
+  assert.equal(JSON.parse(read('extension/package.json')).version, JSON.parse(read('plugin/package.json')).version);
   // The cutover runbook requires a fresh check before activating publication.
-  for (const [product, floor] of [['extension', '0.1.41'], ['plugin', '0.3.109']]) {
+  for (const [product, floor] of [['extension', '0.1.42'], ['plugin', '0.1.42']]) {
     const manifest = JSON.parse(read(`${product}/package.json`));
     const lock = JSON.parse(read(`${product}/package-lock.json`));
     assert.ok(newer(manifest.version, floor), `${product} must exceed the audited release floor`);
@@ -168,3 +170,4 @@ test('prepared cutover versions exceed audited legacy floors and keep manifests,
     if (product === 'extension') assert.ok(read('extension/CHANGELOG.md').includes(`## ${manifest.version}\n`));
   }
 });
+

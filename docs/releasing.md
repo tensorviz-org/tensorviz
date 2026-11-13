@@ -28,14 +28,26 @@ repository and is not copied or deployed here.
 
 ## Reviewed versions and immutable sources
 
-Version bumps, matching package-lock versions, and extension changelog entries
-must be committed through a reviewed PR. The next extension candidate is `0.1.43`.
-GitHub currently publishes extension `0.1.42` and plugin `0.3.110` (verified
-2026-11-13). The plugin manifest remains at its already-published version; do not
-publish new plugin bytes under that version. Matching the plugin to the extension
-series is still pending native-client upgrade/rollback validation and a narrowly
-scoped, provenance-checked migration. The publisher's downgrade guard remains
-intact. An extension-only release does not complete plugin version alignment.
+Version bumps and matching package-lock versions must be committed through a
+reviewed PR. Extension `0.1.43` is released; the plugin candidate is also `0.1.43`.
+This aligns the plugin's old `0.3.110` series without changing extension history.
+It is a one-time version-series migration, not a normal semver upgrade.
+
+Publication permits this transition only from public export
+`1a3c3618082603030b5ef68b793d9834b8bb7f3d` and requires native-client migration
+receipts for both macOS ARM64 and Linux x64. The receipts bind the exact source
+revision and compiled runtime hashes, and require Codex `0.165.0` and Claude
+`2.1.308` install/update/rollback, native capture and preserved settings checks.
+Missing or failed evidence blocks publication. Synthetic manifests alone do not
+satisfy these gates. Every subsequent plugin release must match the extension
+version in the reviewed source. All other catalog downgrades remain rejected.
+Existing tags and release assets are immutable and must not be overwritten.
+
+The native acceptance scope is isolated CLI installation and actual compiled
+runtime capture, not signed-in ChatGPT/Claude desktop UI or Cursor acceptance.
+Do not claim all clients migrated automatically. Keep the old public release
+available for rollback; use an explicit install of its catalog if an updater
+rejects the version-series change.
 
 Recheck GitHub, Marketplace and Open VSX version floors immediately before
 publication. If a floor has advanced to the candidate version or beyond, prepare
@@ -229,4 +241,5 @@ and public catalog/ZIP compatibility before activating publication or archiving
 layout. Credentials, renderer coverage, and live consumer continuity remain
 cutover gates; this code does not configure or prove them. Optional environment
 protections are future hardening, not a migration prerequisite.
+
 

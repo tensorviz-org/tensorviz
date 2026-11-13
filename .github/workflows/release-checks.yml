@@ -27,7 +27,7 @@ jobs:
       - name: Validate Actions syntax
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 -shellcheck=
       - name: Test release provenance, safety and retries without credentials
-        run: node --test tooling/test/extension-*release*.test.mjs plugin/test/unit/native-publisher*.test.cjs plugin/test/unit/version-alignment.test.cjs plugin/test/unit/native-platforms.test.cjs plugin/test/unit/native-package.test.cjs plugin/test/unit/release-candidate.test.cjs plugin/test/unit/release-workflow.test.cjs
+        run: node --test tooling/test/extension-*release*.test.mjs plugin/test/unit/native-publisher*.test.cjs plugin/test/unit/version-alignment.test.cjs plugin/test/unit/cleanup-build-scratch.test.cjs plugin/test/unit/migration-resource-lifecycle.test.cjs plugin/test/unit/native-platforms.test.cjs plugin/test/unit/native-package.test.cjs plugin/test/unit/release-candidate.test.cjs plugin/test/unit/release-workflow.test.cjs
 
   native-candidate:
     # Test the PR merge result with read-only permissions and no secrets.
@@ -100,6 +100,8 @@ jobs:
         run: |
           npm run test:release --prefix plugin
           TENSORVIZ_TEST_RUNTIME="$PWD/plugin/out/native-runtime" node --test plugin/test/integration/open-graph.test.cjs
+      - name: Reclaim completed build scratch before native migration
+        run: node plugin/scripts/cleanup-build-scratch.mjs
       - name: Checkout the immutable previous public plugin export
         if: env.TENSORVIZ_RELEASE_VERSION == '0.1.43'
         uses: actions/checkout@v4
@@ -191,4 +193,3 @@ jobs:
         if: always()
         run: |
           echo 'Offline random-weight CPU model fixtures only: BERT/T5/ViT/DINOv2, conditional UNet, timm, and the GPT-2 product template. No pretrained downloads, full Stable Diffusion pipeline, external Karpathy/F5-AEC/Nemotron project, signed-in GUI, website upload, release, or deployment.' >> "$GITHUB_STEP_SUMMARY"
-

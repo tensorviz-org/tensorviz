@@ -16,6 +16,7 @@ import { createLocalBrowserViewTransport, type LocalBrowserSocketLike,
 interface Panel {
   id: string;
   touched: number;
+  attached: boolean;
   transport?: LocalBrowserViewTransport;
   sequence: number;
   delivered: number;
@@ -25,6 +26,7 @@ interface Panel {
   exchanging?: boolean;
   exchangeDone?: Promise<void>;
   clientId?: string;
+  retiredClientIds: Set<string>;
   controller: AbortController;
 }
 
@@ -35,6 +37,7 @@ const VIEW_ID_MESSAGES = new Set(['viewSelection', 'viewFocusResult', 'graphRevi
 // Publishing sends the graph to tensorviz.dev, so it is never a read.
 const READ_ONLY_MESSAGES = new Set(['viewSelection', 'viewFocusResult', 'captureInspectRequest', 'captureInspectCancel',
   'captureExportRequest', 'captureExportCancel']);
+const MAX_RETIRED_CLIENT_IDS = 64;
 const REQUEST_BYTES = 128 * 1024;
 
 export class GraphPanels {
@@ -46,9 +49,17 @@ export class GraphPanels {
   constructor(private readonly host: StandaloneHost) {}
 
   open(): string {
+    // A tool call is not evidence that a host mounted the app. T3 can attach
+    // its bridge later without advertising it at MCP initialize. At capacity,
+    // expire only the oldest never-attached opener, not a live or detached
+    // frame. Keep distinct IDs: two delayed app mounts must not fight over one.
+    if (this.panels.size >= 8) {
+      const pending = [...this.panels.values()].find(panel => !panel.attached);
+      if (pending) this.close(pending.id);
+    }
     if (this.panels.size >= 8) throw new GraphToolError('PANEL_LIMIT', 'Close an unused graph panel before opening another.');
     const id = randomUUID();
-    this.panels.set(id, { id, touched: Date.now(), sequence: 0, delivered: 0, bytes: 0, events: [], controller: new AbortController() });
+    this.panels.set(id, { id, touched: Date.now(), attached: false, sequence: 0, delivered: 0, bytes: 0, events: [], retiredClientIds: new Set(), controller: new AbortController() });
     return id;
   }
 
@@ -111,6 +122,10 @@ export class GraphPanels {
     const panel = this.panels.get(id);
     if (!panel) throw new GraphToolError('PANEL_CLOSED', 'This graph panel expired or belongs to another connection. Reopen it from this chat.');
     if (panel.exchanging) throw new GraphToolError('PANEL_BUSY', 'Wait for the current panel request to finish.');
+    if (clientId && panel.clientId !== clientId &&
+        (panel.retiredClientIds.has(clientId) || (panel.clientId && panel.retiredClientIds.size >= MAX_RETIRED_CLIENT_IDS))) {
+      throw new GraphToolError('PANEL_REPLACED', 'This panel was replaced or remounted too often. Reopen it from this chat.');
+    }
     panel.exchanging = true;
     let finish!: () => void;
     panel.exchangeDone = new Promise<void>(resolve => { finish = resolve; });
@@ -118,6 +133,9 @@ export class GraphPanels {
       panel.touched = Date.now();
       if (clientId && panel.clientId !== clientId) {
         if (after || messages.length) throw new GraphToolError('PANEL_REPLACED', 'This panel was reopened in another view.');
+        // Keep bounded tombstones: a delayed request from a replaced iframe
+        // must never detach the current owner or consume its queued updates.
+        if (panel.clientId) panel.retiredClientIds.add(panel.clientId);
         this.detach(panel); panel.clientId = clientId;
       }
       if (after > panel.delivered) throw new GraphToolError('INVALID_CURSOR', 'The panel acknowledged an update it has not received.');
@@ -127,6 +145,7 @@ export class GraphPanels {
         // restore it, so request a fresh broker snapshot without recapturing.
         this.detach(panel);
       }
+      panel.attached = true;
       while (panel.events[0]?.sequence <= after) panel.bytes -= Buffer.byteLength(JSON.stringify(panel.events.shift()!));
       if (!panel.transport) {
         await this.connect(panel, signal);
@@ -200,8 +219,8 @@ export async function registerGraphPanel(server: McpServer, host: StandaloneHost
     _meta: { ui: { resourceUri: uri }, 'openai/ui': OpenAIUiToolMetadataSchema.parse({ entrypoints: [{ type: 'thread' }], preferredModelDisplayMode: 'fullscreen' }) },
   }, async () => {
     const panelId = panels.open();
-    return { content: [{ type: 'text', text: 'Opening the Model graph panel. Capture and display are verified separately; use list_models to check the connected view.' }],
-      structuredContent: { displayed: false }, _meta: { panelId } };
+    return { content: [{ type: 'text', text: 'Model graph panel requested; display is not confirmed. Use list_models to check the connected view. If no panel appears, use open_graph_view with the current model reference for a browser fallback instead of repeatedly opening panels. Capture and display are verified separately.' }],
+      structuredContent: { displayed: false, status: 'awaiting_view', fallbackTool: 'open_graph_view' }, _meta: { panelId } };
   });
   registerAppTool(server, 'graph_panel_exchange', {
     description: 'Private Canvas transport for the TensorViz MCP App. Does not grant execution permission.',

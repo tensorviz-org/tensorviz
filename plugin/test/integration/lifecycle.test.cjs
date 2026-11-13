@@ -1,3 +1,4 @@
+const { copyBuiltPlugin } = require('../fixtures/plugin.cjs');
 const { readyService } = require('../fixtures/service.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -26,7 +27,7 @@ for (const scenario of ['cancel', 'launcher-crash', 'source-change', 'dependency
     let client, transport, pids;
     try {
       await fs.mkdir(project);
-      await fs.cp(path.resolve(__dirname, '../../../plugins/tensorviz'), plugin, { recursive: true });
+      await copyBuiltPlugin(plugin);
     await readyService(plugin, path.join(root, 'state'));
       const sourceChange = scenario === 'source-change' || scenario === 'dependency-change';
       const source = `import os, sys, json, subprocess, time\nfrom torch import nn\nfrom helper import WIDTH\nclass Tiny(nn.Module):\n def __init__(self):\n  super().__init__()\n  self.fc = nn.Linear(4, WIDTH)\n def forward(self, x):\n  child = ${sourceChange ? 'None' : "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)'])"}\n  with open(${JSON.stringify(marker)}, 'w') as out: json.dump({'worker': os.getpid(), 'child': child.pid if child else None}, out)\n  while not os.path.exists(${JSON.stringify(release)}): time.sleep(0.05)\n  return self.fc(x)\n`;

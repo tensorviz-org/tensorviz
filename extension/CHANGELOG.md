@@ -45,7 +45,7 @@
 - [0.0.2](#002)
 - [0.0.1](#001)
 
-Extension **0.1.43**. The plugin host in this repository is **0.3.110**.
+Extension **0.1.43**. The plugin host in this repository is **0.1.43**.
 
 This tree is the visualization product: Open as Graph, graph diff, execution
 cache (`off`, `shadow`, and `on`), code focus, graph export, MCP, Hugging Face open, source
@@ -499,4 +499,5 @@ diagnostics. Installed acceptance and compatibility limits are tracked in the
 - Compare Git revisions and GitHub pull requests without executing their code.
 - Connect an existing coding agent through MCP for setup, inspection and capture.
 - Export portable graph files with walkthroughs and read-only architecture comparison.
+
 

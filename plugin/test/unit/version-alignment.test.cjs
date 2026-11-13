@@ -1,0 +1,11 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const path=require('node:path');
+const {pathToFileURL}=require('node:url');
+const policy=()=>import(pathToFileURL(path.resolve(__dirname,'../../scripts/version-alignment.mjs')));
+const fixture=()=>({previous:{version:'0.3.110'},initialMain:'1a3c3618082603030b5ef68b793d9834b8bb7f3d',extensionVersion:'0.1.43',release:{version:'0.1.43',sourceRevision:'a'.repeat(40),files:Object.fromEntries(['darwin-arm64','linux-x64'].map(p=>[`tensorviz-runtime-0.1.43-${p}.tar.gz`,'b'.repeat(64)]))},receipts:['darwin-arm64','linux-x64'].map(platform=>({schemaVersion:1,fromVersion:'0.3.110',toVersion:'0.1.43',sourceRevision:'a'.repeat(40),previousExport:'1a3c3618082603030b5ef68b793d9834b8bb7f3d',platform,runtimeSha256:'b'.repeat(64),clients:{codex:{version:'0.165.0',upgrade:true,rollback:true,nativeCapture:true,preservedSettings:true},claude:{version:'2.1.308',upgrade:true,rollback:true,nativeCapture:true,preservedSettings:true}}}))});
+test('only the exact pinned transition with both native receipts is eligible',async()=>{const {verifyAlignment}=await policy();assert.doesNotThrow(()=>verifyAlignment(fixture()));});
+for(const [label,mutate] of Object.entries({
+ wrongOld:x=>x.previous.version='0.3.109',wrongNew:x=>x.release.version='0.1.44',wrongExport:x=>x.initialMain='c'.repeat(40),wrongExtension:x=>x.extensionVersion='0.1.42',missingReceipts:x=>delete x.receipts,missingPlatform:x=>x.receipts.pop(),duplicatePlatform:x=>x.receipts[1].platform='darwin-arm64',wrongSource:x=>x.receipts[0].sourceRevision='c'.repeat(40),wrongOldExport:x=>x.receipts[0].previousExport='c'.repeat(40),wrongDigest:x=>x.receipts[0].runtimeSha256='c'.repeat(64),wrongReceiptVersion:x=>x.receipts[0].toVersion='0.1.42',wrongSchema:x=>x.receipts[0].schemaVersion=2,missingClients:x=>delete x.receipts[0].clients,
+}))test(`reject ${label}`,async()=>{const {verifyAlignment}=await policy();const x=fixture();mutate(x);assert.throws(()=>verifyAlignment(x));});
+for(const client of ['codex','claude'])for(const key of ['version','upgrade','rollback','nativeCapture','preservedSettings'])test(`reject missing ${client}/${key}`,async()=>{const {verifyAlignment}=await policy();const x=fixture();delete x.receipts[1].clients[client][key];assert.throws(()=>verifyAlignment(x));});

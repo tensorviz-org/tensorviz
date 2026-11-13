@@ -27,7 +27,7 @@ jobs:
       - name: Validate Actions syntax
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 -shellcheck=
       - name: Test release provenance, safety and retries without credentials
-        run: node --test tooling/test/extension-*release*.test.mjs plugin/test/unit/native-publisher*.test.cjs plugin/test/unit/native-platforms.test.cjs plugin/test/unit/native-package.test.cjs plugin/test/unit/release-candidate.test.cjs plugin/test/unit/release-workflow.test.cjs
+        run: node --test tooling/test/extension-*release*.test.mjs plugin/test/unit/native-publisher*.test.cjs plugin/test/unit/version-alignment.test.cjs plugin/test/unit/native-platforms.test.cjs plugin/test/unit/native-package.test.cjs plugin/test/unit/release-candidate.test.cjs plugin/test/unit/release-workflow.test.cjs
 
   native-candidate:
     # Test the PR merge result with read-only permissions and no secrets.
@@ -52,6 +52,8 @@ jobs:
       - name: Record the tested merge commit and its parents
         run: |
           git log -1 --format='%H %P'
+          echo "TENSORVIZ_REVIEWED_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "TENSORVIZ_RELEASE_VERSION=$(node -p 'require("./plugin/package.json").version')" >> "$GITHUB_ENV"
           echo "Tested merge/source commit: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-node@v4
         with:
@@ -93,10 +95,52 @@ jobs:
           npm run build:panel --prefix plugin
           npm run build:native:host --prefix plugin
           node plugin/scripts/package-native.mjs "$TENSORVIZ_RUNTIME_URL"
+          node plugin/scripts/assemble-native-release.mjs plugin/out/integration "plugin/dist/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-${{ matrix.platform }}.tar.gz"
       - name: Verify packaging, isolated clients and native capture
         run: |
           npm run test:release --prefix plugin
           TENSORVIZ_TEST_RUNTIME="$PWD/plugin/out/native-runtime" node --test plugin/test/integration/open-graph.test.cjs
+      - name: Checkout the immutable previous public plugin export
+        if: env.TENSORVIZ_RELEASE_VERSION == '0.1.43'
+        uses: actions/checkout@v4
+        with:
+          repository: tensorviz-org/tensorviz-plugins
+          ref: 1a3c3618082603030b5ef68b793d9834b8bb7f3d
+          path: plugin/out/migration-old-catalog
+          persist-credentials: false
+      - name: Retrieve the pinned previous native runtime
+        if: env.TENSORVIZ_RELEASE_VERSION == '0.1.43'
+        env:
+          MIGRATION_PLATFORM: ${{ matrix.platform }}
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          import {execFileSync} from 'node:child_process';
+          const publication = JSON.parse(readFileSync('plugin/out/migration-old-catalog/PUBLICATION.json','utf8'));
+          if(publication.version !== '0.3.110') throw new Error('Unexpected previous release');
+          const runtime = publication.runtime.formatVersion === 2 ? publication.runtime.runtimes[process.env.MIGRATION_PLATFORM] : publication.runtime;
+          const expected = `https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.3.110/tensorviz-runtime-0.3.110-${process.env.MIGRATION_PLATFORM}.tar.gz`;
+          if(runtime.url !== expected || runtime.version !== '0.3.110' || runtime.platform !== process.env.MIGRATION_PLATFORM) throw new Error('Previous runtime provenance mismatch');
+          execFileSync('curl',['--fail','--silent','--show-error','--location','--proto','=https','--proto-redir','=https','--max-time','300','--output','plugin/out/migration-old-runtime.tar.gz',runtime.url],{stdio:'inherit'});
+          JS
+      - name: Verify native installed-client version migration and rollback
+        if: env.TENSORVIZ_RELEASE_VERSION == '0.1.43'
+        env:
+          TENSORVIZ_MIGRATION_OLD_CATALOG: ${{ github.workspace }}/plugin/out/migration-old-catalog
+          TENSORVIZ_MIGRATION_NEW_CATALOG: ${{ github.workspace }}/plugin/dist/candidate-0.1.43/integration
+          TENSORVIZ_MIGRATION_OLD_ARCHIVE: ${{ github.workspace }}/plugin/out/migration-old-runtime.tar.gz
+          TENSORVIZ_MIGRATION_NEW_ARCHIVE: ${{ github.workspace }}/plugin/dist/tensorviz-runtime-0.1.43-${{ matrix.platform }}.tar.gz
+          TENSORVIZ_MIGRATION_RECEIPT: ${{ github.workspace }}/plugin/out/migration-receipts/${{ matrix.platform }}.json
+        run: node --test plugin/test/migration/native-version-transition.cjs
+      - name: Retain verified migration receipt
+        if: env.TENSORVIZ_RELEASE_VERSION == '0.1.43'
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-migration-${{ matrix.platform }}
+          path: plugin/out/migration-receipts/${{ matrix.platform }}.json
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Summarize validation scope
         run: |
           echo 'PR merge-result native candidate checks only. No provider turn, signed-in GUI, release upload, catalog promotion or deployment.' >> "$GITHUB_STEP_SUMMARY"
@@ -147,3 +191,4 @@ jobs:
         if: always()
         run: |
           echo 'Offline random-weight CPU model fixtures only: BERT/T5/ViT/DINOv2, conditional UNet, timm, and the GPT-2 product template. No pretrained downloads, full Stable Diffusion pipeline, external Karpathy/F5-AEC/Nemotron project, signed-in GUI, website upload, release, or deployment.' >> "$GITHUB_STEP_SUMMARY"
+

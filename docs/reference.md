@@ -194,4 +194,3 @@ During graph setup, a saved `tensorviz.toml` profile never reaches the resolver,
 and a class-owned declaration overrides inputs inferred from repository example calls
 (`backend/services/ide/graph_setup_resolution.py`). Complete calls can still supply
 the constructor recipe. An explicit `input_shape` wins over the comment.
-

@@ -29,14 +29,17 @@ repository and is not copied or deployed here.
 ## Reviewed versions and immutable sources
 
 Version bumps, matching package-lock versions, and extension changelog entries
-must be committed through a reviewed PR. The prepared cutover versions are extension
-`0.1.42` and plugin `0.3.110`, above the observed legacy GitHub release floors
-[extension 0.1.41](https://github.com/tensorviz-org/tensorViz-extension/releases/tag/v0.1.41)
-and [plugin 0.3.109](https://github.com/tensorviz-org/tensorviz-plugins/releases/tag/v0.3.109),
-verified on 2026-11-10. Recheck GitHub, Marketplace and Open VSX version floors
-immediately before cutover, after freezing the legacy stream. If any floor has
-advanced to a prepared version or beyond, prepare another reviewed version bump;
-never reuse or overwrite a published version.
+must be committed through a reviewed PR. The next extension candidate is `0.1.43`.
+GitHub currently publishes extension `0.1.42` and plugin `0.3.110` (verified
+2026-11-13). The plugin manifest remains at its already-published version; do not
+publish new plugin bytes under that version. Matching the plugin to the extension
+series is still pending native-client upgrade/rollback validation and a narrowly
+scoped, provenance-checked migration. The publisher's downgrade guard remains
+intact. An extension-only release does not complete plugin version alignment.
+
+Recheck GitHub, Marketplace and Open VSX version floors immediately before
+publication. If a floor has advanced to the candidate version or beyond, prepare
+another reviewed version bump; never reuse or overwrite a published version.
 The workflow run number is not a version. No release job commits, pushes, merges,
 or rewrites source branches. All checkouts use the run's exact SHA.
 
@@ -226,3 +229,4 @@ and public catalog/ZIP compatibility before activating publication or archiving
 layout. Credentials, renderer coverage, and live consumer continuity remain
 cutover gates; this code does not configure or prove them. Optional environment
 protections are future hardening, not a migration prerequisite.
+

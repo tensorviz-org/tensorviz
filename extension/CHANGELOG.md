@@ -3,6 +3,7 @@
 ## Contents
 
 - [Unreleased](#unreleased)
+- [0.1.43](#0143)
 - [0.1.42](#0142)
 - [0.1.41](#0141)
 - [0.1.36](#0136)
@@ -44,7 +45,7 @@
 - [0.0.2](#002)
 - [0.0.1](#001)
 
-Extension **0.1.42**. The plugin host in this repository is **0.3.110**.
+Extension **0.1.43**. The plugin host in this repository is **0.3.110**.
 
 This tree is the visualization product: Open as Graph, graph diff, execution
 cache (`off`, `shadow`, and `on`), code focus, graph export, MCP, Hugging Face open, source
@@ -52,6 +53,12 @@ proposals, JAX/Flax capture, and website sign-in and share. Latency profiling,
 training-step capture, product analytics, and the hosted website application are not in this tree.
 
 ## Unreleased
+
+## 0.1.43
+
+- Restore mixed module training modes after inference capture, including custom training-mode side effects, shared submodules, and failure cleanup.
+
+- Harden graph opener allocation and retired-session handling so repeated graph opens do not exhaust capacity or replay stale updates.
 
 - Show searchable model and supported effort choices beside the chat composer. Add a model/effort split menu to **Explain this view**, with separate saved preferences and the actual execution choice visible during and after each pass.
 
@@ -492,3 +499,4 @@ diagnostics. Installed acceptance and compatibility limits are tracked in the
 - Compare Git revisions and GitHub pull requests without executing their code.
 - Connect an existing coding agent through MCP for setup, inspection and capture.
 - Export portable graph files with walkthroughs and read-only architecture comparison.
+

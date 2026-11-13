@@ -937,6 +937,43 @@ def fake_mode_active() -> bool:
         return False
 
 
+def _module_modes(model: nn.Module) -> List[Tuple[nn.Module, bool]]:
+    """Snapshot in parent-before-child order, including shared descendants."""
+    visited: Set[int] = set()
+    modes: List[Tuple[nn.Module, bool]] = []
+
+    def visit(module: nn.Module) -> None:
+        if id(module) in visited:
+            return
+        visited.add(id(module))
+        for child in module.children():
+            visit(child)
+        modes.append((module, module.training))
+
+    visit(model)
+    # A shared child must follow every parent that can recursively change it.
+    return list(reversed(modes))
+
+
+def _restore_module_modes(modes: List[Tuple[nn.Module, bool]]) -> Exception | None:
+    """Restore train() state without losing mixed modes or cleanup on failure."""
+    error: Exception | None = None
+    for index, (module, training) in enumerate(modes):
+        try:
+            # Restore custom train() state as well as the standard flag. The root
+            # restores uniform subtrees; only mixed descendants need another call.
+            if index == 0 or module.training != training:
+                module.train(training)
+        except Exception as exc:
+            if error is None:
+                error = exc
+    # A custom train() may fail midway through recursion. Restore every original
+    # flag regardless, and let the caller report the failure after removing hooks.
+    for module, training in modes:
+        module.training = training
+    return error
+
+
 def trace_model(
     model: nn.Module,
     args: Tuple[Any, ...],
@@ -1008,14 +1045,20 @@ def trace_model(
     # perfectly correct, and Dropout puts noise in a trace that is meant to be
     # deterministic. A `--kind train_step` run is the deliberate exception — its
     # whole point is the training path — so it keeps the mode the user's own code set.
-    was_training = model.training
-    if step is None and was_training and not preserve_mode:
-        model.eval()
+    # A root flag does not describe a mixed-mode model (for example a frozen
+    # BatchNorm under a training parent). Preserve every module independently.
+    module_modes = (_module_modes(model)
+                    if step is None and not preserve_mode else [])
+    restore_modes = False
     started = time.perf_counter()
     output: Any = None
     forward_error: BaseException | None = None
+    restore_error: Exception | None = None
     gc_prior = block_templates.raise_gc_threshold() if prov.templates is not None else None
     try:
+        if any(training for _, training in module_modes):
+            restore_modes = True
+            model.eval()
         if tier == "fake" and not fake_mode_active():
             with _AttentionFastPathOff(), torch.no_grad(), FakeTensorMode(allow_non_fake_inputs=True), \
                     prov.semantic.functions() if prov.semantic is not None else nullcontext(), prov:
@@ -1040,8 +1083,13 @@ def trace_model(
     finally:
         if gc_prior is not None:
             gc.set_threshold(*gc_prior)
-        if step is None and was_training and not preserve_mode:
-            model.train()
+        if restore_modes:
+            restore_error = _restore_module_modes(module_modes)
+            if restore_error is not None:
+                if forward_error is None:
+                    forward_error = restore_error
+                    result.error = f"{type(restore_error).__name__}: {str(restore_error)[:200]}"
+                    result.error_frames = _frames_of(restore_error)
         for handle in handles:
             handle.remove()
         if prov.templates is not None:
@@ -1092,6 +1140,9 @@ def trace_model(
             elif result.semantic_capture["status"] == "failed" and result.error is None:
                 result.semantic_error = "recorder_error"
                 result.error = "CaptureRecorderError: the forward completed but its invocation could not be recorded."
+        if restore_error is not None:
+            detail = f"Mode restoration failed: {type(restore_error).__name__}: {str(restore_error)[:200]}"
+            result.error = f"{result.error}; {detail}" if forward_error is not restore_error else detail
     if capture is not None:
         # Outside the `finally`, and outside the dispatch mode it restored: the
         # backward's aten ops would otherwise be recorded as part of the model's

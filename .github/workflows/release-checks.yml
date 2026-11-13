@@ -132,6 +132,7 @@ jobs:
       - name: Validate real model inputs, capture, saved profiles and environment reuse
         working-directory: backend
         run: |
+          ../.acceptance-venv/bin/python -m pytest -q tests/capture/test_trace_module_modes.py
           ../.acceptance-venv/bin/python -m pytest -q -s tests/capture/test_graph_library_inputs.py
           ../.acceptance-venv/bin/python -m pytest -q -s tests/capture/test_graph_diffusion_inputs.py
           ../.acceptance-venv/bin/python -m pytest -q -s tests/capture/test_graph_timm_inputs.py

@@ -90,3 +90,5 @@ See [guided environment recovery](environment-recovery.md).
 ## Loaded ScriptModules
 
 An ordinary forward capture does not install optional activation or gradient-statistics hooks when those statistics are disabled. This permits a model to call a loaded TorchScript module without failing on unsupported forward-hook registration. It does not enable training diagnostics or add capture coverage for opaque compiled operations.
+
+Ordinary inference tracing temporarily sets all modules to evaluation mode, even when the root and children start in different modes. After a successful or failed forward, it restores the original modes through `train()` so custom mode-dependent state is restored too. Mixed modes and shared children retain their original flags. If a custom mode-restoration method fails, the capture reports that failure, restores the flags, and removes its hooks; custom state may still need recovery before the model is reused. Explicit mode-preserving captures keep the supplied per-module modes.

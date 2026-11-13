@@ -1,3 +1,4 @@
+const { copyBuiltPlugin } = require('../fixtures/plugin.cjs');
 const { readyService } = require('../fixtures/service.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -16,7 +17,7 @@ test('workspace discovery is static, bounded and independent of the active graph
   let client;
   try {
     await fs.mkdir(project); await fs.mkdir(other);
-    await fs.cp(path.resolve(__dirname, '../../../plugins/tensorviz'), plugin, { recursive: true });
+    await copyBuiltPlugin(plugin);
     await readyService(plugin, path.join(root, 'state'));
     const marker = path.join(project, 'imported');
     await fs.writeFile(path.join(project, 'base.py'), `from pathlib import Path\nPath(${JSON.stringify(marker)}).touch()\nfrom torch import nn\nclass Base(nn.Module):\n pass\n`);

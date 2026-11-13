@@ -53,6 +53,14 @@ training-step capture, product analytics, and the hosted website application are
 
 ## Unreleased
 
+- Show searchable model and supported effort choices beside the chat composer. Add a model/effort split menu to **Explain this view**, with separate saved preferences and the actual execution choice visible during and after each pass.
+
+- Keep graph cards compact at every zoom, wrap full technical names, and move ordinary parameter lists into selection details. Size Input/Output cards from actual rows instead of leaving empty bodies; keep SVG and connection geometry aligned.
+
+- Resolve selected-node signatures and author docstrings from source without an agent. Prefer source documentation over standard-layer reference text, preserve full details and citations, and keep ambiguous or dynamic targets unresolved.
+
+- Explain selected nodes with compact source facts, standard-layer descriptions and optional source-grounded agent interpretations. Keep exact callables, execution evidence and linked sources inspectable; invalidate explanations when source, capture or agent settings change.
+
 ## 0.1.42
 
 - Prepare the workflow cutover with a new reviewed extension version above the legacy 0.1.41 release. The companion plugin host is 0.3.110, above the public 0.3.109 release. Existing published versions and artifacts remain unchanged; publication still requires the release gates and verification checklist.

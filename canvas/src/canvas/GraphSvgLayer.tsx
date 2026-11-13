@@ -4,6 +4,7 @@ import { graphToSvg, graphSvgBounds } from '../services/graphSvg';
 import { ModelEdge, ModelNode } from '../types';
 import { useCanvasTheme } from '../styles/canvasTheme';
 import type { LayoutDirection } from './edgeAnchors';
+import { NodeExplanationContext } from './NodeExplanationContext';
 
 const PADDING = 24;
 
@@ -54,10 +55,14 @@ export default function GraphSvgLayer({ nodes, edges, direction, selectedIds, on
   onActivate?(id: string): void;
   editor: Editor | null;
 }) {
-  const bounds = React.useMemo(() => graphSvgBounds(nodes), [nodes]);
+  const explanations = React.useContext(NodeExplanationContext);
+  const explanationOptions = React.useMemo(() => ({ explanationStates: explanations?.annotations ?? explanations?.states,
+    annotationsVisible: explanations?.annotationsVisible, viewExplanation: explanations?.model?.state }),
+    [explanations?.annotations, explanations?.states, explanations?.annotationsVisible, explanations?.model?.state]);
+  const bounds = React.useMemo(() => graphSvgBounds(nodes, explanationOptions), [nodes, explanationOptions]);
   const changedNodes = React.useMemo(() => new Map(nodes.filter(node => node.data.diffStatus).map(node => [node.id, node.data])), [nodes]);
   const theme = useCanvasTheme();
-  const svg = React.useMemo(() => graphToSvg(nodes, edges, { theme, direction }), [nodes, edges, theme, direction]);
+  const svg = React.useMemo(() => graphToSvg(nodes, edges, { theme, direction, ...explanationOptions }), [nodes, edges, theme, direction, explanationOptions]);
   const url = React.useMemo(() => (typeof URL.createObjectURL === 'function'
     ? URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
     : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`), [svg]);

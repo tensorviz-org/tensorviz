@@ -9,9 +9,13 @@ import React from 'react';
 import * as LucideIcons from 'lucide-react';
 import { OutputShape } from './types';
 import { NodePorts } from './NodePort';
-import { useGraphDetail } from './graphDetail';
 import { CaptureBoundaryRows } from './CaptureBoundaryRows';
 import { GraphReviewBadge } from './GraphReviewChanges';
+import { cardHeaderLayout } from './cardIdentity';
+import { CardIdentity } from './NodeCardIdentity';
+import { ioCardContent } from './cardMetrics';
+import { NodeExplanationContext } from './NodeExplanationContext';
+import { NodeExplanationAnnotation } from './NodeExplanationAnnotation';
 
 export class OutputShapeUtil extends BaseBoxShapeUtil<OutputShape> {
   static override type = 'output-node' as const;
@@ -25,7 +29,7 @@ export class OutputShapeUtil extends BaseBoxShapeUtil<OutputShape> {
   getDefaultProps(): OutputShape['props'] {
     return {
       w: 200,
-      h: 100,
+      h: cardHeaderLayout('Output').height + 2,
       nodeData: {
         layerType: {
           id: 'output',
@@ -75,8 +79,13 @@ export class OutputShapeUtil extends BaseBoxShapeUtil<OutputShape> {
 
 const OutputShapeCard = track(function OutputShapeCard({ shape, editor }: { shape: OutputShape; editor: Editor }) {
     const data = shape.props.nodeData;
-    const detail = useGraphDetail(editor);
+    const explanations = React.useContext(NodeExplanationContext);
+    const explanationState = (explanations?.annotations ?? explanations?.states)?.[shapeIdToNodeId(shape.id)];
+    const explanation = explanations?.annotationsVisible && explanationState?.status === 'ready'
+      && !data.review && !data.sourceAssignment && !data.sourceReplacement ? explanationState.explanation : undefined;
     const isSelected = editor.getSelectedShapeIds().includes(shape.id);
+    const header = cardHeaderLayout('Output', data.captureLabel, shape.props.w);
+    const content = ioCardContent(data, 'output', shape.props.w);
 
     const formatShape = (s?: number[]) => {
       if (!s) return '';
@@ -87,43 +96,42 @@ const OutputShapeCard = track(function OutputShapeCard({ shape, editor }: { shap
 
     return (
       <HTMLContainer style={{ pointerEvents: 'none', overflow: 'visible' }}>
-        <div className={`${nodeClass} ui2-node-card`} data-detail={detail} data-node-id={shapeIdToNodeId(shape.id)} data-block="output" style={{ width: shape.props.w, height: shape.props.h }}>
-          <div className="ui2-node-header">
+        <div className={`${nodeClass} ui2-node-card`} data-detail="compact" data-node-id={shapeIdToNodeId(shape.id)} data-block="output" style={{ width: shape.props.w, height: shape.props.h }}>
+          <div className="ui2-node-header" style={{ height: header.height }}>
             <BlockIdentity block={{ kind: 'output', label: 'Output' }} />
-            <div className="ui2-node-title-wrap">
-              <div className="ui2-node-title">Output</div>
-              <div className="ui2-node-subtitle">{data.captureLabel ?? `#${shapeIdToNodeId(shape.id)}`}</div>
-            </div>
+            <CardIdentity layout={header} title="Output" subtitle={data.captureLabel} />
             {data.review ? <GraphReviewBadge review={data.review} /> : data.diffStatus && <span className="ui2-node-badge">{data.diffStatus}</span>}
           </div>
 
-          <div className="ui2-node-body">
-            {data.capturePorts ? <CaptureBoundaryRows ports={data.capturePorts} /> : <div className="ui2-node-list">
+          <NodeExplanationAnnotation explanation={explanation} width={shape.props.w} />
+
+          {content.bodyHeight > 0 && <div className="ui2-node-body">
+            {data.capturePorts ? <CaptureBoundaryRows ports={data.capturePorts} width={shape.props.w} /> : content.rowCount > 0 && <div className="ui2-node-list">
               {data.outputShape && (
-                <div className="ui2-node-shape-row">
+                <div className="ui2-node-shape-row" style={{ minHeight: content.values.shape?.height }}>
                   <LucideIcons.Layers size={11} />
                   <span>Shape</span>
-                  <span className="ui2-node-shape">{formatShape(data.outputShape)}</span>
+                  <span className="ui2-node-shape card-content-lines" title={formatShape(data.outputShape)}>{content.values.shape?.lines.map((line, index) => <span key={index}>{line}</span>)}</span>
                 </div>
               )}
-              {data.parameters.name && (
-                <div className="ui2-node-shape-row">
+              {content.name && (
+                <div className="ui2-node-shape-row" style={{ minHeight: content.values.name?.height }}>
                   <LucideIcons.Tag size={12} />
                   <span>Name</span>
-                  <span className="ui2-node-shape">{data.parameters.name}</span>
+                  <span className="ui2-node-shape card-content-lines" title={content.name}>{content.values.name?.lines.map((line, index) => <span key={index}>{line}</span>)}</span>
                 </div>
               )}
             </div>}
 
-            {data.error && (
-              <div className="ui2-node-error">
+            {content.errorLines.length > 0 && (
+              <div className="ui2-node-error" style={{ height: content.errorHeight, boxSizing: 'border-box' }}>
                 <LucideIcons.AlertTriangle size={12} />
-                <span>{data.error}</span>
+                <span className="graph-failure-facts">{content.errorLines.map((line, index) => <span key={index}>{line}</span>)}</span>
               </div>
             )}
 
 
-          </div>
+          </div>}
         </div>
         <NodePorts shape={shape} />
       </HTMLContainer>

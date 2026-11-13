@@ -1,11 +1,11 @@
 import type { Editor } from 'tldraw';
 import type { ModelNode } from '../types';
-import { graphSvgBounds } from '../services/graphSvg';
+import { graphSvgBounds, type GraphSvgOptions } from '../services/graphSvg';
 import { cameraDuration } from './reducedMotion';
 
 /** Use logical bounds too: an SVG overview has no selectable tldraw shapes. */
-export function zoomToReadable(editor: Editor, nodes: ModelNode[]) {
-  const visible = graphSvgBounds(nodes);
+export function zoomToReadable(editor: Editor, nodes: ModelNode[], options: Pick<GraphSvgOptions, 'explanationStates' | 'annotationsVisible'> = {}) {
+  const visible = graphSvgBounds(nodes, options);
   const frames = new Set(nodes.filter(node => node.type === 'moduleNode' && node.data.expanded).map(node => node.id));
   const cards = visible.filter(box => !frames.has(box.id));
   const boxes = cards.length ? cards : visible;

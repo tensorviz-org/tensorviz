@@ -9,6 +9,8 @@
  * host/worker-only: it can contain private argv and literals. */
 import type { components as ValidationComponents } from './validationContracts.generated';
 import type { components as SemanticComponents } from './semanticContracts.generated';
+import { isNodeExplanationState, isModelExplanationState, type NodeExplanationState, type ModelExplanationState } from './nodeExplanation';
+import { isModelCatalog, type ModelCatalog } from './modelCatalog';
 export type LiteralEditCapability = SemanticComponents['schemas']['LiteralEditCapability'];
 export type SetLiteralEdit = SemanticComponents['schemas']['SetLiteralEdit'];
 export type ActivationEditCapability = SemanticComponents['schemas']['ActivationEditCapability'];
@@ -927,7 +929,7 @@ export interface CanvasAgentState {
 }
 export type CanvasAgentAction =
   | { action: 'sync' }
-  | { action: 'discover'; refresh?: boolean }
+  | { action: 'discover'; refresh?: boolean; /** Inspect the selected provider without preparing a chat or changing providers. */ catalogOnly?: boolean }
   | { action: 'configure'; provider: CanvasAgentProvider; settings: CanvasAgentSettings; requestId?: string }
   | { action: 'clear' }
   | { action: 'stop'; requestId: string }
@@ -937,6 +939,29 @@ export type CanvasAgentAction =
       target: LocalBrowserTargetIdentity; nodeIds: string[]; draftId?: string };
 export type LocalBrowserAgentRequest = LocalBrowserEnvelope<'agentRequest'> & { viewId: string } & CanvasAgentAction;
 export type LocalBrowserAgentState = LocalBrowserEnvelope<'agentState'> & { viewId: string; state: CanvasAgentState };
+export type LocalBrowserNodeExplanation = LocalBrowserEnvelope<'nodeExplanation'> & {
+  viewId: string; target: LocalBrowserTargetIdentity; state: NodeExplanationState;
+};
+export type LocalBrowserNodeExplanationRequest = LocalBrowserEnvelope<'nodeExplanationRequest'> & {
+  viewId: string; target: LocalBrowserTargetIdentity; nodeId: string; requestId: string;
+} & ({ action: 'retry' } | { action: 'reveal'; citationId: string });
+
+export type LocalBrowserModelExplanation = LocalBrowserEnvelope<'modelExplanation'> & {
+  viewId: string; target: LocalBrowserTargetIdentity; state: ModelExplanationState;
+};
+export type LocalBrowserModelExplanationRequest = LocalBrowserEnvelope<'modelExplanationRequest'> & {
+  viewId: string; target: LocalBrowserTargetIdentity; requestId: string;
+  action: 'start' | 'cancel'; nodeIds: string[];
+  /** A per-pass choice. Missing retains the chat selection; an empty object uses provider defaults. */
+  settings?: CanvasAgentSettings;
+};
+
+export type LocalBrowserModelCatalogRequest = LocalBrowserEnvelope<'modelCatalogRequest'> & {
+  viewId: string; target: LocalBrowserTargetIdentity; requestId: string;
+} & ({ action: 'list' } | { action: 'select'; modelId: string });
+export type LocalBrowserModelCatalog = LocalBrowserEnvelope<'modelCatalog'> & {
+  viewId: string; target: LocalBrowserTargetIdentity; requestId: string; catalog: ModelCatalog;
+};
 
 export function isCanvasAgentSettings(value: unknown): value is CanvasAgentSettings {
   return isRecord(value) && Object.keys(value).every(key => ['model', 'effort'].includes(key))
@@ -1032,6 +1057,9 @@ export function isCanvasAgentState(value: unknown): value is CanvasAgentState {
 export type LocalBrowserMessage =
   | CodeFocusRequest | CodeFocusState
   | LocalBrowserAgentRequest | LocalBrowserAgentState
+  | LocalBrowserNodeExplanation | LocalBrowserNodeExplanationRequest
+  | LocalBrowserModelExplanation | LocalBrowserModelExplanationRequest
+  | LocalBrowserModelCatalog | LocalBrowserModelCatalogRequest
   | GraphReviewRequest | GraphReviewMessage | GraphReviewFocus | GraphReviewApplied
   | LocalBrowserGraphOpeningMessage
   | LocalBrowserGraphSetupRequestMessage
@@ -1082,7 +1110,7 @@ export type LocalBrowserMessage =
 
 export const LOCAL_BROWSER_MESSAGE_TYPES = [
   'codeFocusRequest', 'codeFocusState',
-  'agentRequest', 'agentState',
+  'agentRequest', 'agentState', 'nodeExplanation', 'nodeExplanationRequest', 'modelExplanation', 'modelExplanationRequest', 'modelCatalog', 'modelCatalogRequest',
   'graphReviewRequest', 'graphReviewState', 'graphReviewFocus', 'graphReviewApplied',
   'graphOpening', 'graphSetupRequest',
   'captureExportRequest', 'captureExportCancel', 'captureExportResult',
@@ -1928,8 +1956,9 @@ export function isLocalBrowserMessage(
     case 'agentRequest': {
       if (!isBoundedString(record.viewId, 128)) return false;
       if (record.action === 'sync' || record.action === 'clear') return Object.keys(record).length === 6;
-      if (record.action === 'discover') return Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'action', 'refresh'].includes(key))
-        && (record.refresh === undefined || typeof record.refresh === 'boolean');
+      if (record.action === 'discover') return Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'action', 'refresh', 'catalogOnly'].includes(key))
+        && (record.refresh === undefined || typeof record.refresh === 'boolean')
+        && (record.catalogOnly === undefined || typeof record.catalogOnly === 'boolean');
       if (record.action === 'configure') return Object.keys(record).length === (record.requestId === undefined ? 8 : 9)
         && (record.requestId === undefined || isBoundedString(record.requestId, 128))
         && ['codex', 'claude'].includes(String(record.provider)) && isCanvasAgentSettings(record.settings);
@@ -1950,6 +1979,35 @@ export function isLocalBrowserMessage(
     }
     case 'agentState':
       return Object.keys(record).length === 6 && isBoundedString(record.viewId, 128) && isCanvasAgentState(record.state);
+    case 'nodeExplanation':
+      return Object.keys(record).length === 7 && isBoundedString(record.viewId, 128)
+        && isLocalBrowserTarget(record.target) && isNodeExplanationState(record.state);
+    case 'modelCatalog':
+      return Object.keys(record).length === 8 && isBoundedString(record.viewId, 128)
+        && isLocalBrowserTarget(record.target) && isBoundedString(record.requestId, 128) && isModelCatalog(record.catalog);
+    case 'modelCatalogRequest':
+      return Object.keys(record).length === (record.action === 'select' ? 9 : 8)
+        && Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'target', 'requestId', 'action', 'modelId'].includes(key))
+        && isBoundedString(record.viewId, 128) && isLocalBrowserTarget(record.target) && isBoundedString(record.requestId, 128)
+        && (record.action === 'list' || (record.action === 'select' && isBoundedString(record.modelId, 128)));
+    case 'modelExplanation':
+      return Object.keys(record).length === 7 && isBoundedString(record.viewId, 128)
+        && isLocalBrowserTarget(record.target) && isModelExplanationState(record.state);
+    case 'modelExplanationRequest':
+      return Object.keys(record).length === (record.settings === undefined ? 9 : 10)
+        && Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'target', 'requestId', 'action', 'nodeIds', 'settings'].includes(key))
+        && isBoundedString(record.viewId, 128) && isLocalBrowserTarget(record.target)
+        && isBoundedString(record.requestId, 128) && Array.isArray(record.nodeIds)
+        && record.nodeIds.length <= 128 && record.nodeIds.every(id => isBoundedString(id, 1024))
+        && new Set(record.nodeIds).size === record.nodeIds.length
+        && (record.action === 'start' ? record.nodeIds.length > 0 && (record.settings === undefined || isCanvasAgentSettings(record.settings))
+          : record.action === 'cancel' && record.nodeIds.length === 0 && record.settings === undefined);
+    case 'nodeExplanationRequest':
+      return Object.keys(record).length === (record.action === 'reveal' ? 10 : 9)
+        && Object.keys(record).every(key => ['type', 'protocolVersion', 'workspaceSessionId', 'messageId', 'viewId', 'target', 'nodeId', 'requestId', 'action', 'citationId'].includes(key))
+        && isBoundedString(record.viewId, 128) && isLocalBrowserTarget(record.target)
+        && isBoundedString(record.nodeId, 1024) && isBoundedString(record.requestId, 128)
+        && (record.action === 'retry' || (record.action === 'reveal' && isBoundedString(record.citationId, 128)));
     case 'graphReviewApplied':
       return Object.keys(record).length === 7 && isBoundedString(record.reviewId, 128)
         && isBoundedString(record.viewId, 128) && ['before', 'diff', 'after'].includes(String(record.mode));

@@ -18,6 +18,20 @@ const page = () => sourceContextPage(oracle.queries[0].page, oracle.sources, ora
 const capture = () => structuredClone(oracle.capture) as CaptureSnapshot;
 
 suite('source/configuration context', () => {
+  test('source documentation validates declaration identity independently of runtime evidence', () => {
+    const value = structuredClone(oracle.queries[0].page);
+    const declaration = value.items.find((item: any) => item.anchor).anchor;
+    value.documentation = { status: 'resolved', qualifiedName: 'UncommonBlock.forward', kind: 'method',
+      signature: 'def forward(self, x, *, mode="custom"):', docstring: 'Author documentation.\n\nDetailed behavior.', truncated: false, declaration };
+    assert.deepEqual(sourceContextPage(value, oracle.sources, oracle.queries[0].query).documentation, value.documentation);
+    for (const update of [{ declaration: { ...declaration, digest: 'f'.repeat(64) } },
+      { declaration: { ...declaration, file: 'private.py' } }, { declaration: { ...declaration, endLine: 99999 } },
+      { signature: 'x'.repeat(2049) }, { docstring: 'x'.repeat(4097) }, { execute: 'project code' }]) {
+      assert.throws(() => sourceContextPage({ ...value, documentation: { ...value.documentation, ...update } }, oracle.sources, oracle.queries[0].query), /did not match/);
+    }
+    assert.deepEqual(sourceContextPage({ ...value, documentation: { status: 'unavailable', reason: 'ambiguous' } }, oracle.sources, oracle.queries[0].query).documentation,
+      { status: 'unavailable', reason: 'ambiguous' });
+  });
   test('actual Python pages pass the host gate and exact source links reach real ATen operations', () => {
     const observed = capture();
     for (const { query, page: value } of oracle.queries) {

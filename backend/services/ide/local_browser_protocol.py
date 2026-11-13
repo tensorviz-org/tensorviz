@@ -41,7 +41,7 @@ LocalBrowserErrorCode = Literal[
 LOCAL_BROWSER_ROLES: Final[frozenset[str]] = frozenset({"host", "view"})
 LOCAL_BROWSER_MESSAGE_TYPES: Final[frozenset[str]] = frozenset(
     {
-        "agentRequest", "agentState",
+        "agentRequest", "agentState", "nodeExplanation", "nodeExplanationRequest", "modelExplanation", "modelExplanationRequest", "modelCatalog", "modelCatalogRequest",
         "graphReviewRequest", "graphReviewState", "graphReviewFocus", "graphReviewApplied",
         "graphOpening", "graphSetupRequest",
         "connected",
@@ -101,6 +101,160 @@ def _is_non_empty_string(value: Any) -> bool:
 
 def _is_bounded_string(value: Any, max_length: int) -> bool:
     return _is_non_empty_string(value) and len(value) <= max_length
+
+
+_NODE_EXPLANATION_WHITESPACE = "\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
+
+
+def _node_explanation_text(value: Any, maximum: int) -> bool:
+    # Match JavaScript string ceilings, including astral characters as two units.
+    return (isinstance(value, str) and bool(value)
+            and len(value.encode("utf-16-le", "surrogatepass")) // 2 <= maximum
+            and value.strip(_NODE_EXPLANATION_WHITESPACE) == value and re.search(r"[\x00-\x1f\x7f]", value) is None)
+
+
+def _node_explanation_citation(value: Any) -> bool:
+    if not isinstance(value, dict) or set(value) != {"id", "file", "sourceDigest", "startLine", "endLine"}:
+        return False
+    file, start, end = value["file"], value["startLine"], value["endLine"]
+    return (_node_explanation_text(value["id"], 128) and _node_explanation_text(file, 4096)
+            and re.match(r"^(?:/|\\|[A-Za-z][A-Za-z0-9+.-]*:)", file) is None
+            and ".." not in re.split(r"[/\\]", file)
+            and isinstance(value["sourceDigest"], str) and _SOURCE_DIGEST.fullmatch(value["sourceDigest"]) is not None
+            and _is_non_negative_integer(start) and 1 <= start <= 9007199254740991
+            and _is_non_negative_integer(end) and start <= end <= 9007199254740991)
+
+
+def _node_explanation(value: Any) -> bool:
+    if (not isinstance(value, dict)
+            or not {"title", "purpose", "inputs", "outputs", "steps", "uncertainties", "citations"} <= set(value)
+            or not set(value) <= {"title", "purpose", "inputs", "outputs", "steps", "uncertainties", "citations", "concepts"}):
+        return False
+    def items(field, count, length):
+        entries = value[field]
+        return isinstance(entries, list) and len(entries) <= count and all(_node_explanation_text(item, length) for item in entries)
+    citations = value["citations"]
+    return (_node_explanation_text(value["title"], 80) and _node_explanation_text(value["purpose"], 320)
+            and items("inputs", 6, 160) and items("outputs", 4, 160)
+            and items("steps", 6, 320) and items("uncertainties", 4, 240)
+            and ("concepts" not in value or isinstance(value["concepts"], list) and len(value["concepts"]) <= 4
+                 and all(isinstance(concept, dict) and set(concept) == {"term", "explanation"}
+                         and _node_explanation_text(concept["term"], 80)
+                         and _node_explanation_text(concept["explanation"], 320) for concept in value["concepts"]))
+            and isinstance(citations, list) and 1 <= len(citations) <= 8
+            and all(_node_explanation_citation(item) for item in citations)
+            and len({item["id"] for item in citations}) == len(citations))
+
+
+def _node_source_documentation(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    if value.get("status") == "unavailable":
+        return (set(value) == {"status", "reason"} and isinstance(value.get("reason"), str)
+                and value["reason"] in ("ambiguous", "dynamic_binding", "decorated", "unresolved_import", "unresolved_symbol", "unsupported_callable", "analysis_limit"))
+    docstring = value.get("docstring")
+    return (value.get("status") == "resolved"
+            and set(value) <= {"status", "qualifiedName", "kind", "signature", "docstring", "truncated", "citation"}
+            and _node_explanation_text(value.get("qualifiedName"), 512)
+            and _node_explanation_text(value.get("signature"), 2048)
+            and isinstance(value.get("kind"), str) and value["kind"] in ("function", "method", "class")
+            and isinstance(value.get("truncated"), bool) and _node_explanation_citation(value.get("citation"))
+            and ("docstring" not in value or isinstance(docstring, str) and bool(docstring)
+                 and len(docstring.encode("utf-16-le", "surrogatepass")) // 2 <= 4096 and docstring.strip(_NODE_EXPLANATION_WHITESPACE) == docstring
+                 and all(ord(character) >= 32 and ord(character) != 127 or character in "\t\n\r" for character in docstring)))
+
+
+def _node_explanation_state(value: Any) -> bool:
+    return (isinstance(value, dict)
+            and set(value) <= {"requestId", "nodeId", "revision", "status", "detail", "explanation", "documentation"}
+            and _node_explanation_text(value.get("requestId"), 128)
+            and _node_explanation_text(value.get("nodeId"), 1024)
+            and _node_explanation_text(value.get("revision"), 256)
+            and isinstance(value.get("status"), str) and value["status"] in ("queued", "loading", "ready", "unavailable")
+            and ("detail" not in value or _node_explanation_text(value["detail"], 320))
+            and ("documentation" not in value or _node_source_documentation(value["documentation"]))
+            and (_node_explanation(value.get("explanation")) if value["status"] == "ready" else "explanation" not in value))
+
+
+def _view_explanation_node_ids(value: Any) -> bool:
+    return (isinstance(value, list) and 1 <= len(value) <= 128
+            and all(_node_explanation_text(node_id, 1024) for node_id in value)
+            and len(set(value)) == len(value))
+
+
+def _view_explanation_citations(value: Any) -> bool:
+    return (isinstance(value, list) and 1 <= len(value) <= 8
+            and all(_node_explanation_citation(citation) for citation in value)
+            and len({citation["id"] for citation in value}) == len(value))
+
+
+def _view_explanation(value: Any) -> bool:
+    if (not isinstance(value, dict) or set(value) != {"summary", "nodeIds", "connections", "callouts"}
+            or not _node_explanation_text(value["summary"], 640) or not _view_explanation_node_ids(value["nodeIds"])
+            or not isinstance(value["connections"], list) or len(value["connections"]) > 128
+            or not isinstance(value["callouts"], list) or len(value["callouts"]) > 6):
+        return False
+    nodes = set(value["nodeIds"])
+    connections = set()
+    for connection in value["connections"]:
+        if (not isinstance(connection, dict)
+                or not {"sourceNodeId", "targetNodeId", "label", "citations"} <= set(connection)
+                or not set(connection) <= {"sourceNodeId", "targetNodeId", "label", "detail", "citations"}
+                or not _node_explanation_text(connection["sourceNodeId"], 1024)
+                or not _node_explanation_text(connection["targetNodeId"], 1024)
+                or connection["sourceNodeId"] not in nodes or connection["targetNodeId"] not in nodes
+                or not _node_explanation_text(connection["label"], 120)
+                or "detail" in connection and not _node_explanation_text(connection["detail"], 320)
+                or not _view_explanation_citations(connection["citations"])):
+            return False
+        pair = (connection["sourceNodeId"], connection["targetNodeId"])
+        if pair in connections:
+            return False
+        connections.add(pair)
+    return all(isinstance(callout, dict) and set(callout) == {"title", "body", "nodeIds", "citations"}
+               and _node_explanation_text(callout["title"], 80) and _node_explanation_text(callout["body"], 480)
+               and _view_explanation_node_ids(callout["nodeIds"])
+               and all(node_id in nodes for node_id in callout["nodeIds"])
+               and _view_explanation_citations(callout["citations"]) for callout in value["callouts"])
+
+
+def _model_explanation_state(value: Any) -> bool:
+    return (isinstance(value, dict)
+            and set(value) <= {"requestId", "revision", "status", "completed", "total", "detail", "execution", "view"}
+            and _node_explanation_text(value.get("requestId"), 128)
+            and _node_explanation_text(value.get("revision"), 256)
+            and isinstance(value.get("status"), str) and value["status"] in ("loading", "ready", "unavailable", "cancelled")
+            and _is_non_negative_integer(value.get("completed")) and _is_non_negative_integer(value.get("total"))
+            and value["completed"] <= value["total"] <= 10000
+            and ("detail" not in value or _node_explanation_text(value["detail"], 320))
+            and ("execution" not in value or isinstance(value["execution"], dict)
+                 and set(value["execution"]) <= {"provider", "model", "effort"}
+                 and value["execution"].get("provider") in ("codex", "claude")
+                 and ("model" not in value["execution"] or _node_explanation_text(value["execution"]["model"], 256))
+                 and ("effort" not in value["execution"] or _node_explanation_text(value["execution"]["effort"], 32)))
+            and ("view" not in value or _view_explanation(value["view"])
+                 and len(value["view"]["nodeIds"]) == value["total"]))
+
+
+def _model_catalog(value: Any) -> bool:
+    if (not isinstance(value, dict) or not set(value) <= {"status", "models", "activeId", "detail", "truncated"}
+            or not isinstance(value.get("status"), str) or value["status"] not in ("loading", "ready", "unavailable")
+            or not isinstance(value.get("models"), list) or len(value["models"]) > 2000):
+        return False
+    for model in value["models"]:
+        if (not isinstance(model, dict) or set(model) != {"id", "cls", "file", "evidence", "opened"}
+                or not _node_explanation_text(model["id"], 128) or not _node_explanation_text(model["cls"], 512)
+                or not _node_explanation_text(model["file"], 4096)
+                or re.match(r"^(?:/|\\|[A-Za-z][A-Za-z0-9+.-]*:)", model["file"]) is not None
+                or any(part in ("", ".", "..") for part in re.split(r"[/\\]", model["file"]))
+                or not isinstance(model["evidence"], str) or model["evidence"] not in ("source", "captured")
+                or not isinstance(model["opened"], bool)):
+            return False
+    ids = {model["id"] for model in value["models"]}
+    return (len(ids) == len(value["models"])
+            and ("activeId" not in value or _node_explanation_text(value["activeId"], 128) and value["activeId"] in ids)
+            and ("detail" not in value or _node_explanation_text(value["detail"], 320))
+            and ("truncated" not in value or isinstance(value["truncated"], bool)))
 
 
 def _is_non_negative_integer(value: Any) -> bool:
@@ -640,6 +794,40 @@ def is_local_browser_message(value: Any, expected_workspace_session_id: str | No
 
     message_type = value["type"]
 
+    if message_type == "nodeExplanation":
+        return (len(value) == 7 and _is_bounded_string(value.get("viewId"), 128)
+                and _target_is_valid(value.get("target")) and _node_explanation_state(value.get("state")))
+    if message_type == "modelCatalog":
+        return (len(value) == 8 and _is_bounded_string(value.get("viewId"), 128)
+                and _target_is_valid(value.get("target")) and _is_bounded_string(value.get("requestId"), 128)
+                and _model_catalog(value.get("catalog")))
+    if message_type == "modelCatalogRequest":
+        action = value.get("action")
+        return (len(value) == (9 if action == "select" else 8)
+                and set(value) <= {"type", "protocolVersion", "workspaceSessionId", "messageId", "viewId", "target", "requestId", "action", "modelId"}
+                and _is_bounded_string(value.get("viewId"), 128) and _target_is_valid(value.get("target"))
+                and _is_bounded_string(value.get("requestId"), 128)
+                and (action == "list" or action == "select" and _is_bounded_string(value.get("modelId"), 128)))
+    if message_type == "modelExplanation":
+        return (len(value) == 7 and _is_bounded_string(value.get("viewId"), 128)
+                and _target_is_valid(value.get("target")) and _model_explanation_state(value.get("state")))
+    if message_type == "modelExplanationRequest":
+        action, node_ids = value.get("action"), value.get("nodeIds")
+        return (len(value) == (10 if "settings" in value else 9)
+                and set(value) <= {"type", "protocolVersion", "workspaceSessionId", "messageId", "viewId", "target", "requestId", "action", "nodeIds", "settings"}
+                and _is_bounded_string(value.get("viewId"), 128) and _target_is_valid(value.get("target"))
+                and _is_bounded_string(value.get("requestId"), 128) and isinstance(node_ids, list)
+                and len(node_ids) <= 128 and all(_is_bounded_string(node_id, 1024) for node_id in node_ids)
+                and len(set(node_ids)) == len(node_ids)
+                and (len(node_ids) > 0 and ("settings" not in value or _agent_settings(value["settings"]))
+                     if action == "start" else action == "cancel" and len(node_ids) == 0 and "settings" not in value))
+    if message_type == "nodeExplanationRequest":
+        action = value.get("action")
+        return (len(value) == (10 if action == "reveal" else 9)
+                and set(value) <= {"type", "protocolVersion", "workspaceSessionId", "messageId", "viewId", "target", "nodeId", "requestId", "action", "citationId"}
+                and _is_bounded_string(value.get("viewId"), 128) and _target_is_valid(value.get("target"))
+                and _is_bounded_string(value.get("nodeId"), 1024) and _is_bounded_string(value.get("requestId"), 128)
+                and (action == "retry" or action == "reveal" and _is_bounded_string(value.get("citationId"), 128)))
     if message_type == "agentRequest":
         if not _is_bounded_string(value.get("viewId"), 128):
             return False
@@ -647,8 +835,9 @@ def is_local_browser_message(value: Any, expected_workspace_session_id: str | No
         if action in ("sync", "clear"):
             return len(value) == 6
         if action == "discover":
-            return (set(value) <= {"type", "protocolVersion", "workspaceSessionId", "messageId", "viewId", "action", "refresh"}
-                    and ("refresh" not in value or isinstance(value["refresh"], bool)))
+            return (set(value) <= {"type", "protocolVersion", "workspaceSessionId", "messageId", "viewId", "action", "refresh", "catalogOnly"}
+                    and ("refresh" not in value or isinstance(value["refresh"], bool))
+                    and ("catalogOnly" not in value or isinstance(value["catalogOnly"], bool)))
         if action == "configure":
             return (len(value) == (9 if "requestId" in value else 8)
                     and ("requestId" not in value or _is_bounded_string(value["requestId"], 128))

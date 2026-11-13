@@ -13,6 +13,9 @@ const run = (command, args, options, input = '') => new Promise((resolve, reject
   child.stderr.on('data', bytes => stderr += bytes);
   child.once('error', reject);
   child.once('close', (status, signal) => resolve({ status, signal, stdout, stderr }));
+  // Rejection paths may exit before the fixture finishes writing stdin. Keep
+  // checking their exit status and stderr; only the resulting EPIPE is benign.
+  child.stdin.on('error', error => { if (error.code !== 'EPIPE') reject(error); });
   child.stdin.end(input);
 });
 const ssh = { SSH_CONNECTION: '192.0.2.1 12345 192.0.2.2 22', SSH_CLIENT: '192.0.2.1 12345 22',
@@ -41,7 +44,7 @@ async function fixture(system, architecture) {
   const env = { HOME: home, TMPDIR: tmp, PATH: `${bin}:/usr/bin:/bin`,
     FIXTURE_ARCHIVE: path.join(root, 'runtime.tar.gz'), DOWNLOAD_LOG: path.join(root, 'downloads'), EXEC_LOG: path.join(root, 'executions') };
   return { root, home, tmp, plugin, env,
-    launch: (flags, input) => run('/bin/sh', [path.join(scripts, 'launch.sh')], { cwd: root, env: { ...env, ...flags } }, input),
+    launch: (flags, input, args = []) => run('/bin/sh', [path.join(scripts, 'launch.sh'), ...args], { cwd: root, env: { ...env, ...flags } }, input),
     close: () => fs.rm(root, { recursive: true, force: true }) };
 }
 
@@ -176,3 +179,78 @@ sys.exit(17 if os.environ['HOST_MODE'] == 'failure' else 0)
     } finally { await f.close(); }
   });
 }
+
+for (const [system, architecture, platform, abi] of [
+  ['Darwin', 'arm64', 'darwin-arm64', 'cpython-312-darwin'],
+  ['Linux', 'x86_64', 'linux-x64', 'cpython-312-x86_64-linux-gnu'],
+]) test(`${platform} can isolate its runtime cache without changing the user's home`, async () => {
+  const f = await fixture(system, architecture);
+  try {
+    const payload = path.join(f.root, 'payload'); await fs.mkdir(payload);
+    await fs.writeFile(path.join(payload, 'tensorviz-host'), '#!/bin/sh\ncat\n', { mode: 0o755 });
+    assert.equal((await run('/usr/bin/tar', ['-czf', f.env.FIXTURE_ARCHIVE, '-C', payload, 'tensorviz-host'], { env: f.env })).status, 0);
+    const archive = await fs.readFile(f.env.FIXTURE_ARCHIVE);
+    const entry = { formatVersion: 1, version: '0.3.61', platform, pythonABI: abi, bytes: archive.length,
+      sha256: createHash('sha256').update(archive).digest('hex'), url: 'https://127.0.0.1:1/runtime.tar.gz' };
+    await fs.writeFile(path.join(f.plugin, 'runtime-lock.json'), JSON.stringify(entry));
+    const directory = path.join(f.root, 'isolated cache with spaces');
+    const flags = { TENSORVIZ_RUNTIME_CACHE_DIR: directory };
+    for (let count = 0; count < 2; count++) {
+      const result = await f.launch(flags, 'synthetic-request\n');
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout, 'synthetic-request\n');
+    }
+    const defaultCache = path.join(f.home, platform === 'darwin-arm64' ? 'Library/Caches' : '.cache', 'dev.tensorviz/runtime');
+    assert.equal(await fs.stat(defaultCache).catch(() => null), null, 'explicit cache must not create a default TensorViz cache');
+    assert.equal(await fs.readFile(f.env.DOWNLOAD_LOG, 'utf8'), 'download\n');
+    const cached = path.join(directory, `${entry.sha256}.tar.gz`);
+    await fs.writeFile(cached, 'truncated');
+    const damaged = await f.launch(flags);
+    assert.equal(damaged.status, 1);
+    assert.ok(damaged.stderr.includes(`Remove ${cached} and reconnect`), 'size errors must identify the exact recoverable archive');
+    assert.equal(damaged.stdout, '');
+    assert.deepEqual(await fs.readdir(f.tmp), []);
+    const relative = await f.launch({ TENSORVIZ_RUNTIME_CACHE_DIR: 'relative-cache' });
+    assert.equal(relative.status, 1);
+    assert.match(relative.stderr, /absolute path/);
+    assert.equal(await fs.stat(path.join(f.root, 'relative-cache')).catch(() => null), null);
+    const link = path.join(f.root, 'cache-link'); await fs.symlink(directory, link);
+    const linked = await f.launch({ TENSORVIZ_RUNTIME_CACHE_DIR: link });
+    assert.equal(linked.status, 1);
+    assert.match(linked.stderr, /symbolic link/);
+  } finally { await f.close(); }
+});
+
+for (const [system, architecture, platform, abi] of [
+  ['Darwin', 'arm64', 'darwin-arm64', 'cpython-312-darwin'],
+  ['Linux', 'x86_64', 'linux-x64', 'cpython-312-x86_64-linux-gnu'],
+]) test(`${platform} can prefetch a verified runtime without extracting or executing it`, async () => {
+  const f = await fixture(system, architecture);
+  try {
+    const payload = path.join(f.root, 'payload'); await fs.mkdir(payload);
+    await fs.writeFile(path.join(payload, 'tensorviz-host'), '#!/bin/sh\necho ran >> "$EXEC_LOG"\n', { mode: 0o755 });
+    assert.equal((await run('/usr/bin/tar', ['-czf', f.env.FIXTURE_ARCHIVE, '-C', payload, 'tensorviz-host'], { env: f.env })).status, 0);
+    const archive = await fs.readFile(f.env.FIXTURE_ARCHIVE);
+    const entry = { formatVersion: 1, version: '0.3.61', platform, pythonABI: abi, bytes: archive.length,
+      sha256: createHash('sha256').update(archive).digest('hex'), url: 'https://127.0.0.1:1/runtime.tar.gz' };
+    await fs.writeFile(path.join(f.plugin, 'runtime-lock.json'), JSON.stringify(entry));
+    const directory = path.join(f.root, 'prefetch cache');
+    const flags = { TENSORVIZ_RUNTIME_CACHE_DIR: directory };
+    for (let count = 0; count < 2; count++) {
+      const result = await f.launch(flags, '', ['--prepare-runtime']);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout, '', 'prefetch must never write MCP stdout');
+      assert.match(result.stderr, /verified and cached/);
+    }
+    assert.equal(await fs.readFile(f.env.DOWNLOAD_LOG, 'utf8'), 'download\n');
+    assert.equal(await fs.stat(f.env.EXEC_LOG).catch(() => null), null, 'prefetch must not execute the host');
+    assert.deepEqual(await fs.readdir(f.tmp), [], 'prefetch must not extract a session');
+    const cached = path.join(directory, `${entry.sha256}.tar.gz`);
+    const corrupt = Buffer.from(archive); corrupt[0] ^= 1; await fs.writeFile(cached, corrupt);
+    const damaged = await f.launch(flags, '', ['--prepare-runtime']);
+    assert.equal(damaged.status, 1); assert.match(damaged.stderr, /damaged/);
+    const invalid = await f.launch(flags, '', ['--prepare-runtime', '--unexpected']);
+    assert.equal(invalid.status, 1); assert.match(invalid.stderr, /additional arguments/);
+    assert.equal(await fs.stat(f.env.EXEC_LOG).catch(() => null), null);
+  } finally { await f.close(); }
+});

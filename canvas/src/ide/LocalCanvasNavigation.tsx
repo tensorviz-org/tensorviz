@@ -13,6 +13,7 @@ import { setCanvasThemePreference, useCanvasTheme } from '../styles/canvasTheme'
 import CodeFocusControls from './CodeFocusControls';
 import type { LayoutDirection } from '../canvas/edgeAnchors';
 import type { LayoutChoice } from './layoutDirection';
+import ModelExplanationControl from './ModelExplanationControl';
 
 const DIRECTION_ICON = { horizontal: GitCommitHorizontal, vertical: GitCommitVertical };
 const LAYOUT_LABEL = { auto: 'Auto', horizontal: 'Horizontal', vertical: 'Vertical' };
@@ -58,6 +59,7 @@ export default function LocalCanvasNavigation({ onFind, onReveal, hasSelection, 
   const header = <>
       <div className="local-canvas-tool-group" role="group" aria-label="Graph view">
       <CodeFocusControls compact={compact} />
+      {!context?.reviewing && <ModelExplanationControl compact={!!compact} />}
       {!context?.reviewing && <GraphDetailToggle level={detailLevel} compact={compact} />}
       <CanvasTooltip text="Find a layer by name and move the view to it. Press ⌘ / Ctrl P."><button ref={findButtonRef} type="button" className="local-canvas-control" aria-label="Find a layer" title="Find a layer (⌘P)"
         onClick={onFind}><Search size={15} aria-hidden="true" /></button></CanvasTooltip>

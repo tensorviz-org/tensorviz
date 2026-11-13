@@ -79,9 +79,11 @@ Graph projection keeps node and edge creation in the same tldraw batches. When t
 
 Run `npm ci --prefix docs` and `npm run dev --prefix docs` for a local
 preview. The documentation workflow builds on matching pull requests and main
-updates. Deployment requires a configured GitHub Pages site and the repository
-Actions variable `PAGES_ENABLED=true`; it is off by default. See the
-[documentation guide](documentation-site.md).
+updates. Deployment uses the isolated Firebase Hosting documentation project
+and requires `DOCS_PUBLISH_ENABLED=true` plus the configured repository Actions
+variables for the project, site, workload identity provider, and deploy service
+account. Only trusted upstream `main` push or manual runs can deploy; fork PRs
+only validate the docs. See the [documentation guide](documentation-site.md).
 
 The docs header and favicon use the original mark from
 [`canvas/public/favicon.svg`](../canvas/public/favicon.svg). Keep the three logo

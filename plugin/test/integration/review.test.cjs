@@ -1,3 +1,4 @@
+const { copyBuiltPlugin } = require('../fixtures/plugin.cjs');
 const { readyService } = require('../fixtures/service.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -17,7 +18,7 @@ test('copied plugin reviews saved Git source without capture and does not fabric
   let client;
   try {
     await fs.mkdir(project);
-    await fs.cp(path.resolve(__dirname, '../../../plugins/tensorviz'), plugin, { recursive: true });
+    await copyBuiltPlugin(plugin);
     await readyService(plugin, path.join(root, 'state'));
     const marker = path.join(project, 'imported');
     const source = activation => `from pathlib import Path\nPath(${JSON.stringify(marker)}).touch()\nraise RuntimeError('Neither revision may be imported')\nfrom torch import nn\nclass Tiny(nn.Module):\n def __init__(self):\n  super().__init__()\n  self.fc = nn.Linear(4, 3)\n  self.activation = nn.${activation}()\n def forward(self,x):\n  return self.activation(self.fc(x))\n`;

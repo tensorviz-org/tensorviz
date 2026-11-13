@@ -247,7 +247,8 @@ export class LocalBrowserSourceEdits {
 
   /** Current base buffers only. The existing reader owns file/trust authority;
    * the parser receives text and never opens or imports project files. */
-  async querySourceContext(target: LocalBrowserTargetIdentity, requested: SourceContextQuery): Promise<SourceContextResult> {
+  async querySourceContext(target: LocalBrowserTargetIdentity, requested: SourceContextQuery, signal?: AbortSignal): Promise<SourceContextResult> {
+    signal?.throwIfAborted();
     const parsed = sourceContextQuerySchema.safeParse(requested);
     if (!parsed.success) throw new GraphToolError('INVALID_QUERY', 'Use a bounded source symbol or exact index anchors.');
     const query = parsed.data, current = this.modelFileGuard(target);
@@ -276,6 +277,9 @@ export class LocalBrowserSourceEdits {
     const check = () => { if (!stillCurrent()) throw new GraphToolError('STALE_TARGET', 'Source or dependencies changed. Refresh the graph and repeat the query.'); };
     check();
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 10_000);
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) controller.abort();
     try {
       const response = await (this.options.fetchImpl ?? fetch)(`${origin}/api/ide/source-context`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-tensorViz-Token': token }, redirect: 'error',
@@ -315,7 +319,7 @@ export class LocalBrowserSourceEdits {
     } catch (error) {
       if (error instanceof GraphToolError) throw error;
       throw new GraphToolError('SOURCE_CONTEXT_UNAVAILABLE', 'The local source query failed or timed out. No source was changed or executed.');
-    } finally { clearTimeout(timer); }
+    } finally { clearTimeout(timer); signal?.removeEventListener('abort', abort); }
   }
 
   private modelFileGuard(target: LocalBrowserTargetIdentity, relative = target.file): (applying?: boolean) => boolean {

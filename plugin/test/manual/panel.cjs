@@ -11,13 +11,15 @@ const { build } = require('esbuild');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
 const { ElicitRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
+const { readyService } = require('../fixtures/service.cjs');
 
 (async () => {
   const python = process.env.TENSORVIZ_TEST_PYTHON;
   assert.ok(python && path.isAbsolute(python), 'Set an explicit compatible test interpreter.');
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-panel-acceptance-')));
   const project = path.join(root, 'project');
-  const plugin = process.env.TENSORVIZ_TEST_PLUGIN ?? path.resolve(__dirname, '../../../plugins/tensorviz');
+  const native = process.env.TENSORVIZ_TEST_RUNTIME;
+  const plugin = native ?? process.env.TENSORVIZ_TEST_PLUGIN ?? path.resolve(__dirname, '../../../plugins/tensorviz');
   const token = randomUUID(), base = `/${token}`;
   await fs.mkdir(project);
   const source = activation => `from torch import nn\nclass Tiny(nn.Module):\n def __init__(self):\n  super().__init__()\n  self.fc = nn.Linear(4, 3)\n  self.activation = nn.${activation}()\n def forward(self, x):\n  return self.activation(self.fc(x))\n`;
@@ -28,7 +30,9 @@ const { ElicitRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
     assert.ok(request.params.message.includes(project) && request.params.message.includes(python));
     return { action: 'accept', content: { confirm: true } };
   });
-  await client.connect(new StdioClientTransport({ command: process.execPath, args: [path.join(plugin, 'runtime/host.cjs')], cwd: root,
+  if (process.env.TENSORVIZ_TEST_SERVICE_PYTHON) await readyService(plugin, path.join(root, 'state'));
+  await client.connect(new StdioClientTransport({ command: native ? path.join(plugin, 'tensorviz-host') : process.execPath,
+    args: native ? [] : [path.join(plugin, 'runtime/host.cjs')], cwd: root,
     env: { PATH: '', TENSORVIZ_DATA_DIR: path.join(root, 'state') }, stderr: 'inherit' }));
   const call = async (name, args = {}) => {
     const result = await client.callTool({ name, arguments: args });
@@ -55,7 +59,11 @@ const { ElicitRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
     const bridge = new AppBridge(null, { name: 'TensorViz acceptance harness', version: '1' }, { serverTools: {}, updateModelContext: {} },
       { hostContext: { theme: 'dark', displayMode: 'fullscreen', availableDisplayModes: ['fullscreen'] } });
     bridge.oncalltool = args => api('tool', args);
-    bridge.onupdatemodelcontext = async args => { document.querySelector('#context').textContent = JSON.stringify(args.structuredContent); await api('context', args); return {}; };
+    bridge.onupdatemodelcontext = async args => {
+      const value = args.structuredContent?.tensorviz;
+      document.querySelector('#context').textContent = JSON.stringify(value && { viewId: value.viewId, nodeIds: value.nodeIds, edgeIds: value.edgeIds, tooLarge: value.tooLarge });
+      await api('context', args); return {};
+    };
     bridge.oninitialized = async () => { await bridge.sendToolInput({ arguments: {} }); await bridge.sendToolResult(await api('open')); };
     bridge.connect(new PostMessageTransport(frame.contentWindow, frame.contentWindow)).then(() => { frame.src = '${base}/panel'; });
   `, resolveDir: path.resolve(__dirname, '../..') }, bundle: true, platform: 'browser', format: 'iife', write: false });
@@ -87,7 +95,12 @@ const { ElicitRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   origin = `http://127.0.0.1:${server.address().port}`;
-  console.log(JSON.stringify({ url: `${origin}${base}/`, root, event: 'ready' }));
+  const handoffFile = process.env.TENSORVIZ_TEST_HANDOFF_FILE;
+  if (handoffFile) {
+    assert.ok(path.isAbsolute(handoffFile), 'Use an absolute task-owned handoff file.');
+    await fs.writeFile(handoffFile, JSON.stringify({ url: `${origin}${base}/` }), { mode: 0o600 });
+    console.log(JSON.stringify({ event: 'ready', handoff: 'written privately', scope: 'synthetic MCP Apps bridge' }));
+  } else console.log(JSON.stringify({ url: `${origin}${base}/`, root, event: 'ready' }));
   const input = readline.createInterface({ input: process.stdin });
   try {
     for await (const line of input) {
@@ -103,7 +116,7 @@ const { ElicitRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
         else if (command.action === 'focus') result = await call('focus_view', { ...ref, viewId: command.viewId, nodeIds: [command.nodeId] });
         else if (command.action === 'selection') result = await call('get_selection', { ...ref, viewId: command.viewId });
         else throw new Error('Unknown command');
-        console.log(JSON.stringify({ event: command.action, result }));
+        console.log(JSON.stringify({ event: command.action, result }).replaceAll(root, '$FIXTURE_ROOT'));
       } catch (error) { console.log(JSON.stringify({ event: 'error', message: error.message })); }
     }
   } finally { input.close(); process.stdin.pause(); server.close(); server.closeAllConnections(); await client.close(); await fs.rm(root, { recursive: true, force: true }); }

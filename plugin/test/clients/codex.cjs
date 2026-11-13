@@ -6,12 +6,13 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 const { createInterface } = require('node:readline');
+const { checkClientRecovery } = require('../fixtures/client-recovery.cjs');
 
 const agentTest = process.env.TENSORVIZ_TEST_CODEX_AGENT === '1';
 const installationConsent = process.env.TENSORVIZ_TEST_INSTALL_PERMISSIONS === '1';
 
 test(agentTest ? 'Codex selects the installed skill and captures during an ordinary model task'
-  : 'Codex installs the copied plugin, captures through native elicitation, and uninstalls cleanly', { timeout: agentTest ? 300000 : process.platform === 'linux' ? 240000 : 120000 }, async () => {
+  : 'Codex installs the copied plugin, captures through native elicitation, and uninstalls cleanly', { timeout: agentTest ? 300000 : process.platform === 'linux' ? 240000 : 180000 }, async () => {
   const python = process.env.TENSORVIZ_TEST_PYTHON;
   assert.ok(python && path.isAbsolute(python), 'Set TENSORVIZ_TEST_PYTHON to an existing compatible interpreter.');
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-codex-client-')));
@@ -61,7 +62,7 @@ test(agentTest ? 'Codex selects the installed skill and captures during an ordin
     const mcp = JSON.parse(await fs.readFile(mcpFile, 'utf8'));
     mcp.mcpServers.tensorviz.env = { ...mcp.mcpServers.tensorviz.env, TENSORVIZ_DATA_DIR: env.TENSORVIZ_DATA_DIR };
     if (process.env.TENSORVIZ_TEST_DOWNLOAD_CA) mcp.mcpServers.tensorviz.env = { ...mcp.mcpServers.tensorviz.env,
-      HOME: path.join(root, 'runtime-home'), CURL_CA_BUNDLE: process.env.TENSORVIZ_TEST_DOWNLOAD_CA };
+      TENSORVIZ_RUNTIME_CACHE_DIR: path.join(root, 'runtime-cache'), CURL_CA_BUNDLE: process.env.TENSORVIZ_TEST_DOWNLOAD_CA };
     await fs.writeFile(mcpFile, JSON.stringify(mcp));
     await fs.writeFile(path.join(marketplace, '.agents/plugins/marketplace.json'), JSON.stringify({ name: 'tensorviz-standalone', plugins: [{
       name: 'tensorviz', source: { source: 'local', path: './plugins/tensorviz' },
@@ -209,6 +210,22 @@ test(agentTest ? 'Codex selects the installed skill and captures during an ordin
     assert.equal(await fs.readFile(path.join(project, 'tensorviz.toml'), 'utf8'), recipe);
     assert.equal(await fs.readFile(path.join(project, 'model.py'), 'utf8'), modelSource);
     console.log(`Captured Tiny and inspected measured shapes through Codex with ${approvals} TensorViz permission prompts.`);
+    if (!agentTest) {
+      const pendingPanels = new Set();
+      for (let count = 0; count < 16; count++) {
+        const reply = await request('mcpServer/tool/call', { threadId, server: server.name,
+          tool: 'open_graph_panel', arguments: {} });
+        assert.ok(!reply.isError, JSON.stringify(reply));
+        assert.equal(reply.structuredContent.displayed, false);
+        assert.ok(reply._meta.panelId);
+        assert.ok(!pendingPanels.has(reply._meta.panelId), 'every opener keeps a distinct frame identity, including at capacity');
+        assert.equal(reply.structuredContent.status, 'awaiting_view');
+        assert.equal(reply.structuredContent.fallbackTool, 'open_graph_view');
+        pendingPanels.add(reply._meta.panelId);
+      }
+      console.log('Sixteen unopened graph requests retained distinct identities without exhausting the panel budget through the Codex bridge.');
+      await checkClientRecovery({ call, project, python, model: modelSource, recipe, initial: capture });
+    }
     const exited = new Promise(resolve => child.once('exit', resolve));
     child.stdin.end();
     stopGroup(child.pid);

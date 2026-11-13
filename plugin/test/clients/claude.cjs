@@ -7,8 +7,9 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 const { createInterface } = require('node:readline');
+const { checkClientRecovery } = require('../fixtures/client-recovery.cjs');
 
-test('Claude installs the standalone plugin and captures through its native MCP bridge', { timeout: 120000 }, async () => {
+test('Claude installs the standalone plugin and captures through its native MCP bridge', { timeout: 180000 }, async () => {
   const python = process.env.TENSORVIZ_TEST_PYTHON;
   assert.ok(python && path.isAbsolute(python), 'Set TENSORVIZ_TEST_PYTHON to a compatible interpreter.');
   const cli = process.env.TENSORVIZ_TEST_CLAUDE || 'claude';
@@ -39,7 +40,7 @@ test('Claude installs the standalone plugin and captures through its native MCP 
     const mcp = JSON.parse(await fs.readFile(mcpFile, 'utf8'));
     mcp.mcpServers.tensorviz.env = { ...mcp.mcpServers.tensorviz.env, TENSORVIZ_DATA_DIR: env.TENSORVIZ_DATA_DIR };
     if (process.env.TENSORVIZ_TEST_DOWNLOAD_CA) mcp.mcpServers.tensorviz.env = { ...mcp.mcpServers.tensorviz.env,
-      HOME: path.join(root, 'runtime-home'), CURL_CA_BUNDLE: process.env.TENSORVIZ_TEST_DOWNLOAD_CA };
+      TENSORVIZ_RUNTIME_CACHE_DIR: path.join(root, 'runtime-cache'), CURL_CA_BUNDLE: process.env.TENSORVIZ_TEST_DOWNLOAD_CA };
     await fs.writeFile(mcpFile, JSON.stringify(mcp));
     cliRun(['plugin', 'marketplace', 'add', marketplace]);
     cliRun(['plugin', 'install', 'tensorviz@tensorviz-standalone', '--scope', 'user']);
@@ -130,6 +131,19 @@ test('Claude installs the standalone plugin and captures through its native MCP 
     assert.deepEqual(fc.calls[0].inputs.tensors[0].shape, [2, 4]);
     assert.deepEqual(fc.calls[0].outputs.tensors[0].shape, [2, 3]);
     console.log('Captured Tiny and inspected measured shapes through Claude with one saved plugin permission.');
+    const pendingPanels = new Set();
+    for (let count = 0; count < 16; count++) {
+      const reply = await request({ subtype: 'mcp_call', tool: 'mcp__plugin_tensorviz_tensorviz__open_graph_panel', arguments: {} });
+      assert.ok(!reply.isError, JSON.stringify(reply));
+      assert.equal(reply.structuredContent.displayed, false);
+      assert.ok(reply._meta.panelId);
+      assert.ok(!pendingPanels.has(reply._meta.panelId), 'every opener keeps a distinct frame identity, including at capacity');
+      assert.equal(reply.structuredContent.status, 'awaiting_view');
+      assert.equal(reply.structuredContent.fallbackTool, 'open_graph_view');
+      pendingPanels.add(reply._meta.panelId);
+    }
+    console.log('Sixteen unopened graph requests retained distinct identities without exhausting the panel budget through the Claude bridge.');
+    await checkClientRecovery({ call, project, python, model, recipe, initial: capture });
     child.stdin.end();
     await new Promise(resolve => child.once('exit', resolve));
     stop(child.pid); child = undefined;

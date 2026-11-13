@@ -4,7 +4,7 @@ import CanvasTooltip from '../components/CanvasTooltip';
 import { X } from 'lucide-react';
 
 /** Header/footer popovers stay outside clipping containers, including fullscreen. */
-export default function CanvasPopover({ label, title = label, trigger, children, className = '', panelClassName = '', role = 'dialog', testId, shortcut, help, disabled = false, width = 304 }: {
+export default function CanvasPopover({ label, title = label, trigger, children, className = '', panelClassName = '', role = 'dialog', testId, shortcut, help, disabled = false, width = 304, initialFocusSelector, onOpen }: {
   label: string;
   help?: string;
   title?: string;
@@ -14,6 +14,8 @@ export default function CanvasPopover({ label, title = label, trigger, children,
   panelClassName?: string;
   disabled?: boolean;
   width?: number;
+  initialFocusSelector?: string;
+  onOpen?(): void;
   role?: 'dialog' | 'menu';
   testId?: string;
   shortcut?: string;
@@ -60,9 +62,10 @@ export default function CanvasPopover({ label, title = label, trigger, children,
   const positioned = position !== null;
   React.useEffect(() => {
     if (!open || !positioned) return;
-    const selected = role === 'menu' ? panel.current?.querySelector<HTMLElement>('[role="menuitemradio"][aria-checked="true"]:not(:disabled)') : null;
+    const selected = initialFocusSelector ? panel.current?.querySelector<HTMLElement>(initialFocusSelector)
+      : role === 'menu' ? panel.current?.querySelector<HTMLElement>('[role="menuitemradio"][aria-checked="true"]:not(:disabled)') : null;
     (selected ?? panel.current)?.focus();
-  }, [open, positioned, role]);
+  }, [open, positioned, role, initialFocusSelector]);
   React.useEffect(() => {
     if (!shortcut || disabled) return;
     const onKey = (event: KeyboardEvent) => {
@@ -70,11 +73,12 @@ export default function CanvasPopover({ label, title = label, trigger, children,
       if ((event.target as HTMLElement)?.closest('input, textarea, select, [contenteditable="true"]')) return;
       event.preventDefault();
       event.stopPropagation();
-      setOpen(value => !value);
+      if (!open) onOpen?.();
+      setOpen(!open);
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [shortcut, disabled]);
+  }, [shortcut, disabled, open, onOpen]);
 
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return; }
@@ -93,10 +97,10 @@ export default function CanvasPopover({ label, title = label, trigger, children,
   return <>
     <CanvasTooltip text={help ?? (shortcut ? `${label} (${shortcut})` : label)}><button ref={button} type="button" className={`local-canvas-control ${className}`} aria-label={label} disabled={disabled}
       title={shortcut ? `${label} (${shortcut})` : label} aria-haspopup={role} aria-expanded={open}
-      aria-controls={open ? id : undefined} data-testid={testId} onClick={() => setOpen(value => !value)}
+      aria-controls={open ? id : undefined} data-testid={testId} onClick={() => { if (!open) onOpen?.(); setOpen(!open); }}
       onKeyDown={event => {
         if (event.key === 'Escape' && open) { event.stopPropagation(); close(); }
-        else if (role === 'menu' && ['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); setOpen(true); }
+        else if (role === 'menu' && ['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); if (!open) onOpen?.(); setOpen(true); }
       }}>
       {trigger}
     </button></CanvasTooltip>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { NodeExplanationContext, type NodeExplanationContextValue } from '../../canvas/NodeExplanationContext';
 import { GraphFocusOverlay } from '../../canvas/GraphFocusOverlay';
 import { GraphQueryPanel } from '../../canvas/GraphQueryPanel';
 import { graphNodes, graphSearchQuery, graphSearchResult } from '../../canvas/graphQueryState';
@@ -30,6 +31,8 @@ jest.mock('../../canvas/BlockSummary', () => ({
   FamilyLegend: () => null,
   BlockSummary: ({ node }: any) => <span data-testid="selected-node">{node.data.parameters.marker}</span>,
 }));
+// Label lookup counts exclude the separate source-understanding inspector.
+jest.mock('../../canvas/NodeUnderstanding', () => ({ NodeUnderstanding: () => null }));
 jest.mock('../../canvas/CaptureDetails', () => ({ CaptureDetails: ({ label }: any) => <span data-testid="capture-label">{label}</span> }));
 const node = (id: string, label = id, extra: Partial<ModelNode> = {}): ModelNode => ({
   id, type: 'layerNode', position: { x: 0, y: 0 },
@@ -171,4 +174,21 @@ it('refreshes displayed query labels after graph replacement and clear', () => {
   graphNodes.set([]); view.rerender(<GraphQueryPanel />);
   expect(within(screen.getByRole('list')).getAllByText(() => true, { selector: 'strong' })[0].textContent).toBe('group');
   expect(screen.queryByText('New')).toBeNull();
+});
+
+it('uses ready explanation titles lazily while preserving technical labels for other connections', () => {
+  const nodes = [node('score', '_score_hidden'), node('output', 'candidate scores')];
+  graphNodes.set(nodes);
+  const explanation = { requestId: 'explain', nodeId: 'score', revision: 'revision', status: 'ready' as const,
+    explanation: { title: 'Score candidates', purpose: 'Compare each candidate with the question.', inputs: [], outputs: [], steps: [], uncertainties: [], citations: [] } };
+  const context: NodeExplanationContextValue = { states: {}, annotations: { score: explanation }, retry: jest.fn(), reveal: jest.fn() };
+  const map = spyIndexBuild(nodes), get = spyLookup();
+  const view = render(<NodeExplanationContext.Provider value={context}><GraphFocusOverlay /></NodeExplanationContext.Provider>);
+  expect(map).not.toHaveBeenCalled();
+  expect(get).not.toHaveBeenCalled();
+  mockEdges.set('edge', { source: 'score', target: 'output' }); selectedEdgeId.set('edge');
+  view.rerender(<NodeExplanationContext.Provider value={context}><GraphFocusOverlay /></NodeExplanationContext.Provider>);
+  expect(screen.getByText('Score candidates → candidate scores')).toBeInTheDocument();
+  expect(map).toHaveBeenCalledTimes(1);
+  expect(get).toHaveBeenCalledTimes(1);
 });

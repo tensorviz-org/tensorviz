@@ -10,8 +10,12 @@ import { graphEdges, graphNodes } from './graphQueryState';
 import { BlockSummary, FamilyLegend } from './BlockSummary';
 import { LocalBrowserContext } from '../ide/localBrowserContext';
 import { CaptureDetails } from './CaptureDetails';
-import { operationDisplayName } from './operationDisplayName';
 import { customCardModel } from './customCard';
+import { operationDisplayName } from './operationDisplayName';
+import { NodeExplanationContext } from './NodeExplanationContext';
+import { NodeUnderstanding } from './NodeUnderstanding';
+import { nodeIdToShapeId } from './canvasShapeId';
+import { ViewExplanationOverview } from './ViewExplanationOverview';
 
 /** Optional surface navigation shares the query's flow instead of covering it. */
 export const GraphNavigationContext = React.createContext<React.ReactNode>(null);
@@ -20,6 +24,7 @@ export const GraphNavigationContext = React.createContext<React.ReactNode>(null)
 export const GraphFocusOverlay = track(function GraphFocusOverlay() {
   const navigation = React.useContext(GraphNavigationContext);
   const local = React.useContext(LocalBrowserContext);
+  const explanations = React.useContext(NodeExplanationContext);
   const editor = useEditor();
   const state = graphFocus(editor);
   const focus = state.focus.get();
@@ -29,6 +34,8 @@ export const GraphFocusOverlay = track(function GraphFocusOverlay() {
   const label = (id: string) => {
     if (!nodesById) nodesById = new Map(graphNodes.get().map(node => [node.id, node]));
     const node = nodesById.get(id);
+    const explanation = explanations?.annotations?.[id] ?? explanations?.states[id];
+    if (explanation?.status === 'ready' && explanation.explanation?.title) return explanation.explanation.title;
     return node ? customCardModel(node.data.layerType.id, node.data.parameters)?.title
       ?? operationDisplayName(node.data) ?? node.data.captureLabel ?? id : id;
   };
@@ -56,10 +63,21 @@ export const GraphFocusOverlay = track(function GraphFocusOverlay() {
       <span>Canvas keys: [ / ] select a layer · Enter opens it · Esc clears focus.</span>
     </details>}
     {!local && <FamilyLegend nodes={graphNodes.get()} />}
+    <ViewExplanationOverview key={explanations?.model?.state?.requestId} nodes={graphNodes.get()} focused={focus.active}
+      selectedNodeIds={focus.selected} onNavigate={id => {
+        const shape = editor.getShape(nodeIdToShapeId(id));
+        if (shape) editor.select(shape.id);
+      }} />
     {!local && zoom < .55 && <button className="graph-readable" onClick={readable}>Zoom to readable detail ↗</button>}
     {focus.active && <section className="graph-focus-controls" aria-label="Connection focus">
       <div className="graph-focus-caption"><strong>{focus.selected.length === 1 ? selectedLabel : `${focus.selected.length} layers`}</strong><span>{focus.edgeIds.size} connections{focus.truncated ? ' · limit reached' : ''}</span></div>
-      {selected && <BlockSummary node={selected} nodes={graphNodes.get()} edges={graphEdges.get()} />}
+      {selected && <>
+        <BlockSummary node={selected} nodes={graphNodes.get()} edges={graphEdges.get()} showIdentity={false} />
+        <NodeUnderstanding key={selected.id} node={selected} nodes={graphNodes.get()} edges={graphEdges.get()} onNavigate={id => {
+          const shape = editor.getShape(nodeIdToShapeId(id));
+          if (shape) editor.select(shape.id);
+        }} />
+      </>}
       <div role="group" aria-label="Trace direction">
         <button aria-pressed={focus.direction === 'local'} onClick={() => setTraceDirection(editor, 'local')}>Neighbors</button>
         <button aria-label="Trace upstream inputs" aria-pressed={focus.direction === 'upstream'} onClick={() => setTraceDirection(editor, 'upstream')}>← Inputs</button>

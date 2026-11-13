@@ -56,6 +56,19 @@ suite('WorkspaceClassIndex', () => {
     assert.equal(lenses.classesFor(ROOT)?.length, 1);
   });
 
+  test('refreshes an explicit nested project root and reports fresh scan failure without losing the cache', async () => {
+    const root = path.join(ROOT, 'nested', 'project'), roots: string[] = [];
+    let fail = false;
+    const index = new WorkspaceClassIndex(async folder => {
+      roots.push(folder); if (fail) throw new Error('scan unavailable'); return scanned({});
+    });
+    assert.equal(await index.refreshRoot(root), true);
+    assert.deepEqual(roots, [root]); assert.equal(index.classesFor(ROOT), undefined);
+    fail = true; assert.equal(await index.refreshRoot(root), false);
+    assert.equal(index.classesFor(root)?.length, 1);
+    index.dispose();
+  });
+
   test('falls back to the file’s own directory when no folder is open', () => {
     state.workspaceFolders = undefined;
     assert.equal(

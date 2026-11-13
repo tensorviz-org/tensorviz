@@ -1,0 +1,32 @@
+{
+  "release": "v0.3.109",
+  "publishedAt": "2026-11-09T19:26:01Z",
+  "prerelease": true,
+  "catalogCommit": "5ae962b40ea8d0b875d0542c739c4c35c076575e",
+  "assets": [
+    {
+      "name": "tensorviz-0.3.109.zip",
+      "bytes": 40601,
+      "sha256": "b4c2c0f40186d4f494b1ce2bf189bfd9ffd4d15fcaefbba9e871080cf35ded5f",
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.3.109/tensorviz-0.3.109.zip"
+    },
+    {
+      "name": "tensorviz-cursor-0.3.109.zip",
+      "bytes": 40949,
+      "sha256": "76ff16747fff7fdcd53b7a6d14ed03146e80bd04e1762e00dc995fbaa58cc306",
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.3.109/tensorviz-cursor-0.3.109.zip"
+    },
+    {
+      "name": "tensorviz-runtime-0.3.109-darwin-arm64.tar.gz",
+      "bytes": 36358950,
+      "sha256": "9b722afdefac39bdd9e7a48fac72f1c3ccda478632ebe697544d997528330939",
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.3.109/tensorviz-runtime-0.3.109-darwin-arm64.tar.gz"
+    },
+    {
+      "name": "tensorviz-runtime-0.3.109-darwin-arm64.tar.gz.json",
+      "bytes": 353,
+      "sha256": "2da157d323d362bc47b0885b9383434f2c6fe94b99b762526735cdab39940263",
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.3.109/tensorviz-runtime-0.3.109-darwin-arm64.tar.gz.json"
+    }
+  ]
+}

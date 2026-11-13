@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { LayerShapeUtil } from '../../canvas/LayerShapeUtil';
-import { nodeCardSize } from '../../canvas/cardMetrics';
+import { nodeCardSize, layerCardHeader } from '../../canvas/cardMetrics';
 import type { DetailTier } from '../../canvas/detailTier';
 import { NodePorts } from '../../canvas/NodePort';
 import { NodeSourceLink } from '../../canvas/NodeSourceControls';
@@ -39,7 +39,7 @@ test('the live card says what was set, that it did not run, and offers no edit, 
   // The header is the name and the exact target, with nothing beside them to
   // squeeze either into an ellipsis; "not run" is a body row.
   expect(view.container.querySelector('.ui2-node-header')).toHaveTextContent(/^nn\.GELUsets layer3\[0\]\.relu · conditional$/);
-  expect(screen.getByText('sets layer3[0].relu · conditional')).toHaveAttribute('title', 'sets layer3[0].relu · conditional');
+  expect(screen.getByTitle('sets layer3[0].relu · conditional')).toHaveTextContent('sets layer3[0].relu · conditional');
   expect(screen.getByText('Set in source · not run').closest('.ui2-node-body')).not.toBeNull();
   expect(screen.getByText('nn.GELU()')).toBeVisible();
   expect(view.container.querySelector('[data-source-assignment]')).not.toBeNull();
@@ -78,9 +78,10 @@ test('in a draft the card carries the amber modified badge and the value change'
 test('the box reserves the evidence row and keeps the draft width after Accept', () => {
   const live = sourceAssignmentCard(KEY, fact);
   // 51 header + 2 borders + 16 padding, the source and evidence rows (16.5 + 7 gap each) and the 16.5 value row.
-  expect(nodeCardSize(live)).toEqual({ w: 280, h: 133 });
+  expect(nodeCardSize(live)).toEqual({ w: 280, h: 133 + layerCardHeader(live.data).height - 51 });
   expect(nodeCardSize({ ...live, data: { ...live.data, sourceAssignment: undefined } }).w).toBe(200);
-  expect(nodeCardSize({ ...live, data: { ...live.data, review: { status: 'modified', params: {} } } })).toEqual({ w: 280, h: 120 });
+  const reviewed = { ...live, data: { ...live.data, review: { status: 'modified' as const, params: {} } } };
+  expect(nodeCardSize(reviewed)).toEqual({ w: 280, h: Math.max(120, Math.round(109 + layerCardHeader(reviewed.data).height - 51)) });
 });
 
 test('an assignment card has no connection handles, unlike a captured card', () => {

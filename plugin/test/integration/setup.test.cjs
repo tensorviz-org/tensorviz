@@ -1,3 +1,4 @@
+const { copyBuiltPlugin } = require('../fixtures/plugin.cjs');
 const { readyService } = require('../fixtures/service.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -19,7 +20,7 @@ async function fixture(required, decide = async () => true) {
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-setup-integration-')));
   const project = path.join(root, 'project'), plugin = path.join(root, 'plugin');
   await fs.mkdir(project); await fs.writeFile(path.join(project, 'model.py'), source(required));
-  await fs.cp(path.resolve(__dirname, '../../../plugins/tensorviz'), plugin, { recursive: true });
+  await copyBuiltPlugin(plugin);
     await readyService(plugin, path.join(root, 'state'));
   const prompts = [];
   let client;

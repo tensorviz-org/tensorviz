@@ -123,6 +123,11 @@ type WithoutWire<T> = Omit<
 export type LocalBrowserViewSend =
   | WithoutWire<import('./protocol.generated').CodeFocusRequest>
   | ({ type: 'agentRequest'; viewId: string } & import('./protocol.generated').CanvasAgentAction)
+  | WithoutWire<Extract<import('./protocol.generated').LocalBrowserNodeExplanationRequest, { action: 'retry' }>>
+  | WithoutWire<Extract<import('./protocol.generated').LocalBrowserNodeExplanationRequest, { action: 'reveal' }>>
+  | WithoutWire<import('./protocol.generated').LocalBrowserModelExplanationRequest>
+  | WithoutWire<Extract<import('./protocol.generated').LocalBrowserModelCatalogRequest, { action: 'list' }>>
+  | WithoutWire<Extract<import('./protocol.generated').LocalBrowserModelCatalogRequest, { action: 'select' }>>
   | WithoutWire<import('./protocol.generated').GraphReviewRequest>
   | WithoutWire<import('./protocol.generated').GraphReviewApplied>
   | WithoutWire<LocalBrowserGraphSetupRequestMessage>
@@ -152,6 +157,9 @@ export type LocalBrowserViewSend =
 export type LocalBrowserViewMessage =
   | import('./protocol.generated').CodeFocusState
   | import('./protocol.generated').LocalBrowserAgentState
+  | import('./protocol.generated').LocalBrowserNodeExplanation
+  | import('./protocol.generated').LocalBrowserModelExplanation
+  | import('./protocol.generated').LocalBrowserModelCatalog
   | import('./protocol.generated').GraphReviewMessage
   | import('./protocol.generated').GraphReviewFocus
   | LocalBrowserGraphOpeningMessage
@@ -599,6 +607,9 @@ export function createLocalBrowserViewTransport(
       case 'revealNode':
       case 'sourceEditRequest':
       case 'agentRequest':
+      case 'nodeExplanationRequest':
+      case 'modelExplanationRequest':
+      case 'modelCatalogRequest':
       case 'sourceEditCancel':
       case 'candidateRequest':
       case 'captureInspectRequest':

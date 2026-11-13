@@ -18,7 +18,10 @@ Browser saved profiles and explicit MCP execution use `ResolvedExecutionPlan`.
 Isolated preflight records saved source/configuration/native-file digests, selected
 interpreter and package facts, exact execution and optional diagnostic recipe,
 timeout and semantic capture budgets. Factories, checkpoints and input fixtures
-must have the correct source/native identities. Selected profiles must match the
+must have the correct source/native identities. Execution files and working
+directories must remain inside the workspace after symlink resolution; aliases
+to excluded `.env*` files or directories are refused. Normal aliases to permitted
+workspace files and directories remain supported. Selected profiles must match the
 saved profile, target and applicability; explicit recipes record configuration as
 absent or overridden. Automatic input guesses use `CapturePreparation` instead.
 

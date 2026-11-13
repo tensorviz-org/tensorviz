@@ -427,6 +427,8 @@ export class CanvasAgentRuntime {
   }
 
   private getSession(input: AgentWarmInput): AgentConnection {
+    // Task purpose is part of connection identity: source-only explanations must
+    // never inherit setup or source-edit system instructions.
     const key = JSON.stringify([input.provider, input.cwd, input.settings?.model ?? null, input.settings?.effort ?? null, input.intent ?? null]);
     if (this.session?.key === key) return this.session;
     this.resetConnection();

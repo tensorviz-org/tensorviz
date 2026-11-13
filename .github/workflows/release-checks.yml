@@ -1,6 +1,7 @@
 name: Release safety checks
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches: [main]
@@ -18,7 +19,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.4'
       - uses: actions/setup-go@v5
         with:
           go-version: '1.24'
@@ -27,3 +28,122 @@ jobs:
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 -shellcheck=
       - name: Test release provenance, safety and retries without credentials
         run: node --test tooling/test/extension-*release*.test.mjs plugin/test/unit/native-publisher*.test.cjs plugin/test/unit/native-platforms.test.cjs plugin/test/unit/native-package.test.cjs plugin/test/unit/release-candidate.test.cjs plugin/test/unit/release-workflow.test.cjs
+
+  native-candidate:
+    # Test the PR merge result with read-only permissions and no secrets.
+    # Never use pull_request_target or upload these unlicensed evaluation builds.
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            platform: darwin-arm64
+          - runner: ubuntu-22.04
+            platform: linux-x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    env:
+      TENSORVIZ_RUNTIME_URL: https://example.invalid/tensorviz-local-validation.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Record the tested merge commit and its parents
+        run: |
+          git log -1 --format='%H %P'
+          echo "Tested merge/source commit: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: '0.11.26'
+          python-version: '3.12.13'
+      - name: Install locked dependencies and task-local clients
+        run: |
+          npm ci
+          npm ci --prefix plugin
+          npm ci --prefix canvas
+          npm install --prefix plugin/out/audit-clients --no-audit --no-fund @openai/codex@0.165.0 @anthropic-ai/claude-code@2.1.308
+          echo "$PWD/plugin/out/audit-clients/node_modules/.bin" >> "$GITHUB_PATH"
+          uv venv --python 3.12.13 plugin/out/compiler-venv
+          uv venv --python 3.12.13 plugin/out/test-venv
+          uv pip install --python plugin/out/compiler-venv/bin/python -r plugin/compiler-requirements.txt
+          if [ "${{ matrix.platform }}" = linux-x64 ]; then
+            uv pip install --python plugin/out/test-venv/bin/python torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+          fi
+          uv pip install --python plugin/out/test-venv/bin/python -r backend/requirements-standalone.txt
+          {
+            echo "TENSORVIZ_COMPILER_PYTHON=$PWD/plugin/out/compiler-venv/bin/python"
+            echo "TENSORVIZ_TEST_PYTHON=$PWD/plugin/out/test-venv/bin/python"
+            echo "TENSORVIZ_TEST_BACKEND=$PWD/plugin/out/native-runtime/backend"
+          } >> "$GITHUB_ENV"
+          if [ "${{ matrix.platform }}" = darwin-arm64 ]; then
+            echo "$(brew --prefix openssl@3)/bin" >> "$GITHUB_PATH"
+          fi
+      - name: Check types, units and shared behavior
+        run: |
+          npm test --prefix plugin
+          npm run test:shared
+      - name: Compile and audit the local candidate (not a release)
+        run: |
+          npm run build:native:backend --prefix plugin
+          npm run build:browser --prefix plugin
+          npm run build:panel --prefix plugin
+          npm run build:native:host --prefix plugin
+          node plugin/scripts/package-native.mjs "$TENSORVIZ_RUNTIME_URL"
+      - name: Verify packaging, isolated clients and native capture
+        run: |
+          npm run test:release --prefix plugin
+          TENSORVIZ_TEST_RUNTIME="$PWD/plugin/out/native-runtime" node --test plugin/test/integration/open-graph.test.cjs
+      - name: Summarize validation scope
+        run: |
+          echo 'PR merge-result native candidate checks only. No provider turn, signed-in GUI, release upload, catalog promotion or deployment.' >> "$GITHUB_STEP_SUMMARY"
+
+  model-acceptance:
+    # Offline CPU model checks complement native CLI tests; not manual GUI acceptance.
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      HF_HUB_OFFLINE: '1'
+      TRANSFORMERS_OFFLINE: '1'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Record tested merge result
+        run: git log -1 --format='%H %P'
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: '0.11.26'
+          python-version: '3.12.13'
+      - name: Install pinned CPU model acceptance dependencies
+        run: |
+          uv venv --python 3.12.13 .acceptance-venv
+          uv pip install --python .acceptance-venv/bin/python torch==2.14.1+cpu torchvision==0.29.1+cpu --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .acceptance-venv/bin/python -r backend/requirements.txt -r backend/requirements-test.txt
+          .acceptance-venv/bin/python -c 'import torch, transformers, diffusers, timm; print(torch.__version__, transformers.__version__, diffusers.__version__, timm.__version__)'
+      - name: Validate real model inputs, capture, saved profiles and environment reuse
+        working-directory: backend
+        run: |
+          ../.acceptance-venv/bin/python -m pytest -q tests/capture/test_trace_module_modes.py
+          ../.acceptance-venv/bin/python -m pytest -q -s tests/capture/test_graph_library_inputs.py
+          ../.acceptance-venv/bin/python -m pytest -q -s tests/capture/test_graph_diffusion_inputs.py
+          ../.acceptance-venv/bin/python -m pytest -q -s tests/capture/test_graph_timm_inputs.py
+          ../.acceptance-venv/bin/python -m pytest -q tests/discovery/test_graph_setup_input_flow.py tests/api/test_graph_setup_errors.py tests/runtime/test_environment_snapshot_reuse.py tests/capture/test_forward_diagnostics.py
+      - name: Validate GPT-2 template in isolated processes
+        working-directory: backend
+        run: |
+          for test in test_gpt2_is_discoverable test_gpt2_decoder_stack_repeats_12 test_gpt2_passes_shape_inference_and_forward test_gpt2_exported_code_runs; do
+            ../.acceptance-venv/bin/python -m pytest -q "tests/templates/test_gpt2_template.py::$test"
+          done
+      - name: Record acceptance boundaries
+        if: always()
+        run: |
+          echo 'Offline random-weight CPU model fixtures only: BERT/T5/ViT/DINOv2, conditional UNet, timm, and the GPT-2 product template. No pretrained downloads, full Stable Diffusion pipeline, external Karpathy/F5-AEC/Nemotron project, signed-in GUI, website upload, release, or deployment.' >> "$GITHUB_STEP_SUMMARY"

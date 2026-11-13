@@ -1,3 +1,4 @@
+const { copyBuiltPlugin } = require('../fixtures/plugin.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
@@ -59,7 +60,7 @@ test('two simultaneous copied-plugin hosts isolate related Git worktrees, recipe
     git(['worktree', 'add', '--detach', second, 'HEAD']);
     await fs.writeFile(path.join(second, 'model.py'), source.replace('nn.Linear(4, 3)', 'nn.Linear(4, 5)'));
     await fs.writeFile(path.join(second, 'tensorviz.toml'), otherRecipe);
-    await fs.cp(path.resolve(__dirname, '../../../plugins/tensorviz'), plugin, { recursive: true });
+    await copyBuiltPlugin(plugin);
     const a = await start(first), b = await start(second);
     const opened = await Promise.all([a, b].map(async host => poll(host, 'open_graph', await host.call('open_graph', {
       workspaceRoot: host.project, file: 'model.py', cls: 'Tiny', interpreter: python,

@@ -1,0 +1,92 @@
+{
+  "classification": "native MCP automation; synthetic fixture consent; no signed-in GUI",
+  "checks": [
+    {
+      "name": "first-capture",
+      "status": "ready",
+      "validated": true,
+      "nextAction": "done"
+    },
+    {
+      "name": "changed-capture",
+      "status": "ready",
+      "validated": true,
+      "nextAction": "done"
+    },
+    {
+      "name": "shape-mismatch",
+      "status": "failed",
+      "validated": false,
+      "nextAction": "inspect_failure"
+    },
+    {
+      "name": "model-exception",
+      "status": "failed",
+      "validated": false,
+      "nextAction": "inspect_failure"
+    },
+    {
+      "name": "recovery",
+      "status": "ready",
+      "validated": true,
+      "nextAction": "done"
+    },
+    {
+      "name": "cancel",
+      "status": "cancelled",
+      "validated": false,
+      "nextAction": "stopped"
+    },
+    {
+      "name": "restart-reconnect",
+      "status": "ready",
+      "validated": true,
+      "nextAction": "done"
+    },
+    {
+      "name": "incompatible-python",
+      "status": "needs_setup",
+      "validated": false,
+      "nextAction": "select_environment"
+    },
+    {
+      "name": "missing-constructor-input",
+      "status": "needs_setup",
+      "validated": false,
+      "nextAction": "complete_setup"
+    }
+  ],
+  "runtime": {
+    "name": "tensorviz",
+    "title": "tensorViz",
+    "version": "0.3.110"
+  },
+  "unmountedPanels": {
+    "requests": 16,
+    "errors": 0
+  },
+  "shapes": {
+    "before": [
+      2,
+      3
+    ],
+    "after": [
+      2,
+      2
+    ],
+    "input": [
+      2,
+      4
+    ]
+  },
+  "repeatedCapture": {
+    "isError": true,
+    "code": "OPENING_BUSY",
+    "sameRequest": false
+  },
+  "staleRequest": {
+    "isError": true,
+    "code": "UNKNOWN_REQUEST"
+  },
+  "passed": true
+}

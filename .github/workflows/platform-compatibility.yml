@@ -2,11 +2,15 @@ name: Cross-platform compatibility candidates
 on:
   pull_request:
     paths:
+      - 'backend/**'
+      - 'packages/graph-host/**'
+      - 'plugin/src/**'
       - 'plugin/integration/launch.cjs'
       - 'plugin/scripts/**'
-      - 'plugin/test/unit/*launcher*'
-      - 'plugin/test/unit/native-platform-shape.test.cjs'
-      - 'runtime/python/manifest.json'
+      - 'plugin/test/**'
+      - 'runtime/python/**'
+      - 'extension/src/**'
+      - 'tooling/packaging/**'
       - '.github/workflows/platform-compatibility.yml'
   workflow_dispatch:
 permissions:

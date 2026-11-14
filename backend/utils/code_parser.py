@@ -1140,7 +1140,12 @@ class CodeParserService:
         if getattr(call_node, "_torch_layer_class", None) == layer_type and not any(isinstance(a, ast.Starred) for a in call_node.args) and all(k.arg is not None for k in call_node.keywords):
             try:
                 import inspect
-                import torch.nn as nn
+                try:
+                    import torch.nn as nn
+                except RuntimeError:
+                    # Broken optional native dispatchers must not break static
+                    # source tools. Do not hide errors in our parsing below.
+                    return {"target": layer_type, "arguments": args}
                 constructor = nn.RNNBase if layer_type in _ARGS_KWARGS_POSITIONAL else getattr(nn, layer_type)
                 for parameter in inspect.signature(constructor).parameters.values():
                     if parameter.name == "proj_size" and layer_type in {"GRU", "RNN"}:

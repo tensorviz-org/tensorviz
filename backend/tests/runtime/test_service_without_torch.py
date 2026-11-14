@@ -19,18 +19,20 @@ BACKEND = Path(__file__).resolve().parents[2]
 TOKEN = "standalone-no-torch-test-not-a-production-secret"
 
 
-def test_static_service_without_model_framework():
+def test_static_service_without_model_framework(failure_type="missing"):
     with tempfile.TemporaryDirectory(prefix="tensorviz-no-torch-") as temporary:
         root = Path(temporary)
         imported = root / "framework-imported"
         model_executed = root / "model-executed"
         runner = r'''
 import importlib.abc, pathlib, sys
-backend, attempts = sys.argv[1:]
+backend, attempts, failure_type = sys.argv[1:]
 class NoFramework(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
         if fullname.split('.')[0] in {'torch', 'tensorflow', 'jax'}:
             pathlib.Path(attempts).write_text(fullname)
+            if failure_type == 'broken':
+                raise RuntimeError('Test fixture: incompatible framework native dispatcher')
             raise ModuleNotFoundError('Framework imports are forbidden in the static service', name=fullname)
 sys.meta_path.insert(0, NoFramework())
 sys.path.insert(0, backend)
@@ -42,7 +44,7 @@ sys.argv = ['standalone_server.py', '--parent-pipe']
 standalone_server.main()
 '''
         process = subprocess.Popen([sys.executable, "-I", "-B", "-u", "-c", runner,
-                                    os.environ.get("TENSORVIZ_SERVICE_TEST_BACKEND", str(BACKEND)), str(imported)], stdin=subprocess.PIPE,
+                                    os.environ.get("TENSORVIZ_SERVICE_TEST_BACKEND", str(BACKEND)), str(imported), failure_type], stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                    env={**os.environ, "TENSORVIZ_LOCAL_TOKEN": TOKEN})
         try:
@@ -110,6 +112,10 @@ standalone_server.main()
             process.stderr.close()
 
 
+def test_static_service_with_broken_framework():
+    test_static_service_without_model_framework("broken")
+
+
 def test_service_requirements_and_capture_diagnostics_are_separate():
     runner = r'''
 import sys, json
@@ -133,5 +139,6 @@ print(json.dumps({'service': service, 'capture': capture}))
 
 if __name__ == "__main__":
     test_static_service_without_model_framework()
+    test_static_service_with_broken_framework()
     test_service_requirements_and_capture_diagnostics_are_separate()
     print("Static service health, discovery, projection and setup passed without framework imports.")

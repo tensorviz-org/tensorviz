@@ -4,7 +4,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeBundleNotices } from '../../tooling/packaging/bundle-notices.mjs';
-import { nativePlatform, nativePlatforms, runtimeArchive } from './native-platforms.mjs';
+import { nativePlatform, nativePlatforms, runtimeArchive, nativeArchiveTool } from './native-platforms.mjs';
 import { validateRuntimeLock } from './export-public.mjs';
 
 const repository = fileURLToPath(new URL('../..', import.meta.url));
@@ -70,10 +70,12 @@ async function notices(directory, target = nativePlatform()) {
 
 // pkg hosts have large version-symbol tables (observed: 1,418,885 bytes).
 // Keep a finite bound and inspect the complete output; never truncate the gate.
-export function verifyLinuxGlibc(file, command = execFileSync) {
+export function verifyLinuxGlibc(file, command = execFileSync, architecture = 'x64') {
+  const ceiling = { x64: 31, arm64: 35 }[architecture];
+  if (!ceiling) throw new Error(`Unsupported Linux architecture for ABI audit: ${architecture}`);
   const versions = command('readelf', ['--version-info', file], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
   for (const match of versions.matchAll(/GLIBC_(\d+)\.(\d+)/g)) {
-    if (Number(match[1]) > 2 || Number(match[1]) === 2 && Number(match[2]) > 35) throw new Error(`Linux runtime requires glibc newer than 2.35: ${file}`);
+    if (Number(match[1]) > 2 || Number(match[1]) === 2 && Number(match[2]) > ceiling) throw new Error(`Linux ${architecture} runtime requires glibc newer than 2.${ceiling}: ${file}`);
   }
 }
 
@@ -86,7 +88,7 @@ export async function packageNative(url) {
   if (check.sourceIncluded !== false || check.platform !== target.os || check.architecture !== target.arch || backend.abi !== target.abi || backend.architecture !== target.machine) throw new Error('Native host verification failed.');
   if (target.os === 'linux') {
     for (const file of [target.host, path.join('backend', backend.binary)]) {
-      verifyLinuxGlibc(path.join(directory, file));
+      verifyLinuxGlibc(path.join(directory, file), execFileSync, target.arch);
     }
   }
   await notices(directory, target);
@@ -100,7 +102,7 @@ export async function packageNative(url) {
   await fs.writeFile(path.join(directory, 'release-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   const archive = path.join(repository, 'plugin/dist', runtimeArchive({ version, platform: target.key }));
   await fs.mkdir(path.dirname(archive), { recursive: true });
-  execFileSync(process.platform === 'win32' ? 'tar.exe' : '/usr/bin/tar', ['-czf', archive, '-C', directory, ...Object.keys(files), 'release-manifest.json'], {
+  execFileSync(nativeArchiveTool(), ['-czf', archive, '-C', directory, ...Object.keys(files), 'release-manifest.json'], {
     env: { ...process.env, COPYFILE_DISABLE: '1' }, maxBuffer: 1024 * 1024,
   });
   const bytes = await fs.readFile(archive);

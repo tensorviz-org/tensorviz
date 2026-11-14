@@ -1,3 +1,4 @@
+import path from 'node:path';
 /** Build targets. A catalog may advertise a target only after its native CI passes. */
 export const nativePlatforms = {
   'darwin-arm64': { os: 'darwin', arch: 'arm64', machine: 'arm64', abi: 'cpython-312-darwin', pkg: 'node22.23.4-macos-arm64' },
@@ -18,3 +19,11 @@ export function runtimeEntries(lock) {
   return lock?.formatVersion === 2 ? Object.values(lock.runtimes ?? {}) : [lock];
 }
 export const runtimeArchive = lock => `tensorviz-runtime-${lock.version}-${lock.platform}.tar.gz`;
+
+/** Use the OS bsdtar, not Git's GNU tar (which parses D: as a remote host). */
+export function nativeArchiveTool(platform = process.platform, environment = process.env) {
+  if (platform !== 'win32') return '/usr/bin/tar';
+  const root = environment.SystemRoot || environment.WINDIR;
+  if (!root || !path.win32.isAbsolute(root)) throw new Error('Windows SystemRoot must be an absolute path');
+  return path.win32.join(root, 'System32', 'tar.exe');
+}

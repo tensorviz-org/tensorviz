@@ -35,7 +35,7 @@ async function fixture(system, architecture) {
   const checksum = `#!${process.execPath}\nconst fs = require('node:fs'); const crypto = require('node:crypto');\nconst file = process.argv.at(-1); console.log(crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') + '  ' + file);\n`;
   await executable('shasum', checksum);
   await executable('sha256sum', checksum);
-  await executable('getconf', '#!/bin/sh\necho "glibc 2.35"\n');
+  await executable('getconf', '#!/bin/sh\necho "glibc 2.31"\n');
   const source = await fs.readFile(path.resolve(__dirname, '../../integration/launch.sh'), 'utf8');
   await fs.writeFile(path.join(scripts, 'launch.sh'), source
     .replaceAll('/usr/bin/plutil', path.join(bin, 'plutil')).replaceAll('/usr/bin/shasum', path.join(bin, 'shasum'))
@@ -118,12 +118,12 @@ test('Linux SSH rejects the old Darwin-only pin without a download or cache writ
   } finally { await f.close(); }
 });
 
-for (const libc of ['glibc 2.34', 'musl 1.2']) test(`${libc} is refused before Linux lock/cache/download`, async () => {
+for (const libc of ['glibc 2.30', 'musl 1.2']) test(`${libc} is refused before Linux lock/cache/download`, async () => {
   const f = await fixture('Linux', 'x86_64');
   try {
     await fs.writeFile(path.join(f.root, 'bin/getconf'), `#!/bin/sh\necho '${libc}'\n`, { mode: 0o755 });
     const result = await f.launch(ssh);
-    assert.equal(result.status, 1); assert.equal(result.stdout, ''); assert.match(result.stderr, /requires glibc 2.35/);
+    assert.equal(result.status, 1); assert.equal(result.stdout, ''); assert.match(result.stderr, /requires glibc 2.31/);
     assert.deepEqual(await fs.readdir(f.home), []);
     assert.equal(await fs.stat(f.env.DOWNLOAD_LOG).catch(() => null), null);
   } finally { await f.close(); }

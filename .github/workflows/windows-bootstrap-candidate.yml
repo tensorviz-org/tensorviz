@@ -43,10 +43,9 @@ jobs:
         run: node --test plugin/test/unit/windows-bootstrap.test.mjs
       - name: Install official Codex CLI for isolated catalog discovery
         id: codex
-        continue-on-error: true
         shell: pwsh
         run: |
-          npm install --prefix .bootstrap-codex --ignore-scripts --no-audit --no-fund @openai/codex@latest
+          npm install --prefix .bootstrap-codex --ignore-scripts --no-audit --no-fund @openai/codex@0.169.0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $exe = Get-ChildItem .bootstrap-codex/node_modules -Recurse -Filter codex.exe | Select-Object -First 1
           if (-not $exe) { throw 'Official native Codex executable unavailable for this architecture' }
@@ -66,8 +65,3 @@ jobs:
             .bootstrap-build/package-lock.json
             .bootstrap-codex/package-lock.json
           if-no-files-found: warn
-      - name: Report optional client limitation
-        if: steps.codex.outcome == 'failure'
-        shell: pwsh
-        run: |
-          'Codex client installation unavailable. Native bootstrap tests do not prove Codex compatibility; result.json explicitly records discovery=false.' >> $env:GITHUB_STEP_SUMMARY

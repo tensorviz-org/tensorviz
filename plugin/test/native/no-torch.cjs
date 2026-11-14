@@ -1,10 +1,12 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
+const fs = require('node:fs/promises');
+const path = require('node:path');
 const { backendPythonArgs } = require('../../out/host/backendPython.cjs');
 
 test('native backend starts without torch and attributes capture failure to the selected Python', () => {
-  const python = process.env.TENSORVIZ_NO_TORCH_PYTHON;
+  const python = process.env.TENSORVIZ_NO_TORCH_PYTHON || process.env.TENSORVIZ_COMPILER_PYTHON;
   const backend = process.env.TENSORVIZ_TEST_BACKEND;
   assert.ok(python && backend, 'Explicit clean Python and native backend paths are required');
   const clean = spawnSync(python, ['-I', '-c', 'import importlib.util; assert importlib.util.find_spec("torch") is None'], { encoding: 'utf8' });
@@ -27,11 +29,22 @@ import _tensorviz_backend
 sys.modules['torch'] = types.ModuleType('torch')
 sys.exit(_tensorviz_backend.run('services/ide/environment_setup.py', ['probe-capture']))
 `;
-  const result = spawnSync(process.env.TENSORVIZ_NO_TORCH_PYTHON,
+  const result = spawnSync(process.env.TENSORVIZ_NO_TORCH_PYTHON || process.env.TENSORVIZ_COMPILER_PYTHON,
     ['-I', '-B', '-c', script, process.env.TENSORVIZ_TEST_BACKEND], { encoding: 'utf8' });
   assert.equal(result.status, 1, result.stdout + result.stderr);
   assert.equal(result.stderr, '');
   const failure = JSON.parse(result.stdout);
   assert.equal(failure.code, 'CAPTURE_RUNTIME_UNSUPPORTED');
   assert.match(failure.message, /TensorViz started/);
+});
+
+// Keep native packaging privacy guarantees identical on newly admitted targets.
+test('native backend package excludes source files and repository build paths', async () => {
+  const backend = process.env.TENSORVIZ_TEST_BACKEND;
+  const metadata = JSON.parse(await fs.readFile(path.join(backend, 'native-backend.json'), 'utf8'));
+  const bytes = await fs.readFile(path.join(backend, metadata.binary));
+  assert.ok(!bytes.includes(Buffer.from(path.resolve(__dirname, '../../..'))),
+    'Native backend must not retain the repository build path');
+  const names = await fs.readdir(backend, {recursive:true});
+  assert.ok(!names.some(name => /\.(py|pyc|pyo)$/.test(name)), 'Native runtime must not ship backend source/bytecode');
 });

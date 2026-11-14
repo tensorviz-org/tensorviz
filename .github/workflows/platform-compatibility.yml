@@ -2,18 +2,23 @@ name: Cross-platform compatibility candidates
 on:
   pull_request:
     paths:
+      - 'backend/**'
+      - 'packages/graph-host/**'
+      - 'plugin/src/**'
       - 'plugin/integration/launch.cjs'
       - 'plugin/scripts/**'
-      - 'plugin/test/unit/*launcher*'
-      - 'plugin/test/unit/native-platform-shape.test.cjs'
-      - 'runtime/python/manifest.json'
+      - 'plugin/test/**'
+      - 'runtime/python/**'
+      - 'extension/src/**'
+      - 'tooling/packaging/**'
       - '.github/workflows/platform-compatibility.yml'
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
   group: platform-candidates-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve slow native compilation evidence; queue the latest revision.
+  cancel-in-progress: false
 jobs:
   bootstrap:
     strategy:
@@ -56,22 +61,29 @@ jobs:
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
         with:
           version: '0.11.26'
-          python-version: '3.12.13'
       - name: Install build and clean no-Torch environments
         run: |
           npm ci
           npm ci --prefix plugin
           npm ci --prefix canvas
-          uv venv --python 3.12.13 plugin/out/compiler-venv
-          uv venv --python 3.12.13 plugin/out/service-venv
           node --input-type=module <<'JS'
           import {appendFileSync} from 'node:fs';
           import {execFileSync} from 'node:child_process';
           import path from 'node:path';
+          import assert from 'node:assert/strict';
+          import {nativePlatform} from './plugin/scripts/native-platforms.mjs';
+          import {stageWindowsArmPython} from './plugin/scripts/stage-windows-arm-python.mjs';
+          const requested = process.platform === 'win32' && process.arch === 'arm64'
+            ? await stageWindowsArmPython() : '3.12.13';
+          for (const name of ['compiler-venv', 'service-venv'])
+            execFileSync('uv', ['venv', '--python', requested, `plugin/out/${name}`], {stdio:'inherit'});
           const python = path.resolve('plugin/out/compiler-venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
           execFileSync('uv', ['pip', 'install', '--python', python, '-r', 'plugin/compiler-requirements.txt'], {stdio:'inherit'});
+          const check = JSON.parse(execFileSync(python, ['-c', "import importlib.util,json,platform; s=importlib.util.spec_from_file_location('compiler','plugin/scripts/compile-backend.py'); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); print(json.dumps(dict(abi=m.python_abi(),machine=platform.machine())))"], {encoding:'utf8'}));
+          assert.equal(check.abi, nativePlatform().abi, 'Compiler Python architecture/ABI does not match native Node target');
+          console.log('Verified compiler ABI', check);
           const service = path.resolve('plugin/out/service-venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
-          execFileSync('uv', ['pip', 'install', '--python', service, '-r', 'backend/requirements-standalone.txt'], {stdio:'inherit'});
+          execFileSync('uv', ['pip', 'install', '--only-binary', ':all:', '--python', service, '-r', 'backend/requirements-standalone.txt'], {stdio:'inherit'});
           for (const [key, value] of Object.entries({
             TENSORVIZ_COMPILER_PYTHON: python,
             TENSORVIZ_NO_TORCH_PYTHON: python,

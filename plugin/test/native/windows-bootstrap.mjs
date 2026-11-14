@@ -7,6 +7,7 @@ import zlib from 'node:zlib';
 import assert from 'node:assert/strict';
 import {spawn,execFileSync} from 'node:child_process';
 import {buildBootstrap,windowsCatalog,windowsMcp} from '../../scripts/windows-bootstrap.mjs';
+assert.ok(process.env.TENSORVIZ_TEST_CODEX,'Official Codex installation is mandatory');
 if(process.platform!=='win32') throw new Error('Native Windows execution required; no emulated pass');
 const repo=process.cwd(),out=path.join(repo,'plugin/out/windows-bootstrap');
 await fs.mkdir(out,{recursive:true});

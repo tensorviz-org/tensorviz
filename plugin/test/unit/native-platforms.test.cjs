@@ -36,7 +36,7 @@ test('native targets, workflow Node versions and exact upstream notices stay ali
   assert.equal(versions.size, 1);
   const workflow = await fs.readFile(path.join(root, '.github/workflows/release-plugin.yml'), 'utf8');
   const setup = [...workflow.matchAll(/node-version:\s*'([^']+)'/g)].map(match => match[1]);
-  assert.equal(setup.length, 4, 'configuration, build, assembly and publication all pin Node');
+  assert.equal(setup.length, 5, 'configuration, build, assembly, migration and publication all pin Node');
   assert.deepEqual(new Set(setup), versions);
 });
 
@@ -136,3 +136,4 @@ for (const { entries, relative } of [
     await assert.rejects(verifyReleaseCandidate(candidate), /checksum mismatch/);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
+

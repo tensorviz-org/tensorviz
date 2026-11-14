@@ -10,8 +10,14 @@ const { createHash } = require('node:crypto');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
 const { ElicitRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
-const fromVersion = '0.3.110', toVersion = '0.1.43';
-const previousExport = '1a3c3618082603030b5ef68b793d9834b8bb7f3d';
+// Only reviewed immutable transitions are accepted; callers cannot substitute arbitrary old binaries.
+const transitions = {
+  '0.1.43': { fromVersion: '0.3.110', previousExport: '1a3c3618082603030b5ef68b793d9834b8bb7f3d' },
+  '0.1.44': { fromVersion: '0.1.43', previousExport: 'de268bb05a44d21fba51dc53b2d711ccee8a2738' },
+};
+const toVersion = process.env.TENSORVIZ_MIGRATION_TARGET_VERSION || '0.1.43';
+assert.ok(Object.hasOwn(transitions, toVersion), 'Unreviewed migration target');
+const { fromVersion, previousExport } = transitions[toVersion];
 const digest = b => createHash('sha256').update(b).digest('hex');
 const json = async p => JSON.parse(await fs.readFile(p, 'utf8'));
 const required = name => { const value = process.env[name]; assert.ok(value && path.isAbsolute(value), `${name} must be an absolute path`); return value; };

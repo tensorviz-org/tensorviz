@@ -27,7 +27,7 @@ jobs:
       - name: Validate Actions syntax
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 -shellcheck=
       - name: Test release provenance, safety and retries without credentials
-        run: node --test tooling/test/extension-*release*.test.mjs plugin/test/unit/native-publisher*.test.cjs plugin/test/unit/version-alignment.test.cjs plugin/test/unit/cleanup-build-scratch.test.cjs plugin/test/unit/migration-resource-lifecycle.test.cjs plugin/test/unit/native-platforms.test.cjs plugin/test/unit/native-package.test.cjs plugin/test/unit/release-candidate.test.cjs plugin/test/unit/release-workflow.test.cjs
+        run: node --test tooling/test/current-native-transition.test.mjs tooling/test/extension-*release*.test.mjs plugin/test/unit/native-publisher*.test.cjs plugin/test/unit/version-alignment.test.cjs plugin/test/unit/cleanup-build-scratch.test.cjs plugin/test/unit/migration-resource-lifecycle.test.cjs plugin/test/unit/native-platforms.test.cjs plugin/test/unit/native-package.test.cjs plugin/test/unit/release-candidate.test.cjs plugin/test/unit/release-workflow.test.cjs
 
   javascript-dependencies:
     # Exercise the actual checkout, including binary test fixtures omitted by API snapshots.
@@ -84,6 +84,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Align checkout ownership inside the Linux build container
+        if: matrix.platform == 'linux-x64'
+        run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
       - uses: actions/setup-node@v4
         with:
           node-version: '22.23.4'

@@ -89,6 +89,9 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Align checkout ownership inside the Linux build container
+        if: matrix.platform == 'linux-x64'
+        run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
       - name: Verify the supported native target
         run: test "$(uname -s)-$(uname -m)" = "${{ matrix.uname }}"
       - uses: actions/setup-node@v4

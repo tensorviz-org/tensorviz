@@ -35,6 +35,11 @@
       "triple": "x86_64-apple-darwin",
       "interpreter": "bin/python3",
       "sha256": "65b195c9cedc1fef6767f044f9822069adbd1bd9204d424ece4628776fdc04bb"
+    },
+    "linux-x64-musl": {
+      "triple": "x86_64-unknown-linux-musl",
+      "interpreter": "bin/python3",
+      "sha256": "1f37044c8cdbd74d5ee112a753c65ef209fedd169c98f3e4e748a93e27eb27a4"
     }
   }
 }

@@ -13,6 +13,7 @@ const { spawn } = require('node:child_process');
 const MAX_ARCHIVE = 256 * 1024 * 1024;
 const MAX_UNPACKED = 768 * 1024 * 1024;
 const ABIS = Object.freeze({
+  'linux-x64-musl': 'cpython-312-x86_64-linux-musl',
   'darwin-arm64': 'cpython-312-darwin', 'darwin-x64': 'cpython-312-darwin',
   'linux-x64': 'cpython-312-x86_64-linux-gnu', 'linux-arm64': 'cpython-312-aarch64-linux-gnu',
   'win32-x64': 'cp312-win_amd64', 'win32-arm64': 'cp312-win_arm64',
@@ -27,8 +28,12 @@ function httpsURL(value) {
   return url;
 }
 
-function selectRuntime(lock, platform = process.platform, arch = process.arch) {
-  const key = `${platform}-${arch}`;
+function isMusl(report = process.report.getReport()) {
+  return !report.header?.glibcVersionRuntime && report.sharedObjects?.some(file => /(?:^|\/)ld-musl-[^/]+\.so\.1$/.test(file));
+}
+function selectRuntime(lock, platform = process.platform, arch = process.arch, report = process.report.getReport()) {
+  if (platform === 'linux' && !report.header?.glibcVersionRuntime && !isMusl(report)) fail('Unknown Linux libc; no runtime was downloaded.');
+  const key = `${platform}-${arch}${platform === 'linux' && isMusl(report) ? '-musl' : ''}`;
   if (!Object.hasOwn(ABIS, key)) fail(`Unsupported MCP execution host: ${key}. No runtime was downloaded.`);
   const entry = lock?.formatVersion === 2 ? lock.runtimes?.[key] : lock;
   if (![1, 2].includes(lock?.formatVersion) || entry?.formatVersion !== 1 || entry.platform !== key
@@ -42,6 +47,7 @@ function selectRuntime(lock, platform = process.platform, arch = process.arch) {
 
 function checkHost(platform = process.platform, report = process.report.getReport(), arch = process.arch) {
   if (platform === 'linux') {
+    if (isMusl(report) && arch === 'x64') return;
     const version = report.header?.glibcVersionRuntime;
     const parts = /^(\d+)\.(\d+)(?:\.\d+)?$/.exec(version ?? '');
     // Lowering this floor requires a symbol audit and real capture on that libc.

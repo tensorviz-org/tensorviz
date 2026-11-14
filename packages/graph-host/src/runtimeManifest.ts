@@ -83,8 +83,16 @@ export function runtimePlatformKey(
   platform: NodeJS.Platform = process.platform,
   arch: string = process.arch,
 ): string | undefined {
-  const key = `${platform}-${arch}`;
-  return key === 'darwin-arm64' || key === 'darwin-x64' || key === 'linux-x64' || key === 'linux-arm64' || key === 'win32-x64' || key === 'win32-arm64' ? key : undefined;
+  let suffix = '';
+  if (platform === 'linux') {
+    const report = process.report.getReport() as {header?: {glibcVersionRuntime?: string}; sharedObjects?: string[]};
+    if (!report.header?.glibcVersionRuntime) {
+      if (!report.sharedObjects?.some(file => /(?:^|\/)ld-musl-[^/]+\.so\.1$/.test(file))) return undefined;
+      suffix = '-musl';
+    }
+  }
+  const key = `${platform}-${arch}${suffix}`;
+  return key === 'darwin-arm64' || key === 'darwin-x64' || key === 'linux-x64-musl' || key === 'linux-x64' || key === 'linux-arm64' || key === 'win32-x64' || key === 'win32-arm64' ? key : undefined;
 }
 
 export type RuntimeAssetSelection =

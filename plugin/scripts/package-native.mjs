@@ -14,7 +14,7 @@ const json = async file => JSON.parse(await fs.readFile(file, 'utf8'));
 export async function auditNativeRuntime(directory, platform = nativePlatform().key) {
   if (!Object.hasOwn(nativePlatforms, platform)) throw new Error(`Unsupported compiled runtime target: ${platform}`);
   const raw = nativePlatforms[platform];
-  const target = nativePlatform(raw.os, raw.arch);
+  const target = nativePlatform(raw.os, raw.arch, raw.libc ?? 'glibc');
   const files = {};
   const walk = async relative => {
     for (const entry of await fs.readdir(path.join(directory, relative), { withFileTypes: true })) {
@@ -79,6 +79,20 @@ export function verifyLinuxGlibc(file, command = execFileSync, architecture = 'x
   }
 }
 
+export function verifyLinuxMusl(file, executable = false, command = execFileSync) {
+  const header = command('readelf', ['-h', file], {encoding: 'utf8'});
+  if (!/Machine:\s+Advanced Micro Devices X86-64/.test(header)) throw new Error('musl candidate must be ELF x86_64');
+  const versions = command('readelf', ['--version-info', file], {encoding:'utf8'});
+  if (/GLIBC_[0-9]/.test(versions)) throw new Error('GNU libc symbols forbidden in musl candidate');
+  const dynamic = command('readelf', ['-d', file], {encoding:'utf8'});
+  const needed = [...dynamic.matchAll(/\(NEEDED\).*?\[([^\]]+)\]/g)].map(match => match[1]);
+  if (!needed.includes('libc.musl-x86_64.so.1') || needed.some(name => !['libc.musl-x86_64.so.1', 'libpython3.12.so.1.0'].includes(name))) throw new Error('Unexpected musl runtime shared-library dependency: ' + needed.join(', '));
+  if (executable) {
+    const program = command('readelf', ['-l', file], {encoding:'utf8'});
+    if (!program.includes('Requesting program interpreter: /lib/ld-musl-x86_64.so.1')) throw new Error('Incorrect musl ELF interpreter');
+  }
+}
+
 export async function packageNative(url) {
   const directory = path.join(repository, 'plugin/out/native-runtime');
   const { version } = await json(path.join(directory, 'plugin.json'));
@@ -88,7 +102,8 @@ export async function packageNative(url) {
   if (check.sourceIncluded !== false || check.platform !== target.os || check.architecture !== target.arch || backend.abi !== target.abi || backend.architecture !== target.machine) throw new Error('Native host verification failed.');
   if (target.os === 'linux') {
     for (const file of [target.host, path.join('backend', backend.binary)]) {
-      verifyLinuxGlibc(path.join(directory, file), execFileSync, target.arch);
+      if (target.libc === 'musl') verifyLinuxMusl(path.join(directory, file), file === target.host);
+      else verifyLinuxGlibc(path.join(directory, file), execFileSync, target.arch);
     }
   }
   await notices(directory, target);

@@ -432,7 +432,7 @@ def install(directory: Path, approved_digest: str) -> dict:
     return {"installed": len(wheels)}
 
 
-def update_managed(directory: Path, requirements: Path = REQUIREMENTS.parent / "requirements-cpu.txt") -> dict:
+def update_managed(directory: Path, requirements: Path = SERVICE_REQUIREMENTS) -> dict:
     """Maintain an already-consented tensorViz runtime without replacing its packages."""
     resolved = plan(directory, requirements)
     return install(directory, resolved["digest"])
@@ -1197,4 +1197,5 @@ def main(probe_backend=None, *, requirements=REQUIREMENTS, minimum_python=(3, 10
 
 if __name__ == "__main__":
     main()
+
 

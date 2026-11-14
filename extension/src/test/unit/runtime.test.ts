@@ -38,7 +38,7 @@ function fixture(opts: { bundled?: boolean; remoteName?: string } = {}): Fixture
     fs.mkdirSync(path.join(runtime, 'bin'), { recursive: true });
     fs.mkdirSync(backend, { recursive: true });
     fs.writeFileSync(path.join(runtime, RUNTIME_STAMP), JSON.stringify({ sha256: RUNTIME_SHA }));
-    fs.writeFileSync(path.join(backend, 'requirements-cpu.txt'), '-r requirements.txt\n');
+    fs.writeFileSync(path.join(backend, 'requirements-standalone.txt'), 'websockets>=12\n');
     fs.writeFileSync(path.join(backend, 'requirements.txt'), 'torch==2.7.1\n');
   }
 
@@ -172,9 +172,9 @@ suite('runtime.ManagedRuntime', () => {
     const { runtime } = fixture();
     fakeVenvPython(runtime, 0);
     markProvisioned(runtime);
-    // New pins must trigger compatibility setup. An incompatible Torch version must be
+    // New pins must trigger compatibility setup. An incompatible service dependency version must be
     // reported rather than silently treating the old environment as current.
-    fs.writeFileSync(path.join(runtime.bundled.backend, 'requirements.txt'), 'torch==2.8.0\n');
+    fs.writeFileSync(path.join(runtime.bundled.backend, 'requirements-standalone.txt'), 'websockets==15.0.1\n');
     const status = await runtime.check();
     assert.equal(status.state, 'absent');
     assert.match(status.state === 'absent' ? status.why : '', /dependencies differ/);
@@ -371,15 +371,26 @@ suite('runtime.ManagedRuntime stock download source', () => {
     assert.equal(transportCalls.length, 1, 'and the first download was the only one');
   });
 
+  test('capture pins cannot invalidate the service or cause another install', async function () {
+    if (process.platform === 'win32') this.skip();
+    const { runtime, backendDir } = stockDownloadFixture(temp);
+    assert.equal((await runtime.provision(() => {})).ok, true);
+    const original = runtime.pinnedStamp();
+    fs.writeFileSync(path.join(backendDir, 'requirements.txt'), 'torch==99.0.0\n');
+    assert.deepEqual(runtime.pinnedStamp(), original);
+    assert.equal((await runtime.check()).state, 'ready');
+  });
+
   test('changed backend pins in stock mode make the provisioned copy stale', async function () {
     if (process.platform === 'win32') {
       this.skip();
     }
     const { runtime, backendDir } = stockDownloadFixture(temp);
     assert.equal((await runtime.provision(() => {})).ok, true);
-    fs.writeFileSync(path.join(backendDir, 'requirements.txt'), 'torch==2.8.0\n');
+    fs.writeFileSync(path.join(backendDir, 'requirements-standalone.txt'), 'websockets==15.0.1\n');
     const status = await runtime.check();
     assert.equal(status.state, 'absent');
     assert.match(status.state === 'absent' ? status.why : '', /dependencies differ/);
   });
 });
+

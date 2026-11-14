@@ -30,8 +30,8 @@
  *    service. A first install never downloads anything without the disclosed consent the
  *    preflight gate asks for, and nothing downloads at activation at all.
  *
- * Torch is not in the installer, and for the stock path neither is CPython. A first launch
- * downloads both, which is why provisioning reports progress and honours cancellation.
+ * The stock path downloads CPython and service dependencies on first launch. Model
+ * frameworks are installed only through a separately reviewed capture setup.
  */
 
 import { ChildProcess, spawn } from 'node:child_process';
@@ -59,10 +59,9 @@ export const RUNTIME_STAMP = '.tensorviz-runtime.json';
  *  before the stamp is renewed. */
 export const PROVISION_STAMP = '.tensorviz-provisioned.json';
 
-/** The requirements file that pins the CPU wheel index (backend/requirements-cpu.txt).
- *  A plain `-r requirements.txt` pulls CUDA torch and several GB of `nvidia-*` wheels on
- *  Linux and Windows. */
-export const REQUIREMENTS = 'requirements-cpu.txt';
+/** Service dependencies only. Model frameworks belong to the separately reviewed
+ *  capture environment, never to managed service provisioning. */
+export const REQUIREMENTS = 'requirements-standalone.txt';
 
 /** The oldest Python the backend supports. torch 2.14.1's wheels start at 3.11, and the
  *  reported launch crash was a Conda Python 3.7 that passed the old three-module probe and
@@ -222,7 +221,7 @@ export interface ProvisionOptions {
 const LOCK_DIRNAME = 'lock';
 /** Owner record inside the lock directory: who holds it and since when. */
 const LOCK_OWNER = 'owner.json';
-/** A first install downloads ~100 MB and pip-installs PyTorch; the wait must outlast that. */
+/** A first install downloads CPython and service wheels; allow slow connections. */
 const LOCK_WAIT_DEFAULT_MS = 15 * 60_000;
 const LOCK_POLL_MS = 250;
 /** When the owner record is missing or corrupt, only age can condemn the lock: a process can
@@ -385,11 +384,10 @@ function why(r: RunResult): string {
   return r.tail.split('\n').pop() || `exit ${r.code}`;
 }
 
-/** sha256 over both requirements files, so a pin change triggers compatibility setup.
- *  requirements-cpu.txt includes the actual pins via `-r requirements.txt`. */
+/** Hash the service requirements; capture pins must not trigger service setup. */
 function requirementsDigest(backendDir: string): string {
   const hash = createHash('sha256');
-  for (const name of [REQUIREMENTS, 'requirements.txt']) {
+  for (const name of [REQUIREMENTS]) {
     hash.update(fs.readFileSync(path.join(backendDir, name)));
   }
   return hash.digest('hex');
@@ -782,7 +780,7 @@ export class ManagedRuntime {
         }
 
         const stagedInterpreter = venvInterpreter(stagingVenv);
-        report('Installing the backend dependencies (this downloads PyTorch, once)…');
+        report('Installing the TensorViz service dependencies (model frameworks are separate)…');
         const install = await measure('dependencies', () => run(
           stagedInterpreter,
           ['-m', 'pip', 'install', '--no-input', '-r', path.join(backendDir, REQUIREMENTS)],
@@ -1173,3 +1171,4 @@ export function managedRuntimeFor(
     manifestPath: options?.manifestPath,
   });
 }
+

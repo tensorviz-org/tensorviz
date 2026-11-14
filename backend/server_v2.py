@@ -25,15 +25,14 @@ from middleware import (
     local_token_matches,
 )
 
-# Import modular services
+# Import modular services. Nothing imported here may load PyTorch: the server and
+# its static routes start without it. Routes that run tensors load their service
+# through api.pytorch_requirement, which answers 503 when PyTorch cannot load.
+from api.pytorch_requirement import load as load_pytorch_service
 from core.graph_input_safety import UnsafeGraphInput
-from core.shape_inference import ShapeInferenceService, infer_hierarchical_shapes, infer_node_shapes
-from core.layer_builder import build_layer, topological_sort, validate_layer_parameters
 from services.template_service import TemplateService
 from services.code_generation import CodeGenerationService
 from services.model_roadmap import get_complex_model_roadmap
-from services.verification_service import verify_model, export_package
-from services.onnx_export import export_onnx
 from models.graph_models import (
     CodeParseRequest,
     CustomizeModelRequest,
@@ -133,7 +132,6 @@ app.include_router(local_browser.router)
 
 # Initialize services
 template_service = TemplateService()
-shape_inference_service = ShapeInferenceService()
 code_generation_service = CodeGenerationService()
 model_validation_service = ModelValidationService()
 code_parser_service = CodeParserService()
@@ -528,6 +526,8 @@ def infer_shapes(request: GraphPayloadRequest):
         graph_dict = request.graph
         if not graph_dict:
             raise HTTPException(status_code=400, detail="Graph data is required")
+        # An HTTPException, so the clause below passes it through as a 503.
+        shapes = load_pytorch_service("core.shape_inference", "Shape inference")
 
         graph_dict = _convert_to_hierarchical_graph(graph_dict)
         input_shape = request.input_shape or [1, 3, 224, 224]
@@ -540,7 +540,7 @@ def infer_shapes(request: GraphPayloadRequest):
             # answer {"shapes": "shapes", "output_shape": "errors"} for every
             # hierarchical graph. It has no output shape to give — that comes from the
             # dry forward pass in verification_service.
-            inferred = infer_hierarchical_shapes(hierarchical_graph, input_shape)
+            inferred = shapes.infer_hierarchical_shapes(hierarchical_graph, input_shape)
             result = {
                 "success": True,
                 "shapes": inferred.get("shapes", {}),
@@ -548,7 +548,7 @@ def infer_shapes(request: GraphPayloadRequest):
                 "errors": inferred.get("errors") or [],
             }
         else:
-            result = infer_node_shapes(
+            result = shapes.infer_node_shapes(
                 Graph(**graph_dict), input_shape
             )
             # Make sure success field exists for frontend compatibility
@@ -840,8 +840,9 @@ def verify_model_endpoint(request: VerifyModelRequest):
     # ran fine" is the same lie Q-m3 is about — just on the plane the user trusts
     # most.
     _require_nodes(graph, "graph")
+    verification = load_pytorch_service("services.verification_service", "Model verification")
     try:
-        return verify_model(graph, input_shape=request.input_shape, run_forward=request.run_forward)
+        return verification.verify_model(graph, input_shape=request.input_shape, run_forward=request.run_forward)
     except HTTPException:
         raise
     except UnsafeGraphInput as exc:
@@ -878,9 +879,11 @@ def export_package_endpoint(request: ExportPackageRequest):
         safe_name = f"Model_{safe_name}" if safe_name else "GeneratedModel"
 
     _refuse_if_invalid(graph, input_shape, "exported")
+    # Structural problems are reported above without PyTorch; the runnable check needs it.
+    service = load_pytorch_service("services.verification_service", "Package export")
 
     try:
-        verification = verify_model(graph, input_shape=input_shape, run_forward=True)
+        verification = service.verify_model(graph, input_shape=input_shape, run_forward=True)
     except UnsafeGraphInput as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except (ValueError, TypeError, AttributeError) as exc:
@@ -903,7 +906,7 @@ def export_package_endpoint(request: ExportPackageRequest):
         )
 
     try:
-        zip_bytes, filename = export_package(graph, input_shape, safe_name)
+        zip_bytes, filename = service.export_package(graph, input_shape, safe_name)
     except UnsafeGraphInput as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except (ValueError, TypeError, AttributeError) as exc:
@@ -946,8 +949,9 @@ def export_onnx_endpoint(request: ExportOnnxRequest):
     # and missed that ONNX export has its own entry point.
     _require_nodes(graph, "graph")
     model_name = request.model_name or request.class_name or "GeneratedModel"
+    onnx_export = load_pytorch_service("services.onnx_export", "ONNX export")
     try:
-        return export_onnx(
+        return onnx_export.export_onnx(
             graph,
             input_shape=request.input_shape,
             model_name=model_name,

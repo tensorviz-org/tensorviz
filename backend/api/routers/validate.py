@@ -13,12 +13,23 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from api.pytorch_requirement import load as load_pytorch_service
 from core.op_registry import spec_for
 from models.architecture_models import ArchitectureEdge, ArchitectureGraph, ArchitectureNode
-from services.canonical_validation import _UNCHECKED_MARK, CanonicalValidationService
 
 router = APIRouter()
-_validator = CanonicalValidationService()
+#: Built on first use. Canonical validation runs layers, so it loads PyTorch, and
+#: importing this router must not: the server starts without it.
+_validator = None
+
+
+def _canonical_validation():
+    """The validation module and its shared validator, or a 503 naming PyTorch."""
+    global _validator
+    validation = load_pytorch_service("services.canonical_validation", "Shape validation")
+    if _validator is None:
+        _validator = validation.CanonicalValidationService()
+    return validation, _validator
 
 
 class NodeData(BaseModel):
@@ -385,7 +396,8 @@ def _build_canonical_graph(request: ValidationRequest) -> ArchitectureGraph:
 @router.post("/validate_shapes")
 def validate_shapes(request: ValidationRequest):
     graph = _build_canonical_graph(request)
-    validation = _validator.validate(graph=graph, strict=False)
+    canonical, validator = _canonical_validation()
+    validation = validator.validate(graph=graph, strict=False)
 
     shapes: Dict[str, List[int]] = {}
     errors: List[Dict[str, Any]] = []
@@ -404,7 +416,7 @@ def validate_shapes(request: ValidationRequest):
         # is another opaque block, which is its own cause. Keying the report off the
         # victims alone made such a block vanish from the answer entirely, which is
         # the silence this is supposed to end.
-        if result and result.message and _UNCHECKED_MARK in result.message and not result.blocked_by:
+        if result and result.message and canonical._UNCHECKED_MARK in result.message and not result.blocked_by:
             unchecked_causes.append(node.node_id)
         if result and result.status == "error":
             suggested_repairs = list(result.suggested_repairs or [])

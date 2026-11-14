@@ -15,12 +15,16 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from api.pytorch_requirement import load as load_pytorch_service
 from auth import CurrentUser, get_current_user
-from services.ingest import IngestError, ModelRef, available_libraries, catalog, ingest, scan_only
 from services.ingest.document import to_document
-from services.ingest.repo_scan import StubbedDependencyError
-from services.ingest.resolvers import MissingLibraryError
+from services.ingest.repo_scan import StubbedDependencyError, rank_entrypoints, scan_repo
+from services.ingest.spec import ModelRef
 from services.store_factory import get_project_store
+
+# services.ingest.service and .resolvers import PyTorch at module scope. They are
+# loaded by the routes that instantiate models, so the server and the static
+# repository scan below start without PyTorch.
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 _store = get_project_store()
@@ -66,7 +70,8 @@ def get_libraries(user: CurrentUser = Depends(get_current_user)) -> Dict[str, An
 
     ``torchvision`` ships with the backend requirements; the others are optional extras.
     """
-    return {"libraries": available_libraries()}
+    resolvers = load_pytorch_service("services.ingest.resolvers", "Model library import")
+    return {"libraries": resolvers.available_libraries()}
 
 
 @router.get("/catalog")
@@ -79,7 +84,8 @@ def get_catalog(
 ) -> Dict[str, Any]:
     """Paginated architecture index. Paginated on purpose: the full index across all four
     libraries is thousands of entries and must not be served as one blob."""
-    entries = catalog(library)
+    resolvers = load_pytorch_service("services.ingest.resolvers", "Model library import")
+    entries = resolvers.catalog(library)
     if q:
         needle = q.lower()
         entries = [e for e in entries if needle in e.arch.lower()]
@@ -120,11 +126,10 @@ def scan_repository(
     caller confirms which candidate to import.
     """
     try:
-        candidates = scan_only(request.repo)
+        # services.ingest.scan_only, without loading the PyTorch-backed service module.
+        candidates = rank_entrypoints(scan_repo(request.repo))
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"repository not found: {request.repo}")
-    except IngestError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
     return {"candidates": [c.model_dump() for c in candidates]}
 
 
@@ -154,9 +159,12 @@ def ingest_repository(
 
 
 def _run(ref: ModelRef):
+    service = load_pytorch_service("services.ingest.service", "Model import")
+    from services.ingest.resolvers import MissingLibraryError
+
     try:
-        return ingest(ref)
-    except IngestError as exc:
+        return service.ingest(ref)
+    except service.IngestError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

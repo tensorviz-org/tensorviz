@@ -5,13 +5,25 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { backendPythonArgs } = require('../../out/host/backendPython.cjs');
 
+// Synchronous subprocesses block the test runner's timeout timer. Bound each
+// native probe at the OS process boundary, and identify the active call in CI.
+function runProbe(label, python, args) {
+  process.stderr.write(`[no-torch] starting ${label}\n`);
+  const result = spawnSync(python, args, {
+    encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL', maxBuffer: 1024 * 1024,
+  });
+  process.stderr.write(`[no-torch] finished ${label}: status=${result.status} signal=${result.signal || 'none'}\n`);
+  assert.ifError(result.error && new Error(`${label}: ${result.error.message}`));
+  return result;
+}
+
 test('native backend starts without torch and attributes capture failure to the selected Python', () => {
   const python = process.env.TENSORVIZ_NO_TORCH_PYTHON || process.env.TENSORVIZ_COMPILER_PYTHON;
   const backend = process.env.TENSORVIZ_TEST_BACKEND;
   assert.ok(python && backend, 'Explicit clean Python and native backend paths are required');
-  const clean = spawnSync(python, ['-I', '-c', 'import importlib.util; assert importlib.util.find_spec("torch") is None'], { encoding: 'utf8' });
+  const clean = runProbe('clean interpreter inspection', python, ['-I', '-c', 'import importlib.util; assert importlib.util.find_spec("torch") is None']);
   assert.equal(clean.status, 0, clean.stdout + clean.stderr);
-  const result = spawnSync(python, backendPythonArgs(backend, 'services/ide/environment_setup.py', ['probe-capture']), { encoding: 'utf8' });
+  const result = runProbe('compiled missing-Torch capture probe', python, backendPythonArgs(backend, 'services/ide/environment_setup.py', ['probe-capture']));
   assert.equal(result.status, 1, result.stdout + result.stderr);
   assert.equal(result.stderr, '', 'Missing optional capture dependencies must not produce a startup traceback');
   const failure = JSON.parse(result.stdout);
@@ -29,8 +41,8 @@ import _tensorviz_backend
 sys.modules['torch'] = types.ModuleType('torch')
 sys.exit(_tensorviz_backend.run('services/ide/environment_setup.py', ['probe-capture']))
 `;
-  const result = spawnSync(process.env.TENSORVIZ_NO_TORCH_PYTHON || process.env.TENSORVIZ_COMPILER_PYTHON,
-    ['-I', '-B', '-c', script, process.env.TENSORVIZ_TEST_BACKEND], { encoding: 'utf8' });
+  const result = runProbe('compiled incompatible-Torch capture probe', process.env.TENSORVIZ_NO_TORCH_PYTHON || process.env.TENSORVIZ_COMPILER_PYTHON,
+    ['-I', '-B', '-c', script, process.env.TENSORVIZ_TEST_BACKEND]);
   assert.equal(result.status, 1, result.stdout + result.stderr);
   assert.equal(result.stderr, '');
   const failure = JSON.parse(result.stdout);

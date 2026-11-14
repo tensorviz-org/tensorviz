@@ -1,10 +1,11 @@
 """Model validation utilities for PyTorch models"""
-from typing import Dict, List, Any, Optional, Tuple
-import torch
-import torch.nn as nn
+from typing import TYPE_CHECKING, Dict, List, Any, Optional, Tuple
 from core.op_registry import is_placeholder_op, spec_for
 from services.code_generation import generator_supports_op
 from models.graph_models import Graph, Node, Edge, LayerData, HierarchicalGraph
+
+if TYPE_CHECKING:
+    import torch.nn as nn
 
 # The three graph node kinds that are not torch operations. They exist nowhere in
 # op_registry on purpose — Input and Output carry a shape, Module carries a
@@ -465,8 +466,11 @@ class ModelValidationService:
 
         return errors
     
-    def validate_pytorch_model(self, model: nn.Module, input_shape: Tuple[int, ...]) -> Dict[str, Any]:
+    def validate_pytorch_model(self, model: "nn.Module", input_shape: Tuple[int, ...]) -> Dict[str, Any]:
         """Validate an actual PyTorch model"""
+        # Structural validation above is static and must not need PyTorch.
+        import torch
+
         try:
             # Create dummy input
             dummy_input = torch.randn(1, *input_shape)

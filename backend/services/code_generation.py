@@ -228,6 +228,16 @@ class CodeGenerationService:
                     layer_type, label=f"{label} layer operation"
                 )
                 continue
+            if any(re.fullmatch(r"arg_\d+", name) for name in parameters):
+                # The static parser retains positional values under arg_N when
+                # no trusted constructor signature is available. These are not
+                # keyword names, and exporting them would silently produce code
+                # such as nn.Linear(arg_0=4, arg_1=3) that cannot run.
+                raise UnsafeGraphInput(
+                    f"{label} node {node.id!r} has unresolved positional arguments. "
+                    "Use named constructor arguments in the original source and "
+                    "project it again before exporting, or run the original source."
+                )
             validate_layer_parameters(
                 layer_type,
                 parameters,
@@ -1483,3 +1493,4 @@ if __name__ == "__main__":
             )
         lines.append("# " + "=" * 74)
         return "\n".join(lines)
+

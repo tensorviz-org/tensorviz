@@ -219,8 +219,12 @@ export function EnvironmentRecoveryPanel({ state, connected, standalone, onActio
       {environment.candidates.length > 1 && <input type="search" className="graph-environment-search" aria-label="Search environments"
         placeholder="Search by name, path or version" value={query} disabled={!connected} onChange={event => setQuery(event.target.value)} />}
       <fieldset disabled={!connected || busy} className="graph-environment-choices"><legend className="graph-setup-sr-only">Detected environments</legend>
-        {shown.map(item => { const fit = modelFit(item); return <div key={item.id} className={`graph-environment-entry${selected === item.id ? ' selected' : ''}`}><label className={`graph-environment-choice ${item.status}`}
-          data-fit={fit === undefined ? undefined : fit === 'Ready for this model' ? 'ready' : item.incompatible?.length || item.modelIncompatible?.length ? 'change' : 'install'}>
+        {shown.map(item => {
+          // Installed-package metadata cannot override this interpreter's failed worker probe.
+          const workerFailed = environment.reason === 'worker_failed' && item.id === environment.selectedId;
+          const fit = workerFailed ? 'Capture check failed' : modelFit(item);
+          return <div key={item.id} className={`graph-environment-entry${selected === item.id ? ' selected' : ''}`}><label className={`graph-environment-choice ${item.status}`}
+          data-fit={workerFailed ? 'failed' : fit === undefined ? undefined : fit === 'Ready for this model' ? 'ready' : item.incompatible?.length || item.modelIncompatible?.length ? 'change' : 'install'}>
           <input type="radio" name="capture-environment" value={item.id} checked={selected === item.id} disabled={item.status === 'unavailable'} onChange={() => setSelected(item.id)} />
           <span className="graph-environment-name"><strong title={identityOf(item)}>{identityOf(item)}</strong>
             {item.id === environment.selectedId && <small className="graph-environment-active"><Check aria-hidden="true" />Saved</small>}
@@ -230,7 +234,7 @@ export function EnvironmentRecoveryPanel({ state, connected, standalone, onActio
           {selected !== item.id && (fit ? <span className={`graph-environment-status${fit === 'Ready for this model' ? ' ready' : ''}`}>{fit}</span>
             : <span className={item.status === 'libraries_present' ? 'graph-setup-sr-only' : 'graph-environment-status'}>{libraryStatus(item)}</span>)}
           {selected === item.id && <span className="graph-environment-facts"><span>Capture libraries</span><span>{libraryStatus(item)}</span>
-            {fit && <><span>This model</span><span className={fit === 'Ready for this model' ? 'ready' : 'needs'}>{fit}</span></>}
+            {fit && <><span>This model</span><span className={workerFailed ? 'failed' : fit === 'Ready for this model' ? 'ready' : 'needs'}>{fit}</span></>}
             {!fit && confirmed && (missing || incompatible) && !failure && !busy && <><span>Model check</span><span>Blocked · see above</span></>}</span>}
         </label>{selected === item.id && <details className="graph-environment-paths"><summary><ChevronRight aria-hidden="true" />Interpreter details</summary><div className="graph-environment-facts"><span>Interpreter</span><code>{pathText(item.interpreter)}</code>
             {item.prefix && <><span>Prefix</span><code>{pathText(item.prefix)}</code></>}

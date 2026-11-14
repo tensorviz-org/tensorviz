@@ -492,6 +492,36 @@ test('a recommendation opens the list with the environment needing the fewest ch
   expect(onAction).toHaveBeenCalledWith({ kind: 'select_environment', candidateId: 'suggestion' });
 });
 
+test('a failed capture check overrides installed-library readiness only for that interpreter', () => {
+  const opening = ranked();
+  opening.environment!.reason = 'worker_failed';
+  delete opening.environment!.recommendedId;
+  opening.environment!.detail = 'The capture worker could not load (OSError). Choose a compatible environment.';
+  opening.detail = opening.environment!.detail;
+  opening.environment!.candidates[1].modelIncompatible = [];
+  const { rerender } = renderManual(<GraphOpeningPanel state={opening} connected onAction={jest.fn()} />);
+  const radios = screen.getAllByRole('radio');
+  const failed = radios[1].closest('.graph-environment-choice')!;
+  const alternative = radios[0].closest('.graph-environment-choice')!;
+  expect(failed).toHaveTextContent('Capture libraries present');
+  expect(failed).toHaveTextContent('Capture check failed');
+  expect(failed).not.toHaveTextContent('Ready for this model');
+  expect(failed).toHaveAttribute('data-fit', 'failed');
+  expect(alternative).toHaveTextContent('Ready for this model');
+
+  // Selecting a different radio cannot erase the saved interpreter's known failure.
+  fireEvent.click(radios[0]);
+  expect(failed).toHaveTextContent('Capture check failed');
+  expect(alternative).toHaveTextContent('Ready for this model');
+
+  // A fresh host verdict without the worker failure restores ordinary readiness.
+  rerender(<GraphOpeningPanel state={{ ...opening, environment: {
+    ...opening.environment!, reason: 'selection_required', detail: 'Choose Python for this model.',
+  } }} connected onAction={jest.fn()} />);
+  expect(screen.queryByText('Capture check failed')).toBeNull();
+  expect(screen.getAllByRole('radio')[1].closest('.graph-environment-choice')).toHaveAttribute('data-fit', 'ready');
+});
+
 test('search filters environments by name, path or version and says when nothing matches', () => {
   renderManual(<GraphOpeningPanel state={ranked()} connected onAction={jest.fn()} />);
   const search = screen.getByRole('searchbox', { name: 'Search environments' });

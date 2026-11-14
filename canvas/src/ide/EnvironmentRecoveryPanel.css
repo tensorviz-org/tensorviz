@@ -42,12 +42,12 @@
 /* With the opening's model check, the bar says what the model still needs, not only the capture libraries. */
 .graph-environment-choice[data-fit='ready'] { --environment-status: var(--tv-success); }
 .graph-environment-choice[data-fit='install'] { --environment-status: var(--tv-modified); }
-.graph-environment-choice[data-fit='change'] { --environment-status: var(--tv-error); }
+.graph-environment-choice[data-fit='change'], .graph-environment-choice[data-fit='failed'] { --environment-status: var(--tv-error); }
 .graph-environment-panel .graph-environment-search { box-sizing: border-box; width: 100%; min-width: 0; margin: 2px 0 8px; padding: 7px 10px; border: 1px solid var(--tv-frame-line); border-radius: 6px; background: var(--tv-field); color: var(--tv-text); font: inherit; font-size: 13px; line-height: 18px; }
 .graph-environment-search::placeholder { color: var(--tv-text-3); }
 .graph-environment-recommended { flex: none; padding: 0 7px; border-radius: 999px; background: var(--tv-accent-wash); color: var(--tv-accent-ink); font-size: 11px; font-weight: 600; line-height: 18px; }
 .graph-environment-status.ready, .graph-environment-facts > span.ready { color: var(--tv-success); }
-.graph-environment-choice[data-fit='change'] .graph-environment-status { color: var(--tv-error); }
+.graph-environment-choice[data-fit='change'] .graph-environment-status, .graph-environment-choice[data-fit='failed'] .graph-environment-status, .graph-environment-facts > span.failed { color: var(--tv-error); }
 .graph-environment-facts > span.needs { color: var(--tv-modified-ink); }
 .graph-environment-empty { margin: 8px 10px; font-size: 12px; line-height: 18px; color: var(--tv-text-3); }
 .graph-environment-entry:first-of-type .graph-environment-choice, .graph-environment-entry.selected .graph-environment-choice, .graph-environment-entry.selected + .graph-environment-entry .graph-environment-choice { border-top-color: transparent; }

@@ -91,7 +91,8 @@ author.
 
 ## Limits
 
-- Graph files up to 10 MB with 1 to 5,000 blocks, the website's limits.
+- Graph files up to 96 MB with 1 to 20,000 blocks, the website's limits. The file travels
+  gzipped and must be 23 MB or less that way; graph files usually gzip to an eighth of their size.
 - One post every 15 seconds; a quicker second one says how long to wait.
 - Desktop VS Code and VS Code-family editors, and the coding-agent plugin's panel and
   browser graph on the computer running the plugin. Open Canvas in Browser and

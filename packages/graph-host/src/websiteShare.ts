@@ -9,15 +9,19 @@
 import { gzipSync } from 'node:zlib';
 import { websiteRequest, WebsiteError, type WebsiteAccount, type WebsiteConfig, type WebsiteFetch } from './websiteAccount';
 
-/** The API's limits, which are the website viewer's, checked here first for a quick answer. */
-export const SHARE_LIMITS = { bytes: 10 * 1024 * 1024, nodes: 5000, title: 100, name: 120 };
-/** Long enough for a 10 MB graph's upload on a slow connection. */
-const UPLOAD_TIMEOUT_MS = 180_000;
+/** The API's limits, checked here first for a quick answer: the website viewer's file size
+ *  and blocks, and the file gzipped as it is sent, since a request to the website stays
+ *  under 32 MiB. Graph files usually gzip to an eighth of their size. */
+export const SHARE_LIMITS = { bytes: 96 * 1024 * 1024, packed: 23 * 1024 * 1024, nodes: 20000, title: 100, name: 120 };
+/** Long enough to send the largest file, about 31 MB in base64, on a slow connection. */
+const UPLOAD_TIMEOUT_MS = 600_000;
 const GRAPH_ID = /^[A-Za-z0-9]{20}$/;
 
 export interface ShareableGraph {
   /** The file as the website stores it: the product's own graph file, unchanged. */
   text: string;
+  /** The file gzipped, in base64, as the API takes it. */
+  packed: string;
   /** The model's name, which titles the graph; its owner can rename it on the website. */
   title: string;
   name: string;
@@ -29,21 +33,23 @@ const oneLine = (value: string, max: number): string => value.replace(/\s+/g, ' 
 
 /** What the website keeps about a graph file, or why the website cannot take it. */
 export function shareableGraph(bytes: Uint8Array): ShareableGraph {
-  if (bytes.length > SHARE_LIMITS.bytes) throw new WebsiteError('invalid', 'tensorViz takes graph files up to 10 MB.');
+  if (bytes.length > SHARE_LIMITS.bytes) throw new WebsiteError('invalid', 'tensorViz takes graph files up to 96 MB.');
   const text = Buffer.from(bytes).toString('utf8');
   let file: any;
   try { file = JSON.parse(text); } catch { file = undefined; }
   const semantic = file?.document?.semantic;
   if (file?.format !== 'tensorviz.graph' || !Array.isArray(semantic?.nodes)) throw new WebsiteError('invalid', 'This is not a tensorViz graph file.');
   const nodes = semantic.nodes.length;
-  if (nodes < 1 || nodes > SHARE_LIMITS.nodes) throw new WebsiteError('invalid', 'tensorViz takes graphs with 1 to 5,000 blocks.');
+  if (nodes < 1 || nodes > SHARE_LIMITS.nodes) throw new WebsiteError('invalid', 'tensorViz takes graphs with 1 to 20,000 blocks.');
+  const packed = gzipSync(Buffer.from(text, 'utf8'));
+  if (packed.length > SHARE_LIMITS.packed) throw new WebsiteError('invalid', 'tensorViz takes graph files up to 23 MB compressed.');
   const name = oneLine(typeof semantic.name === 'string' ? semantic.name : '', SHARE_LIMITS.name) || 'Graph';
-  return { text, title: oneLine(name, SHARE_LIMITS.title), name, nodes, bytes: Buffer.byteLength(text, 'utf8') };
+  return { text, packed: packed.toString('base64'), title: oneLine(name, SHARE_LIMITS.title), name, nodes, bytes: Buffer.byteLength(text, 'utf8') };
 }
 
 /** What the API takes: the file gzipped in base64, titled with the model's name, private. */
 export function uploadBody(graph: ShareableGraph): string {
-  return JSON.stringify({ file: gzipSync(Buffer.from(graph.text, 'utf8')).toString('base64'), title: graph.title, visibility: 'private' });
+  return JSON.stringify({ file: graph.packed, title: graph.title, visibility: 'private' });
 }
 
 /** The graph's page on the website; `share` opens its Share dialog. */

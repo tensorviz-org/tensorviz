@@ -149,11 +149,11 @@ test('the graph file is checked before any sign-in, and one publish runs at a ti
   t.after(() => publisher.dispose());
   const unused = { signingIn: () => assert.fail('no sign-in'), uploading: () => assert.fail('no upload') };
   const signal = new AbortController().signal;
-  const bomb = gzipSync(Buffer.alloc(10 * 1024 * 1024 + 2, 32)).toString('base64');
-  await assert.rejects(publisher.publish(bomb, unused, signal), error => error.code === 'invalid' && /10 MB/.test(error.message));
+  const bomb = gzipSync(Buffer.alloc(96 * 1024 * 1024 + 2, 32)).toString('base64');
+  await assert.rejects(publisher.publish(bomb, unused, signal), error => error.code === 'invalid' && /96 MB/.test(error.message));
   await assert.rejects(publisher.publish('bm90IGd6aXA=', unused, signal), error => error.code === 'invalid');
   await assert.rejects(publisher.publish(gzipSync('{}').toString('base64'), unused, signal), error => error.code === 'invalid');
-  await assert.rejects(publisher.publish(graphFile('Net', 0), unused, signal), error => error.code === 'invalid' && /5,000 blocks/.test(error.message));
+  await assert.rejects(publisher.publish(graphFile('Net', 0), unused, signal), error => error.code === 'invalid' && /20,000 blocks/.test(error.message));
   assert.deepEqual(seen, []);
 
   const controller = new AbortController();

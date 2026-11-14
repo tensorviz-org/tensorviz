@@ -179,7 +179,7 @@ export function publishedFile(file: string): Uint8Array {
   let bytes: Buffer;
   try { bytes = gunzipSync(Buffer.from(file, 'base64'), { maxOutputLength: SHARE_LIMITS.bytes + 1 }); }
   catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ERR_BUFFER_TOO_LARGE') throw new WebsiteError('invalid', 'tensorViz takes graph files up to 10 MB.');
+    if ((error as NodeJS.ErrnoException).code === 'ERR_BUFFER_TOO_LARGE') throw new WebsiteError('invalid', 'tensorViz takes graph files up to 96 MB.');
     throw new WebsiteError('invalid', 'This is not a tensorViz graph file.');
   }
   return bytes;

@@ -1,0 +1,37 @@
+name: Alpine musl native candidate
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/musl-candidate.yml'
+      - 'plugin/**'
+      - 'packages/graph-host/**'
+      - 'runtime/python/**'
+      - 'backend/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  alpine-x64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compile, audit, and test the complete native plugin without Torch
+        env:
+          TLDRAW_LICENSE_KEY: ${{ secrets.TLDRAW_LICENSE_KEY }}
+          TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
+        run: |
+          docker run --rm --platform linux/amd64 \
+            -v "$PWD:/tensorviz-native-build/reviewed-source" -w /tensorviz-native-build/reviewed-source \
+            -e TLDRAW_LICENSE_KEY -e TLDRAW_DISTRIBUTION_CONFIRMED \
+            -e TENSORVIZ_REVIEWED_SOURCE_SHA="${{ github.sha }}" \
+            alpine:3.24.4 sh plugin/scripts/test-musl-candidate.sh
+      - name: Retain audited candidate only; do not publish or change catalogs
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-candidate-linux-x64-musl
+          path: plugin/dist/tensorviz-runtime-*.tar.gz*
+          if-no-files-found: error
+          retention-days: 3

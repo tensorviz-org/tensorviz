@@ -25,7 +25,7 @@ test('native targets, workflow Node versions and exact upstream notices stay ali
   const root = path.resolve(__dirname, '../../..');
   const versions = new Set();
   for (const target of Object.values(nativePlatforms)) {
-    const match = /^node(\d+\.\d+\.\d+)-(?:macos|linux|win)-(?:arm64|x64)$/.exec(target.pkg);
+    const match = /^node(\d+\.\d+\.\d+)-(?:macos|linux|alpine|win)-(?:arm64|x64)$/.exec(target.pkg);
     assert.ok(match, 'pkg must select an exact embedded Node version, not a floating major');
     versions.add(match[1]);
     const notice = await fs.readFile(path.join(root, 'plugin/licenses', `node-${match[1]}.txt`));

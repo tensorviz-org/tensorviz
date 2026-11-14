@@ -144,10 +144,10 @@ test('managed availability and venv paths follow supported platform pins', async
   const nodeFs = require('node:fs');
   const source = await fs.readFile(path.join(__dirname, '../../out/host/runtime.cjs'), 'utf8');
   const manifest = JSON.parse(await fs.readFile(path.resolve(__dirname, '../../../runtime/python/manifest.json'), 'utf8'));
-  for (const [osName, cpu, available] of [
+  for (const [osName, cpu, available, libc = 'glibc'] of [
     ['darwin', 'arm64', true], ['linux', 'x64', true], ['win32', 'x64', true],
     ['linux', 'arm64', true], ['darwin', 'x64', true], ['win32', 'arm64', true],
-    ['freebsd', 'x64', false],
+    ['freebsd', 'x64', false], ['linux', 'x64', true, 'musl'], ['linux', 'x64', false, 'unknown'],
   ]) {
     // Isolate process and path together: changing process.platform alone leaves
     // Linux path.join semantics in place and cannot catch Windows path bugs.
@@ -161,7 +161,10 @@ test('managed availability and venv paths follow supported platform pins', async
       return JSON.stringify(manifest);
     };
     const processStub = Object.create(process);
-    Object.defineProperties(processStub, { platform: { value: osName }, arch: { value: cpu } });
+    Object.defineProperties(processStub, { platform: { value: osName }, arch: { value: cpu },
+      report: { value: { getReport: () => osName !== 'linux' || libc === 'unknown' ? {header:{}} :
+        libc === 'musl' ? {header:{}, sharedObjects:['/lib/ld-musl-x86_64.so.1']} : {header:{glibcVersionRuntime:'2.35'}} } },
+    });
     vm.runInNewContext(source, {
       module: moduleStub, exports: moduleStub.exports,
       process: processStub, global: {}, Buffer, setTimeout, clearTimeout, setImmediate,
@@ -185,7 +188,7 @@ test('managed availability and venv paths follow supported platform pins', async
           ...(osName === 'win32' ? ['Scripts', 'python.exe'] : ['bin', 'python'])));
         assert.ok(location.directory.startsWith(storage + platformPath.sep));
         assert.equal(location.asset.pin.interpreter, osName === 'win32' ? 'python.exe' : 'bin/python3');
-        const pin = manifest.platforms[`${osName}-${cpu}`];
+        const pin = manifest.platforms[`${osName}-${cpu}${libc === 'musl' ? '-musl' : ''}`];
         assert.equal(location.asset.url, `${manifest.baseUrl}/${manifest.release}/cpython-${manifest.python}%2B${manifest.release}-${pin.triple}-${manifest.flavour}.tar.gz`);
       }
     } else {

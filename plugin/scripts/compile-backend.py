@@ -61,6 +61,8 @@ def compile_backend(source, build, destination):
         ('win32', 'ARM64'): 'cp312-win_arm64',
     }
     expected_abi = targets.get((sys.platform, platform.machine()))
+    if sys.platform == 'linux' and platform.machine() == 'x86_64' and python_abi() == 'cpython-312-x86_64-linux-musl':
+        expected_abi = python_abi()
     if not expected_abi or sys.version_info[:2] != (3, 12):
         raise RuntimeError('Native builds require a supported x64/ARM64 platform and CPython 3.12.')
     if python_abi() != expected_abi:
@@ -120,7 +122,7 @@ def compile_backend(source, build, destination):
                         str(destination / binary.name)], check=True)
         subprocess.run(['/usr/bin/codesign', '--force', '--sign', '-', str(destination / binary.name)], check=True)
     for file in source.rglob("*"):
-        if file.is_file() and file.suffix != ".py":
+        if file.is_file() and file.suffix not in {".py", ".pyc", ".pyo"} and "__pycache__" not in file.parts:
             target = destination / NAMESPACE / file.relative_to(source)
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(file, target)

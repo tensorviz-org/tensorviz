@@ -37,18 +37,23 @@ The following ran inside an Alpine 3.24.4 x86_64 root filesystem, not simulated 
 6. Empty-cache bootstrap used verified local HTTPS, exact size and SHA256 checks,
    fresh extraction and the native MCP test. Both actual native binaries passed
    the strict musl ELF dependency audit.
+7. A fresh managed-service directory then downloaded and verified Python, installed
+   wheels without source fallback, and passed the compiled service test with Torch
+   absent. This used the PR64 inspect-service fix and the musl selector in a bundled
+   source harness under Alpine Node24, not a desktop-client interaction.
 
 Limitations: the local host prototype used a minimal renderer fixture, **not UI
 acceptance**. Full production renderer/package CI in this PR remains required.
-The cold host archive test did not exercise cold managed-Python provisioning.
+The managed-service test is distinct from the native host archive test; it does not
+prove desktop-client provisioning or browser UI behavior.
 No actual model capture, ChatGPT/Claude desktop installation, Alpine ARM64,
 older Alpine version or glibc below 2.31 is claimed. Capability advertisement is
 not evidence that the user's framework is installed or that model capture works.
 
 ## Release gates
 
-Before advertising musl: require candidate CI success on the exact revision, a
-cold managed-runtime provisioning test, real browser/client acceptance, and
+Before advertising musl: require candidate CI success on the exact revision, the
+cold managed-runtime regression, real browser/client acceptance, and
 clear missing/incompatible-framework diagnostics. Add an exact musl entry to a
 public catalog only for an audited published artifact. Never repoint the GNU key.
 

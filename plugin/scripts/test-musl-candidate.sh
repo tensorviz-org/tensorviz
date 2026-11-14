@@ -24,5 +24,5 @@ export TENSORVIZ_SERVICE_TEST_BACKEND="$PWD/plugin/out/native-runtime/backend"
 export TENSORVIZ_TEST_BACKEND="$TENSORVIZ_SERVICE_TEST_BACKEND"
 node --test plugin/test/unit/musl-platform.test.cjs
 node plugin/scripts/build-release.mjs --native-archive
-node --test plugin/test/native/host.cjs plugin/test/native/no-torch.cjs
+node --test plugin/test/native/host.cjs plugin/test/native/no-torch.cjs plugin/test/native/managed-service.cjs
 /opt/service/bin/python backend/tests/runtime/test_service_without_torch.py

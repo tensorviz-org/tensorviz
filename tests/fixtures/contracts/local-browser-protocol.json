@@ -105,7 +105,7 @@
       "messageId": "publish-failed",
       "requestId": "publish-one",
       "status": "failed",
-      "detail": "tensorViz takes graphs with 1 to 5,000 blocks.",
+      "detail": "tensorViz takes graphs with 1 to 20,000 blocks.",
       "graph": null
     },
     {
@@ -6188,7 +6188,7 @@
       "messageId": "publish-failed",
       "requestId": "publish-one",
       "status": "failed",
-      "detail": "tensorViz takes graphs with 1 to 5,000 blocks.",
+      "detail": "tensorViz takes graphs with 1 to 20,000 blocks.",
       "graph": {
         "id": "AbCdEfGhIjKlMnOpQrSt",
         "title": "Net",
@@ -6229,7 +6229,7 @@
       "messageId": "publish-failed",
       "requestId": "publish-one",
       "status": "failed",
-      "detail": "tensorViz takes graphs with 1 to 5,000 blocks."
+      "detail": "tensorViz takes graphs with 1 to 20,000 blocks."
     },
     {
       "protocolVersion": 1,

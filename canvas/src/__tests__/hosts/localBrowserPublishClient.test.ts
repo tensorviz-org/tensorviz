@@ -1,6 +1,6 @@
 import { gunzipSync } from 'zlib';
 import { createLocalBrowserPublishClient, gzipBase64 } from '../../ide/localBrowserPublishClient';
-import { isLocalBrowserMessage } from '../../ide/protocol.generated';
+import { isLocalBrowserMessage, LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH, LOCAL_BROWSER_PUBLISH_MAX_BYTES } from '../../ide/protocol.generated';
 import type { LocalBrowserViewMessage, LocalBrowserViewStatus, LocalBrowserViewTransport } from '../../ide/localBrowserViewTransport';
 
 const target = { workspaceFolder: '/ws', file: 'net.py', cls: 'Net', documentVersion: 1, sourceDigest: 'a'.repeat(64), backendRevision: 1 };
@@ -75,13 +75,24 @@ test('cancelling while signing in tells the host once and ignores its late answe
   r.client.dispose();
 });
 
+test('sends graph files past the former 10 MB limit, but none too large to send gzipped', async () => {
+  const large = rig();
+  large.client.start(); large.client.publish(file.padEnd(11 * 1024 * 1024)); await settled();
+  expect(large.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'graphPublishRequest' }));
+  const noise = rig();
+  noise.compress.mockResolvedValueOnce('A'.repeat(LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH + 4));
+  noise.client.start(); noise.client.publish(file); await settled();
+  expect(noise.client.state).toEqual({ phase: 'failed', detail: 'tensorViz takes graph files up to 23 MB compressed.' });
+  expect(noise.send).not.toHaveBeenCalled();
+});
+
 test('reports why a publish cannot start or finish, without sending a file it should not', async () => {
   const offline = rig({ phase: 'reconnecting', hostLink: 'unknown' });
   offline.client.start(); offline.client.publish(file);
   expect(offline.client.state).toEqual({ phase: 'failed', detail: 'Connect to the tensorViz plugin to publish this graph.' });
   const large = rig();
-  large.client.start(); large.client.publish('x'.repeat(10 * 1024 * 1024 + 1));
-  expect(large.client.state).toEqual({ phase: 'failed', detail: 'tensorViz takes graph files up to 10 MB.' });
+  large.client.start(); large.client.publish('x'.repeat(LOCAL_BROWSER_PUBLISH_MAX_BYTES + 1));
+  expect(large.client.state).toEqual({ phase: 'failed', detail: 'tensorViz takes graph files up to 96 MB.' });
   const unprepared = rig();
   unprepared.client.start(); unprepared.client.fail('Wait for this model to finish opening before exporting its graph.');
   unprepared.client.publish(file); await settled();
@@ -90,8 +101,8 @@ test('reports why a publish cannot start or finish, without sending a file it sh
 
   const refused = rig();
   refused.client.start(); refused.client.publish(file); await settled();
-  refused.host('graphPublishResult', { status: 'failed', detail: 'tensorViz takes graphs with 1 to 5,000 blocks.', graph: null });
-  expect(refused.client.state).toEqual({ phase: 'failed', detail: 'tensorViz takes graphs with 1 to 5,000 blocks.' });
+  refused.host('graphPublishResult', { status: 'failed', detail: 'tensorViz takes graphs with 1 to 20,000 blocks.', graph: null });
+  expect(refused.client.state).toEqual({ phase: 'failed', detail: 'tensorViz takes graphs with 1 to 20,000 blocks.' });
   const dropped = rig();
   dropped.client.start(); dropped.client.publish(file); await settled();
   dropped.changeStatus({ phase: 'reconnecting', hostLink: 'unknown' });

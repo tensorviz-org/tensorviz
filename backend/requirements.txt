@@ -5,7 +5,7 @@ certifi==2026.10.23
 charset-normalizer==3.4.7
 click==8.2.1
 fastapi==0.162.0
-filelock==3.20.3
+filelock==4.2.1
 fsspec==2026.9.0
 h11==0.16.0
 httpcore==1.0.9
@@ -21,7 +21,7 @@ networkx==3.5
 # Required by static model dependency inspection and reviewed package requests.
 packaging
 numpy==2.3.1
-opentelemetry-api==1.45.1
+opentelemetry-api==1.45.2
 pillow==13.0.0
 pydantic>=2.12,<3
 python-dotenv==1.2.4

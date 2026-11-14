@@ -2,7 +2,7 @@
 
 Open a small PyTorch model, inspect its tensor shapes, and find a layer's Python. You can follow the same steps with your own model.
 
-Before you start, [install TensorViz](install.md) and choose a Python environment with PyTorch installed. The coding-agent plugin preview requires Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.31), with CPython 3.12 and CPU capture. For JAX and Flax in the editor, see the [framework guide](jax-support.md).
+Before you start, [install TensorViz](install.md) and choose a Python environment with PyTorch installed. The coding-agent plugin preview requires macOS ARM64/x64, Linux x64 (glibc >=2.31), Linux ARM64 (glibc >=2.35), and Windows x64/ARM64, with CPython 3.12 and CPU capture. For JAX and Flax in the editor, see the [framework guide](jax-support.md).
 
 <a id="install-the-extension"></a>
 <a id="plugin-instead-of-the-extension"></a>
@@ -82,3 +82,4 @@ If shapes say **Not recorded**, check that a capture completed. **Inspect source
 - [Explore the graph](canvas.md)
 - [Follow the code](code-focus.md)
 - [Review model changes](graph-diff-review/README.md)
+

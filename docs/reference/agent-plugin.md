@@ -42,8 +42,9 @@ plugin does not install the extension.
 - A local model project. tensorViz does not ask for its own provider API key.
   Your coding client's account still applies.
 
-Build the host before you install it. This repository does not publish a
-compiled runtime or a marketplace release. See [Plugin build](../plugin-build.md).
+Build the host before installing a source-development archive. For the published
+compiled runtime, use [Install](../install.md#plugin); release workflows live in
+this repository. See [Plugin build](../plugin-build.md) for source builds.
 
 ## Install
 
@@ -67,21 +68,21 @@ sh /path/to/tensorviz/plugins/tensorviz/scripts/install.sh --apply --host plugin
 To keep a current connection instead, use `--apply --host existing --connection NAME`,
 using a connection name from the preflight report.
 
-Source-built managed tool-service and CPU environments use the pinned runtimes
-for macOS arm64, Linux x64, and Windows x64. Capture availability follows those
-pins even when you select an existing model Python, because capture also needs
-the managed tool service. Intel macOS (`darwin-x64`) and Linux arm64 are
-unsupported for capture. These pins describe runtime availability, not verified
-end-to-end support: live Windows and macOS runs remain untested for these changes.
+Source-built managed tool-service and CPU environments use the pins in the
+source checkout. Keep source-package requirements separate from the published
+compiled catalog below. Runtime availability alone is not verified end-to-end
+client or model support.
 
 Source-package MCP manifests invoke `node scripts/launch.cjs` directly, without
 a Unix shell. On Windows, run the installer with
 `node "C:\path to\tensorviz\plugins\tensorviz\scripts\install.cjs" --apply --host plugin`.
-Node.js 22+ must be on the coding client's PATH. The published compiled preview
-uses a separate compiled launcher for Apple Silicon macOS (ARM64) and Linux x64
-(glibc >=2.31), with CPython 3.12 and CPU capture. Windows, Intel Mac, Linux ARM64,
-and musl are unsupported by the published standalone plugin. See
-[Install](../install.md#plugin) for published package requirements.
+Node.js 22+ must be on the coding client's PATH for source packages. The
+published compiled 0.1.45 plugin does not require a separate Node.js installation.
+It supplies native launchers for macOS ARM64/x64, Linux x64 (glibc >=2.31),
+Linux ARM64 (glibc >=2.35), and Windows x64/ARM64, with matching CPython 3.12.
+Windows support is through native Codex entries; Windows Claude Code/Cursor
+and musl remain outside the published acceptance scope. See
+[Install](../install.md#plugin) for requirements and validation limits.
 
 The installer needs the Node.js version in the [versions table](../local-setup.md#versions). It refuses to run against a bare git checkout
 that has not been packaged, because the packaged host is not in `plugins/tensorviz/`
@@ -248,3 +249,4 @@ npm run package:source-development --prefix plugin
 `plugin/dist/tensorviz-cursor-<version>.tar.gz`, each with a `.sha256` file.
 Details, including the tldraw key and what this repo does not publish, are in
 [Plugin build](../plugin-build.md).
+

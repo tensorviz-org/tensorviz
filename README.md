@@ -9,9 +9,9 @@ Explore your PyTorch or JAX/Flax model as an interactive graph. Follow tensor sh
 
 ## Install
 
-**Coding-agent plugin** (preview: Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.31), with CPython 3.12 and CPU capture):
+**Coding-agent plugin** (preview: macOS ARM64/x64, Linux x64 (glibc >=2.31), Linux ARM64 (glibc >=2.35), and Windows x64/ARM64, with CPython 3.12 and CPU capture):
 
-Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin.
+Windows support is through native Codex entries; Windows Claude Code/Cursor and musl are outside the published acceptance scope. Runtime availability does not guarantee every client GUI, OS version, or model dependency works.
 
 Codex:
 
@@ -38,7 +38,7 @@ code --install-extension tensorviz.tensorviz-vscode
 
 All options, VSIX files, and platform limits are on the [Install](docs/install.md) page. Then open your first graph with the [quickstart](docs/quickstart.md).
 
-Release automation now lives in this repository. The installation links above still serve the last verified packages until the [maintainer cutover](docs/releasing.md) is completed. To build from source, see [local setup](docs/local-setup.md) and [plugin build](docs/plugin-build.md). This repository is currently private, so GitHub links to it (source files, issues, releases) need read access until it is made public.
+Release automation lives in this repository. The installation links above serve the published packages; see [release operations](docs/releasing.md) for maintainer instructions. To build from source, see [local setup](docs/local-setup.md) and [plugin build](docs/plugin-build.md). This repository is currently private, so GitHub links to it (source files, issues, releases) need read access until it is made public.
 
 ## Docs
 
@@ -76,3 +76,4 @@ Only this repository and the docs dependencies are needed.
 TensorViz code is [MIT](LICENSE). tldraw, which renders the canvas, is not covered by that license. Read [NOTICE](NOTICE) and [docs/licensing.md](docs/licensing.md) before you give a build to other people.
 
 The hosted website application is not in this repository. **Publish** and **tensorViz: Sign in to tensorViz** stay in the extension. See [share a graph](docs/share-to-website.md).
+

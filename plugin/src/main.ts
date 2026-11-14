@@ -119,10 +119,11 @@ async function start(): Promise<void> {
         task.error = { code: error instanceof HostError ? error.code : 'ENVIRONMENT_UNAVAILABLE', message: error instanceof HostError ? error.message : 'The selected environment could not be inspected.' };
       });
     } else if (args.requestId !== environmentTask?.id) throw new HostError('UNKNOWN_REQUEST', 'This environment request has expired or belongs to another host.');
+    const runtimeProgress = !environmentTask!.value && !environmentTask!.error
+      ? host.runtime.progressFor(environmentTask!.controller.signal) : undefined;
     return { requestId: environmentTask!.id, status: environmentTask!.error ? 'blocked' : environmentTask!.value ? 'ready' : 'checking',
       ...(environmentTask!.value ? { environment: environmentTask!.value } : {}), ...(environmentTask!.error ? { error: environmentTask!.error } : {}),
-      ...(!environmentTask!.value && !environmentTask!.error && host.runtime.progress
-        ? { runtimeProgress: host.runtime.progress } : {}),
+      ...(runtimeProgress ? { runtimeProgress } : {}),
       ...(approvals.pending ? { approval: approvals.pending } : {}), pollAfterMs: 1000 };
   }));
 

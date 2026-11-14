@@ -20,7 +20,19 @@ function fixture() {
   assert.deepEqual(transformed.diagnostics, []);
   let resolve, reject, handler, calls = 0;
   const pending = new Promise((yes, no) => { resolve = yes; reject = no; });
-  const host = { runtime: {}, inspectEnvironment() { calls++; return pending; } };
+  // Use the production progress getter and signal scoping method too, rather
+  // than duplicating the ownership condition in this test's fake runtime.
+  const runtimeSource = fs.readFileSync(path.join(__dirname, '../../src/runtime.ts'), 'utf8');
+  const parsed = ts.createSourceFile('runtime.ts', runtimeSource, ts.ScriptTarget.Latest, true);
+  const runtimeClass = parsed.statements.find(node => ts.isClassDeclaration(node) && node.name.text === 'ManagedRuntime');
+  const members = runtimeClass.members.filter(node => ['progress', 'progressFor'].includes(node.name?.getText(parsed)));
+  assert.equal(members.length, 2);
+  const scope = {};
+  const runtimeCode = ts.transpileModule(`class RuntimeProgress { ${members.map(node => node.getText(parsed)).join('\n')} }; globalThis.RuntimeProgress = RuntimeProgress;`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  vm.runInNewContext(runtimeCode, scope);
+  const runtime = new scope.RuntimeProgress();
+  const host = { runtime, inspectEnvironment(_args, signal) { calls++; runtime.activity = { signal }; return pending; } };
   const approvals = {};
   const schema = { optional() { return this; }, uuid() { return this; } };
   class HostError extends Error { constructor(code, message) { super(message); this.code = code; } }
@@ -38,11 +50,11 @@ function fixture() {
 
 test('environment polling reports changing runtime progress without starting another inspection', async () => {
   const f = fixture();
-  f.host.runtime.progress = 'Connecting to the pinned Python download…';
   const first = f.invoke({ workspaceRoot: '/project' });
   assert.equal(first.status, 'checking');
-  assert.equal(first.runtimeProgress, f.host.runtime.progress);
-  f.host.runtime.progress = 'Download verified (sha256 ok).';
+  f.host.runtime.activity.detail = 'Connecting to the pinned Python download…';
+  assert.equal(f.invoke({ requestId: first.requestId }).runtimeProgress, f.host.runtime.progress);
+  f.host.runtime.activity.detail = 'Download verified (sha256 ok).';
   const poll = f.invoke({ requestId: first.requestId });
   assert.equal(poll.runtimeProgress, f.host.runtime.progress);
   assert.equal(poll.requestId, first.requestId);
@@ -59,8 +71,8 @@ test('environment polling reports changing runtime progress without starting ano
 
 test('blocked environment requests omit stale progress and retain their actionable error', async () => {
   const f = fixture();
-  f.host.runtime.progress = 'Preparing service environment.';
   const first = f.invoke({});
+  f.host.runtime.activity.detail = 'Preparing service environment.';
   f.reject(new f.HostError('RUNTIME_DOWNLOAD_FAILED', 'Download could not connect.'));
   await Promise.resolve();
   const blocked = f.invoke({ requestId: first.requestId });
@@ -77,7 +89,22 @@ test('permission-required and metadata-only checks preserve approval without inv
   assert.equal(first.status, 'checking');
   assert.equal(first.approval, f.approvals.pending);
   assert.equal('runtimeProgress' in first, false);
-  f.host.runtime.progress = '';
+  f.host.runtime.activity.detail = '';
   assert.equal('runtimeProgress' in f.invoke({ requestId: first.requestId }), false);
   f.resolve({ compatible: false }); await Promise.resolve();
+});
+
+test('unrelated and aborted runtime activity never leaks into an environment request', async () => {
+  const f = fixture();
+  const first = f.invoke({});
+  const own = f.host.runtime.activity;
+  own.detail = 'Preparing the exact package installation plan.';
+  assert.equal(f.invoke({ requestId: first.requestId }).runtimeProgress, own.detail);
+  const other = new AbortController();
+  f.host.runtime.activity = { signal: other.signal, detail: 'Unrelated project operation' };
+  assert.equal('runtimeProgress' in f.invoke({ requestId: first.requestId }), false);
+  assert.equal(f.host.runtime.progressFor(other.signal), 'Unrelated project operation');
+  other.abort();
+  assert.equal(f.host.runtime.progressFor(other.signal), undefined);
+  f.resolve({ compatible: true }); await Promise.resolve();
 });

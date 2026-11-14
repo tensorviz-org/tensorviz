@@ -37,6 +37,9 @@ export function managedRequirements(text: string, python: string): string[] {
 export class ManagedRuntime {
   private activity?: { signal: AbortSignal; detail?: string };
   get progress(): string | undefined { return this.activity?.signal.aborted ? undefined : this.activity?.detail; }
+  progressFor(signal: AbortSignal): string | undefined {
+    return this.activity?.signal === signal ? this.progress : undefined;
+  }
   constructor(private readonly backend: string, private readonly storage: string, private readonly approvals: ApprovalGate) {}
   availability(): Record<string, unknown> {
     const asset = selectRuntimeAsset(loadRuntimeManifest(path.dirname(this.backend)));
@@ -152,4 +155,5 @@ export class ManagedRuntime {
     } finally { if (this.activity === activity) this.activity = undefined; }
   }
 }
+
 

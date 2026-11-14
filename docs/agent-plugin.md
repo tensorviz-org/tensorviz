@@ -129,7 +129,8 @@ Building from source, the source archive installer, service details, and panel l
 When `get_execution_environment` returns `checking`, it includes `runtimeProgress`
 when the managed service has a setup or download status to report. Poll the same
 `requestId` to see stage changes instead of starting another inspection. Progress
-is diagnostic, not a completion receipt: wait for `ready` or the reported error.
+is scoped to that inspection, not another host operation, and is diagnostic,
+not a completion receipt: wait for `ready` or the reported error.
 A pending `approval` still requires the user's decision; progress does not grant
 permission. Completed and blocked requests omit stale runtime progress.
 

@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { verifyBootstrap } from './bootstrap-provenance.mjs';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +18,16 @@ export async function assembleNativeRelease(directory, archives) {
   }
   const runtimeLock = validateRuntimeLock({ formatVersion: 2, version,
     runtimes: Object.fromEntries(Object.entries(runtimes).sort(([a], [b]) => a.localeCompare(b))) });
-  await exportPublic(directory, { runtimeLock });
+  const sourceRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: fileURLToPath(new URL('../..', import.meta.url)), encoding: 'utf8' }).trim();
+  const windowsBootstraps = {};
+  for (const archive of archives) {
+    const entry = JSON.parse(await fs.readFile(`${archive}.json`, 'utf8'));
+    if (entry.platform.startsWith('win32-')) {
+      const arch = entry.platform.slice(6);
+      windowsBootstraps[arch] = await verifyBootstrap(archive, { arch, version, sourceRevision });
+    }
+  }
+  await exportPublic(directory, { runtimeLock, windowsBootstraps });
   return createReleaseCandidate(directory, archives);
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -24,3 +35,4 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (!directory || !archives.length) throw new Error('Usage: node assemble-native-release.mjs OUTPUT_INTEGRATION ARCHIVES...');
   console.log(await assembleNativeRelease(directory, archives));
 }
+

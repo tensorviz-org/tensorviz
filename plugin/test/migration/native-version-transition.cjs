@@ -12,6 +12,7 @@ const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio
 const { ElicitRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
 // Only reviewed immutable transitions are accepted; callers cannot substitute arbitrary old binaries.
 const transitions = {
+  '0.1.45': { fromVersion: '0.1.44', previousExport: '6fff2d501cbe037e2d90b252ee484a446c37bd61' },
   '0.1.43': { fromVersion: '0.3.110', previousExport: '1a3c3618082603030b5ef68b793d9834b8bb7f3d' },
   '0.1.44': { fromVersion: '0.1.43', previousExport: 'de268bb05a44d21fba51dc53b2d711ccee8a2738' },
 };
@@ -203,4 +204,5 @@ test('released native plugin upgrades to aligned version and rolls back in both 
     await fs.rm(root,{recursive:true,force:true,maxRetries:5,retryDelay:100});
   }
 });
+
 

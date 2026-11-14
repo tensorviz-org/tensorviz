@@ -13,13 +13,14 @@ The [README](../README.md) contains the download links, client installation
 commands, and first-use prompts for the published {{VERSION}} preview. This guide covers
 local repository installation, updates, and common setup problems.
 
-The compiled candidate targets macOS Apple Silicon or Linux x64 with glibc >=2.31
-and CPython 3.12. Linux needs `/usr/bin/python3` for metadata plus `curl`,
-`sha256sum` and `tar`. Windows, Linux ARM64, Intel Macs and musl are unsupported.
-The execution host must have its own native entry in `runtime-lock.json`; the
-separate VS Code extension's platform checks do not establish compatibility.
-Existing v0.3.104 releases remain Darwin-only. See the
-[tool and platform inventory](../BUILD.md#tools-and-integration-boundaries).
+The release catalog pins macOS ARM64/x64, Linux x64 (glibc >=2.31), Linux ARM64
+(glibc >=2.35), and Windows x64/ARM64 runtimes. Linux needs `/usr/bin/python3`,
+`curl`, `sha256sum` and `tar`. The backend requires matching CPython 3.12.
+Windows currently uses separate native Codex entries; Windows Claude Code/Cursor
+and musl are outside this catalog's support scope. Startup/service support does
+not guarantee PyTorch wheels for every platform. The execution host must have
+its own native entry in `runtime-lock.json`; the separate VS Code extension's
+platform checks do not establish compatibility. Old release snapshots are unchanged.
 
 For SSH, install and execute on the model's server. The desktop OS does not select
 the runtime. A raw localhost graph URL belongs to that server; forward its port or
@@ -57,6 +58,23 @@ repository or its common `plugins/tensorviz` directory into that destination.
 Keep the extracted catalog folder available for local marketplace refreshes.
 Local installation still needs internet access for the first runtime download.
 
+## Windows Codex
+
+Use the complete catalog ZIP above, extract it to a persistent directory, then
+run these commands in PowerShell with the matching native Codex installation:
+
+```powershell
+codex plugin marketplace add C:\path\to\tensorviz-catalog-{{VERSION}}
+codex plugin add tensorviz-windows-x64@tensorviz-standalone
+```
+
+On native ARM64 Windows, replace `tensorviz-windows-x64` with
+`tensorviz-windows-arm64`. Do not install the Unix `tensorviz` entry on Windows.
+The compiled bootstrap uses Windows' built-in `cmd.exe`, requires no Node.js or
+PowerShell execution-policy change, and downloads only the pinned native archive.
+Use the same architecture-specific name for update/removal. These commands cover
+Codex; Windows Claude Code/Cursor compatibility is not claimed.
+
 ## T3 Code and large graphs
 
 Follow [T3 Code setup](../BUILD.md#t3-code) using the selected Codex provider's
@@ -82,7 +100,7 @@ T3 mobile, remote hosts, and non-Codex providers are outside this acceptance sco
 | Problem | What to check |
 | --- | --- |
 | Launcher reports macOS-only support or no linux-x64 runtime | The old v0.3.104 lock is Darwin-only. Use a later catalog only after its Linux asset is published. Changing Python or bypassing checks cannot supply a missing binary. |
-| Unsupported execution host or glibc error | Use macOS Apple Silicon or Linux x64 with glibc >=2.31 and a matching runtime pin. ARM Linux, musl, Windows and Intel Mac are unsupported. |
+| Unsupported execution host or glibc error | Check the exact architecture-specific runtime pin and OS baseline above. On Windows use the matching native Codex entry; musl is not covered by this catalog. |
 | `codex` or `claude` is not found | Install the corresponding client CLI using the links in the README, reopen your terminal, and check that its plugin commands are available. |
 | `plugin` is an unknown command | Update your coding client to a version with plugin support, then reopen your terminal. |
 | Marketplace catalog not found after downloading a ZIP | The release plugin ZIP is not a marketplace. Use the complete catalog ZIP above, not a plugin ZIP or source archive. |
@@ -257,3 +275,4 @@ release can instead be started with a process-only timeout for its first connect
 field and skips the server. A config.toml server setting and a plugin manifest
 have different schemas. Prefetch reduces the cold-download risk; it is not a
 guarantee that every host or network will meet its startup deadline.
+

@@ -35,7 +35,7 @@ async function fixture(system, architecture) {
   const checksum = `#!${process.execPath}\nconst fs = require('node:fs'); const crypto = require('node:crypto');\nconst file = process.argv.at(-1); console.log(crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') + '  ' + file);\n`;
   await executable('shasum', checksum);
   await executable('sha256sum', checksum);
-  await executable('getconf', '#!/bin/sh\necho "glibc 2.31"\n');
+  await executable('getconf', `#!/bin/sh\necho "glibc 2.${architecture === 'aarch64' ? '35' : '31'}"\n`);
   const source = await fs.readFile(path.resolve(__dirname, '../../integration/launch.sh'), 'utf8');
   await fs.writeFile(path.join(scripts, 'launch.sh'), source
     .replaceAll('/usr/bin/plutil', path.join(bin, 'plutil')).replaceAll('/usr/bin/shasum', path.join(bin, 'shasum'))
@@ -49,14 +49,14 @@ async function fixture(system, architecture) {
 }
 
 for (const [system, architecture, flags = {}] of [
-  ['Linux', 'aarch64'], ['Darwin', 'x86_64'], ['Windows_NT', 'AMD64'], ['FreeBSD', 'amd64'], ['Linux', 'aarch64', ssh],
+  ['Linux', 'riscv64'], ['Windows_NT', 'AMD64'], ['FreeBSD', 'amd64'], ['Linux', 'riscv64', ssh],
 ]) {
   test(`unsupported ${system}-${architecture}${flags.SSH_CONNECTION ? ' with SSH flags' : ''} stops before metadata/cache/network`, async () => {
     const f = await fixture(system, architecture);
     try {
       const result = await f.launch(flags);
       assert.equal(result.status, 1); assert.equal(result.signal, null); assert.equal(result.stdout, '');
-      assert.equal(result.stderr, `TensorViz: Unsupported MCP execution host: ${system}-${architecture}. Compiled targets are macOS Apple Silicon and glibc Linux x64. No runtime was downloaded.\n`);
+      assert.equal(result.stderr, `TensorViz: Unsupported MCP execution host: ${system}-${architecture}. Unix compiled targets are macOS Apple Silicon/Intel and glibc Linux x64/ARM64; availability follows the installed runtime lock. No runtime was downloaded.\n`);
       assert.deepEqual(await fs.readdir(f.home), []); assert.deepEqual(await fs.readdir(f.tmp), []);
       assert.equal(await fs.stat(f.env.DOWNLOAD_LOG).catch(() => null), null);
     } finally { await f.close(); }
@@ -66,6 +66,8 @@ for (const [system, architecture, flags = {}] of [
 for (const [system, architecture, platform, abi] of [
   ['Linux', 'x86_64', 'linux-x64', 'cpython-312-x86_64-linux-gnu'],
   ['Darwin', 'arm64', 'darwin-arm64', 'cpython-312-darwin'],
+  ['Darwin', 'x86_64', 'darwin-x64', 'cpython-312-darwin'],
+  ['Linux', 'aarch64', 'linux-arm64', 'cpython-312-aarch64-linux-gnu'],
 ]) {
   for (const formatVersion of [1, 2]) test(`${platform} lock v${formatVersion} passes stdin to its async host and verifies/caches only its runtime using a local downloader`, async () => {
     const f = await fixture(system, architecture);
@@ -91,7 +93,7 @@ for (const [system, architecture, platform, abi] of [
         assert.deepEqual(await fs.readdir(f.tmp), [], 'Session extraction must be cleaned');
       }
       assert.equal(await fs.readFile(f.env.DOWNLOAD_LOG, 'utf8'), 'download\n', 'Reconnect must reuse the verified archive');
-      const cache = path.join(f.home, platform === 'darwin-arm64' ? 'Library/Caches' : '.cache', 'dev.tensorviz/runtime', `${entry.sha256}.tar.gz`);
+      const cache = path.join(f.home, platform.startsWith('darwin-') ? 'Library/Caches' : '.cache', 'dev.tensorviz/runtime', `${entry.sha256}.tar.gz`);
       const corrupt = Buffer.from(archive); corrupt[0] ^= 1; await fs.writeFile(cache, corrupt);
       const refused = await f.launch();
       assert.equal(refused.status, 1); assert.equal(refused.stdout, ''); assert.match(refused.stderr, /damaged/);
@@ -132,6 +134,8 @@ for (const libc of ['glibc 2.30', 'musl 1.2']) test(`${libc} is refused before L
 for (const [system, architecture, platform, abi] of [
   ['Linux', 'x86_64', 'linux-x64', 'cpython-312-x86_64-linux-gnu'],
   ['Darwin', 'arm64', 'darwin-arm64', 'cpython-312-darwin'],
+  ['Darwin', 'x86_64', 'darwin-x64', 'cpython-312-darwin'],
+  ['Linux', 'aarch64', 'linux-arm64', 'cpython-312-aarch64-linux-gnu'],
 ]) {
   for (const mode of ['success', 'failure', 'terminated']) test(`${platform} owns and cleans the child Inductor cache on ${mode}`, async () => {
     const f = await fixture(system, architecture);
@@ -182,6 +186,8 @@ sys.exit(17 if os.environ['HOST_MODE'] == 'failure' else 0)
 
 for (const [system, architecture, platform, abi] of [
   ['Darwin', 'arm64', 'darwin-arm64', 'cpython-312-darwin'],
+  ['Darwin', 'x86_64', 'darwin-x64', 'cpython-312-darwin'],
+  ['Linux', 'aarch64', 'linux-arm64', 'cpython-312-aarch64-linux-gnu'],
   ['Linux', 'x86_64', 'linux-x64', 'cpython-312-x86_64-linux-gnu'],
 ]) test(`${platform} can isolate its runtime cache without changing the user's home`, async () => {
   const f = await fixture(system, architecture);
@@ -200,7 +206,7 @@ for (const [system, architecture, platform, abi] of [
       assert.equal(result.status, 0, result.stderr);
       assert.equal(result.stdout, 'synthetic-request\n');
     }
-    const defaultCache = path.join(f.home, platform === 'darwin-arm64' ? 'Library/Caches' : '.cache', 'dev.tensorviz/runtime');
+    const defaultCache = path.join(f.home, platform.startsWith('darwin-') ? 'Library/Caches' : '.cache', 'dev.tensorviz/runtime');
     assert.equal(await fs.stat(defaultCache).catch(() => null), null, 'explicit cache must not create a default TensorViz cache');
     assert.equal(await fs.readFile(f.env.DOWNLOAD_LOG, 'utf8'), 'download\n');
     const cached = path.join(directory, `${entry.sha256}.tar.gz`);
@@ -223,6 +229,8 @@ for (const [system, architecture, platform, abi] of [
 
 for (const [system, architecture, platform, abi] of [
   ['Darwin', 'arm64', 'darwin-arm64', 'cpython-312-darwin'],
+  ['Darwin', 'x86_64', 'darwin-x64', 'cpython-312-darwin'],
+  ['Linux', 'aarch64', 'linux-arm64', 'cpython-312-aarch64-linux-gnu'],
   ['Linux', 'x86_64', 'linux-x64', 'cpython-312-x86_64-linux-gnu'],
 ]) test(`${platform} can prefetch a verified runtime without extracting or executing it`, async () => {
   const f = await fixture(system, architecture);
@@ -254,3 +262,16 @@ for (const [system, architecture, platform, abi] of [
     assert.equal(await fs.stat(f.env.EXEC_LOG).catch(() => null), null);
   } finally { await f.close(); }
 });
+
+test('Linux ARM64 refuses glibc 2.34 before metadata/cache/download', async () => {
+  const f = await fixture('Linux', 'aarch64');
+  try {
+    await fs.writeFile(path.join(f.root, 'bin/getconf'), '#!/bin/sh\necho "glibc 2.34"\n', {mode: 0o755});
+    const result = await f.launch();
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /requires glibc 2\.35/);
+    assert.equal(await fs.stat(f.env.DOWNLOAD_LOG).catch(() => null), null);
+    assert.deepEqual(await fs.readdir(f.home), []);
+  } finally { await f.close(); }
+});
+

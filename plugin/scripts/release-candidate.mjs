@@ -2,19 +2,25 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { publicFiles, validateRuntimeLock } from './export-public.mjs';
+import { publicFiles, integrationFiles, validateRuntimeLock } from './export-public.mjs';
+import { validateWindowsPE, windowsMcp } from './windows-bootstrap.mjs';
 import { runtimeEntries, runtimeArchive } from './native-platforms.mjs';
 import { distributionRepository } from './release-version.mjs';
 
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const readJson = async file => JSON.parse(await fs.readFile(file, 'utf8'));
+const pluginClients = runtime => [['plugins/tensorviz', 'tensorviz'], ['cursor/plugins/tensorviz', 'tensorviz-cursor'],
+  ...runtimeEntries(runtime).filter(entry => entry.platform.startsWith('win32-')).map(entry => {
+    const name = `tensorviz-windows-${entry.platform.slice(6)}`;
+    return [`plugins/${name}`, name];
+  })];
 
 export async function auditIntegration(directory, { allowPrevious = false } = {}) {
   const publication = await readJson(path.join(directory, 'PUBLICATION.json'));
-  const inventories = [publicFiles];
+  const inventories = [integrationFiles(publication.runtime)];
   if (allowPrevious) {
     const original = publicFiles.filter(file => !file.endsWith('docs/installation.md'));
-    inventories.push(original, [...original, 'docs/installation.md']);
+    inventories.push(publicFiles, original, [...original, 'docs/installation.md']);
   }
   const inventory = inventories.find(files => JSON.stringify(files.slice().sort())
     === JSON.stringify(Object.keys(publication.files).sort()));
@@ -43,6 +49,20 @@ export async function auditIntegration(directory, { allowPrevious = false } = {}
       throw new Error('Integration runtime locks differ.');
     }
   }
+  for (const entry of runtimeEntries(publication.runtime).filter(entry => entry.platform.startsWith('win32-'))) {
+    const arch = entry.platform.slice(6), root = path.join(directory, 'plugins', `tensorviz-windows-${arch}`);
+    if (allowPrevious && !inventory.includes(`plugins/tensorviz-windows-${arch}/runtime-lock.json`)) continue;
+    if (JSON.stringify(await readJson(path.join(root, 'runtime-lock.json'))) !== JSON.stringify(entry)) throw new Error('Windows runtime lock differs.');
+    const bytes = await fs.readFile(path.join(root, 'scripts/tensorviz-bootstrap.exe'));
+    validateWindowsPE(bytes, arch);
+    const receipt = await readJson(path.join(root, 'bootstrap-provenance.json'));
+    if (receipt.formatVersion !== 1 || receipt.arch !== arch || receipt.version !== publication.version
+      || receipt.sourceRevision !== publication.sourceRevision || receipt.sha256 !== sha256(bytes)
+      || receipt.bytes !== bytes.length || receipt.noticesSha256 !== sha256(await fs.readFile(path.join(root, 'DEPENDENCY_NOTICES.md'))))
+      throw new Error('Windows bootstrap provenance mismatch.');
+    if ((await fs.readFile(path.join(root, 'bootstrap-sha256.txt'), 'utf8')).trim() !== sha256(bytes)) throw new Error('Windows bootstrap checksum mismatch.');
+    if (JSON.stringify(await readJson(path.join(root, 'mcp.json'))) !== JSON.stringify({mcpServers:{tensorviz:windowsMcp()}})) throw new Error('Windows MCP invocation differs.');
+  }
   return publication;
 }
 
@@ -52,6 +72,7 @@ export async function createReleaseCandidate(integration, archive) {
   const archives = (Array.isArray(archive) ? archive : [archive]).map(file => path.resolve(file));
   const publication = await auditIntegration(integration);
   const { version } = publication;
+  const filesAllowed = integrationFiles(publication.runtime);
   const expectedArchives = runtimeEntries(publication.runtime).map(runtimeArchive).sort();
   if (JSON.stringify(archives.map(file => path.basename(file)).sort()) !== JSON.stringify(expectedArchives)) throw new Error('Candidate runtime platforms differ from the lock.');
   const directory = path.join(path.dirname(archives[0]), `candidate-${version}`);
@@ -60,11 +81,11 @@ export async function createReleaseCandidate(integration, archive) {
   await fs.cp(integration, path.join(directory, 'integration'), { recursive: true });
   const files = {};
   for (const file of archives.flatMap(file => [file, `${file}.json`])) await fs.copyFile(file, path.join(directory, path.basename(file)));
-  for (const [client, prefix] of [['plugins/tensorviz', 'tensorviz'], ['cursor/plugins/tensorviz', 'tensorviz-cursor']]) {
-    const names = publicFiles.filter(file => file.startsWith(`${client}/`)).map(file => file.slice(client.length + 1));
+  for (const [client, prefix] of pluginClients(publication.runtime)) {
+    const names = filesAllowed.filter(file => file.startsWith(`${client}/`)).map(file => file.slice(client.length + 1));
     execFileSync('zip', ['-q', '-X', path.join(directory, `${prefix}-${version}.zip`), ...names], { cwd: path.join(integration, client) });
   }
-  execFileSync('zip', ['-q', '-X', path.join(directory, `tensorviz-catalog-${version}.zip`), ...publicFiles, 'PUBLICATION.json'], { cwd: integration });
+  execFileSync('zip', ['-q', '-X', path.join(directory, `tensorviz-catalog-${version}.zip`), ...filesAllowed, 'PUBLICATION.json'], { cwd: integration });
   for (const item of await fs.readdir(directory, { withFileTypes: true })) {
     if (item.isFile()) files[item.name] = sha256(await fs.readFile(path.join(directory, item.name)));
   }
@@ -79,34 +100,35 @@ export async function verifyReleaseCandidate(directory, { publishing = false } =
   const release = await readJson(path.join(directory, 'release.json'));
   const publication = await auditIntegration(path.join(directory, 'integration'));
   const { version, runtime } = publication;
+  const filesAllowed = integrationFiles(runtime);
   if (release.version !== version || release.sourceRevision !== publication.sourceRevision
     || !/^[a-f0-9]{40}$/.test(release.sourceRevision)) throw new Error('Release provenance mismatch.');
   const runtimes = runtimeEntries(runtime);
   const archives = runtimes.map(runtimeArchive);
-  const expected = [...archives.flatMap(archive => [archive, `${archive}.json`]), `tensorviz-${version}.zip`, `tensorviz-cursor-${version}.zip`, `tensorviz-catalog-${version}.zip`].sort();
+  const expected = [...archives.flatMap(archive => [archive, `${archive}.json`]), ...pluginClients(runtime).map(([,prefix]) => `${prefix}-${version}.zip`), `tensorviz-catalog-${version}.zip`].sort();
   if (JSON.stringify(Object.keys(release.files).sort()) !== JSON.stringify(expected)
     || JSON.stringify((await fs.readdir(directory)).sort()) !== JSON.stringify([...expected, 'integration', 'release.json'].sort())) throw new Error('Unexpected release assets.');
   for (const file of expected) {
     if (!(await fs.lstat(path.join(directory, file))).isFile()
       || sha256(await fs.readFile(path.join(directory, file))) !== release.files[file]) throw new Error(`Release checksum mismatch: ${file}`);
   }
-  for (const [client, prefix] of [['plugins/tensorviz', 'tensorviz'], ['cursor/plugins/tensorviz', 'tensorviz-cursor']]) {
+  for (const [client, prefix] of pluginClients(publication.runtime)) {
     const zip = path.join(directory, `${prefix}-${version}.zip`);
-    const names = publicFiles.filter(file => file.startsWith(`${client}/`)).map(file => file.slice(client.length + 1)).sort();
+    const names = filesAllowed.filter(file => file.startsWith(`${client}/`)).map(file => file.slice(client.length + 1)).sort();
     const actual = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' }).trim().split('\n').sort();
     if (JSON.stringify(actual) !== JSON.stringify(names)) throw new Error('Submitted plugin ZIP differs from the public file allowlist.');
     for (const name of names) {
-      if (sha256(execFileSync('unzip', ['-p', zip, name], { maxBuffer: 1024 * 1024 })) !== publication.files[`${client}/${name}`]) {
+      if (sha256(execFileSync('unzip', ['-p', zip, name], { maxBuffer: 128 * 1024 * 1024 })) !== publication.files[`${client}/${name}`]) {
         throw new Error(`Submitted plugin ZIP checksum mismatch: ${name}`);
       }
     }
   }
   const catalog = path.join(directory, `tensorviz-catalog-${version}.zip`);
-  const catalogNames = [...publicFiles, 'PUBLICATION.json'].sort();
+  const catalogNames = [...filesAllowed, 'PUBLICATION.json'].sort();
   const catalogActual = execFileSync('unzip', ['-Z1', catalog], { encoding: 'utf8' }).trim().split('\n').sort();
   if (JSON.stringify(catalogActual) !== JSON.stringify(catalogNames)) throw new Error('Submitted catalog ZIP differs from the public file allowlist.');
   for (const name of catalogNames) {
-    if (sha256(execFileSync('unzip', ['-p', catalog, name], { maxBuffer: 1024 * 1024 }))
+    if (sha256(execFileSync('unzip', ['-p', catalog, name], { maxBuffer: 128 * 1024 * 1024 }))
       !== sha256(await fs.readFile(path.join(directory, 'integration', name)))) throw new Error(`Submitted catalog ZIP checksum mismatch: ${name}`);
   }
   for (const entry of runtimes) {
@@ -135,3 +157,4 @@ export async function verifyReleaseCandidate(directory, { publishing = false } =
   }
   return { ...release, publication, archive: archives[0], archives };
 }
+

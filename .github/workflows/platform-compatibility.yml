@@ -6,6 +6,8 @@ on:
       - 'packages/graph-host/**'
       - 'plugin/src/**'
       - 'plugin/integration/launch.cjs'
+      - 'plugin/integration/launch.sh'
+      - '.github/workflows/release-plugin.yml'
       - 'plugin/scripts/**'
       - 'plugin/test/**'
       - 'runtime/python/**'
@@ -106,6 +108,46 @@ jobs:
           execFileSync(python, ['-I', '-c', 'import importlib.util; assert importlib.util.find_spec("torch") is None'], {stdio:'inherit'});
           execFileSync(python, ['backend/tests/runtime/test_service_without_torch.py'], {stdio:'inherit', env:process.env});
           JS
+      - name: Prepare official Codex and actual Unix archive for installed acceptance
+        if: runner.os != 'Windows'
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs'; import path from 'node:path';
+          import {nativePlatform} from './plugin/scripts/native-platforms.mjs';
+          const platform = nativePlatform().key;
+          const version = JSON.parse(fs.readFileSync('plugin/package.json', 'utf8')).version;
+          const lock = path.resolve('plugin/dist', `tensorviz-runtime-${version}-${platform}.tar.gz.json`);
+          if (!fs.existsSync(lock)) throw new Error(`Missing actual built archive lock: ${lock}`);
+          for (const [key,value] of Object.entries({TENSORVIZ_RELEASE_PLATFORM:platform,TENSORVIZ_RELEASE_VERSION:version,TENSORVIZ_PRODUCTION_RUNTIME_LOCK:lock}))
+            fs.appendFileSync(process.env.GITHUB_ENV, `${key}=${value}\n`);
+          JS
+          npm install --prefix .bootstrap-codex --ignore-scripts --no-audit --no-fund @openai/codex@0.169.0
+      - name: Resolve pinned native Codex executable
+        if: runner.os != 'Windows'
+        run: node plugin/scripts/release-native-setup.mjs clients
+      - name: Create ephemeral HTTPS certificate for Unix acceptance
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p plugin/out/test-tls
+          # Use OpenSSL 3 on macOS as the system LibreSSL may lack -addext.
+          OPENSSL=openssl
+          if [ "${{ runner.os }}" = macOS ]; then OPENSSL="$(brew --prefix openssl@3)/bin/openssl"; fi
+          "$OPENSSL" req -x509 -newkey rsa:2048 -nodes -days 1 -keyout plugin/out/test-tls/key.pem -out plugin/out/test-tls/cert.pem -subj '/CN=localhost' -addext 'subjectAltName=IP:127.0.0.1' -addext 'basicConstraints=critical,CA:TRUE'
+          node --input-type=module <<'JS'
+          import fs from 'node:fs'; import path from 'node:path';
+          fs.appendFileSync(process.env.GITHUB_ENV, `TENSORVIZ_TEST_TLS_CERT=${path.resolve('plugin/out/test-tls/cert.pem')}\nTENSORVIZ_TEST_TLS_KEY=${path.resolve('plugin/out/test-tls/key.pem')}\n`);
+          JS
+      - name: Actual Unix installed catalog, cold HTTPS and no-Torch MCP acceptance
+        if: runner.os != 'Windows'
+        run: node plugin/test/native/unix-production-mcp.mjs
+      - name: Retain installed Unix acceptance evidence even on failure
+        if: always() && runner.os != 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unix-installed-acceptance-${{ runner.os }}-${{ runner.arch }}
+          path: plugin/out/unix-production-mcp/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Retain candidate runtime for further acceptance, not publication
         uses: actions/upload-artifact@v4
         with:

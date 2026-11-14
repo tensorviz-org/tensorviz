@@ -38,7 +38,7 @@ test('public integration export contains no core source, build tree or runtime p
         assert.ok(!text.includes('{{VERSION}}'), `${prefix}${name} must substitute the release version`);
       }
       assert.match(readme, /\*\*29\s+tools\*\*: 25 agent tools and four tools reserved for the Model graph app/);
-      assert.match(readme, /Apple Silicon Macs and Linux x64 with glibc 2\.31\+/);
+      assert.match(readme, /macOS ARM64\/x64; Linux x64\s+glibc 2\.31\+ or ARM64 glibc 2\.35\+; Windows x64\/ARM64/);
       assert.match(readme, /installed 0\.3\.104 remains Darwin-only/);
       assert.ok(build.includes(`The ${version} host registers **29 MCP tools**`));
       assert.match(build, /expose \*\*25\*\* to the agent/);
@@ -47,13 +47,13 @@ test('public integration export contains no core source, build tree or runtime p
       assert.deepEqual(names(inventory), require('../tool-names.cjs').slice().sort(), 'Document every registered tool exactly once');
       assert.deepEqual(names(inventory.filter(line => line.startsWith('| Model graph app only |'))),
         ['close_graph_panel', 'detach_graph_panel', 'graph_panel_exchange', 'graph_panel_read'], 'Keep app-only transports separate from agent tools');
-      assert.ok(build.includes(`The ${version} candidate can pin`));
-      assert.match(build, /`darwin-arm64` and `linux-x64` runtime archives/);
-      assert.match(build, /`cpython-312-darwin` or `cpython-312-x86_64-linux-gnu`/);
+      assert.ok(build.includes(`The ${version} production pipeline assembles six independently validated native`));
+      for (const platform of ['darwin-arm64', 'darwin-x64', 'linux-x64', 'linux-arm64', 'win32-x64', 'win32-arm64']) assert.ok(build.includes('`' + platform + '`'));
+      assert.match(build, /CPython 3\.12 ABI must match/);
       assert.match(build, /glibc >=2\.31/);
-      assert.match(build, /Windows, Linux ARM64, Intel Mac and musl builds are unsupported/);
-      assert.match(guide, /macOS Apple Silicon or Linux x64 with glibc >=2\.31/);
-      assert.match(guide, /Existing v0\.3\.104 releases remain Darwin-only/);
+      assert.match(build, /Windows Claude Code\/Cursor and musl are outside/);
+      assert.match(guide, /macOS ARM64\/x64, Linux x64 \(glibc >=2\.31\), Linux ARM64/);
+      assert.match(guide, /Version 0\.3\.104 was macOS-only/);
       assert.match(guide, /## 0\.3\.104 source and asset audit — November 7, 2026/);
       assert.match(guide, /installed and enabled\n0\.3\.104/, 'The historical installation audit must retain its audited version');
     }
@@ -77,3 +77,4 @@ test('public integration export contains no core source, build tree or runtime p
     await assert.rejects(exportPublic(output, { runtimeLock: lock }), /EEXIST/);
   } finally { await fs.rm(temporary, { recursive: true, force: true }); }
 });
+

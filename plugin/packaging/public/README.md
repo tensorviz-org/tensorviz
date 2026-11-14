@@ -22,15 +22,18 @@ refresh the graph after editing your model.
 [Claude Code](#install-in-claude-code) · [Cursor](#install-in-cursor) ·
 [T3 Code](#install-in-t3-code)
 
-This compiled candidate supports **Apple Silicon Macs and Linux x64 with glibc 2.31+**. The plugin runs locally and does
+This compiled candidate supports **macOS ARM64/x64, Linux glibc x64/ARM64, and native Windows x64/ARM64 in Codex**. The plugin runs locally and does
 not require the tensorViz VS Code extension or a separate Node.js installation.
 
 ## Requirements
 
-- **macOS on Apple Silicon or Linux x64 with glibc 2.31 or newer**. Linux also
-  needs `/usr/bin/python3` for launcher metadata, `curl`, `sha256sum` and `tar`.
-  This compiled preview targets CPU capture. Windows, Linux ARM64, Intel Macs
-  and musl are unsupported; CUDA capture remains unverified.
+- A platform pinned in the release catalog: **macOS ARM64/x64; Linux x64
+  glibc 2.31+ or ARM64 glibc 2.35+; Windows x64/ARM64**. Linux also needs
+  `/usr/bin/python3`, `curl`, `sha256sum` and `tar`. Windows uses the separate
+  architecture-specific **Codex** entry described in [installation notes](docs/installation.md#windows-codex).
+  Windows Claude Code/Cursor and musl are not supported by this catalog.
+  Runtime startup and model capture are separate capabilities; availability of
+  matching PyTorch wheels/model dependencies is not guaranteed. CUDA remains unverified.
 - **CPython 3.12** with compatible PyTorch and your model's dependencies, or
   tensorViz's managed Python setup when no compatible environment is available.
 - A local PyTorch model project and **Codex, Claude Code, Cursor, or T3 Code with its Codex provider** with plugins
@@ -255,3 +258,4 @@ not include canvas content. Graph evidence returned through MCP enters the codin
 client and may enter its model-provider conversation. TensorViz does not operate a
 cloud ingestion service. Recipes, captures, runtime caches and permission records
 remain on the user's machine until removed. See [privacy](PRIVACY.md) for details.
+

@@ -82,11 +82,15 @@ listing.
 
 ### Compiled platform matrix
 
-The {{VERSION}} candidate can pin `darwin-arm64` and `linux-x64` runtime archives,
-each with its own JSON lock manifest. The backend requires CPython 3.12 with ABI
-`cpython-312-darwin` or `cpython-312-x86_64-linux-gnu` respectively. Linux requires
-glibc >=2.31; Windows, Linux ARM64, Intel Mac and musl builds are unsupported.
-No separate Node.js install or source fallback is provided.
+The {{VERSION}} production pipeline assembles six independently validated native
+archives: `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `win32-x64`,
+and `win32-arm64`. Linux x64 targets glibc >=2.31; Linux ARM64 targets >=2.35.
+The CPython 3.12 ABI must match the target's pinned runtime lock. A working host
+and service do not imply a compatible PyTorch wheel is available for every model.
+No separate Node.js install or source fallback is provided. Windows Codex uses
+an architecture-specific compiled bootstrap with independent source/hash
+provenance; Windows Claude Code/Cursor and musl are outside this catalog's scope.
+Old operating-system versions not covered by native acceptance are not promised.
 
 Format-1 locks still describe one runtime. Format-2 catalogs map platforms to
 independently hashed, size-bounded HTTPS assets of the same version. The launcher
@@ -144,3 +148,4 @@ profile controls and `TENSORVIZ_DATA_DIR` for isolated permission, service and
 workspace state. Do not redirect the user's home, copy credentials or assume a
 second desktop instance uses an isolated profile. Verify the actual app process
 and profile before changing plugin settings.
+

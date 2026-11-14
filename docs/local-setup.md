@@ -23,8 +23,8 @@ These are the versions in this source checkout. Published packages have their ow
 | --- | --- |
 | Development Node.js | 22. CI uses Node.js 22. The plugin host requires Node.js 22 or newer. |
 | Development Python | 3.12. CI uses Python 3.12. |
-| Extension | 0.1.44 (`extension/package.json`) |
-| Plugin host | 0.1.44 (`plugin/package.json`) |
+| Extension | 0.1.45 (`extension/package.json`) |
+| Plugin host | 0.1.45 (`plugin/package.json`) |
 | VS Code | 1.106 or newer (`engines.vscode` is `^1.106.0`). Cursor and VSCodium can install the same VSIX. |
 | Backend service | Python 3.11 or newer (`MIN_BACKEND_PYTHON` in `extension/src/runtime.ts`, `backend/extension_environment.py`) |
 | Capture interpreter | Python 3.10 or newer (`backend/capture_environment.py`). Expression-level source positions are not recorded on Python 3.10. |
@@ -148,4 +148,5 @@ official PyTorch CPU index. The extension also requests torchvision 0.29.1+cpu.
 This CPU policy selects a new managed cache identity; existing live managed
 and user environments are preserved. Missing CPU wheels fail setup without
 falling back to a source build or a GPU distribution.
+
 

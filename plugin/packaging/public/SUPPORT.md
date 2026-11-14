@@ -1,14 +1,17 @@
 # Support and compatibility
 
-This compiled candidate targets macOS Apple Silicon or Linux x64 (glibc >=2.31)
-and CPython 3.12 CPU capture. Linux requires a catalog pinning a Linux asset;
-existing v0.3.104 snapshots remain Darwin-only.
-It does not require VS Code or Node.js. Explicitly selected incompatible Python
-versions produce an error; TensorViz does not silently replace that environment.
-Windows, Linux ARM64, Intel Macs and musl are unsupported. CUDA and other Python
-ABIs remain unverified. Runtime selection follows the MCP execution host, not the
-client desktop. Local Linux evidence does not establish real SSH networking,
-Cursor/Claude Linux acceptance or new native Darwin acceptance.
+This catalog targets macOS ARM64/x64, Linux x64 (glibc >=2.31) and ARM64
+(glibc >=2.35), plus Windows x64/ARM64 through native Codex entries. It requires
+matching CPython 3.12 for its compiled backend, but does not require VS Code or
+Node.js. Startup/service compatibility is independent of PyTorch wheel or model
+compatibility. Explicitly selected incompatible Python versions produce an error;
+TensorViz does not silently replace that environment.
+Windows Claude Code/Cursor, musl, CUDA and other Python ABIs remain outside this
+catalog's acceptance scope. Runtime selection follows the MCP execution host,
+not the client desktop. Native CI does not establish every desktop GUI, older
+OS release, hardware configuration, or SSH-network behavior. Existing release
+archives remain unchanged; only a published catalog with the matching native
+asset supplies support.
 
 The integration works with clients that support its local MCP transport and
 plugin format. Directory publication is distinct from local installation, capture
@@ -20,3 +23,4 @@ model. Do not share credentials, private viewer links, model secrets or unredact
 environment dumps. Use
 [the integration repository's issues](https://github.com/tensorviz-org/tensorviz-plugins/issues)
 for public, non-sensitive bug reports.
+

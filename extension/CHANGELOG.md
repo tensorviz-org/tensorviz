@@ -1,8 +1,15 @@
 # Changelog
 
+## 0.1.45
+
+- Add native compiled runtime packaging for Intel Mac, Linux ARM64 and Windows x64/ARM64, with architecture-specific verified installers.
+- Separate core service startup from optional PyTorch model capture dependencies and improve unsupported capture-environment diagnostics.
+- Preserve Linux x64 glibc 2.31 support, version alignment and tested upgrade/rollback gates.
+
 ## Contents
 
 - [Unreleased](#unreleased)
+- [0.1.45](#0145)
 - [0.1.44](#0144)
 - [0.1.43](#0143)
 - [0.1.42](#0142)
@@ -506,5 +513,6 @@ diagnostics. Installed acceptance and compatibility limits are tracked in the
 - Compare Git revisions and GitHub pull requests without executing their code.
 - Connect an existing coding agent through MCP for setup, inspection and capture.
 - Export portable graph files with walkthroughs and read-only architecture comparison.
+
 
 

@@ -104,7 +104,7 @@ test('repository-secret publishing preserves manual main-only activation and bui
     assert.match(before, /RELEASE_PUBLISH: \$\{\{ vars.RELEASES_ENABLED == 'true' && inputs.publish \}\}/);
     assert.match(before, /secrets.TLDRAW_LICENSE_KEY/);
     if (name === 'release-plugin') {
-      assert.match(publish, /if: always\(\) && needs\.assemble\.result == 'success' && \(needs\.configuration\.outputs\.version != '0\.1\.44' \|\| needs\.current_migration\.result == 'success'\) && needs\.configuration\.outputs\.publish == 'true'/);
+      assert.match(publish, /if: always\(\) && needs\.assemble\.result == 'success' && needs\.current_migration\.result == 'success' && needs\.configuration\.outputs\.publish == 'true'/);
     } else {
       assert.match(publish, /if: needs\.(?:build|configuration)\.outputs\.publish == 'true'/);
     }
@@ -174,4 +174,5 @@ test('prepared cutover versions exceed audited legacy floors and keep manifests,
     if (product === 'extension') assert.ok(read('extension/CHANGELOG.md').includes(`## ${manifest.version}\n`));
   }
 });
+
 

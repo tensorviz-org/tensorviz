@@ -23,6 +23,7 @@ async function fixture(t, options = {}) {
   const script = path.resolve(__dirname, '../../scripts/publish-native-release.mjs');
   await fs.copyFile(script, path.join(root, 'publisher.mjs'));
   await fs.copyFile(path.resolve(__dirname, '../../scripts/version-alignment.mjs'), path.join(root, 'version-alignment.mjs'));
+  await fs.copyFile(path.resolve(__dirname, '../../scripts/release-migration.mjs'), path.join(root, 'release-migration.mjs'));
   await fs.writeFile(path.join(root, 'release-version.mjs'), "export const distributionRepository = 'tensorviz-org/tensorviz-plugins';\n");
   await fs.writeFile(path.join(root, 'release-candidate.mjs'), `
     import { createHash } from 'node:crypto'; import { readFile } from 'node:fs/promises'; import path from 'node:path';
@@ -191,4 +192,5 @@ for (const [name, options, error] of [
   ['detects concurrent catalog change', { race: true }, /changed during/],
   ['non-fast-forward catalog promotion fails closed', { pushRace: true }, /non-fast-forward/],
 ]) test(name, async t => { const f = await fixture(t, options); await assert.rejects(f.run, error); });
+
 

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { auditIntegration, sha256, verifyReleaseCandidate } from './release-candidate.mjs';
 import { distributionRepository } from './release-version.mjs';
+import { verifyReleaseMigration, migration45 } from './release-migration.mjs';
 import { verifyAlignment } from './version-alignment.mjs';
 
 const sourceRoot = fileURLToPath(new URL('../..', import.meta.url));
@@ -67,6 +68,14 @@ export async function publishRelease(directory, {
       return auditIntegration(copy, { allowPrevious: true });
     };
     const previous = await auditCheckout('previous');
+    // Enforce evidence here as well as in CI: direct CLI publishing cannot skip it.
+    if (release.version === migration45.to) {
+      const receiptDirectory = process.env.TENSORVIZ_MIGRATION_RECEIPTS;
+      if (!receiptDirectory) throw new Error('Both installed-client migration receipts are required.');
+      const receipts = await Promise.all(['darwin-arm64', 'linux-x64'].map(async platform =>
+        JSON.parse(await fs.readFile(path.join(receiptDirectory, `${platform}.json`), 'utf8'))));
+      verifyReleaseMigration({ previous, initialMain, release, receipts });
+    }
     if (newerVersion(previous.version, release.version)) {
       const receiptDirectory = process.env.TENSORVIZ_MIGRATION_RECEIPTS;
       if (!receiptDirectory) throw new Error('Refusing to roll the public catalog back to an older release without native migration evidence.');
@@ -149,4 +158,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (process.argv.length !== 3) throw new Error('Usage: node publish-native-release.mjs CANDIDATE_DIRECTORY');
   console.log(JSON.stringify(await publishRelease(process.argv[2])));
 }
+
 

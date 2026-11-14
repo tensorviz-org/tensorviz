@@ -13,7 +13,8 @@ const json = async file => JSON.parse(await fs.readFile(file, 'utf8'));
 
 export async function auditNativeRuntime(directory, platform = nativePlatform().key) {
   if (!Object.hasOwn(nativePlatforms, platform)) throw new Error(`Unsupported compiled runtime target: ${platform}`);
-  const target = nativePlatforms[platform];
+  const raw = nativePlatforms[platform];
+  const target = nativePlatform(raw.os, raw.arch);
   const files = {};
   const walk = async relative => {
     for (const entry of await fs.readdir(path.join(directory, relative), { withFileTypes: true })) {
@@ -30,8 +31,8 @@ export async function auditNativeRuntime(directory, platform = nativePlatform().
     }
   };
   await walk('');
-  for (const file of ['tensorviz-host', 'plugin.json', 'runtime-manifest.json', 'backend/native-backend.json',
-    `backend/_tensorviz_backend.${target.abi}.so`, 'backend/requirements-project.txt',
+  for (const file of [target.host, 'plugin.json', 'runtime-manifest.json', 'backend/native-backend.json',
+    `backend/${target.backend}`, 'backend/requirements-project.txt',
     'backend/requirements-standalone.txt', 'browser/index.html', 'browser/panel.html',
     'DEPENDENCY_NOTICES.md', 'licenses/node.txt', 'licenses/pkg.txt', 'licenses/nuitka.txt', 'licenses/tldraw-5.0.1.md']) {
     if (!files[file]) throw new Error(`Native runtime is incomplete: ${file}`);
@@ -39,7 +40,7 @@ export async function auditNativeRuntime(directory, platform = nativePlatform().
   return files;
 }
 
-async function notices(directory) {
+async function notices(directory, target = nativePlatform()) {
   const host = await json(path.join(repository, 'plugin/out/host-inputs.json'));
   const inputs = Object.keys(host.inputs).map(file => path.resolve(repository, 'plugin', file));
   const visit = modules => { for (const item of modules ?? []) {
@@ -60,7 +61,7 @@ async function notices(directory) {
   if (!python || !path.isAbsolute(python)) throw new Error('Set TENSORVIZ_COMPILER_PYTHON for compiler runtime notices.');
   const nuitkaLicense = execFileSync(python, ['-c', "import importlib.metadata; print(importlib.metadata.distribution('nuitka').locate_file('nuitka-2.8.10.dist-info/licenses/LICENSE.txt'))"], { encoding: 'utf8' }).trim();
   await fs.copyFile(nuitkaLicense, path.join(directory, 'licenses/nuitka.txt'));
-  const { node } = JSON.parse(execFileSync(path.join(directory, 'tensorviz-host'), ['--verify-native-package'], { encoding: 'utf8' }));
+  const { node } = JSON.parse(execFileSync(path.join(directory, target.host), ['--verify-native-package'], { encoding: 'utf8' }));
   // Exact upstream Node release license, including the bundled dependency notices.
   const nodeLicense = await fs.readFile(path.join(repository, 'plugin/licenses', `node-${node}.txt`), 'utf8');
   if (!nodeLicense.includes('Copyright Node.js contributors')) throw new Error('Bundled Node license is unavailable.');
@@ -81,14 +82,14 @@ export async function packageNative(url) {
   const { version } = await json(path.join(directory, 'plugin.json'));
   const backend = await json(path.join(directory, 'backend/native-backend.json'));
   const target = nativePlatform();
-  const check = JSON.parse(execFileSync(path.join(directory, 'tensorviz-host'), ['--verify-native-package'], { encoding: 'utf8' }));
+  const check = JSON.parse(execFileSync(path.join(directory, target.host), ['--verify-native-package'], { encoding: 'utf8' }));
   if (check.sourceIncluded !== false || check.platform !== target.os || check.architecture !== target.arch || backend.abi !== target.abi || backend.architecture !== target.machine) throw new Error('Native host verification failed.');
   if (target.os === 'linux') {
-    for (const file of ['tensorviz-host', path.join('backend', backend.binary)]) {
+    for (const file of [target.host, path.join('backend', backend.binary)]) {
       verifyLinuxGlibc(path.join(directory, file));
     }
   }
-  await notices(directory);
+  await notices(directory, target);
   await fs.rm(path.join(directory, 'release-manifest.json'), { force: true });
   const files = await auditNativeRuntime(directory, target.key);
   const manifest = { formatVersion: 1, version, platform: target.key, pythonABI: backend.abi,
@@ -99,7 +100,7 @@ export async function packageNative(url) {
   await fs.writeFile(path.join(directory, 'release-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   const archive = path.join(repository, 'plugin/dist', runtimeArchive({ version, platform: target.key }));
   await fs.mkdir(path.dirname(archive), { recursive: true });
-  execFileSync('/usr/bin/tar', ['-czf', archive, '-C', directory, ...Object.keys(files), 'release-manifest.json'], {
+  execFileSync(process.platform === 'win32' ? 'tar.exe' : '/usr/bin/tar', ['-czf', archive, '-C', directory, ...Object.keys(files), 'release-manifest.json'], {
     env: { ...process.env, COPYFILE_DISABLE: '1' }, maxBuffer: 1024 * 1024,
   });
   const bytes = await fs.readFile(archive);

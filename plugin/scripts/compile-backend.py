@@ -43,9 +43,17 @@ class PrivateImports(ast.NodeTransformer):
 
 
 def compile_backend(source, build, destination):
-    if (sys.platform, platform.machine()) not in {('darwin', 'arm64'), ('linux', 'x86_64')} or sys.version_info[:2] != (3, 12):
-        raise RuntimeError('Native builds require Darwin ARM64 or glibc Linux x64 and CPython 3.12.')
-    expected_abi = 'cpython-312-darwin' if sys.platform == 'darwin' else 'cpython-312-x86_64-linux-gnu'
+    targets = {
+        ('darwin', 'arm64'): 'cpython-312-darwin',
+        ('darwin', 'x86_64'): 'cpython-312-darwin',
+        ('linux', 'x86_64'): 'cpython-312-x86_64-linux-gnu',
+        ('linux', 'aarch64'): 'cpython-312-aarch64-linux-gnu',
+        ('win32', 'AMD64'): 'cp312-win_amd64',
+        ('win32', 'ARM64'): 'cp312-win_arm64',
+    }
+    expected_abi = targets.get((sys.platform, platform.machine()))
+    if not expected_abi or sys.version_info[:2] != (3, 12):
+        raise RuntimeError('Native builds require a supported x64/ARM64 platform and CPython 3.12.')
     if sysconfig.get_config_var('SOABI') != expected_abi:
         raise RuntimeError('Unsupported native Python ABI: ' + str(sysconfig.get_config_var('SOABI')))
     if version('nuitka') != '2.8.10':
@@ -76,6 +84,7 @@ def compile_backend(source, build, destination):
     )
     subprocess.run([sys.executable, "-m", "nuitka", "--module", str(package),
                     f"--include-package={NAMESPACE}", "--nofollow-imports",
+                    *(["--msvc=latest"] if sys.platform == "win32" else []),
                     "--python-flag=no_docstrings", "--assume-yes-for-downloads",
                     "--output-dir=" + str(build / "compiled"), "--jobs=4"],
                    cwd=build, check=True)

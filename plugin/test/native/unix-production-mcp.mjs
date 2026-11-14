@@ -133,7 +133,11 @@ try {
   for (const name of ['list_models', 'get_model_context', 'open_graph', 'open_graph_panel', 'get_execution_environment']) assert.ok(tools.some(t => t.name === name), name);
   for (const name of ['get_pending_permission', 'present_permission', 'get_machine_info', 'read_project_file', 'request_project_command', 'get_project_command']) assert.ok(!tools.some(t => t.name === name), `Private tool leaked: ${name}`);
   const handshakeMs = Date.now() - start;
-  assert.equal(downloads, 1, 'Cold installed startup must download exactly once');
+  // Codex may initialize multiple transports concurrently. Each launcher uses
+  // its own verified temporary download and atomically commits the cache.
+  assert.ok(downloads >= 1, 'Cold installed startup must download the runtime');
+  const coldDownloadCount = downloads;
+  assert.equal((await fs.stat(path.join(cache, lock.sha256 + '.tar.gz'))).size, lock.bytes);
   assert.equal(crypto.createHash('sha256').update(await fs.readFile(path.join(cache, lock.sha256 + '.tar.gz'))).digest('hex'), lock.sha256);
   const call = async (tool, args) => { const result = await request('mcpServer/tool/call', {threadId, server: mcp.name, tool, arguments: args}); assert.ok(!result.isError, JSON.stringify(result)); return result.structuredContent; };
   const listing = await call('list_models', {});
@@ -146,10 +150,13 @@ try {
   await stop();
   assert.equal(forcedStop, false, 'Client must exit after EOF without forced termination');
   assert.deepEqual((await fs.readdir(root)).filter(p => p.startsWith('tensorviz-native.')), [], 'Extracted runtime leaked after client exit');
+  await promisify(execFile)('/bin/sh', [path.join(installed.installedPath, 'scripts/launch.sh'), '--prepare-runtime'],
+    {env: {...env, CURL_CA_BUNDLE: certificate}, cwd: project, timeout: 30000});
+  assert.equal(downloads, coldDownloadCount, 'Warm preparation must reuse the verified cached archive without another HTTPS request');
   cli(['plugin', 'remove', 'tensorviz@tensorviz-standalone']);
   assert.equal(JSON.parse(cli(['mcp', 'list', '--json'])).length, 0, 'Plugin MCP registration must be removed');
-  const result = {platform: target.key, version: lock.version, sourceRevision: release.sourceRevision, runtimeSha256: lock.sha256, codexVersion, toolCount: tools.length, handshakeMs,
-    passed: ['real native archive', 'installed production Unix catalog', 'untrusted TLS rejected', 'cold verified HTTPS download', 'Codex app-server MCP discovery', 'safe static tools', 'no Torch or model execution', 'compiled missing/broken Torch diagnostics', 'no consent or service provisioning', 'EOF cleanup', 'plugin removal'],
+  const result = {platform: target.key, version: lock.version, sourceRevision: release.sourceRevision, runtimeSha256: lock.sha256, codexVersion, toolCount: tools.length, handshakeMs, coldDownloadCount,
+    passed: ['real native archive', 'installed production Unix catalog', 'untrusted TLS rejected', 'cold verified HTTPS download', 'verified warm cache reuse', 'Codex app-server MCP discovery', 'safe static tools', 'no Torch or model execution', 'compiled missing/broken Torch diagnostics', 'no consent or service provisioning', 'EOF cleanup', 'plugin removal'],
     limitations: ['No browser UI or model capture', 'Uses local HTTPS trusted CA, not public CDN', 'Linux shell metadata needs system Python3; no caller Python used by the runtime']};
   await fs.writeFile(path.join(output, 'result.json'), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
 } catch (error) { primaryError = error; await fs.writeFile(path.join(output, 'failure.txt'), String(error.stack ?? error)); throw error; }

@@ -184,6 +184,8 @@ jobs:
       - name: Verify real Linux x64 launcher CPU capture and cache reuse
         if: matrix.platform == 'linux-x64'
         run: node --test plugin/test/linux/launcher-capture.cjs
+      - name: Reclaim completed build scratch after native acceptance
+        run: node plugin/scripts/cleanup-build-scratch.mjs
       - name: Retain only tested native archives and bootstrap provenance
         uses: actions/upload-artifact@v4
         with:
@@ -308,7 +310,8 @@ jobs:
           TENSORVIZ_MIGRATION_NEW_ARCHIVE: ${{ github.workspace }}/plugin/out/release-candidate/tensorviz-runtime-0.1.45-${{ matrix.platform }}.tar.gz
           TENSORVIZ_MIGRATION_RECEIPT: ${{ github.workspace }}/plugin/out/migration-receipts/${{ matrix.platform }}.json
         run: node --test plugin/test/migration/native-version-transition.cjs
-      - uses: actions/upload-artifact@v4
+      - name: Retain verified migration receipt
+        uses: actions/upload-artifact@v4
         with:
           name: plugin-migration-current-${{ matrix.platform }}
           path: plugin/out/migration-receipts/${{ matrix.platform }}.json

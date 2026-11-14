@@ -17,6 +17,9 @@ jobs:
     runs-on: ubuntu-22.04
     container: ubuntu:20.04
     timeout-minutes: 15
+    env:
+      # Codex emits child MCP stderr at INFO; default WARN hides startup cause.
+      RUST_LOG: 'warn,codex_rmcp_client::stdio_server_launcher=info'
     defaults:
       run:
         shell: bash

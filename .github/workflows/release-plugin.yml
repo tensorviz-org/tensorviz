@@ -158,9 +158,12 @@ jobs:
       - name: Create ephemeral local HTTPS acceptance certificate
         run: |
           mkdir -p plugin/out/test-tls
+          # Avoid host openssl.cnf defaults duplicating explicit test extensions.
+          printf '[req]\ndistinguished_name=req_dn\n[req_dn]\n' > plugin/out/test-tls/openssl.cnf
           openssl_bin=openssl
           if [ "${{ runner.os }}" = macOS ]; then openssl_bin="$(brew --prefix openssl@3)/bin/openssl"; fi
-          MSYS_NO_PATHCONV=1 "$openssl_bin" req -x509 -newkey rsa:2048 -nodes -days 1 -keyout plugin/out/test-tls/key.pem -out plugin/out/test-tls/cert.pem -subj '/CN=localhost' -addext 'subjectAltName=IP:127.0.0.1' -addext 'basicConstraints=critical,CA:TRUE'
+          MSYS_NO_PATHCONV=1 "$openssl_bin" req -x509 -newkey rsa:2048 -nodes -days 1 -config plugin/out/test-tls/openssl.cnf -keyout plugin/out/test-tls/key.pem -out plugin/out/test-tls/cert.pem -subj '/CN=localhost' -addext 'subjectAltName=IP:127.0.0.1' -addext 'basicConstraints=critical,CA:TRUE'
+          "$openssl_bin" verify -CAfile plugin/out/test-tls/cert.pem plugin/out/test-tls/cert.pem
           node --input-type=module <<'JS'
           import fs from 'node:fs'; import path from 'node:path';
           fs.appendFileSync(process.env.GITHUB_ENV, `TENSORVIZ_TEST_TLS_CERT=${path.resolve('plugin/out/test-tls/cert.pem')}\nTENSORVIZ_TEST_TLS_KEY=${path.resolve('plugin/out/test-tls/key.pem')}\n`);
@@ -198,6 +201,18 @@ jobs:
             plugin/dist/tensorviz-bootstrap-*.NOTICES.md
           if-no-files-found: error
           retention-days: 7
+      - name: Retain failed native release evidence for private diagnosis only
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-unverified-release-${{ matrix.platform }}-${{ needs.configuration.outputs.version }}
+          path: |
+            plugin/out/unix-production-mcp/
+            plugin/out/windows-production-mcp/
+            plugin/dist/tensorviz-runtime-*.tar.gz*
+            plugin/out/native-runtime/release-manifest.json
+          if-no-files-found: warn
+          retention-days: 3
 
   assemble:
     needs: [configuration, build]

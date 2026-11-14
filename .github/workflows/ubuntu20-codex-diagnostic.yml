@@ -1,0 +1,63 @@
+name: Ubuntu 20 Codex transport diagnostic (published 0.1.44 only)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/ubuntu20-codex-diagnostic.yml'
+      - 'plugin/test/native/ubuntu20-published44-diagnostic.mjs'
+      - 'plugin/test/native/unix-production-mcp.mjs'
+      - 'plugin/test/native/unix-mcp-readiness.mjs'
+permissions:
+  contents: read
+concurrency:
+  group: ubuntu20-codex-diagnostic-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  diagnostic-only:
+    runs-on: ubuntu-22.04
+    container: ubuntu:20.04
+    timeout-minutes: 15
+    env:
+      # Codex emits child MCP stderr at INFO; default WARN hides startup cause.
+      RUST_LOG: 'warn,codex_rmcp_client::stdio_server_launcher=info'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install baseline tools, not a compiler or model framework
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates git curl python3 openssl procps
+          test "$(getconf GNU_LIBC_VERSION)" = 'glibc 2.31'
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - name: Validate readiness contracts and install pinned official client
+        run: |
+          node --test plugin/test/native/unix-mcp-readiness.test.mjs
+          npm install --prefix .bootstrap-codex --ignore-scripts --no-audit --no-fund @openai/codex@0.169.0
+          TENSORVIZ_RELEASE_PLATFORM=linux-x64 node plugin/scripts/release-native-setup.mjs clients
+      - name: Download and verify fixed published 0.1.44 runtime
+        run: |
+          mkdir -p plugin/out/native-runtime plugin/out/test-tls
+          curl --fail --location --proto '=https' --proto-redir '=https' --max-time 180 --output plugin/out/published44.tar.gz https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/tensorviz-runtime-0.1.44-linux-x64.tar.gz
+          echo '78badf11ae2be88648c8459836cc95dd5fa20a1ee6481d81046de903640c06d2  plugin/out/published44.tar.gz' | sha256sum -c -
+          test "$(wc -c < plugin/out/published44.tar.gz)" -eq 43516066
+          tar -xzf plugin/out/published44.tar.gz -C plugin/out/native-runtime
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -keyout plugin/out/test-tls/key.pem -out plugin/out/test-tls/cert.pem -subj '/CN=localhost' -addext 'subjectAltName=IP:127.0.0.1' -addext 'basicConstraints=critical,CA:TRUE'
+          echo "TENSORVIZ_TEST_TLS_CERT=$PWD/plugin/out/test-tls/cert.pem" >> "$GITHUB_ENV"
+          echo "TENSORVIZ_TEST_TLS_KEY=$PWD/plugin/out/test-tls/key.pem" >> "$GITHUB_ENV"
+      - name: Diagnose real installed transport without compiling or publishing
+        run: node plugin/test/native/ubuntu20-published44-diagnostic.mjs
+      - name: Retain private diagnostic evidence, never release artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-only-published44-ubuntu20
+          path: plugin/out/ubuntu20-codex-diagnostic/
+          retention-days: 3
+          if-no-files-found: warn

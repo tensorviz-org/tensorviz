@@ -13,6 +13,7 @@ import {createInterface} from 'node:readline';
 import https from 'node:https';
 import {exportPublic} from '../../scripts/export-public.mjs';
 import {nativePlatform} from '../../scripts/native-platforms.mjs';
+import {waitForInstalledMcp} from './unix-mcp-readiness.mjs';
 
 assert.ok(['darwin', 'linux'].includes(process.platform), 'A real Unix runner is required');
 const required = name => { assert.ok(process.env[name], `Set ${name}`); return path.resolve(process.env[name]); };
@@ -49,6 +50,9 @@ for (const broken of [false, true]) {
 }
 const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'TensorViz Unix 测试 space ')));
 let server, child, lines, primaryError, diagnostics = '', downloads = 0, nextId = 0, unexpectedRequests = 0, shutdownMethod = 'eof';
+const secretValues = Object.entries(process.env).filter(([name,value]) => /TOKEN|SECRET|PASSWORD|KEY/.test(name) && value?.length >= 8).map(([,value]) => value);
+const sanitize = value => secretValues.reduce((text, secret) => text.split(secret).join('[REDACTED]'), String(value));
+const statusHistory = [];
 const pending = new Map();
 const closedThreads = new Set();
 const lifecycleSnapshots = [];
@@ -58,7 +62,7 @@ const snapshot = async label => {
   try { processes = execFileSync('/bin/ps', ['-axo', 'pid=,ppid=,pgid=,args='], {encoding: 'utf8', timeout: 5000})
     .split('\n').filter(line => line.includes(root)).join('\n'); } catch (error) { processes = String(error.message); }
   lifecycleSnapshots.push({label, sessions, processes});
-  await fs.writeFile(path.join(output, 'lifecycle.json'), JSON.stringify(lifecycleSnapshots, null, 2));
+  await fs.writeFile(path.join(output, 'lifecycle.json'), sanitize(JSON.stringify(lifecycleSnapshots, null, 2)));
   return sessions;
 };
 const exited = () => !child || child.exitCode !== null || child.signalCode !== null;
@@ -108,7 +112,9 @@ try {
   await fs.writeFile(manifestPath, JSON.stringify(manifest));
   // The CLI itself may be an official npm wrapper. Only the installed MCP
   // launcher gets the restricted system PATH, not the test client.
-  const cenv = {...process.env, ...env, PATH: process.env.PATH};
+  const cenv = {...process.env, ...env, PATH: process.env.PATH,
+    // Codex logs child MCP stderr at INFO; retain only this narrow diagnostic.
+    RUST_LOG: 'warn,codex_rmcp_client::stdio_server_launcher=info'};
   delete cenv.OPENAI_API_KEY; delete cenv.CODEX_API_KEY;
   const cli = args => execFileSync(codex, args, {env: cenv, cwd: project, encoding: 'utf8', timeout: 30000});
   const codexVersion = cli(['--version']).trim();
@@ -140,9 +146,9 @@ try {
       child.stdin.write(JSON.stringify({id: message.id, error: {code: -32601, message: 'No consent, model execution or external agent call is authorized by this static test.'}}) + '\n');
     }
   });
-  const request = (method, params) => new Promise((resolve, reject) => {
+  const request = (method, params, timeoutMs = 30000) => new Promise((resolve, reject) => {
     const id = ++nextId;
-    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`${method} timed out`)); }, 30000);
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`${method} timed out`)); }, timeoutMs);
     pending.set(id, {resolve, reject, timer}); child.stdin.write(JSON.stringify({id, method, params}) + '\n');
   });
   const start = Date.now();
@@ -150,10 +156,14 @@ try {
   child.stdin.write(JSON.stringify({method: 'initialized'}) + '\n');
   const started = await request('thread/start', {cwd: project, ephemeral: true, approvalPolicy: 'on-request', sandbox: 'workspace-write'});
   const threadId = started.thread.id;
-  const status = await request('mcpServerStatus/list', {threadId});
-  assert.equal(status.data.length, 1);
-  const mcp = status.data.find(item => Object.values(item.tools).some(tool => tool.name === 'open_graph'));
-  assert.ok(mcp, 'Installed TensorViz server did not expose its tools');
+  assert.equal(discovered.name, 'tensorviz', 'Installed registration must match the thread server name');
+  const mcp = await waitForInstalledMcp(({serverName, remainingMs}) =>
+    request('mcpServerStatus/list', {threadId, serverName}, remainingMs), {
+    onStatus: async status => {
+      statusHistory.push(status);
+      await fs.writeFile(path.join(output, 'mcp-status.json'), sanitize(JSON.stringify(statusHistory, null, 2)));
+    },
+  });
   const tools = Object.values(mcp.tools);
   for (const name of ['list_models', 'get_model_context', 'open_graph', 'open_graph_panel', 'get_execution_environment']) assert.ok(tools.some(t => t.name === name), name);
   for (const name of ['get_pending_permission', 'present_permission', 'get_machine_info', 'read_project_file', 'request_project_command', 'get_project_command']) assert.ok(!tools.some(t => t.name === name), `Private tool leaked: ${name}`);
@@ -209,11 +219,16 @@ try {
     passed: ['real native archive', 'installed production Unix catalog', 'untrusted TLS rejected', 'cold verified HTTPS download', 'verified warm cache reuse', 'Codex app-server MCP discovery', 'safe static tools', 'no Torch or model execution', 'compiled missing/broken Torch diagnostics', 'no consent or service provisioning', 'managed thread unsubscribe and client shutdown cleanup', 'plugin removal'],
     limitations: ['No browser UI or model capture', 'Codex client shutdown may require SIGTERM; this is not an EOF-only lifecycle test', 'Uses local HTTPS trusted CA, not public CDN', 'Linux shell metadata needs system Python3; no caller Python used by the runtime']};
   await fs.writeFile(path.join(output, 'result.json'), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
-} catch (error) { primaryError = error; await snapshot('failure').catch(() => {}); await fs.writeFile(path.join(output, 'failure.txt'), String(error.stack ?? error)); throw error; }
+} catch (error) { primaryError = error; await snapshot('failure').catch(() => {}); const failure = sanitize(String(error.stack ?? error));
+  await fs.writeFile(path.join(output, 'failure.txt'), failure);
+  console.error(failure);
+  console.error('Installed MCP status history:', sanitize(JSON.stringify(statusHistory)));
+  console.error('Installed MCP client diagnostics:', sanitize(diagnostics));
+  throw new Error(failure); }
 finally {
   for (const entry of pending.values()) { clearTimeout(entry.timer); entry.reject(new Error('Acceptance shutting down')); } pending.clear();
   await stop(); lines?.close();
-  await fs.writeFile(path.join(output, 'stderr.txt'), diagnostics);
+  await fs.writeFile(path.join(output, 'stderr.txt'), sanitize(diagnostics));
   if (server) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
   await fs.rm(root, {recursive: true, force: true}).catch(error => { if (!primaryError) throw error; });
 }

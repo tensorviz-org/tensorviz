@@ -20,6 +20,26 @@ body = body.replace("limitations: [", "limitations: ['Published 0.1.44 diagnosti
 // Instrument only the disposable diagnostic catalog, never the production launcher.
 const diagnosticPreamble = "case \",${NO_PROXY:-${no_proxy:-}},\" in *127.0.0.1*|*localhost*|*,\\**,*) diagnostic_exemption=yes;; *) diagnostic_exemption=no;; esac\nprintf 'DIAGNOSTIC CHILD: CA=%s SSL_CERT_FILE=%s HTTPS_PROXY=%s https_proxy=%s ALL_PROXY=%s all_proxy=%s localhost_exempt=%s\\n' \"${CURL_CA_BUNDLE:-unset}\" \"${SSL_CERT_FILE:-unset}\" \"${HTTPS_PROXY:+set}\" \"${https_proxy:+set}\" \"${ALL_PROXY:+set}\" \"${all_proxy:+set}\" \"$diagnostic_exemption\" >&2\nif [ -r \"${CURL_CA_BUNDLE:-/nonexistent}\" ]; then echo 'DIAGNOSTIC CHILD: CA readable' >&2; fi";
 body = body.replace("  child = spawn(codex,", `  assert.equal(discovered.transport.env.CURL_CA_BUNDLE, certificate, 'Codex installed env must retain the exact fixture CA');
+  const launchFile = path.join(installed.installedPath, 'scripts/launch.sh');
+  const launchSource = await fs.readFile(launchFile, 'utf8');
+  await fs.writeFile(launchFile, launchSource.replace('set -eu', 'set -eu\\n'+${JSON.stringify(diagnosticPreamble)}));
+  const tlsDiagnostics = {};
+  for (const [name, command, args] of [
+    ['curlVersion','curl',['--version']],
+    ['certificate','openssl',['x509','-in',certificate,'-noout','-text']],
+    ['selfVerify','openssl',['verify','-CAfile',certificate,certificate]],
+  ]) {
+    try { tlsDiagnostics[name] = execFileSync(command,args,{encoding:'utf8',timeout:10000}); }
+    catch (error) { tlsDiagnostics[name] = {error:error.message,stdout:error.stdout,stderr:error.stderr}; }
+  }
+  tlsDiagnostics.basicConstraintsCount = typeof tlsDiagnostics.certificate === 'string' ? (tlsDiagnostics.certificate.match(/X509v3 Basic Constraints/g) || []).length : null;
+  try {
+    const raw = await promisify(execFile)('curl', ['--verbose','--fail','--cacert',certificate,'--noproxy','*','--output',path.join(root,'raw-trusted.tar.gz'),entry.url],
+      {env:{...env},cwd:project,timeout:30000});
+    tlsDiagnostics.rawExplicitCa = {passed:true,stderr:raw.stderr};
+  } catch (error) { tlsDiagnostics.rawExplicitCa = {passed:false,error:error.message,stderr:error.stderr}; }
+  await fs.writeFile(path.join(output,'tls-diagnostics.json'),sanitize(JSON.stringify(tlsDiagnostics,null,2)));
+  console.log('TLS DIAGNOSTICS',sanitize(JSON.stringify(tlsDiagnostics)));
   const directCache = path.join(root, 'diagnostic-direct-cache');
   const directStart = downloads;
   const direct = await promisify(execFile)('/bin/sh', [path.join(installed.installedPath, 'scripts/launch.sh'), '--prepare-runtime'],
@@ -30,9 +50,6 @@ body = body.replace("  child = spawn(codex,", `  assert.equal(discovered.transpo
   await fs.writeFile(path.join(output, 'direct-trust.json'), JSON.stringify({passed:true,installedCaMatches:true,downloadCount:downloads-directStart,stderr:direct.stderr}));
   console.log('DIRECT TRUSTED LAUNCHER PASSED; separate cache; configured Codex CA matches fixture');
   downloads = 0; // Begin the separately measured cold Codex phase.
-  const launchFile = path.join(installed.installedPath, 'scripts/launch.sh');
-  const launchSource = await fs.readFile(launchFile, 'utf8');
-  await fs.writeFile(launchFile, launchSource.replace('set -eu', 'set -eu\\n'+${JSON.stringify(diagnosticPreamble)}));
   child = spawn(codex,`);
 // Apply one-variable-at-a-time test trust/proxy overrides only to trusted paths.
 // The untrusted TLS negative check deliberately keeps the original CA-free env.
@@ -45,7 +62,7 @@ body = body.replaceAll('{...env, CURL_CA_BUNDLE: certificate', '{...env, ...fixt
 body = body.replace('const cenv = {...process.env, ...env, PATH:', 'const cenv = {...process.env, ...env, ...fixtureOverrides, PATH:');
 const setup = `
 const mode = process.env.TENSORVIZ_DIAGNOSTIC_CA_MODE;
-assert.ok(['baseline','ssl-cert-file','localhost-no-proxy','combined'].includes(mode));
+assert.ok(['baseline','ssl-cert-file','localhost-no-proxy','combined','clean-openssl-config'].includes(mode));
 const required = name => { assert.ok(process.env[name], 'Missing '+name); return path.resolve(process.env[name]); };
 const codex = required('TENSORVIZ_TEST_CODEX');
 const certificate = required('TENSORVIZ_TEST_TLS_CERT'), key = required('TENSORVIZ_TEST_TLS_KEY');
@@ -64,10 +81,22 @@ console.log('DIAGNOSTIC ONLY: published 0.1.44; not 0.1.45 release acceptance');
 const cases = [];
 try {
  await fs.writeFile(generated, imports + setup + body, {flag:'wx'});
- for (const mode of ['baseline','ssl-cert-file','localhost-no-proxy','combined']) {
+ for (const mode of ['baseline','ssl-cert-file','localhost-no-proxy','combined','clean-openssl-config']) {
    console.log('DIAGNOSTIC CASE:', mode);
+   const caseEnv = {...process.env,TENSORVIZ_RELEASE_VERSION:'0.1.44',TENSORVIZ_DIAGNOSTIC_CA_MODE:mode};
+   if (mode === 'clean-openssl-config') {
+     const directory = path.resolve('plugin/out/test-tls');
+     await fs.mkdir(directory,{recursive:true});
+     caseEnv.TENSORVIZ_TEST_TLS_CERT = path.join(directory,'diagnostic-clean-cert.pem');
+     caseEnv.TENSORVIZ_TEST_TLS_KEY = path.join(directory,'diagnostic-clean-key.pem');
+     const config = path.join(directory,'diagnostic-clean.cnf');
+     await fs.writeFile(config,'[req]\ndistinguished_name=req_dn\n[req_dn]\n');
+     execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-sha256','-nodes','-days','1','-config',config,
+       '-keyout',caseEnv.TENSORVIZ_TEST_TLS_KEY,'-out',caseEnv.TENSORVIZ_TEST_TLS_CERT,'-subj','/CN=localhost',
+       '-addext','subjectAltName=IP:127.0.0.1','-addext','basicConstraints=critical,CA:TRUE'],{stdio:'inherit',timeout:30000});
+   }
    try {
-     execFileSync(process.execPath,[generated.pathname],{stdio:'inherit',env:{...process.env,TENSORVIZ_RELEASE_VERSION:'0.1.44',TENSORVIZ_DIAGNOSTIC_CA_MODE:mode},timeout:180000});
+     execFileSync(process.execPath,[generated.pathname],{stdio:'inherit',env:caseEnv,timeout:180000});
      cases.push({mode,passed:true});
      if (mode === 'baseline') break;
    } catch (error) { cases.push({mode,passed:false,exitCode:error.status ?? null}); }

@@ -278,7 +278,7 @@ if pytest is not None:
 
         # `import torch` raises ModuleNotFoundError(name="torch") while this is None.
         monkeypatch.setitem(sys.modules, "torch", None)
-        client = TestClient(server_v2.app)
+        client = TestClient(server_v2.app, base_url="http://127.0.0.1")
         for route, payload in (("/api/ingest/model", {"library": "torchvision", "arch": "resnet18", "save": False}),
                                ("/api/ingest/repo", {"repo": str(BACKEND), "save": False})):
             response = client.post(route, json=payload)

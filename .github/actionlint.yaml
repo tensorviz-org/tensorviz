@@ -1,0 +1,5 @@
+# Hosted runner labels released after the pinned actionlint version.
+self-hosted-runner:
+  labels:
+    - macos-15-intel
+    - windows-11-arm

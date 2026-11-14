@@ -121,6 +121,8 @@ async function start(): Promise<void> {
     } else if (args.requestId !== environmentTask?.id) throw new HostError('UNKNOWN_REQUEST', 'This environment request has expired or belongs to another host.');
     return { requestId: environmentTask!.id, status: environmentTask!.error ? 'blocked' : environmentTask!.value ? 'ready' : 'checking',
       ...(environmentTask!.value ? { environment: environmentTask!.value } : {}), ...(environmentTask!.error ? { error: environmentTask!.error } : {}),
+      ...(!environmentTask!.value && !environmentTask!.error && host.runtime.progress
+        ? { runtimeProgress: host.runtime.progress } : {}),
       ...(approvals.pending ? { approval: approvals.pending } : {}), pollAfterMs: 1000 };
   }));
 
@@ -144,3 +146,4 @@ void start().catch(error => {
   process.stderr.write(`${error instanceof Error ? error.message : 'TensorViz could not start.'}\n`);
   process.exitCode = 1;
 });
+

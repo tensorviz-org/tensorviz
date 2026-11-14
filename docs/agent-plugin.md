@@ -126,6 +126,13 @@ Building from source, the source archive installer, service details, and panel l
 
 ## Runtime cache and slow first connection
 
+When `get_execution_environment` returns `checking`, it includes `runtimeProgress`
+when the managed service has a setup or download status to report. Poll the same
+`requestId` to see stage changes instead of starting another inspection. Progress
+is diagnostic, not a completion receipt: wait for `ready` or the reported error.
+A pending `approval` still requires the user's decision; progress does not grant
+permission. Completed and blocked requests omit stale runtime progress.
+
 New source candidates support `TENSORVIZ_RUNTIME_CACHE_DIR` in the MCP server
 environment. Use an absolute directory for a task-specific verified archive
 cache. This does not isolate the coding client's profile or TensorViz permission
@@ -150,4 +157,5 @@ execute the runtime. Published 0.3.109 does not contain this flag. For its first
 Claude Code connection, `MCP_TIMEOUT=360000 claude` is a process-only timeout
 option. Do not put `startup_timeout_sec` in portable `mcp.json`: Codex CLI 0.165.0
 rejects that field and skips the server.
+
 

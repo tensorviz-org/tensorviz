@@ -403,7 +403,7 @@ export interface BackendInterpreterOptions {
   /** The managed backend runtime (task.md F3). Absent in stock VS Code and in every remote
    *  session, where the user's own environments are the fallback. */
   runtime?: ManagedRuntime;
-  /** Progress for the provisioning step, which downloads PyTorch and takes minutes. */
+  /** Progress for the provisioning step, which downloads the service runtime and can take minutes. */
   report?: Report;
   isCancelled?: () => boolean;
   /** Test seam: run probes without real interpreters. Production uses the default runner. */
@@ -424,7 +424,7 @@ async function firstInstallConsent(
     { modal: true, detail:
       'Setup may take a few minutes. Your project environment is never touched.\n\n' +
       `Python download: at most ~${mb} MB, plus dependency downloads. ` +
-      'Estimated disk use: about 850 MB in VS Code’s extension storage. ' +
+      'Service files stay in VS Code’s extension storage. PyTorch and other model frameworks are not installed by this setup. ' +
       `Python ${source.python} is pinned and checksum-verified.` },
     'Install',
   ); } finally { pendingRuntimeInstalls--; }
@@ -602,3 +602,4 @@ export async function resolveBackendInterpreter(
     ])),
   };
 }
+

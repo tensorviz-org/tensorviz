@@ -185,7 +185,7 @@ suite('preflight.resolveBackendInterpreter with a managed runtime', () => {
     fs.mkdirSync(path.join(runtime, 'bin'), { recursive: true });
     fs.mkdirSync(backend, { recursive: true });
     fs.writeFileSync(path.join(runtime, RUNTIME_STAMP), JSON.stringify({ sha256: 'f'.repeat(64) }));
-    fs.writeFileSync(path.join(backend, 'requirements-cpu.txt'), '-r requirements.txt\n');
+    fs.writeFileSync(path.join(backend, 'requirements-standalone.txt'), 'websockets>=12\n');
     fs.writeFileSync(path.join(backend, 'requirements.txt'), 'torch==2.7.1\n');
 
     const managed = new ManagedRuntime({ globalStorageDir: globalStorage, extensionPath, remoteName: undefined });
@@ -411,3 +411,4 @@ suite('preflight.managedInterpreter first-install consent', () => {
     assert.equal(infoMessages.length, 0, 'no prompt fired for a ready runtime');
   });
 });
+

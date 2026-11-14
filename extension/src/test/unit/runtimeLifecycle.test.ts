@@ -231,7 +231,7 @@ suite('runtime lifecycle', () => {
     const marker = path.join(fx.runtime.venv, 'keep-existing-packages');
     fs.writeFileSync(marker, 'Torch and project extras must survive');
     const stamp = fs.readFileSync(fx.runtime.stampPath, 'utf8');
-    fs.appendFileSync(path.join(fx.backendDir, 'requirements.txt'), 'websockets==15.0.1\n');
+    fs.appendFileSync(path.join(fx.backendDir, 'requirements-standalone.txt'), 'websockets==15.0.1\n');
     fs.writeFileSync(fx.runtime.interpreter, [
       '#!/bin/sh',
       'printf "%s\\n" "$*" >> "$0.calls"',
@@ -329,3 +329,4 @@ function escapeRegExp(text: string): string {
 function requireStreamOf(data: Buffer): Readable {
   return Readable.from([data]);
 }
+

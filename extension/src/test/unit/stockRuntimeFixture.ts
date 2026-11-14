@@ -37,7 +37,9 @@ export const SCRIPTED_PYTHON = [
   '      printf "home = %s/bin\\n" "$BASE" > "$3/pyvenv.cfg";',
   '      printf "#!%s/bin/python\\n" "$3" > "$3/bin/pip"; chmod 755 "$3/bin/pip"; exit 0',
   '    fi',
-  '    if [ "$2" = "pip" ]; then exit 0; fi ;;',
+  '    if [ "$2" = "pip" ]; then',
+  '      case "$6" in */requirements-standalone.txt) exit 0 ;; *) echo "unexpected service dependency manifest" >&2; exit 91 ;; esac',
+  '    fi ;;',
   'esac',
   'exit 0',
   '',
@@ -82,7 +84,7 @@ export function stockDownloadFixture(temp: string, transport?: Transport, remote
 
   const backendDir = path.join(root, 'backend');
   fs.mkdirSync(backendDir, { recursive: true });
-  fs.writeFileSync(path.join(backendDir, 'requirements-cpu.txt'), '-r requirements.txt\n');
+  fs.writeFileSync(path.join(backendDir, 'requirements-standalone.txt'), 'websockets>=12\n');
   fs.writeFileSync(path.join(backendDir, 'requirements.txt'), 'torch==2.7.1\n');
   fs.writeFileSync(path.join(backendDir, 'server_v2.py'), '# staged backend fixture\n');
 
@@ -115,3 +117,4 @@ export function stockDownloadFixture(temp: string, transport?: Transport, remote
     assetPath,
   };
 }
+

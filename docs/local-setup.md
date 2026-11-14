@@ -209,3 +209,12 @@ This CPU policy selects a new managed cache identity; existing live managed
 and user environments are preserved. Missing CPU wheels fail setup without
 falling back to a source build or a GPU distribution.
 
+
+### Managed service and model frameworks
+
+The extension provisions its own Python service with `backend/requirements-standalone.txt`.
+Fresh setup and additive runtime repair do not install PyTorch or torchvision.
+Existing frameworks are not removed from previously provisioned runtimes.
+Model execution still requires a compatible framework in the selected capture environment;
+review the dependency plan there rather than changing the service or another project environment.
+A service-ready result confirms API startup, not model-capture readiness.

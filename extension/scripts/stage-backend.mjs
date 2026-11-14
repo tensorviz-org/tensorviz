@@ -83,7 +83,7 @@ try {
 }
 
 // Managed-runtime provisioning reads these requirements from the staged backend.
-for (const requirements of ['requirements.txt', 'requirements-cpu.txt']) {
+for (const requirements of ['requirements-standalone.txt']) {
   if (!existsSync(join(dest, requirements))) {
     console.error(
       `stage-backend: backend/${requirements} is missing — the managed runtime cannot provision.`,
@@ -91,3 +91,4 @@ for (const requirements of ['requirements.txt', 'requirements-cpu.txt']) {
     process.exit(1);
   }
 }
+

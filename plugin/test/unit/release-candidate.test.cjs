@@ -10,7 +10,7 @@ async function candidateFixture(t, { dirty = false, urlTag = 'v', relative = fal
   const { sha256, createReleaseCandidate, verifyReleaseCandidate } = await import('../../scripts/release-candidate.mjs');
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-candidate audit-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
-  const version = '1.2.3', sourceRevision = 'a'.repeat(40), archiveName = `tensorviz-runtime-${version}-linux-x64.tar.gz`;
+  const version = '0.2.3', sourceRevision = 'a'.repeat(40), archiveName = `tensorviz-runtime-${version}-linux-x64.tar.gz`;
   const native = path.join(root, 'runtime'); await fs.mkdir(native);
   await fs.writeFile(path.join(native, 'tensorviz-host'), 'synthetic runtime');
   const manifest = { version, sourceRevision, platform: 'linux-x64', pythonABI: 'cpython-312-x86_64-linux-gnu', coreSourceIncluded: false,
@@ -75,9 +75,9 @@ test('release build derives public distribution v URLs and refuses unsafe config
   const { releaseBuildConfig } = await import('../../scripts/build-release.mjs');
   const env = { TENSORVIZ_REVIEWED_SOURCE_SHA: 'a'.repeat(40), TENSORVIZ_COMPILER_PYTHON: '/venv/bin/python',
     TLDRAW_DISTRIBUTION_CONFIRMED: 'true', TLDRAW_LICENSE_KEY: 'fixture-not-a-real-license' };
-  assert.equal(releaseBuildConfig(env, '1.2.3', 'linux-x64').url, 'https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v1.2.3/tensorviz-runtime-1.2.3-linux-x64.tar.gz');
+  assert.equal(releaseBuildConfig(env, '0.2.3', 'linux-x64').url, 'https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.2.3/tensorviz-runtime-0.2.3-linux-x64.tar.gz');
   for (const patch of [{ TENSORVIZ_REVIEWED_SOURCE_SHA: 'main' }, { TENSORVIZ_COMPILER_PYTHON: 'python' },
     { TLDRAW_DISTRIBUTION_CONFIRMED: 'false' }, { TLDRAW_LICENSE_KEY: '' }, { TENSORVIZ_RELEASE_VERSION: '9.0.0' }]) {
-    assert.throws(() => releaseBuildConfig({ ...env, ...patch }, '1.2.3'));
+    assert.throws(() => releaseBuildConfig({ ...env, ...patch }, '0.2.3'));
   }
 });

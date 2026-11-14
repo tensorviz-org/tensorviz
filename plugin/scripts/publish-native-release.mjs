@@ -28,6 +28,7 @@ export async function publishRelease(directory, {
   directory = path.resolve(directory);
   const release = await verifyReleaseCandidate(directory, { publishing: true });
   if (release.sourceRevision !== reviewedSource) throw new Error('Candidate does not match the reviewed source SHA.');
+  if (Number(release.version.split('.')[0]) >= 1) throw new Error('Canonical releases require the source-tag publisher, never the legacy catalog writer.');
   const repo = distributionRepository, tag = `v${release.version}`;
   if (repo !== 'tensorviz-org/tensorviz-plugins') throw new Error('Unexpected public distribution repository.');
   const env = { ...process.env };

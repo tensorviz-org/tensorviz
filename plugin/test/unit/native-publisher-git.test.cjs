@@ -26,7 +26,7 @@ test('real Git publishes only public export history and safely retries', async t
   git(source, 'add', '.'); git(source, 'commit', '-qm', 'private source');
   const sourceSha = git(source, 'rev-parse', 'HEAD');
   const seed = await init('public-seed');
-  const old = { version: '1.2.2', sourceRevision: 'a'.repeat(40), files: {} };
+  const old = { version: '0.2.2', sourceRevision: 'a'.repeat(40), files: {} };
   await fs.writeFile(path.join(seed, 'PUBLICATION.json'), JSON.stringify(old));
   await fs.writeFile(path.join(seed, 'README.md'), 'Previous public catalog');
   git(seed, 'add', '.'); git(seed, 'commit', '-qm', 'public export');
@@ -35,14 +35,14 @@ test('real Git publishes only public export history and safely retries', async t
   git(root, 'clone', '--bare', '-q', seed, remote);
   const candidate = path.join(root, 'candidate');
   await fs.mkdir(path.join(candidate, 'integration'), { recursive: true });
-  const publication = { version: '1.2.3', sourceRevision: sourceSha, files: { 'README.md': 'fixture' } };
+  const publication = { version: '0.2.3', sourceRevision: sourceSha, files: { 'README.md': 'fixture' } };
   await fs.writeFile(path.join(candidate, 'integration', 'PUBLICATION.json'), JSON.stringify(publication));
   await fs.writeFile(path.join(candidate, 'integration', 'README.md'), 'New public catalog');
   const payload = Buffer.from('audited ZIP fixture');
   const digest = bytes => createHash('sha256').update(bytes).digest('hex');
-  const release = { version: '1.2.3', sourceRevision: sourceSha, files: { 'tensorviz-1.2.3.zip': digest(payload) }, publication };
+  const release = { version: '0.2.3', sourceRevision: sourceSha, files: { 'tensorviz-0.2.3.zip': digest(payload) }, publication };
   await fs.writeFile(path.join(candidate, 'release.json'), JSON.stringify(release));
-  await fs.writeFile(path.join(candidate, 'tensorviz-1.2.3.zip'), payload);
+  await fs.writeFile(path.join(candidate, 'tensorviz-0.2.3.zip'), payload);
   const moduleDir = path.join(root, 'module'); await fs.mkdir(moduleDir);
   await fs.copyFile(path.resolve(__dirname, '../../scripts/publish-native-release.mjs'), path.join(moduleDir, 'publisher.mjs'));
   await fs.copyFile(path.resolve(__dirname, '../../scripts/version-alignment.mjs'), path.join(moduleDir, 'version-alignment.mjs'));
@@ -59,7 +59,7 @@ test('real Git publishes only public export history and safely retries', async t
   const command = (tool, args, options = {}) => {
     if (tool === 'git') {
       if (args[0] === 'rev-parse') return `${sourceSha}\n`;
-      if (args[0] === 'show') return JSON.stringify({ version: '1.2.3' });
+      if (args[0] === 'show') return JSON.stringify({ version: '0.2.3' });
       assert.equal(options.env.GH_TOKEN, 'distribution-write-fixture');
       assert.equal(options.env.TENSORVIZ_SOURCE_TOKEN, undefined);
       const actual = args.map(arg => arg === 'https://github.com/tensorviz-org/tensorviz-plugins.git' ? remote : arg);
@@ -84,7 +84,7 @@ test('real Git publishes only public export history and safely retries', async t
     if (api.startsWith('git/ref/')) {
       try { return JSON.stringify({ object: { type: 'commit', sha: git(remote, 'rev-parse', '--verify', `refs/${api.slice(8)}`) } }); } catch { return missing(); }
     }
-    if (api === 'releases/tags/v1.2.3') return hosted && !hosted.draft ? JSON.stringify(hosted) : missing();
+    if (api === 'releases/tags/v0.2.3') return hosted && !hosted.draft ? JSON.stringify(hosted) : missing();
     if (api === 'releases?per_page=100') return JSON.stringify([hosted ? [hosted] : []]);
     if (api === 'releases') { hosted = { ...JSON.parse(readFileSync(args[args.indexOf('--input') + 1], 'utf8')), id: 1 }; return JSON.stringify(hosted); }
     if (api === 'releases/1/assets?per_page=100') return JSON.stringify([assets.map(({ id, name }) => ({ id, name }))]);
@@ -96,7 +96,7 @@ test('real Git publishes only public export history and safely retries', async t
   const first = await publishRelease(candidate, { command, download, reviewedSource: sourceSha });
   assert.notEqual(first.commit, sourceSha);
   assert.equal(git(remote, 'rev-parse', 'refs/heads/main'), first.commit);
-  assert.equal(git(remote, 'rev-parse', 'refs/tags/v1.2.3'), first.commit);
+  assert.equal(git(remote, 'rev-parse', 'refs/tags/v0.2.3'), first.commit);
   assert.equal(git(remote, 'rev-parse', `${first.commit}^`), oldSha);
   assert.deepEqual(git(remote, 'ls-tree', '-r', '--name-only', first.commit).split('\n'), ['PUBLICATION.json', 'README.md']);
   assert.throws(() => git(remote, 'cat-file', '-e', sourceSha));

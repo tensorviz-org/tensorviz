@@ -39,26 +39,30 @@ Local evidence: 30 unit tests passed on Node 24.22.1/Linux. Staging an existing
 destination. This verifies transformation, not installed-client acceptance or
 1.0.0 publication. The local 0.1.46 source version gate also passed.
 
-## Required implementation still pending before this PR is merge-ready
+## Publication implementation and remaining launch gates
 
-- Add a separately reviewed canonical asset publisher. **Never retarget
+- The additive source-tag publisher, disabled launch policy, signed evidence
+  admission and combined artifact verifier are prepared separately in this PR.
+  Read [publisher admission](public-launch/source-publisher.md). **Never retarget
   `publish-native-release.mjs`: it deletes every destination entry except .git.**
 - Canonical release tag must identify reviewed source, not the generated catalog
   commit. Build source S; release `v1.0.0` points to S; artifact manifest records S;
   catalog update C descends from S and references verified assets at that tag.
   This avoids a self-referential source/catalog checksum cycle. Never move tags.
-- Extend export/candidate validation to support explicitly selected canonical
-  repository; default remains the legacy repository until owner cutover.
-  Do not rewrite a runtime URL without rebuilding and validating its manifest.
+- Export/build/candidate validation now routes 1.x releases to core and preserves
+  0.x routing to the legacy repository. Generated packaging docs follow the same
+  version policy. The current package versions are not changed. Do not rewrite a
+  runtime URL without rebuilding and validating its manifest.
 - One publication workflow orchestrates extension VSIX, Marketplace/OpenVSX,
   plugin assets/catalog and docs from exactly S and one version. Upload missing
   assets only to a draft, reject different bytes, publish only after verification,
   then advance catalog with an expected-head lease. No force push/deletion.
   External registries are non-atomic: report partial publication and retry exact
   bytes, never silently mark every channel complete.
-- Connect local evidence receipts to publication gates. Preserve the historical
-  release-specific migration contracts. Do not replace them with a boolean
-  environment bypass. No test jobs on pushes/PRs; Actions used for necessary
+- Signed local evidence admission and version/source gates are implemented, but
+  genuine launch receipts and trusted reviewer policy are still required. Preserve
+  historical release-specific migration contracts. Never replace evidence with a
+  boolean environment bypass. No test jobs on pushes/PRs; Actions used for necessary
   publication only. Local/native tests run before approval.
 - Align package manifests, lockfile roots, client manifests, archive names,
   extension/plugin versions and changelogs to 1.0.0 only at cutover. Keep extension
@@ -66,6 +70,9 @@ destination. This verifies transformation, not installed-client acceptance or
 - Test nested marketplace paths with real pinned Codex, Claude Code and Cursor
   clients before relying on the generated indexes. Pure transform tests are not
   client installation tests.
+
+See the [unpublished installation and upgrade guide](public-launch/install-and-upgrade.md)
+for prepared commands and user-facing instructions. It must pass the matrix below.
 
 ## Installation and upgrade documentation deliverables
 

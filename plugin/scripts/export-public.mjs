@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { windowsCatalog } from './windows-bootstrap.mjs';
 import { nativePlatforms, runtimeEntries } from './native-platforms.mjs';
-import { distributionRepository, pluginVersion } from './release-version.mjs';
+import { distributionRepositoryForVersion, pluginVersion } from './release-version.mjs';
+import {renderPublicDocument} from './canonical-public-documents.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const metadata = ['plugin.json', '.codex-plugin/plugin.json', '.claude-plugin/plugin.json',
@@ -49,6 +50,7 @@ export async function exportPublic(destination, options = {}) {
   if ('sourceOnly' in options) throw new Error('The public core-source export is retired. Supply a compiled runtimeLock.');
   const lock = validateRuntimeLock(options.runtimeLock);
   const version = pluginVersion();
+  const docsPrefix = Number(version.split('.')[0]) >= 1 ? 'distribution/plugin-catalog/' : ''; 
   if (lock.version !== version) throw new Error('Runtime and plugin versions differ.');
   destination = path.resolve(destination);
   await fs.mkdir(destination, { recursive: false });
@@ -62,7 +64,7 @@ export async function exportPublic(destination, options = {}) {
   const document = async (file, relative) => {
     await copy(path.join(root, 'plugin/packaging/public', file), relative);
     const target = path.join(destination, relative);
-    await fs.writeFile(target, (await fs.readFile(target, 'utf8')).replaceAll('{{VERSION}}', version));
+    await fs.writeFile(target, renderPublicDocument(await fs.readFile(target, 'utf8'), version));
   };
   try {
     for (const file of documents) await document(file, file);
@@ -77,15 +79,15 @@ export async function exportPublic(destination, options = {}) {
         const target = path.join(destination, client, file), manifest = JSON.parse(await fs.readFile(target, 'utf8'));
         manifest.version = version;
         manifest.homepage = 'https://tensorviz.dev';
-        manifest.repository = `https://github.com/${distributionRepository}`;
+        manifest.repository = `https://github.com/${distributionRepositoryForVersion(version)}`;
         const ui = manifest.interface ?? manifest.extensions?.['com.openai']?.interface;
         if (ui) Object.assign(ui, {
           longDescription: 'A local TensorViz host for PyTorch architecture, tensor shapes and model changes. Downloads a verified compiled runtime automatically. Native runtime availability follows the pinned platform table; model execution requires matching CPython 3.12. VS Code and Node.js are not required.',
           category: 'Developer Tools',
           websiteURL: 'https://tensorviz.dev',
-          supportURL: `https://github.com/${distributionRepository}/blob/main/SUPPORT.md`,
-          privacyPolicyURL: `https://github.com/${distributionRepository}/blob/main/PRIVACY.md`,
-          termsOfServiceURL: `https://github.com/${distributionRepository}/blob/main/TERMS.md`,
+          supportURL: `https://github.com/${distributionRepositoryForVersion(version)}/blob/main/${docsPrefix}SUPPORT.md`,
+          privacyPolicyURL: `https://github.com/${distributionRepositoryForVersion(version)}/blob/main/${docsPrefix}PRIVACY.md`,
+          termsOfServiceURL: `https://github.com/${distributionRepositoryForVersion(version)}/blob/main/${docsPrefix}TERMS.md`,
           defaultPrompt: ['Explain this PyTorch model and show its TensorViz graph.'],
         });
         await json(target, manifest);

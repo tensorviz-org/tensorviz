@@ -5,7 +5,7 @@ import path from 'node:path';
 import { publicFiles, integrationFiles, validateRuntimeLock } from './export-public.mjs';
 import { validateWindowsPE, windowsMcp } from './windows-bootstrap.mjs';
 import { runtimeEntries, runtimeArchive } from './native-platforms.mjs';
-import { distributionRepository } from './release-version.mjs';
+import { distributionRepositoryForVersion } from './release-version.mjs';
 import { auditArchive } from './archive-audit.mjs';
 
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -147,7 +147,7 @@ export async function verifyReleaseCandidate(directory, { publishing = false } =
     }
     if (publishing && manifest.workingTreeChanged !== false) throw new Error('Publication requires a clean reviewed source working tree.');
     if (publishing && (release.rendererDistributionCoverage !== 'owner-confirmed'
-      || entry.url !== `https://github.com/${distributionRepository}/releases/download/v${version}/${archive}`)) {
+      || entry.url !== `https://github.com/${distributionRepositoryForVersion(version)}/releases/download/v${version}/${archive}`)) {
       throw new Error('Publication requires confirmed renderer coverage and the exact distribution release URL.');
     }
     for (const [file, digest] of Object.entries(manifest.files)) {

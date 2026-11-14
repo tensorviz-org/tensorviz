@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "enabled": false,
+  "repository": "tensorviz-org/tensorviz",
+  "version": "1.0.0",
+  "previousVersion": null,
+  "previousCatalogCommit": null,
+  "extensionName": null,
+  "extensionPublisher": null,
+  "clientVersions": {},
+  "reviewers": {}
+}

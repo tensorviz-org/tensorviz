@@ -66,7 +66,7 @@ function moveTab(event: KeyboardEvent, index: number) {
           <button v-for="name in ['Codex', 'Claude Code', 'Cursor']" :key="name" type="button"
             :aria-pressed="client === name" @click="client = name">{{ name }}</button>
         </div>
-        <p class="install-requirements">Plugin preview · Apple Silicon macOS (ARM64) or Linux x64 (glibc &gt;=2.35) · CPython 3.12 · CPU capture</p>
+        <p class="install-requirements">Plugin preview · Apple Silicon macOS (ARM64) or Linux x64 (glibc &gt;=2.31) · CPython 3.12 · CPU capture</p>
         <p>Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin.</p>
       </template>
       <template v-else-if="active === 'extension'">

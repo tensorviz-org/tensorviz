@@ -1,4 +1,4 @@
-// Real Windows binaries and PowerShell stdio. No runtime verification bypasses.
+// Real Windows binaries and native command-shell stdio. No runtime verification bypasses.
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -39,14 +39,20 @@ const notices=path.join(out,'NOTICES-test-only.md');await fs.writeFile(notices,'
 const catalog=path.join(work,'catalog');await windowsCatalog({destination:catalog,version:lock.version,lock,binaries:{[process.arch]:binary},notices});
 const root=path.join(catalog,'plugins',`tensorviz-windows-${process.arch}`),mcp=windowsMcp();
 const env={...process.env,TENSORVIZ_RUNTIME_CACHE_DIR:cache,PATH:process.env.SystemRoot+'\\System32;'+process.env.SystemRoot+'\\System32\\WindowsPowerShell\\v1.0'};
-function run(payload){return new Promise((resolve,reject)=>{
- const child=spawn(mcp.command,mcp.args,{cwd:root,env,windowsHide:true,stdio:'pipe'});let stdout='',stderr='';
- const timer=setTimeout(()=>{child.kill();reject(new Error('PowerShell bootstrap timeout (EOF not forwarded?)'));},60000);
+let active;
+function terminateTree(pid){try{execFileSync(path.join(process.env.SystemRoot,'System32/taskkill.exe'),['/PID',String(pid),'/T','/F'],{timeout:10000,stdio:'ignore'})}catch{}}
+function run(payload,direct=false){return new Promise((resolve,reject)=>{
+ const child=spawn(direct?path.join(root,'scripts/tensorviz-bootstrap.exe'):mcp.command,direct?[]:mcp.args,{cwd:root,env,windowsHide:true,stdio:'pipe'});active=child;let stdout='',stderr='';
+ const timer=setTimeout(()=>{console.error('Bootstrap TIMEOUT',JSON.stringify({pid:child.pid,stdout,stderr}));terminateTree(child.pid);child.stdin.destroy();child.stdout.destroy();child.stderr.destroy();reject(new Error('Native bootstrap timed out; captured stderr: '+stderr));},60000);
  child.stdout.setEncoding('utf8').on('data',s=>stdout+=s);child.stderr.setEncoding('utf8').on('data',s=>stderr+=s);
- child.on('error',e=>{clearTimeout(timer);reject(e)});child.on('close',code=>{clearTimeout(timer);resolve({code,stdout,stderr})});child.stdin.on('error',()=>{});child.stdin.end(JSON.stringify(payload));
+ child.on('error',e=>{clearTimeout(timer);reject(e)});child.on('close',code=>{clearTimeout(timer);active=null;resolve({code,stdout,stderr})});child.stdin.on('error',()=>{});child.stdin.end(JSON.stringify(payload));
 });}
 try{
+ console.log('Direct native bootstrap control (no shell)');
+ const control=await run({text:'direct native control',exit:0},true);
+ assert.equal(control.code,0,control.stderr);assert.equal(JSON.parse(control.stdout).echo,'direct native control');
  for(const payload of [{text:'héllo हिन्दी 中文 🦙',exit:0},{text:'漢🦙'.repeat(300000),exit:0},{text:'nonzero',exit:17}]){
+ console.log('Bootstrap fixture',JSON.stringify({characters:payload.text.length,exit:payload.exit}));
  const r=await run(payload);assert.equal(r.code,payload.exit,r.stderr);assert.equal(JSON.parse(r.stdout).echo,payload.text);
  const state=r.stderr.split(/\r?\n/).map(x=>{try{return JSON.parse(x)}catch{return null}}).find(x=>x?.exe);
  assert.ok(state,'fixture did not report native exe');await assert.rejects(fs.access(path.dirname(state.exe)),{code:'ENOENT'});
@@ -62,9 +68,9 @@ try{
   const codex=process.env.TENSORVIZ_TEST_CODEX,cenv={...process.env,CODEX_HOME:path.join(work,'codex-home')};await fs.mkdir(cenv.CODEX_HOME);
   for(const args of [['--version'],['plugin','marketplace','add',catalog,'--json'],['plugin','add',`tensorviz-windows-${process.arch}@tensorviz-windows-candidate`,'--json'],['mcp','list','--json']]){
    const result=execFileSync(codex,args,{env:cenv,encoding:'utf8'});console.log(result);
-   if(args[0]==='mcp'){const row=JSON.parse(result).find(x=>x.name==='tensorviz');assert.ok(row?.enabled);assert.equal(row.transport.command,'powershell.exe');assert.ok(path.isAbsolute(row.transport.cwd));}
+   if(args[0]==='mcp'){const row=JSON.parse(result).find(x=>x.name==='tensorviz');assert.ok(row?.enabled);assert.equal(row.transport.command,'cmd.exe');assert.ok(path.isAbsolute(row.transport.cwd));}
   }
  }
- await fs.writeFile(path.join(out,'result.json'),JSON.stringify({platform:process.platform,arch:process.arch,bootstrapBytes:(await fs.stat(binary)).size,passed:['PE architecture','no Node/Python PATH','PowerShell Unicode stdio','large JSON','EOF','nonzero exit','session cleanup','corrupt digest','truncated cache'],codexDiscovery:!!process.env.TENSORVIZ_TEST_CODEX},null,2));
+ await fs.writeFile(path.join(out,'result.json'),JSON.stringify({platform:process.platform,arch:process.arch,bootstrapBytes:(await fs.stat(binary)).size,passed:['PE architecture','no Node/Python PATH','cmd native Unicode stdio','large JSON','EOF','nonzero exit','session cleanup','corrupt digest','truncated cache'],codexDiscovery:!!process.env.TENSORVIZ_TEST_CODEX},null,2));
  console.log('Native Windows bootstrap fixtures PASS. This is not the production TensorViz MCP host.');
-}finally{await fs.rm(work,{recursive:true,force:true,maxRetries:5,retryDelay:200})}
+}catch(error){console.error('Native bootstrap failure:',error);await fs.writeFile(path.join(out,'failure.txt'),String(error.stack??error));throw error;}finally{if(active?.pid)terminateTree(active.pid);await fs.rm(work,{recursive:true,force:true,maxRetries:1,retryDelay:100}).catch(error=>console.error('Cleanup failure (primary failure preserved):',error));}

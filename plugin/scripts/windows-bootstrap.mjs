@@ -19,12 +19,18 @@ export async function buildBootstrap({launcher, pkg, output, arch}) {
   execFileSync(process.execPath,[pkg,entry,'--target',targets[arch],'--output',binary],{stdio:'inherit'});
   return binary;
 }
-// Process.Start inherits raw standard handles. Do not pipe native stdio through
-// PowerShell string streams, which can transcode JSON and wrap native stderr.
-export const windowsMcp = () => ({type:'stdio', command:'powershell.exe', args:[
-  '-NoLogo','-NoProfile','-NonInteractive','-Command',
-  "$ErrorActionPreference='Stop'; $p=New-Object System.Diagnostics.Process; $p.StartInfo.FileName=[IO.Path]::GetFullPath('./scripts/tensorviz-bootstrap.exe'); $p.StartInfo.UseShellExecute=$false; $p.StartInfo.CreateNoWindow=$true; [void]$p.Start(); $p.WaitForExit(); exit $p.ExitCode"
-], cwd:'.'});
+// Codex roots cwd, not PLUGIN_ROOT in command. cmd's fixed relative invocation
+// forwards native stdio handles without PowerShell's string pipelines. /d blocks
+// AutoRun commands; no user data or absolute path is interpolated into the shell.
+export const windowsMcp = () => ({type:'stdio', command:'cmd.exe',
+  args:['/d','/c','.\\scripts\\tensorviz-bootstrap.exe'], cwd:'.'});
+export function validateWindowsPE(bytes, arch) {
+  const machine = {x64:0x8664, arm64:0xaa64}[arch];
+  if (!machine || bytes.length < 64 || bytes.toString('ascii',0,2) !== 'MZ') throw new Error('Invalid Windows bootstrap PE header');
+  const offset=bytes.readUInt32LE(0x3c);
+  if (offset < 64 || offset > bytes.length-24 || bytes.toString('binary',offset,offset+4) !== 'PE\0\0'
+    || bytes.readUInt16LE(offset+4) !== machine) throw new Error(`Windows bootstrap PE architecture mismatch: ${arch}`);
+}
 export async function windowsCatalog({destination, version, lock, binaries, notices}) {
   if (!/^\d+\.\d+\.\d+$/.test(version) || lock.version !== version) throw new Error('Invalid/mismatched version');
   // Caller provides native-CI-approved binaries, not raw or opportunistically built files.
@@ -40,7 +46,7 @@ export async function windowsCatalog({destination, version, lock, binaries, noti
     await fs.mkdir(path.join(root,'scripts'),{recursive:true});
     await fs.mkdir(path.join(root,'.codex-plugin'));
     const bytes=await fs.readFile(binaries[arch]);
-    if(bytes.toString('ascii',0,2)!=='MZ') throw new Error('Bootstrap must be a Windows executable');
+    validateWindowsPE(bytes,arch);
     await fs.writeFile(path.join(root,'scripts/tensorviz-bootstrap.exe'),bytes);
     await fs.copyFile(notices,path.join(root,'DEPENDENCY_NOTICES.md'));
     const manifest={name,version,description:`TensorViz local MCP for native Windows ${arch}. No separate Node.js installation.`,mcpServers:'./mcp.json',requires_local_executor:true};

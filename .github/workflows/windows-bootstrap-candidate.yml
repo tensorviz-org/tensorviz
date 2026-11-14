@@ -52,7 +52,7 @@ jobs:
           if (-not $exe) { throw 'Official native Codex executable unavailable for this architecture' }
           "TENSORVIZ_TEST_CODEX=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           & $exe.FullName --version
-      - name: Native bootstrap build and PowerShell stdio, EOF and validation tests
+      - name: Native bootstrap build and native Windows stdio, EOF and validation tests
         shell: pwsh
         run: node plugin/test/native/windows-bootstrap.mjs
       - name: Preserve evidence, never publish a runtime/catalog
@@ -62,6 +62,7 @@ jobs:
           name: windows-bootstrap-evidence-${{ matrix.arch }}
           path: |
             plugin/out/windows-bootstrap/result.json
+            plugin/out/windows-bootstrap/failure.txt
             .bootstrap-build/package-lock.json
             .bootstrap-codex/package-lock.json
           if-no-files-found: warn

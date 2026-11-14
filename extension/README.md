@@ -16,7 +16,7 @@ Expand nested modules, inspect shapes from a captured forward pass, and jump
 from a layer to its source. Plain JAX functions and Flax modules also open as
 traced programs with inferred shapes.
 
-Extension **0.1.36**. Shapes describe the example input you capture.
+Shapes describe the example input you capture.
 
 - **Understand a model:** explore one block at a time instead of reading the whole definition.
 - **Investigate a shape mismatch:** follow the shapes recorded for your example inputs.

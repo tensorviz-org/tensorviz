@@ -29,6 +29,29 @@ jobs:
       - name: Test release provenance, safety and retries without credentials
         run: node --test tooling/test/extension-*release*.test.mjs plugin/test/unit/native-publisher*.test.cjs plugin/test/unit/version-alignment.test.cjs plugin/test/unit/cleanup-build-scratch.test.cjs plugin/test/unit/migration-resource-lifecycle.test.cjs plugin/test/unit/native-platforms.test.cjs plugin/test/unit/native-package.test.cjs plugin/test/unit/release-candidate.test.cjs plugin/test/unit/release-workflow.test.cjs
 
+  javascript-dependencies:
+    # Exercise the actual checkout, including binary test fixtures omitted by API snapshots.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - name: Install locked JavaScript dependencies
+        run: |
+          npm ci
+          npm ci --prefix canvas
+          npm ci --prefix extension
+      - name: Validate shared code, extension host and canvas
+        run: |
+          npm run build:shared
+          npm run compile --prefix extension
+          npm run test:unit --prefix extension
+          npm run test:ci --prefix canvas
+
   native-candidate:
     # Test the PR merge result with read-only permissions and no secrets.
     # Never use pull_request_target or upload these unlicensed evaluation builds.

@@ -13,3 +13,11 @@ test('native target filenames match each OS and CPython ABI', async () => {
   assert.throws(() => nativePlatform('linux', 'ia32'), /Unsupported/);
   assert.throws(() => nativePlatform('freebsd', 'x64'), /Unsupported/);
 });
+
+
+test('Windows packaging selects OS tar rather than Git PATH tar', async () => {
+  const {nativeArchiveTool} = await import('../../scripts/native-platforms.mjs');
+  assert.equal(nativeArchiveTool('win32', {SystemRoot: 'D:\\Windows'}), 'D:\\Windows\\System32\\tar.exe');
+  assert.equal(nativeArchiveTool('linux', {}), '/usr/bin/tar');
+  assert.throws(() => nativeArchiveTool('win32', {SystemRoot: 'relative'}), /absolute/);
+});

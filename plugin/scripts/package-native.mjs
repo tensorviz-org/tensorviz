@@ -4,7 +4,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeBundleNotices } from '../../tooling/packaging/bundle-notices.mjs';
-import { nativePlatform, nativePlatforms, runtimeArchive } from './native-platforms.mjs';
+import { nativePlatform, nativePlatforms, runtimeArchive, nativeArchiveTool } from './native-platforms.mjs';
 import { validateRuntimeLock } from './export-public.mjs';
 
 const repository = fileURLToPath(new URL('../..', import.meta.url));
@@ -100,7 +100,7 @@ export async function packageNative(url) {
   await fs.writeFile(path.join(directory, 'release-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   const archive = path.join(repository, 'plugin/dist', runtimeArchive({ version, platform: target.key }));
   await fs.mkdir(path.dirname(archive), { recursive: true });
-  execFileSync(process.platform === 'win32' ? 'tar.exe' : '/usr/bin/tar', ['-czf', archive, '-C', directory, ...Object.keys(files), 'release-manifest.json'], {
+  execFileSync(nativeArchiveTool(), ['-czf', archive, '-C', directory, ...Object.keys(files), 'release-manifest.json'], {
     env: { ...process.env, COPYFILE_DISABLE: '1' }, maxBuffer: 1024 * 1024,
   });
   const bytes = await fs.readFile(archive);

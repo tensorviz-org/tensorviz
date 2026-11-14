@@ -78,7 +78,7 @@ jobs:
           assert.equal(check.abi, nativePlatform().abi, 'Compiler Python architecture/ABI does not match native Node target');
           console.log('Verified compiler ABI', check);
           const service = path.resolve('plugin/out/service-venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
-          execFileSync('uv', ['pip', 'install', '--python', service, '-r', 'backend/requirements-standalone.txt'], {stdio:'inherit'});
+          execFileSync('uv', ['pip', 'install', '--only-binary', ':all:', '--python', service, '-r', 'backend/requirements-standalone.txt'], {stdio:'inherit'});
           for (const [key, value] of Object.entries({
             TENSORVIZ_COMPILER_PYTHON: python,
             TENSORVIZ_NO_TORCH_PYTHON: python,

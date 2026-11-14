@@ -180,9 +180,10 @@ again on each request.
 
 Without PyTorch, static projection reads positional constructor arguments by
 name only for the recurrent layers. `nn.Linear(4, 3)` projects as `arg_0` and
-`arg_1`, because those names come from PyTorch's signatures. Generated code
-checks parameter names against the identifier grammar but not against the
-layer's signature.
+`arg_1`, because those names come from PyTorch's signatures. Export refuses unresolved `arg_N` parameters rather than emitting invalid constructor
+keywords. Use named constructor arguments in the original source and project it again
+before exporting, or run the original source. Other generated parameters are checked
+against the identifier grammar; without PyTorch, no constructor signature is assumed.
 
 The managed runtime still installs PyTorch (`backend/requirements.txt` and
 `backend/requirements-cpu.txt`). The service probe in `extension/src/runtime.ts`

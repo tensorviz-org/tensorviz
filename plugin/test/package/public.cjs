@@ -38,7 +38,7 @@ test('public integration export contains no core source, build tree or runtime p
         assert.ok(!text.includes('{{VERSION}}'), `${prefix}${name} must substitute the release version`);
       }
       assert.match(readme, /\*\*29\s+tools\*\*: 25 agent tools and four tools reserved for the Model graph app/);
-      assert.match(readme, /Apple Silicon Macs and Linux x64 with glibc 2\.35\+/);
+      assert.match(readme, /Apple Silicon Macs and Linux x64 with glibc 2\.31\+/);
       assert.match(readme, /installed 0\.3\.104 remains Darwin-only/);
       assert.ok(build.includes(`The ${version} host registers **29 MCP tools**`));
       assert.match(build, /expose \*\*25\*\* to the agent/);
@@ -50,9 +50,9 @@ test('public integration export contains no core source, build tree or runtime p
       assert.ok(build.includes(`The ${version} candidate can pin`));
       assert.match(build, /`darwin-arm64` and `linux-x64` runtime archives/);
       assert.match(build, /`cpython-312-darwin` or `cpython-312-x86_64-linux-gnu`/);
-      assert.match(build, /glibc >=2\.35/);
+      assert.match(build, /glibc >=2\.31/);
       assert.match(build, /Windows, Linux ARM64, Intel Mac and musl builds are unsupported/);
-      assert.match(guide, /macOS Apple Silicon or Linux x64 with glibc >=2\.35/);
+      assert.match(guide, /macOS Apple Silicon or Linux x64 with glibc >=2\.31/);
       assert.match(guide, /Existing v0\.3\.104 releases remain Darwin-only/);
       assert.match(guide, /## 0\.3\.104 source and asset audit — November 7, 2026/);
       assert.match(guide, /installed and enabled\n0\.3\.104/, 'The historical installation audit must retain its audited version');

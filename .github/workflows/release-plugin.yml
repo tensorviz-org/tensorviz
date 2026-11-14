@@ -114,6 +114,9 @@ jobs:
           uv pip install --python plugin/out/compiler-venv/bin/python -r plugin/compiler-requirements.txt
           if [ "${{ matrix.platform }}" = linux-x64 ]; then
             uv pip install --python plugin/out/test-venv/bin/python torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+          else
+            # Capture acceptance owns Torch; the core service does not.
+            uv pip install --python plugin/out/test-venv/bin/python torch==2.14.1
           fi
           uv pip install --python plugin/out/test-venv/bin/python -r backend/requirements-standalone.txt
           {
@@ -272,3 +275,4 @@ jobs:
           const release = JSON.parse(readFileSync('plugin/out/release-result.json', 'utf8'));
           appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Published [TensorViz ${release.version}](${release.release}) with its downloadable integration catalog. Vendor directory approval is separate.\n`);
           JS
+

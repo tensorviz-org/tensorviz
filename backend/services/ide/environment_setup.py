@@ -42,6 +42,11 @@ TARGET_PYTHON: str | None = None
 
 TARGET_INSPECTION = r'''
 import hashlib, importlib.metadata as metadata, importlib.util, json, os, pathlib, platform, re, sys, sysconfig
+abi = sysconfig.get_config_var('SOABI')
+if abi is None and sys.platform == 'win32':
+    suffix = sysconfig.get_config_var('EXT_SUFFIX') or ''
+    if suffix.startswith('.cp') and suffix.endswith('.pyd'):
+        abi = suffix[1:-4]
 packages = {}
 for dist in metadata.distributions():
     name = dist.metadata.get('Name')
@@ -53,7 +58,7 @@ for dist in metadata.distributions():
 stat = pathlib.Path(sys.executable).stat()
 config = pathlib.Path(sys.prefix) / 'pyvenv.cfg'
 identity = dict(executable=sys.executable, prefix=sys.prefix, python=sys.version.split()[0],
-    implementation=sys.implementation.name, abi=sysconfig.get_config_var('SOABI'),
+    implementation=sys.implementation.name, abi=abi,
     platform=sys.platform, architecture=platform.machine(),
     executableStat=[stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns],
     venvConfig=hashlib.sha256(config.read_bytes()).hexdigest() if config.is_file() else None,
@@ -151,6 +156,15 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def interpreter_abi():
+    abi = sysconfig.get_config_var('SOABI')
+    if abi is None and sys.platform == 'win32':
+        suffix = sysconfig.get_config_var('EXT_SUFFIX') or ''
+        if suffix.startswith('.cp') and suffix.endswith('.pyd'):
+            abi = suffix[1:-4]
+    return abi
+
+
 def environment_info(installed: dict[str, str] | None = None) -> dict:
     if TARGET_PYTHON:
         target = target_snapshot()['identity']
@@ -165,7 +179,7 @@ def environment_info(installed: dict[str, str] | None = None) -> dict:
                 pass
     return {"executable": sys.executable, "prefix": sys.prefix, "python": sys.version.split()[0],
             "platform": sys.platform, "architecture": platform.machine(),
-            "implementation": sys.implementation.name, "abi": sysconfig.get_config_var('SOABI'),
+            "implementation": sys.implementation.name, "abi": interpreter_abi(),
             "torch": installed.get("torch"), "pip": installed.get("pip")}
 
 

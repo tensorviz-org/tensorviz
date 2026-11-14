@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import urllib.error
 import urllib.request
@@ -122,6 +123,10 @@ print(json.dumps({'service': service, 'capture': capture}))
                             capture_output=True, text=True, check=True, timeout=30)
     status = json.loads(result.stdout)
     assert not any(item.split("=")[0].lower() == "torch" for item in status["service"]["missing"])
+    expected_abi = sysconfig.get_config_var('SOABI')
+    if expected_abi is None and sys.platform == 'win32':
+        expected_abi = sysconfig.get_config_var('EXT_SUFFIX')[1:-4]
+    assert status['service']['environment']['abi'] == expected_abi
     # Capture still declares Torch even though static operations no longer do.
     assert "torch" in (BACKEND / "requirements-capture.txt").read_text().splitlines()
 

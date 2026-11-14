@@ -40,6 +40,28 @@ Start a new chat afterward. Platform limits and source builds are on the [Instal
 
 Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin. See [Linux SSH runtime](linux-ssh-runtime.md) for execution-host requirements and the limits of local validation. Published platform availability does not establish real SSH-network or installed-client acceptance.
 
+## Update an existing Codex installation
+
+Run both commands in the **same execution environment and Codex profile** as the
+chat that will use TensorViz:
+
+```sh
+codex plugin marketplace upgrade tensorviz-standalone
+codex plugin add tensorviz@tensorviz-standalone --json
+```
+
+Check the install result's `version` and `installedPath`, then start a new chat
+(or restart the client). Refreshing the marketplace alone does not reinstall the
+plugin: the listing can show the refreshed catalog version while an old cache is
+still selected. Existing chats can retain their old MCP process and tool list.
+Updating a Mac profile does not update a separate Linux/remote/cloud profile.
+
+Version 0.3.104 was macOS-only. Version 0.1.43 supports glibc Linux x64 despite
+its smaller version number, following the plugin/extension version alignment.
+Do not edit cached launchers, mix releases, or disable runtime checks. If a fresh
+chat still has no tools, inspect its MCP startup error and verify which installed
+path it actually launches before diagnosing a model or capture failure.
+
 ## First graph
 
 1. Open your model project in the client and start a new chat.

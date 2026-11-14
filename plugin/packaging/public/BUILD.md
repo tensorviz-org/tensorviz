@@ -33,7 +33,10 @@ keeping the prior complete directory for rollback. For Claude, `claude plugin up
 marketplace and installs a changed version. Automatic updates for custom Claude
 marketplaces are off by default; the user controls that setting. For Codex, refresh
 the marketplace through `codex plugin marketplace upgrade tensorviz-standalone`
-and use the client's plugin update/install controls.
+and then run `codex plugin add tensorviz@tensorviz-standalone --json`. Verify the
+returned installed version/path and start a new chat. Refresh alone does not
+replace the installed cache. Run both commands in the same Codex profile and
+execution environment as the chat, not a different local or remote host.
 
 For Cursor local evaluation, use its supported local plugin import with the
 complete `cursor/plugins/tensorviz` directory. Account or organization policy can

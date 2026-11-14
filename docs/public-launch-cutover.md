@@ -15,7 +15,8 @@ any source files. It never deletes anything, commits, tags, pushes or publishes.
 The existing production publisher is intentionally unchanged.
 
 ```sh
-node --test plugin/test/unit/canonical-catalog.test.mjs
+node --test plugin/test/unit/canonical-catalog.test.mjs plugin/test/unit/unified-source-versions.test.mjs
+node plugin/scripts/unified-source-versions.mjs . 0.1.46
 node plugin/scripts/canonical-catalog.mjs /absolute/audited-integration /absolute/new-staging-directory
 ```
 
@@ -28,6 +29,15 @@ existing destination. `CANONICAL.json` records per-file hashes and original
 source revision. The original PUBLICATION file is reserialized deterministically;
 its manifest hash refers to that serialization, not an original JSON file byte
 hash. Runtime archive hashes remain unchanged.
+
+The read-only `unified-source-versions.mjs` gate validates all nine source/client
+manifests and lockfile root versions. Pass the approved current version now;
+1.0.0 is only passed after the actual launch version change. It never edits files.
+
+Local evidence: 30 unit tests passed on Node 24.22.1/Linux. Staging an existing
+0.1.45 audited public catalog produced 62 files; a second run refused the existing
+destination. This verifies transformation, not installed-client acceptance or
+1.0.0 publication. The local 0.1.46 source version gate also passed.
 
 ## Required implementation still pending before this PR is merge-ready
 

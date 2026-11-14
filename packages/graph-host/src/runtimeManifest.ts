@@ -84,7 +84,7 @@ export function runtimePlatformKey(
   arch: string = process.arch,
 ): string | undefined {
   let suffix = '';
-  if (platform === 'linux') {
+  if (platform === 'linux' && process.platform === 'linux') {
     const report = process.report.getReport() as {header?: {glibcVersionRuntime?: string}; sharedObjects?: string[]};
     if (!report.header?.glibcVersionRuntime) {
       if (!report.sharedObjects?.some(file => /(?:^|\/)ld-musl-[^/]+\.so\.1$/.test(file))) return undefined;

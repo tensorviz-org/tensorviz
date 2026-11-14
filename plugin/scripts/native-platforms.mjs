@@ -15,7 +15,7 @@ export function linuxLibc(report = process.report.getReport()) {
   if (report.sharedObjects?.some(file => /(?:^|\/)ld-musl-[^/]+\.so\.1$/.test(file))) return 'musl';
   throw new Error('Unknown Linux libc; refusing a potentially incompatible runtime');
 }
-export function nativePlatform(platform = process.platform, arch = process.arch, libc = platform === 'linux' ? linuxLibc() : undefined) {
+export function nativePlatform(platform = process.platform, arch = process.arch, libc = platform === 'linux' ? (process.platform === 'linux' ? linuxLibc() : 'glibc') : undefined) {
   const key = `${platform}-${arch}${platform === 'linux' && libc === 'musl' ? '-musl' : ''}`;
   if (!Object.hasOwn(nativePlatforms, key)) throw new Error(`Unsupported compiled runtime target: ${key}`);
   const target = nativePlatforms[key];
@@ -30,8 +30,7 @@ export const runtimeArchive = lock => `tensorviz-runtime-${lock.version}-${lock.
 /** Use the OS bsdtar, not Git's GNU tar (which parses D: as a remote host). */
 export function nativeArchiveTool(platform = process.platform, environment = process.env) {
   if (platform !== 'win32') {
-    for (const file of ['/usr/bin/tar', '/bin/tar']) if (existsSync(file)) return file;
-    throw new Error('System tar is required to package the native runtime');
+    return platform === 'linux' && !existsSync('/usr/bin/tar') && existsSync('/bin/tar') ? '/bin/tar' : '/usr/bin/tar';
   }
   const root = environment.SystemRoot || environment.WINDIR;
   if (!root || !path.win32.isAbsolute(root)) throw new Error('Windows SystemRoot must be an absolute path');

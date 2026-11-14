@@ -31,8 +31,8 @@ function httpsURL(value) {
 function isMusl(report = process.report.getReport()) {
   return !report.header?.glibcVersionRuntime && report.sharedObjects?.some(file => /(?:^|\/)ld-musl-[^/]+\.so\.1$/.test(file));
 }
-function selectRuntime(lock, platform = process.platform, arch = process.arch, report = process.report.getReport()) {
-  if (platform === 'linux' && !report.header?.glibcVersionRuntime && !isMusl(report)) fail('Unknown Linux libc; no runtime was downloaded.');
+function selectRuntime(lock, platform = process.platform, arch = process.arch, report = platform === process.platform ? process.report.getReport() : undefined) {
+  if (platform === 'linux' && report && !report.header?.glibcVersionRuntime && !isMusl(report)) fail('Unknown Linux libc; no runtime was downloaded.');
   const key = `${platform}-${arch}${platform === 'linux' && isMusl(report) ? '-musl' : ''}`;
   if (!Object.hasOwn(ABIS, key)) fail(`Unsupported MCP execution host: ${key}. No runtime was downloaded.`);
   const entry = lock?.formatVersion === 2 ? lock.runtimes?.[key] : lock;

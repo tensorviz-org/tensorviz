@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { auditIntegration, sha256, verifyReleaseCandidate } from './release-candidate.mjs';
 import { distributionRepository } from './release-version.mjs';
-import { verifyReleaseMigration, migration45 } from './release-migration.mjs';
+import { verifyReleaseMigration, releaseMigrations } from './release-migration.mjs';
 import { verifyAlignment } from './version-alignment.mjs';
 
 const sourceRoot = fileURLToPath(new URL('../..', import.meta.url));
@@ -69,7 +69,7 @@ export async function publishRelease(directory, {
     };
     const previous = await auditCheckout('previous');
     // Enforce evidence here as well as in CI: direct CLI publishing cannot skip it.
-    if (release.version === migration45.to) {
+    if (Object.hasOwn(releaseMigrations, release.version)) {
       const receiptDirectory = process.env.TENSORVIZ_MIGRATION_RECEIPTS;
       if (!receiptDirectory) throw new Error('Both installed-client migration receipts are required.');
       const receipts = await Promise.all(['darwin-arm64', 'linux-x64'].map(async platform =>

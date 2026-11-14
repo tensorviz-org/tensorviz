@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.46
+
+- Keep fresh extension service setup and additive runtime repair independent of PyTorch and torchvision. Model frameworks remain in the separately reviewed capture environment.
+- Preserve existing project frameworks and align extension, canvas and coding-agent plugin versions.
+- Improve release-test fixture cleanup with bounded retries while retaining strict process and native-session cleanup checks.
+
 ## 0.1.45
 
 - Add native compiled runtime packaging for Intel Mac, Linux ARM64 and Windows x64/ARM64, with architecture-specific verified installers.
@@ -9,6 +15,7 @@
 ## Contents
 
 - [Unreleased](#unreleased)
+- [0.1.46](#0146)
 - [0.1.45](#0145)
 - [0.1.44](#0144)
 - [0.1.43](#0143)

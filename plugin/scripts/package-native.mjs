@@ -70,7 +70,7 @@ async function notices(directory, target = nativePlatform()) {
 
 // pkg hosts have large version-symbol tables (observed: 1,418,885 bytes).
 // Keep a finite bound and inspect the complete output; never truncate the gate.
-export function verifyLinuxGlibc(file, command = execFileSync, architecture = process.arch) {
+export function verifyLinuxGlibc(file, command = execFileSync, architecture = 'x64') {
   const ceiling = { x64: 31, arm64: 35 }[architecture];
   if (!ceiling) throw new Error(`Unsupported Linux architecture for ABI audit: ${architecture}`);
   const versions = command('readelf', ['--version-info', file], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
@@ -117,4 +117,3 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (process.argv.length !== 3) throw new Error('Usage: node plugin/scripts/package-native.mjs HTTPS_RUNTIME_URL');
   await packageNative(process.argv[2]);
 }
-

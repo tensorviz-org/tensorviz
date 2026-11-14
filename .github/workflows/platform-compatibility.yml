@@ -5,7 +5,7 @@ on:
       - 'plugin/integration/launch.cjs'
       - 'plugin/scripts/**'
       - 'plugin/test/unit/*launcher*'
-      - 'plugin/test/unit/native-platforms.test.cjs'
+      - 'plugin/test/unit/native-platform-shape.test.cjs'
       - 'runtime/python/manifest.json'
       - '.github/workflows/platform-compatibility.yml'
   workflow_dispatch:
@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.23.4'
-      - run: node --test plugin/test/unit/portable-launcher.test.cjs plugin/test/unit/native-platforms.test.cjs
+      - run: node --test plugin/test/unit/portable-launcher.test.cjs plugin/test/unit/native-platform-shape.test.cjs
   windows-native:
     # Candidate builds do not publish or change the public catalog. Full capture
     # and installed-client verification are additional gates before distribution.

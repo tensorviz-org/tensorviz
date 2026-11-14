@@ -30,7 +30,8 @@ export async function buildRelease({ command = execFileSync } = {}) {
   if (run('git', ['status', '--porcelain', '--untracked-files=no'], { encoding: 'utf8', stdio: 'pipe' }).trim()) throw new Error('Native release requires a clean reviewed source working tree.');
   await verifyRendererLicense(config.key);
   for (const name of ['native-runtime', 'native-host', 'native-backend']) await fs.rm(path.join(root, 'plugin/out', name), { recursive: true, force: true });
-  run('npm', ['run', 'build:shared']);
+  run(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build:shared'],
+    process.platform === 'win32' ? { shell: true } : {});
   run(process.execPath, ['plugin/scripts/build.mjs']);
   run(process.execPath, ['canvas/scripts/build-plugin.cjs']);
   run(process.execPath, ['canvas/scripts/build-plugin.cjs', '--panel']);

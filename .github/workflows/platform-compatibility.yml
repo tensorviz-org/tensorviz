@@ -1,0 +1,115 @@
+name: Cross-platform compatibility candidates
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'packages/graph-host/**'
+      - 'plugin/src/**'
+      - 'plugin/integration/launch.cjs'
+      - 'plugin/scripts/**'
+      - 'plugin/test/**'
+      - 'runtime/python/**'
+      - 'extension/src/**'
+      - 'tooling/packaging/**'
+      - '.github/workflows/platform-compatibility.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: platform-candidates-${{ github.ref }}
+  # Preserve slow native compilation evidence; queue the latest revision.
+  cancel-in-progress: false
+jobs:
+  bootstrap:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-22.04, ubuntu-24.04-arm, macos-15, macos-15-intel, windows-2022, windows-11-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - run: node --test plugin/test/unit/portable-launcher.test.cjs plugin/test/unit/native-platform-shape.test.cjs
+  native-runtime:
+    # Candidate builds do not publish or change the public catalog. Full capture
+    # is a separate capability; installed-client verification is still required.
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-2022, windows-11-arm, macos-15-intel, ubuntu-22.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: '1'
+      TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
+      TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
+        with:
+          version: '0.11.26'
+      - name: Install build and clean no-Torch environments
+        run: |
+          npm ci
+          npm ci --prefix plugin
+          npm ci --prefix canvas
+          node --input-type=module <<'JS'
+          import {appendFileSync} from 'node:fs';
+          import {execFileSync} from 'node:child_process';
+          import path from 'node:path';
+          import assert from 'node:assert/strict';
+          import {nativePlatform} from './plugin/scripts/native-platforms.mjs';
+          import {stageWindowsArmPython} from './plugin/scripts/stage-windows-arm-python.mjs';
+          const requested = process.platform === 'win32' && process.arch === 'arm64'
+            ? await stageWindowsArmPython() : '3.12.13';
+          for (const name of ['compiler-venv', 'service-venv'])
+            execFileSync('uv', ['venv', '--python', requested, `plugin/out/${name}`], {stdio:'inherit'});
+          const python = path.resolve('plugin/out/compiler-venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+          execFileSync('uv', ['pip', 'install', '--python', python, '-r', 'plugin/compiler-requirements.txt'], {stdio:'inherit'});
+          const check = JSON.parse(execFileSync(python, ['-c', "import importlib.util,json,platform; s=importlib.util.spec_from_file_location('compiler','plugin/scripts/compile-backend.py'); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); print(json.dumps(dict(abi=m.python_abi(),machine=platform.machine())))"], {encoding:'utf8'}));
+          assert.equal(check.abi, nativePlatform().abi, 'Compiler Python architecture/ABI does not match native Node target');
+          console.log('Verified compiler ABI', check);
+          const service = path.resolve('plugin/out/service-venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+          execFileSync('uv', ['pip', 'install', '--only-binary', ':all:', '--python', service, '-r', 'backend/requirements-standalone.txt'], {stdio:'inherit'});
+          for (const [key, value] of Object.entries({
+            TENSORVIZ_COMPILER_PYTHON: python,
+            TENSORVIZ_NO_TORCH_PYTHON: python,
+            TENSORVIZ_SERVICE_TEST_PYTHON: service,
+            TENSORVIZ_SERVICE_TEST_BACKEND: path.resolve('plugin/out/native-runtime/backend'),
+            TENSORVIZ_TEST_BACKEND: path.resolve('plugin/out/native-runtime/backend'),
+          })) appendFileSync(process.env.GITHUB_ENV, `${key}=${value}\n`);
+          JS
+      - name: Build compiled host and CPython backend
+        env:
+          TLDRAW_LICENSE_KEY: ${{ secrets.TLDRAW_LICENSE_KEY }}
+        run: node plugin/scripts/build-release.mjs --native-archive
+      - name: Verify native startup without PyTorch and clear capture diagnostics
+        run: node --test plugin/test/native/host.cjs plugin/test/native/no-torch.cjs
+      - name: Verify compiled authenticated service and static tools without PyTorch
+        run: |
+          node --input-type=module <<'JS'
+          import {execFileSync} from 'node:child_process';
+          const python = process.env.TENSORVIZ_SERVICE_TEST_PYTHON;
+          execFileSync(python, ['-I', '-c', 'import importlib.util; assert importlib.util.find_spec("torch") is None'], {stdio:'inherit'});
+          execFileSync(python, ['backend/tests/runtime/test_service_without_torch.py'], {stdio:'inherit', env:process.env});
+          JS
+      - name: Retain candidate runtime for further acceptance, not publication
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-candidate-${{ runner.os }}-${{ runner.arch }}
+          path: plugin/dist/tensorviz-runtime-*.tar.gz*
+          if-no-files-found: error
+          retention-days: 3

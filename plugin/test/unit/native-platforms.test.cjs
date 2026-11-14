@@ -11,12 +11,12 @@ const darwin = entry('darwin-arm64', 'cpython-312-darwin');
 const linux = entry('linux-x64', 'cpython-312-x86_64-linux-gnu');
 const table = () => ({ formatVersion: 2, version: '0.3.61', runtimes: { 'darwin-arm64': darwin, 'linux-x64': linux } });
 
-test('only native Darwin ARM64 and glibc Linux x64 targets map to exact compiler/pkg ABI contracts', async () => {
+test('native targets map to exact compiler/pkg ABI contracts', async () => {
   const { nativePlatform } = await import('../../scripts/native-platforms.mjs');
   assert.equal(nativePlatform('linux', 'x64').pkg, 'node22.23.4-linux-x64');
   assert.equal(nativePlatform('linux', 'x64').abi, linux.pythonABI);
   assert.equal(nativePlatform('darwin', 'arm64').pkg, 'node22.23.4-macos-arm64');
-  for (const [os, arch] of [['linux', 'arm64'], ['darwin', 'x64'], ['win32', 'x64']]) assert.throws(() => nativePlatform(os, arch), /Unsupported/);
+  for (const [os, arch] of [['linux', 'ia32'], ['darwin', 'ia32'], ['freebsd', 'x64']]) assert.throws(() => nativePlatform(os, arch), /Unsupported/);
 });
 
 test('native targets, workflow Node versions and exact upstream notices stay aligned', async () => {
@@ -25,7 +25,7 @@ test('native targets, workflow Node versions and exact upstream notices stay ali
   const root = path.resolve(__dirname, '../../..');
   const versions = new Set();
   for (const target of Object.values(nativePlatforms)) {
-    const match = /^node(\d+\.\d+\.\d+)-(?:macos|linux)-(?:arm64|x64)$/.exec(target.pkg);
+    const match = /^node(\d+\.\d+\.\d+)-(?:macos|linux|win)-(?:arm64|x64)$/.exec(target.pkg);
     assert.ok(match, 'pkg must select an exact embedded Node version, not a floating major');
     versions.add(match[1]);
     const notice = await fs.readFile(path.join(root, 'plugin/licenses', `node-${match[1]}.txt`));
@@ -136,3 +136,4 @@ for (const { entries, relative } of [
     await assert.rejects(verifyReleaseCandidate(candidate), /checksum mismatch/);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
+

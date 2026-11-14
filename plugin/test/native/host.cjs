@@ -6,10 +6,11 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 test('packaged host has no readable original source and can revoke permission without starting a model', async () => {
-  const binary = path.resolve(__dirname, '../../out/native-runtime/tensorviz-host');
+  const { nativePlatform } = await import('../../scripts/native-platforms.mjs');
+  const binary = path.resolve(__dirname, '../../out/native-runtime', nativePlatform().host);
   const state = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-native-permission-'));
   try {
-    const env = { PATH: '', TENSORVIZ_DATA_DIR: state };
+    const env = { ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}), PATH: '', TENSORVIZ_DATA_DIR: state };
     const info = spawnSync(binary, ['--verify-native-package'], { env, encoding: 'utf8' });
     assert.equal(info.status, 0, info.stderr);
     assert.equal(JSON.parse(info.stdout).sourceIncluded, false);

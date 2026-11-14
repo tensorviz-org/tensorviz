@@ -24,12 +24,16 @@ await writeFile(path.join(build, 'package.json'), JSON.stringify({ name: 'tensor
   pkg: { scripts: ['host.cjs'], targets: [target.pkg], bytecode: true,
     public: false, publicPackages: [], fallbackToSource: false, sea: false,
     ignore: ['**/node_modules/**'] } }, null, 2));
-const log = execFileSync(path.join(root, 'plugin/node_modules/.bin/pkg'),
-  [path.join(build, 'package.json'), '--debug', '--output', path.join(output, 'tensorviz-host')],
+// Invoke pkg through Node instead of a POSIX shebang/.cmd shim.
+const pkgRoot = path.join(root, 'plugin/node_modules/@yao-pkg/pkg');
+const pkgManifest = JSON.parse(await readFile(path.join(pkgRoot, 'package.json'), 'utf8'));
+const pkgBin = typeof pkgManifest.bin === 'string' ? pkgManifest.bin : pkgManifest.bin.pkg;
+const log = execFileSync(process.execPath,
+  [path.join(pkgRoot, pkgBin), path.join(build, 'package.json'), '--debug', '--output', path.join(output, target.host)],
   { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
 await writeFile(path.join(build, 'build.log'), log);
 if (/Content of[^\n]*host\.cjs|Failed to make bytecode|fallback.to.source/i.test(log)) throw new Error('The host was not packaged exclusively as bytecode.');
-const checked = JSON.parse(execFileSync(path.join(output, 'tensorviz-host'), ['--verify-native-package'], { encoding: 'utf8' }));
+const checked = JSON.parse(execFileSync(path.join(output, target.host), ['--verify-native-package'], { encoding: 'utf8' }));
 if (checked.sourceIncluded !== false || checked.platform !== target.os || checked.architecture !== target.arch) throw new Error('Native host verification failed.');
 await writeFile(path.join(build, 'verification.json'), JSON.stringify(checked, null, 2) + '\n');
 for (const name of ['browser', 'runtime-manifest.json', 'plugin.json', 'licenses']) {

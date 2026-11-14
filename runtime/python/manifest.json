@@ -20,6 +20,21 @@
       "triple": "x86_64-pc-windows-msvc",
       "interpreter": "python.exe",
       "sha256": "7c45c9622400d578709a9b2cddbe8124cc21d382409d9f13406d706d28e31b14"
+    },
+    "linux-arm64": {
+      "triple": "aarch64-unknown-linux-gnu",
+      "interpreter": "bin/python3",
+      "sha256": "577b4bec0793ad1ff0cbff9adbd0df078eddde38a4c41bf5d83ad381a85ee39d"
+    },
+    "win32-arm64": {
+      "triple": "aarch64-pc-windows-msvc",
+      "interpreter": "python.exe",
+      "sha256": "72f4713d056a17961bdba7b43be82a878035040fa1eee30cfd5e43b91a2852d9"
+    },
+    "darwin-x64": {
+      "triple": "x86_64-apple-darwin",
+      "interpreter": "bin/python3",
+      "sha256": "65b195c9cedc1fef6767f044f9822069adbd1bd9204d424ece4628776fdc04bb"
     }
   }
 }

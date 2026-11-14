@@ -10,7 +10,12 @@ export function nativeBackend(directory: string): boolean {
 const loader = `import json, pathlib, platform, sys, sysconfig
 root, entry, *arguments = sys.argv[1:]
 manifest = json.loads((pathlib.Path(root) / 'native-backend.json').read_text())
-if sys.implementation.name != 'cpython' or manifest['abi'] != sysconfig.get_config_var('SOABI') or manifest.get('architecture') != platform.machine():
+abi = sysconfig.get_config_var('SOABI')
+if abi is None and sys.platform == 'win32':
+    suffix = sysconfig.get_config_var('EXT_SUFFIX') or ''
+    if suffix.startswith('.cp') and suffix.endswith('.pyd'):
+        abi = suffix[1:-4]
+if sys.implementation.name != 'cpython' or manifest['abi'] != abi or manifest.get('architecture') != platform.machine():
     print(json.dumps({'ok': False, 'code': 'UNSUPPORTED_PYTHON_ABI', 'message': 'This TensorViz runtime requires ' + manifest['abi'] + '. Select a compatible environment or install a runtime for your Python version.'}))
     sys.exit(1)
 sys.path.insert(0, root)
@@ -25,3 +30,4 @@ export function backendPythonArgs(directory: string, entry: string, args: string
   if (nativeBackend(directory)) return [...flags, '-c', loader, directory, entry.replaceAll('\\', '/'), ...args];
   return [...flags, path.join(directory, entry), ...args];
 }
+

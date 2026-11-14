@@ -970,9 +970,10 @@ def _shape_permute(params: dict, inp: List[int], all_inputs: List[List[int]]) ->
 
 def _build_torch_nn(class_name: str):
     """Return a build_fn that constructs `torch.nn.<class_name>(**params)`."""
-    import torch.nn as nn
-
     def _build(params: dict) -> "nn.Module":
+        # Registry lookup and analytic/source-only projection must work without
+        # a model framework. Import it only when an actual module is requested.
+        import torch.nn as nn
         # Strip non-constructor keys
         clean = {k: v for k, v in params.items() if k != "name" and not k.startswith("_")}
         cls = getattr(nn, class_name)

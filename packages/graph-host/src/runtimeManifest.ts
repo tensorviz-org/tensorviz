@@ -84,7 +84,7 @@ export function runtimePlatformKey(
   arch: string = process.arch,
 ): string | undefined {
   const key = `${platform}-${arch}`;
-  return key === 'darwin-arm64' || key === 'linux-x64' || key === 'win32-x64' ? key : undefined;
+  return key === 'darwin-arm64' || key === 'darwin-x64' || key === 'linux-x64' || key === 'linux-arm64' || key === 'win32-x64' || key === 'win32-arm64' ? key : undefined;
 }
 
 export type RuntimeAssetSelection =

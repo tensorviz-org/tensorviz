@@ -112,6 +112,9 @@ jobs:
           uv pip install --python plugin/out/compiler-venv/bin/python -r plugin/compiler-requirements.txt
           if [ "${{ matrix.platform }}" = linux-x64 ]; then
             uv pip install --python plugin/out/test-venv/bin/python torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+          else
+            # Capture acceptance owns Torch; the core service does not.
+            uv pip install --python plugin/out/test-venv/bin/python torch==2.14.1
           fi
           uv pip install --python plugin/out/test-venv/bin/python -r backend/requirements-standalone.txt
           {
@@ -234,3 +237,5 @@ jobs:
         if: always()
         run: |
           echo 'Offline random-weight CPU model fixtures only: BERT/T5/ViT/DINOv2, conditional UNet, timm, and the GPT-2 product template. No pretrained downloads, full Stable Diffusion pipeline, external Karpathy/F5-AEC/Nemotron project, signed-in GUI, website upload, release, or deployment.' >> "$GITHUB_STEP_SUMMARY"
+
+

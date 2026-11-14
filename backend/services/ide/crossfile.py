@@ -45,7 +45,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Mapping, Optional, Set, Tuple
 
 from core.op_registry import spec_for
-from core.shape_inference import _SOURCE_OPS
+from core.source_ops import SOURCE_OPS as _SOURCE_OPS
 from services.ide import projection
 from services.ide.module_index import ClassInfo, ModuleIndex, module_of_file
 from services.ide.multifile import (

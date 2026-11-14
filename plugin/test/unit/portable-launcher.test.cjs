@@ -138,3 +138,19 @@ test('real POSIX process preserves MCP stdin and cleans private extracted sessio
     assert.equal(await fs.stat(session).catch(() => null), null);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
+
+test('Windows native spawn errors identify the failing stage without inventing a policy diagnosis', () => {
+  for (const code of ['UNKNOWN', 'EACCES', 'ENOENT']) {
+    const cause = Object.assign(new Error('spawn ' + code), { code });
+    const error = launcher.nativeLaunchError(cause, 'win32');
+    assert.equal(error.cause, cause);
+    assert.equal(error.code, code);
+    assert.match(error.message, /host did not start; Python setup was not reached/);
+    assert.match(error.message, /If Application Control blocked/);
+    assert.match(error.message, /Do not disable security protections/);
+    assert.equal(launcher.nativeLaunchError(cause, 'linux'), cause);
+    assert.equal(launcher.nativeLaunchError(cause, 'darwin'), cause);
+  }
+  assert.match(launcher.nativeLaunchError(new Error('private path'), 'win32').message, /\(UNKNOWN\)/);
+  assert.doesNotMatch(launcher.nativeLaunchError(new Error('private path'), 'win32').message, /private path/);
+});

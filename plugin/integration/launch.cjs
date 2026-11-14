@@ -175,6 +175,21 @@ async function extract(archive, directory) {
   }
 }
 
+// A spawn error happens before the bundled host starts. Do not mislabel it as
+// a Python install failure or assert that generic UNKNOWN proves a policy block.
+function nativeLaunchError(error, platform = process.platform) {
+  if (platform !== 'win32') return error;
+  const code = typeof error.code === 'string' && /^[A-Z0-9_]+$/.test(error.code) ? error.code : 'UNKNOWN';
+  const detail = `Windows could not start the bundled TensorViz host (${code}). ` +
+    'The host did not start; Python setup was not reached. ' +
+    'Check Windows Security and the CodeIntegrity Operational event log for this launch. ' +
+    'If Application Control blocked the file, use a trusted, publisher-signed TensorViz release. ' +
+    'Do not disable security protections.';
+  const result = new Error(detail, { cause: error });
+  result.code = error.code;
+  return result;
+}
+
 async function main(args = process.argv.slice(2)) {
   if (Number(process.versions.node.split('.')[0]) < 22) fail('The optional portable launcher requires Node.js 22 or newer.');
   const prepare = args[0] === '--prepare-runtime';
@@ -208,8 +223,10 @@ async function main(args = process.argv.slice(2)) {
     const host = path.join(session, process.platform === 'win32' ? 'tensorviz-host.exe' : 'tensorviz-host');
     const hostStat = await fs.lstat(host);
     if (!hostStat.isFile() || hostStat.isSymbolicLink()) fail('Runtime archive has no native host.');
-    child = spawn(host, args, { stdio: 'inherit', windowsHide: true,
-      env: { ...process.env, TORCHINDUCTOR_CACHE_DIR: path.join(session, '.torchinductor') } });
+    try {
+      child = spawn(host, args, { stdio: 'inherit', windowsHide: true,
+        env: { ...process.env, TORCHINDUCTOR_CACHE_DIR: path.join(session, '.torchinductor') } });
+    } catch (error) { throw nativeLaunchError(error); }
     for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
       const handler = () => {
         child.kill(signal);
@@ -218,7 +235,7 @@ async function main(args = process.argv.slice(2)) {
       signals.set(signal, handler); process.on(signal, handler);
     }
     return await new Promise((resolve, reject) => {
-      child.once('error', reject); child.once('exit', (code, signal) => resolve(code ?? (signal === 'SIGINT' ? 130 : 143)));
+      child.once('error', error => reject(nativeLaunchError(error))); child.once('exit', (code, signal) => resolve(code ?? (signal === 'SIGINT' ? 130 : 143)));
     });
   } finally {
     for (const [signal, handler] of signals) process.off(signal, handler);
@@ -226,5 +243,5 @@ async function main(args = process.argv.slice(2)) {
     await fs.rm(session, { recursive: true, force: true, maxRetries: 4, retryDelay: 100 });
   }
 }
-module.exports = { selectRuntime, checkHost, httpsURL, download, archiveFiles, extract, readVerified, main };
+module.exports = { selectRuntime, checkHost, httpsURL, download, archiveFiles, extract, readVerified, nativeLaunchError, main };
 if (require.main === module) main().then(code => { process.exitCode = code; }, error => { console.error(`TensorViz: ${error.message}`); process.exitCode = 1; });

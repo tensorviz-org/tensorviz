@@ -1,7 +1,8 @@
 /** Lossless transport only: protocol, identity and role checks still run after decoding. */
 import { gzipSync, gunzipSync } from 'node:zlib';
 
-export const MAX_WIRE_BYTES = 16 * 1024 * 1024;
+/** Fits Publish's graph file, gzipped in base64 and up to about 31 MiB on the wire. */
+export const MAX_WIRE_BYTES = 32 * 1024 * 1024;
 export const MAX_DECODED_BYTES = 96 * 1024 * 1024;
 const COMPRESSION_THRESHOLD = 256 * 1024;
 const ENCODING = 'tensorviz-gzip-json-v1';

@@ -128,7 +128,8 @@ click. See [Add graphs to tensorViz](share-to-website.md#publish-from-the-coding
   `CREDENTIAL_EXPIRED`, 4403 `INVALID_ORIGIN`, 4404 `PROTOCOL_VERSION_MISMATCH`, 4405
   `SESSION_MISMATCH`, 4406 `INVALID_MESSAGE`, 4407 `UNKNOWN_MESSAGE`, 4408
   `HOST_ALREADY_CONNECTED`.
-- Frames are capped at 16 MiB before JSON parsing; binary frames are refused as `INVALID_MESSAGE`.
+- Frames are capped at 32 MiB before JSON parsing, which fits Publish's graph file; binary frames
+  are refused as `INVALID_MESSAGE`. Each service runs uvicorn with the same `ws_max_size`.
 - Every inbound message is validated against the frozen contract once: wrong protocol version,
   cross-session envelope, malformed payload, and unknown types are refused in that order.
 - No secret — launch token, view credential, or cookie key — ever appears in request logs, error

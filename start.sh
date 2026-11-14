@@ -75,7 +75,8 @@ case "$backend_reload" in
   1|true|TRUE|yes|YES|on|ON)
     echo "Starting backend with reload: $BACKEND_PYTHON -m uvicorn server_v2:app (http://${HOST}:${BACKEND_PORT})"
     (cd "$BACKEND_DIR" && BACKEND_PORT="$BACKEND_PORT" HOST="$HOST" "$BACKEND_PYTHON" -m uvicorn \
-      server_v2:app --host "$HOST" --port "$BACKEND_PORT" --reload --reload-dir "$BACKEND_DIR") &
+      server_v2:app --host "$HOST" --port "$BACKEND_PORT" --ws-max-size $((32 * 1024 * 1024)) \
+      --reload --reload-dir "$BACKEND_DIR") &
     ;;
   0|false|FALSE|no|NO|off|OFF)
     echo "Starting backend: $BACKEND_PYTHON server_v2.py (http://${HOST}:${BACKEND_PORT})"

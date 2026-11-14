@@ -12,7 +12,7 @@
  * (backend/services/ide/local_browser_broker.py `_authenticate_socket`).
  * They are written to the socket and never error-logged. Client frames are
  * masked as the RFC requires, a masked server frame is a protocol error (a
- * server must not mask), and the payload cap matches the broker's 16 MiB so a
+ * server must not mask), and the payload cap matches the broker's 32 MiB so a
  * runaway peer is cut off locally first.
  */
 
@@ -20,12 +20,13 @@ import { createHash, randomBytes } from 'node:crypto';
 import * as net from 'node:net';
 import * as tls from 'node:tls';
 import { Duplex } from 'node:stream';
+import { MAX_WIRE_BYTES } from './localBrowserWire';
 
 const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
-/** The broker refuses frames past 16 MiB before parsing; the client shares that
+/** The broker refuses frames past MAX_WIRE_BYTES before parsing; the client shares that
  *  bound so an incoming frame can never grow past it either. */
-const MAX_PAYLOAD_BYTES = 16 * 1024 * 1024;
+const MAX_PAYLOAD_BYTES = MAX_WIRE_BYTES;
 const HEADER_LIMIT_BYTES = 16 * 1024;
 const DEFAULT_TIMEOUT_MS = 10_000;
 /** After we send a close frame the peer is expected to answer and hang up;

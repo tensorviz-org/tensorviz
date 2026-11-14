@@ -30,6 +30,7 @@ from services.ide import multifile, review
 from services.ide.graph_setup import discover
 from services.ide.graph_setup_profiles import prepare_profile, restore_config_profile
 from services.ide.local_browser_protocol import LOCAL_BROWSER_CAPTURE_EXPORT_MAX_BYTES
+from services.ide.local_browser_wire import MAX_WIRE_BYTES
 from services.ide.workspace_projection import ProjectionError, project_workspace
 
 #: The same bounds as the editor backend's /api/ide/capture/portable.
@@ -173,8 +174,9 @@ def main():
     listener.listen(128)
     # Private parent-child pipe, never the MCP connection or a log.
     print(json.dumps({"port": listener.getsockname()[1]}), flush=True)
+    # The broker's own frame bound, which Publish's graph file needs.
     uvicorn.Server(uvicorn.Config(app, log_level="critical", access_log=False,
-                                 ws_max_size=8 * 1024 * 1024)).run(sockets=[listener])
+                                 ws_max_size=MAX_WIRE_BYTES)).run(sockets=[listener])
 
 
 if __name__ == "__main__":

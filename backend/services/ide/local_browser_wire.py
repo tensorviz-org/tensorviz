@@ -5,7 +5,8 @@ import json
 import zlib
 
 
-MAX_WIRE_BYTES = 16 * 1024 * 1024
+#: Fits Publish's graph file, gzipped in base64 and up to about 31 MiB on the wire.
+MAX_WIRE_BYTES = 32 * 1024 * 1024
 MAX_DECODED_BYTES = 96 * 1024 * 1024
 COMPRESSION_THRESHOLD = 256 * 1024
 ENCODING = "tensorviz-gzip-json-v1"

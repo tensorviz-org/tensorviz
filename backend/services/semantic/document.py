@@ -14,7 +14,7 @@ from .port_names import port_names
 from .source_join import CaptureJoin
 
 
-# The full document is retained. Compressed transport keeps its 16 MiB wire cap;
+# The full document is retained. Compressed transport keeps its 32 MiB wire cap;
 # leave room for source spans and message metadata in the 96 MiB decoded cap.
 MAX_DOCUMENT_BYTES = 72 * 1024 * 1024
 MAX_EDIT_CAPABILITY_BYTES = 256 * 1024

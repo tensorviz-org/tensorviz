@@ -1492,7 +1492,9 @@ if __name__ == "__main__":
     import os
     import uvicorn
     from bind_policy import ensure_safe_bind
+    from services.ide.local_browser_wire import MAX_WIRE_BYTES
     # Default 8765 because some local tools (e.g. VS Code plugin helpers)
     # bind 127.0.0.1:8000 and silently shadow a public bind.
     port = int(os.environ.get("BACKEND_PORT", "8765"))
-    uvicorn.run(app, host=ensure_safe_bind(os.environ.get("HOST", "127.0.0.1")), port=port)
+    uvicorn.run(app, host=ensure_safe_bind(os.environ.get("HOST", "127.0.0.1")), port=port,
+                ws_max_size=MAX_WIRE_BYTES)

@@ -3,6 +3,7 @@
 ## Contents
 
 - [Unreleased](#unreleased)
+- [0.1.44](#0144)
 - [0.1.43](#0143)
 - [0.1.42](#0142)
 - [0.1.41](#0141)
@@ -45,7 +46,7 @@
 - [0.0.2](#002)
 - [0.0.1](#001)
 
-Extension **0.1.43**. The plugin host in this repository is **0.1.43**.
+Extension **0.1.44**. The plugin host in this repository is **0.1.44**.
 
 This tree is the visualization product: Open as Graph, graph diff, execution
 cache (`off`, `shadow`, and `on`), code focus, graph export, MCP, Hugging Face open, source
@@ -53,6 +54,12 @@ proposals, JAX/Flax capture, and website sign-in and share. Latency profiling,
 training-step capture, product analytics, and the hosted website application are not in this tree.
 
 ## Unreleased
+
+## 0.1.44
+
+- Build and validate Linux x64 native packages against glibc 2.31, retaining fail-closed checks for older or unsupported systems.
+- Update Python and JavaScript dependencies to address audited advisories and add Node.js 22 JavaScript dependency checks.
+- Document explicit Codex plugin reinstallation after marketplace refresh, with legacy-cache regression coverage.
 
 ## 0.1.43
 

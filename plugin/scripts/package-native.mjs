@@ -72,7 +72,7 @@ async function notices(directory) {
 export function verifyLinuxGlibc(file, command = execFileSync) {
   const versions = command('readelf', ['--version-info', file], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
   for (const match of versions.matchAll(/GLIBC_(\d+)\.(\d+)/g)) {
-    if (Number(match[1]) > 2 || Number(match[1]) === 2 && Number(match[2]) > 35) throw new Error(`Linux runtime requires glibc newer than 2.35: ${file}`);
+    if (Number(match[1]) > 2 || Number(match[1]) === 2 && Number(match[2]) > 31) throw new Error(`Linux runtime requires glibc newer than 2.31: ${file}`);
   }
 }
 

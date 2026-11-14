@@ -85,7 +85,7 @@ listing.
 The {{VERSION}} candidate can pin `darwin-arm64` and `linux-x64` runtime archives,
 each with its own JSON lock manifest. The backend requires CPython 3.12 with ABI
 `cpython-312-darwin` or `cpython-312-x86_64-linux-gnu` respectively. Linux requires
-glibc >=2.35; Windows, Linux ARM64, Intel Mac and musl builds are unsupported.
+glibc >=2.31; Windows, Linux ARM64, Intel Mac and musl builds are unsupported.
 No separate Node.js install or source fallback is provided.
 
 Format-1 locks still describe one runtime. Format-2 catalogs map platforms to

@@ -29,7 +29,7 @@ repository and is not copied or deployed here.
 ## Reviewed versions and immutable sources
 
 Version bumps and matching package-lock versions must be committed through a
-reviewed PR. Extension `0.1.43` is released; the plugin candidate is also `0.1.43`.
+reviewed PR. The prepared extension and plugin candidates are both `0.1.44`; publication is a separate verified workflow step.
 This aligns the plugin's old `0.3.110` series without changing extension history.
 It is a one-time version-series migration, not a normal semver upgrade.
 
@@ -243,3 +243,7 @@ cutover gates; this code does not configure or prove them. Optional environment
 protections are future hardening, not a migration prerequisite.
 
 
+
+## Linux 0.1.44 compatibility gate
+
+Linux x64 native builds and capture tests run in Ubuntu 20.04 (glibc 2.31). Publication also requires native 0.1.43 to 0.1.44 upgrade and rollback tests on Ubuntu 22.04 and Apple Silicon; the previous Linux binary cannot run on the older baseline. The linker-symbol audit must reject requirements newer than glibc 2.31. A reduced launcher check alone is not compatibility evidence.

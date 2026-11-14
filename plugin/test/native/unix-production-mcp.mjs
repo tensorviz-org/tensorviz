@@ -112,7 +112,9 @@ try {
   await fs.writeFile(manifestPath, JSON.stringify(manifest));
   // The CLI itself may be an official npm wrapper. Only the installed MCP
   // launcher gets the restricted system PATH, not the test client.
-  const cenv = {...process.env, ...env, PATH: process.env.PATH};
+  const cenv = {...process.env, ...env, PATH: process.env.PATH,
+    // Codex logs child MCP stderr at INFO; retain only this narrow diagnostic.
+    RUST_LOG: 'warn,codex_rmcp_client::stdio_server_launcher=info'};
   delete cenv.OPENAI_API_KEY; delete cenv.CODEX_API_KEY;
   const cli = args => execFileSync(codex, args, {env: cenv, cwd: project, encoding: 'utf8', timeout: 30000});
   const codexVersion = cli(['--version']).trim();

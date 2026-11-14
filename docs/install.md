@@ -16,9 +16,16 @@ Use one TensorViz host per agent. Do not connect the same agent to both the plug
 
 You need your client’s terminal CLI: [Codex CLI](https://developers.openai.com/codex/cli/) or [Claude Code](https://code.claude.com/docs/en/setup).
 
-The published plugin is a **preview** for Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.31), with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection. You need internet access for that download, but no separate Node.js installation.
+The published 0.1.45 plugin is a **preview** for macOS ARM64/x64, Linux x64 (glibc >=2.31), Linux ARM64 (glibc >=2.35), and Windows x64/ARM64, with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection. You need internet access for that download, but no separate Node.js installation.
 
-Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin. See [Linux SSH runtime](linux-ssh-runtime.md) for execution-host requirements and the limits of local validation. Published platform availability does not establish real SSH-network or installed-client acceptance.
+Windows support is through native Codex entries; Windows Claude Code/Cursor and musl are outside the published acceptance scope. Runtime availability does not guarantee every client GUI, OS version, or model dependency works. See [Linux SSH runtime](linux-ssh-runtime.md) for execution-host requirements and the limits of local validation. Published platform availability does not establish real SSH-network or installed-client acceptance.
+
+Native CI verifies the six release targets and release migration checks. This is
+not a claim that every desktop GUI, older OS, or SSH setup has been tested.
+TensorViz startup/service compatibility is separate from PyTorch wheel and model
+compatibility: a working runtime does not imply a compatible PyTorch installation.
+For the exact published assets and limitations, see the
+[0.1.45 support statement](https://github.com/tensorviz-org/tensorviz-plugins/blob/v0.1.45/plugins/tensorviz/SUPPORT.md).
 
 It is distributed from the public catalog [tensorviz-org/tensorviz-plugins](https://github.com/tensorviz-org/tensorviz-plugins). The catalog name is `tensorviz-standalone`.
 
@@ -107,3 +114,4 @@ Published packages are released separately and may differ from this source check
 | Versions | Shown in the marketplace or catalog | [Versions table](local-setup.md#versions) |
 
 A source build and a published install use different extension IDs, so installing both gives you two copies. Keep one.
+

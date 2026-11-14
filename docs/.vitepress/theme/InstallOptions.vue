@@ -66,8 +66,8 @@ function moveTab(event: KeyboardEvent, index: number) {
           <button v-for="name in ['Codex', 'Claude Code', 'Cursor']" :key="name" type="button"
             :aria-pressed="client === name" @click="client = name">{{ name }}</button>
         </div>
-        <p class="install-requirements">Plugin preview · Apple Silicon macOS (ARM64) or Linux x64 (glibc &gt;=2.31) · CPython 3.12 · CPU capture</p>
-        <p>Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin.</p>
+        <p class="install-requirements">Plugin preview · macOS ARM64/x64, Linux x64 (glibc &gt;=2.31), Linux ARM64 (glibc &gt;=2.35), and Windows x64/ARM64 · CPython 3.12 · CPU capture</p>
+        <p>Windows support is through native Codex entries; Windows Claude Code/Cursor and musl are outside the published acceptance scope. Runtime availability does not guarantee every client GUI, OS version, or model dependency works.</p>
       </template>
       <template v-else-if="active === 'extension'">
         <h2>Keep the graph beside your code.</h2>
@@ -117,3 +117,4 @@ function moveTab(event: KeyboardEvent, index: number) {
     </div>
   </section>
 </template>
+

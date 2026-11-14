@@ -10,7 +10,7 @@ Use one TensorViz host per agent. Do not connect the same agent to both the plug
 
 Use your client’s terminal CLI. If it is not installed, start with the [installation requirements](install.md#plugin).
 
-The published plugin is a preview for Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.31), with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js installation. Allow internet access for that first download.
+The published 0.1.45 plugin is a preview for macOS ARM64/x64, Linux x64 (glibc >=2.31), Linux ARM64 (glibc >=2.35), and Windows x64/ARM64, with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js installation. Allow internet access for that first download.
 
 Codex:
 
@@ -38,7 +38,7 @@ T3 Code uses your Codex profile. See the [public catalog](https://github.com/ten
 
 Start a new chat afterward. Platform limits and source builds are on the [Install](install.md) page.
 
-Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin. See [Linux SSH runtime](linux-ssh-runtime.md) for execution-host requirements and the limits of local validation. Published platform availability does not establish real SSH-network or installed-client acceptance.
+Windows support is through native Codex entries; Windows Claude Code/Cursor and musl are outside the published acceptance scope. Runtime availability does not guarantee every client GUI, OS version, or model dependency works. See [Linux SSH runtime](linux-ssh-runtime.md) for execution-host requirements and the limits of local validation. Published platform availability does not establish real SSH-network or installed-client acceptance.
 
 ## Update an existing Codex installation
 
@@ -150,3 +150,4 @@ execute the runtime. Published 0.3.109 does not contain this flag. For its first
 Claude Code connection, `MCP_TIMEOUT=360000 claude` is a process-only timeout
 option. Do not put `startup_timeout_sec` in portable `mcp.json`: Codex CLI 0.165.0
 rejects that field and skips the server.
+

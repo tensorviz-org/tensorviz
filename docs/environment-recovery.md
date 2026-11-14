@@ -81,7 +81,7 @@ chat for retained error evidence. Animated dots beneath the latest message show
 the agent working; they stop when the turn ends or needs your approval. Hover or
 focus the indicator for details. Approval, stopped and error states remain distinct.
 
-The published plugin preview requires **CPython 3.12 on Apple Silicon macOS (ARM64) or Linux x64 (glibc >=2.31)** and targets CPU capture. See [installation options](install.md) for package requirements; [local setup](local-setup.md#versions) lists source-development versions.
+The published plugin preview requires **CPython 3.12 on macOS ARM64/x64, Linux x64 (glibc >=2.31), Linux ARM64 (glibc >=2.35), and Windows x64/ARM64** and targets CPU capture. See [installation options](install.md) for package requirements; [local setup](local-setup.md#versions) lists source-development versions.
 
 ## Before installing dependencies
 
@@ -104,3 +104,4 @@ already cached paths without activation or environment resolution. Version and l
 unknown until a selected interpreter is checked. Cancel preserves the previous choice.
 Selection works before service setup; subsequent inspection and setup still require
 Workspace Trust, a current target and the existing installation approvals.
+

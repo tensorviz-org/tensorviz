@@ -12,13 +12,15 @@ plugin=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 host="$(uname -s)-$(uname -m)"
 case "$host" in
   Darwin-arm64) platform=darwin-arm64; abi=cpython-312-darwin;;
-  Linux-x86_64) platform=linux-x64; abi=cpython-312-x86_64-linux-gnu;;
-  *) fail "Unsupported MCP execution host: $host. Compiled targets are macOS Apple Silicon and glibc Linux x64. No runtime was downloaded.";;
+  Darwin-x86_64) platform=darwin-x64; abi=cpython-312-darwin;;
+  Linux-x86_64) platform=linux-x64; abi=cpython-312-x86_64-linux-gnu; libc_floor=31;;
+  Linux-aarch64|Linux-arm64) platform=linux-arm64; abi=cpython-312-aarch64-linux-gnu; libc_floor=35;;
+  *) fail "Unsupported MCP execution host: $host. Unix compiled targets are macOS Apple Silicon/Intel and glibc Linux x64/ARM64; availability follows the installed runtime lock. No runtime was downloaded.";;
 esac
 lock="$plugin/runtime-lock.json"
 # macOS has plutil; Linux needs system Python3 only for strict JSON metadata reads.
 # Model/service execution separately requires the native runtime's CPython 3.12 ABI.
-if [ "$platform" = darwin-arm64 ]; then
+if [ "${platform%%-*}" = darwin ]; then
   format=$(/usr/bin/plutil -extract formatVersion raw -o - "$lock")
   case "$format" in
     1) prefix='';;
@@ -28,13 +30,13 @@ if [ "$platform" = darwin-arm64 ]; then
   field() { /usr/bin/plutil -extract "$prefix$1" raw -o - "$lock"; }
   lock_version=$(/usr/bin/plutil -extract version raw -o - "$lock")
 else
-  libc=$(/usr/bin/getconf GNU_LIBC_VERSION 2>/dev/null) || fail 'Linux runtime requires glibc 2.31 or newer.'
-  case "$libc" in 'glibc '*) ;; *) fail 'Linux runtime requires glibc 2.31 or newer.';; esac
+  libc=$(/usr/bin/getconf GNU_LIBC_VERSION 2>/dev/null) || fail "Linux $platform runtime requires glibc 2.$libc_floor or newer."
+  case "$libc" in 'glibc '*) ;; *) fail "Linux $platform runtime requires glibc 2.$libc_floor or newer.";; esac
   libc_version=${libc#glibc }
   major=${libc_version%%.*}
   minor=${libc_version#*.}
   case "$major:$minor" in *[!0-9:]*|:*) fail 'Invalid glibc version.';; esac
-  [ "$major" -gt 2 ] || { [ "$major" -eq 2 ] && [ "$minor" -ge 31 ]; } || fail 'Linux runtime requires glibc 2.31 or newer.'
+  [ "$major" -gt 2 ] || { [ "$major" -eq 2 ] && [ "$minor" -ge "$libc_floor" ]; } || fail "Linux $platform runtime requires glibc 2.$libc_floor or newer."
   [ -x /usr/bin/python3 ] || fail 'Linux launcher metadata requires /usr/bin/python3.'
   field() {
     /usr/bin/python3 -I -B -c '
@@ -65,7 +67,7 @@ case "$bytes" in *[!0-9]*|'') fail 'Invalid runtime size.';; esac
 [ "$bytes" -gt 0 ] && [ "$bytes" -le 268435456 ] || fail 'Invalid runtime size.'
 case "$url" in https://*) ;; *) fail 'Runtime downloads require HTTPS.';; esac
 case "$url" in *'@'*|*'#'*|*[[:space:]]*) fail 'Invalid runtime URL.';; esac
-if [ "$platform" = darwin-arm64 ]; then
+if [ "${platform%%-*}" = darwin ]; then
   checksum() { /usr/bin/shasum -a 256 "$1" | cut -d ' ' -f 1; }
 else
   checksum() { sha256sum "$1" | cut -d ' ' -f 1; }
@@ -73,7 +75,7 @@ fi
 if [ -n "${TENSORVIZ_RUNTIME_CACHE_DIR:-}" ]; then
   case "$TENSORVIZ_RUNTIME_CACHE_DIR" in /*) ;; *) fail 'TENSORVIZ_RUNTIME_CACHE_DIR must be an absolute path.';; esac
   cache=$TENSORVIZ_RUNTIME_CACHE_DIR
-elif [ "$platform" = darwin-arm64 ]; then
+elif [ "${platform%%-*}" = darwin ]; then
   cache="${HOME:?}/Library/Caches/dev.tensorviz/runtime"
 else
   cache="${XDG_CACHE_HOME:-${HOME:?}/.cache}/dev.tensorviz/runtime"
@@ -133,3 +135,4 @@ wait "$child"
 status=$?
 child=''
 exit "$status"
+

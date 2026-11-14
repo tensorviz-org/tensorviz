@@ -29,7 +29,7 @@ repository and is not copied or deployed here.
 ## Reviewed versions and immutable sources
 
 Version bumps and matching package-lock versions must be committed through a
-reviewed PR. The prepared extension and plugin candidates are both `0.1.44`; publication is a separate verified workflow step.
+reviewed PR. The prepared extension and plugin candidates are both `0.1.45`; publication is a separate verified workflow step.
 This aligns the plugin's old `0.3.110` series without changing extension history.
 It is a one-time version-series migration, not a normal semver upgrade.
 
@@ -247,3 +247,31 @@ protections are future hardening, not a migration prerequisite.
 ## Linux 0.1.44 compatibility gate
 
 Linux x64 native builds and capture tests run in Ubuntu 20.04 (glibc 2.31). Publication also requires native 0.1.43 to 0.1.44 upgrade and rollback tests on Ubuntu 22.04 and Apple Silicon; the previous Linux binary cannot run on the older baseline. The linker-symbol audit must reject requirements newer than glibc 2.31. A reduced launcher check alone is not compatibility evidence.
+
+
+
+## Six-target 0.1.45 release gate
+
+Build all six runtime targets from one reviewed source revision: macOS ARM64/x64,
+Linux glibc x64/ARM64, Windows x64/ARM64. Existing 0.1.44 stays immutable.
+Linux x64 requires glibc 2.31; Linux ARM64 requires glibc 2.35. Musl remains a
+separate candidate unless production installation/export and native acceptance
+are explicitly included.
+
+Each target must pass real native compile/audit, no-Torch service and installed
+Codex cold-HTTPS MCP acceptance. Windows bootstrap sidecars attest the exact
+installed executable tested, version, source, architecture, size, notices and
+SHA-256. Assembly and publication independently validate that provenance.
+Windows uses dedicated Codex entries, not Unix entries or claims of Windows
+Claude Code/Cursor support. Service startup does not promise compatible PyTorch
+wheels for every target or model.
+
+Linux x64 and Apple Silicon retain installed-client capture checks and mandatory
+0.1.44 → 0.1.45 → 0.1.44 rollback against immutable public catalog
+6fff2d501cbe037e2d90b252ee484a446c37bd61. A version change cannot skip migration.
+New targets require native first-install acceptance.
+
+Conserve Actions: targeted local tests precede one coordinated CI batch. Publish
+only after exact-source evidence, then verify public CDN cold installation.
+Extension Marketplace/Open VSX and manifests stay aligned. A merge or candidate
+artifact is not a release.

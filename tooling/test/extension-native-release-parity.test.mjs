@@ -6,7 +6,9 @@ test('native release uses the same isolated client and CPU torch versions as acc
  const release = read('release-plugin'), checks = read('release-checks');
  for (const packageName of ['@openai/codex', '@anthropic-ai/claude-code']) {
   const pattern = new RegExp(packageName + '@([^\\s]+)');
-  assert.equal(release.match(pattern)?.[1], checks.match(pattern)?.[1]);
+  const isolated = text => text.split('\n').filter(line => line.includes('npm install --prefix plugin/out/audit-clients'));
+  assert.ok(isolated(release).length >= 2, 'capture and migration clients are isolated');
+  for (const line of isolated(release)) assert.equal(line.match(pattern)?.[1], isolated(checks)[0].match(pattern)?.[1]);
  }
  assert.equal(release.match(/torch==([^\s]+) --index-url/)?.[1], checks.match(/torch==([^\s]+) --index-url/)?.[1]);
  assert.match(release, /npm install --prefix plugin\/out\/audit-clients --no-audit --no-fund/);

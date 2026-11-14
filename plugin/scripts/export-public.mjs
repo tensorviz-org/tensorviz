@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { windowsCatalog } from './windows-bootstrap.mjs';
 import { nativePlatforms, runtimeEntries } from './native-platforms.mjs';
 import { distributionRepository, pluginVersion } from './release-version.mjs';
 
@@ -15,6 +16,13 @@ export const publicFiles = [...documents, 'LICENSE',
   ...['plugins/tensorviz', 'cursor/plugins/tensorviz'].flatMap(client =>
     [...metadata, ...documents, 'scripts/launch.sh', 'runtime-lock.json', 'mcp.json', '.mcp.json'].map(file => `${client}/${file}`)),
   'cursor/plugins/tensorviz/.cursor-plugin/plugin.json'];
+export const windowsFiles = ['plugin.json', '.codex-plugin/plugin.json', 'mcp.json',
+  'runtime-lock.json', 'scripts/tensorviz-bootstrap.exe', 'DEPENDENCY_NOTICES.md', 'bootstrap-sha256.txt', 'bootstrap-provenance.json'];
+export function integrationFiles(runtime, { legacy = false } = {}) {
+  return [...publicFiles, ...(legacy ? [] : runtimeEntries(runtime)
+    .filter(entry => entry.platform.startsWith('win32-'))
+    .flatMap(entry => windowsFiles.map(file => `plugins/tensorviz-windows-${entry.platform.slice(6)}/${file}`)))];
+}
 const json = (file, value) => fs.writeFile(file, JSON.stringify(value, null, 2) + '\n');
 
 export function validateRuntimeLock(lock) {
@@ -97,6 +105,28 @@ export async function exportPublic(destination, options = {}) {
       '.claude-plugin/marketplace.json': { name: 'tensorviz-standalone', owner: { name: 'TensorViz' }, plugins: [{ name: 'tensorviz', source: './plugins/tensorviz' }] },
       '.cursor-plugin/marketplace.json': { name: 'tensorviz', owner: { name: 'TensorViz' }, plugins: [{ name: 'tensorviz', source: 'cursor/plugins/tensorviz' }] },
     };
+    const windows = runtimeEntries(lock).filter(entry => entry.platform.startsWith('win32-'));
+    if (windows.length) {
+      const inputs = options.windowsBootstraps ?? {};
+      if (JSON.stringify(Object.keys(inputs).sort()) !== JSON.stringify(windows.map(entry => entry.platform.slice(6)).sort()))
+        throw new Error('Every Windows runtime requires its verified native bootstrap.');
+      // Build in a private staging directory, then copy only the closed Windows inventory.
+      const staging = await fs.mkdtemp(path.join(path.dirname(destination), '.windows-export-'));
+      try {
+        const catalog = path.join(staging, 'catalog');
+        await windowsCatalog({ destination: catalog, version, lock,
+          binaries: Object.fromEntries(Object.entries(inputs).map(([arch, value]) => [arch, value.binary])),
+          notices: Object.fromEntries(Object.entries(inputs).map(([arch, value]) => [arch, value.notices])) });
+        for (const entry of windows) {
+          const arch = entry.platform.slice(6), name = `tensorviz-windows-${arch}`;
+          for (const file of windowsFiles.filter(file => file !== 'bootstrap-provenance.json')) await copy(path.join(catalog, 'plugins', name, file), `plugins/${name}/${file}`);
+          if (!inputs[arch].receipt) throw new Error('Windows bootstrap provenance is required');
+          await json(path.join(destination, 'plugins', name, 'bootstrap-provenance.json'), inputs[arch].receipt);
+        }
+        const windowsMarket = JSON.parse(await fs.readFile(path.join(catalog, '.agents/plugins/marketplace.json'), 'utf8'));
+        catalogs['.agents/plugins/marketplace.json'].plugins.push(...windowsMarket.plugins);
+      } finally { await fs.rm(staging, { recursive: true, force: true }); }
+    }
     const cursor = path.join(destination, 'cursor/plugins/tensorviz');
     await fs.mkdir(path.join(cursor, '.cursor-plugin'));
     const cursorManifest = JSON.parse(await fs.readFile(path.join(cursor, '.claude-plugin/plugin.json'), 'utf8'));
@@ -125,3 +155,4 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (!destination || !lockFile || rest.length || lockFile.startsWith('--')) throw new Error('Usage: node plugin/scripts/export-public.mjs OUTPUT RUNTIME_LOCK_JSON');
   console.log(JSON.stringify(await exportPublic(destination, { runtimeLock: JSON.parse(await fs.readFile(lockFile, 'utf8')) })));
 }
+

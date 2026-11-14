@@ -46,6 +46,7 @@ test('real Git publishes only public export history and safely retries', async t
   const moduleDir = path.join(root, 'module'); await fs.mkdir(moduleDir);
   await fs.copyFile(path.resolve(__dirname, '../../scripts/publish-native-release.mjs'), path.join(moduleDir, 'publisher.mjs'));
   await fs.copyFile(path.resolve(__dirname, '../../scripts/version-alignment.mjs'), path.join(moduleDir, 'version-alignment.mjs'));
+  await fs.copyFile(path.resolve(__dirname, '../../scripts/release-migration.mjs'), path.join(moduleDir, 'release-migration.mjs'));
   await fs.writeFile(path.join(moduleDir, 'release-version.mjs'), "export const distributionRepository = 'tensorviz-org/tensorviz-plugins';\n");
   await fs.writeFile(path.join(moduleDir, 'release-candidate.mjs'), `
     import { readFile } from 'node:fs/promises'; import path from 'node:path'; import { createHash } from 'node:crypto';
@@ -104,4 +105,5 @@ test('real Git publishes only public export history and safely retries', async t
   assert.equal(retried.commit, first.commit);
   assert.equal(assets.length, 2);
 });
+
 

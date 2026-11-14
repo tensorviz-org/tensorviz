@@ -12,7 +12,8 @@ import https from 'node:https';
 import {promisify} from 'node:util';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
-import {windowsCatalog} from '../../scripts/windows-bootstrap.mjs';
+import {exportPublic} from '../../scripts/export-public.mjs';
+import {auditIntegration} from '../../scripts/release-candidate.mjs';
 if(process.platform!=='win32') throw new Error('Real Windows runner required');
 const required=name=>{assert.ok(process.env[name],`Set ${name}`);return path.resolve(process.env[name])};
 const lockFile=required('TENSORVIZ_PRODUCTION_RUNTIME_LOCK');
@@ -46,11 +47,19 @@ try{
  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve)});
  const testLock={...lock,url:`https://127.0.0.1:${server.address().port}/runtime.tar.gz`};
  const catalog=path.join(root,'catalog');
- await windowsCatalog({destination:catalog,version:lock.version,lock:testLock,binaries:{[process.arch]:bootstrap},notices:path.join(native,'DEPENDENCY_NOTICES.md')});
+ const bootstrapBytes=await fs.readFile(bootstrap), notices=path.join(native,'DEPENDENCY_NOTICES.md');
+ // Exercise the production exporter and full marketplace, not a candidate-only catalog.
+ const receipt={formatVersion:1,arch:process.arch,version:lock.version,sourceRevision:release.sourceRevision,
+  sha256:crypto.createHash('sha256').update(bootstrapBytes).digest('hex'),bytes:bootstrapBytes.length,
+  noticesSha256:crypto.createHash('sha256').update(await fs.readFile(notices)).digest('hex')};
+ await exportPublic(catalog,{runtimeLock:testLock,windowsBootstraps:{[process.arch]:{binary:bootstrap,notices,receipt}}});
+ await auditIntegration(catalog);
  const cenv={...process.env,CODEX_HOME:home};
  const codexVersion=execFileSync(codex,['--version'],{env:cenv,encoding:'utf8',timeout:30000}).trim();
  execFileSync(codex,['plugin','marketplace','add',catalog,'--json'],{env:cenv,encoding:'utf8',timeout:30000});
- const installed=JSON.parse(execFileSync(codex,['plugin','add',`tensorviz-windows-${process.arch}@tensorviz-windows-candidate`,'--json'],{env:cenv,encoding:'utf8',timeout:30000}));
+ const installed=JSON.parse(execFileSync(codex,['plugin','add',`tensorviz-windows-${process.arch}@tensorviz-standalone`,'--json'],{env:cenv,encoding:'utf8',timeout:30000}));
+ const bootstrapSha256=crypto.createHash('sha256').update(await fs.readFile(path.join(installed.installedPath,'scripts/tensorviz-bootstrap.exe'))).digest('hex');
+ assert.equal(bootstrapSha256,crypto.createHash('sha256').update(await fs.readFile(bootstrap)).digest('hex'),'Installed bootstrap differs from release input');
  const discovered=JSON.parse(execFileSync(codex,['mcp','list','--json'],{env:cenv,encoding:'utf8',timeout:30000})).find(x=>x.name==='tensorviz');
  assert.ok(discovered?.enabled);assert.equal(discovered.transport.command,'cmd.exe');
  assert.deepEqual(discovered.transport.args,['/d','/c','.\\scripts\\tensorviz-bootstrap.exe']);
@@ -89,7 +98,7 @@ try{
  await bounded(client.close(),'MCP EOF shutdown',15000);
  const sessions=(await fs.readdir(root)).filter(x=>x.startsWith('tensorviz-native-'));
  assert.deepEqual(sessions,[],'Bootstrap extracted session leaked after EOF');
- const result={platform:process.platform,arch:process.arch,version:lock.version,runtimeSha256:lock.sha256,sourceRevision:release.sourceRevision,codexVersion,toolCount:tools.length,
+ const result={platform:process.platform,arch:process.arch,version:lock.version,runtimeSha256:lock.sha256,bootstrapSha256,sourceRevision:release.sourceRevision,codexVersion,toolCount:tools.length,
   passed:['cold HTTPS archive download','untrusted TLS rejection','verified production archive checksum','real compiled host','Codex installed catalog command','MCP initialize','tools/list','list_models','NO_MODEL static lookup','static graph UI resource','no Torch service environment','no PATH Node/Python','no consent or provisioning','EOF session cleanup'],limitations:['No browser rendering or capture test','No forced termination or executable signing test','HTTPS uses temporary local trusted certificate, not production CDN']};
  await fs.writeFile(path.join(output,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
 }catch(error){primaryError=error;console.error(error);await fs.writeFile(path.join(output,'failure.txt'),String(error.stack??error));killTree(transport?.pid);throw error}
@@ -102,3 +111,4 @@ finally{
   if(!primaryError){await fs.writeFile(path.join(output,'failure.txt'),String(error.stack??error));await fs.rm(path.join(output,'result.json'),{force:true});throw error}
  });
 }
+

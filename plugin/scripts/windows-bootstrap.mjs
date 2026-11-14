@@ -1,4 +1,4 @@
-/** Candidate only: creates a separate Windows catalog, never changes Unix export. */
+/** Native Windows bootstrap and closed Codex catalog generator. */
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -48,7 +48,7 @@ export async function windowsCatalog({destination, version, lock, binaries, noti
     const bytes=await fs.readFile(binaries[arch]);
     validateWindowsPE(bytes,arch);
     await fs.writeFile(path.join(root,'scripts/tensorviz-bootstrap.exe'),bytes);
-    await fs.copyFile(notices,path.join(root,'DEPENDENCY_NOTICES.md'));
+    await fs.copyFile(typeof notices === 'string' ? notices : notices[arch],path.join(root,'DEPENDENCY_NOTICES.md'));
     const manifest={name,version,description:`TensorViz local MCP for native Windows ${arch}. No separate Node.js installation.`,mcpServers:'./mcp.json',requires_local_executor:true};
     for(const file of ['plugin.json','.codex-plugin/plugin.json']) await fs.writeFile(path.join(root,file),JSON.stringify(manifest,null,2));
     await fs.writeFile(path.join(root,'mcp.json'),JSON.stringify({mcpServers:{tensorviz:windowsMcp()}},null,2));
@@ -60,3 +60,4 @@ export async function windowsCatalog({destination, version, lock, binaries, noti
   await fs.mkdir(path.join(destination,'.agents/plugins'),{recursive:true});
   await fs.writeFile(path.join(destination,'.agents/plugins/marketplace.json'),JSON.stringify({name:'tensorviz-windows-candidate',plugins},null,2));
 }
+

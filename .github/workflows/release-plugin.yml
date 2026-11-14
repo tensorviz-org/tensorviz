@@ -44,11 +44,14 @@ jobs:
           const publish = process.env.RELEASE_PUBLISH === 'true';
           if (publish && process.env.TLDRAW_DISTRIBUTION_CONFIRMED !== 'true') throw new Error('Owner confirmation of renderer distribution coverage is required.');
           const version = releaseVersion(JSON.parse(readFileSync('plugin/package.json', 'utf8')).version);
-          for (const file of ['extension/package.json', 'canvas/package.json', 'plugins/tensorviz/plugin.json']) {
+          if (version !== '0.1.45') throw new Error('Review and pin the migration transition before changing release version.');
+          for (const file of ['extension/package.json', 'canvas/package.json', 'plugins/tensorviz/plugin.json', 'plugins/tensorviz/.codex-plugin/plugin.json', 'plugins/tensorviz/.claude-plugin/plugin.json']) {
             if (JSON.parse(readFileSync(file, 'utf8')).version !== version) throw new Error(`Release version differs: ${file}`);
           }
-          const lock = JSON.parse(readFileSync('plugin/package-lock.json', 'utf8'));
-          if (lock.version !== version || lock.packages[''].version !== version) throw new Error('Reviewed plugin manifest and lockfile versions differ.');
+          for (const file of ['plugin/package-lock.json', 'extension/package-lock.json', 'canvas/package-lock.json']) {
+            const lock = JSON.parse(readFileSync(file, 'utf8'));
+            if (lock.version !== version || lock.packages[''].version !== version) throw new Error(`Reviewed manifest and lockfile versions differ: ${file}`);
+          }
           appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\npublish=${publish}\n`);
           JS
 
@@ -56,30 +59,30 @@ jobs:
     needs: configuration
     strategy:
       fail-fast: false
+      max-parallel: 3
       matrix:
         include:
-          - runner: macos-15
-            platform: darwin-arm64
-            container: null
-            uname: Darwin-arm64
-          - runner: ubuntu-22.04
-            platform: linux-x64
-            container: ubuntu:20.04
-            uname: Linux-x86_64
-    # Build-only validation never receives publisher credentials.
+          - {runner: macos-15, platform: darwin-arm64, arch: arm64, container: null, capture: true}
+          - {runner: macos-15-intel, platform: darwin-x64, arch: x64, container: null, capture: false}
+          - {runner: ubuntu-22.04, platform: linux-x64, arch: x64, container: 'ubuntu:20.04', capture: true}
+          - {runner: ubuntu-22.04-arm, platform: linux-arm64, arch: arm64, container: null, capture: false}
+          - {runner: windows-2022, platform: win32-x64, arch: x64, container: null, capture: false}
+          - {runner: windows-11-arm, platform: win32-arm64, arch: arm64, container: null, capture: false}
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container }}
     defaults:
       run:
         shell: bash
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
+      PYTHONUTF8: '1'
       TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
+      TENSORVIZ_RELEASE_PLATFORM: ${{ matrix.platform }}
       TENSORVIZ_RELEASE_VERSION: ${{ needs.configuration.outputs.version }}
       TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
       TENSORVIZ_RUNTIME_URL: https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v${{ needs.configuration.outputs.version }}/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz
     steps:
-      - name: Prepare the Linux glibc 2.31 build baseline
+      - name: Prepare the Linux x64 glibc 2.31 baseline
         if: matrix.platform == 'linux-x64'
         run: |
           apt-get update
@@ -92,25 +95,25 @@ jobs:
       - name: Align checkout ownership inside the Linux build container
         if: matrix.platform == 'linux-x64'
         run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
-      - name: Verify the supported native target
-        run: test "$(uname -s)-$(uname -m)" = "${{ matrix.uname }}"
       - uses: actions/setup-node@v4
         with:
           node-version: '22.23.4'
+          architecture: ${{ matrix.arch }}
           cache: npm
           cache-dependency-path: |
             package-lock.json
             plugin/package-lock.json
             canvas/package-lock.json
-      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
         with:
           version: '0.11.26'
-          python-version: '3.12.13'
           enable-cache: true
           cache-python: true
           cache-dependency-glob: |
             plugin/compiler-requirements.txt
             backend/requirements-standalone.txt
+      - name: Preflight native compiler ABI and no-Torch service wheels before npm
+        run: node plugin/scripts/release-native-setup.mjs preflight
       - uses: actions/cache@v4
         with:
           path: |
@@ -119,110 +122,87 @@ jobs:
             ~/Library/Caches/ccache
             ~/.cache/Nuitka
             ~/.cache/ccache
-          key: native-plugin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('plugin/package-lock.json', 'plugin/compiler-requirements.txt') }}
-      - name: Install locked build tools and test clients
+          key: native-plugin-${{ matrix.platform }}-${{ hashFiles('plugin/package-lock.json', 'plugin/compiler-requirements.txt') }}
+      - name: Install locked build tools and official native Codex
         run: |
           npm ci
           npm ci --prefix plugin
           npm ci --prefix canvas
+          npm install --prefix .bootstrap-codex --ignore-scripts --no-audit --no-fund @openai/codex@0.169.0
+          node plugin/scripts/release-native-setup.mjs clients
+      - name: Install locked Windows bootstrap compiler
+        if: startsWith(matrix.platform, 'win32-')
+        run: npm install --prefix .bootstrap-build --ignore-scripts --no-audit --no-fund @yao-pkg/pkg@6.24.0
+      - name: Install capture acceptance clients on established capture targets
+        if: matrix.capture
+        run: |
           npm install --prefix plugin/out/audit-clients --no-audit --no-fund @openai/codex@0.165.0 @anthropic-ai/claude-code@2.1.308
           echo "$PWD/plugin/out/audit-clients/node_modules/.bin" >> "$GITHUB_PATH"
-          uv venv --python 3.12.13 plugin/out/compiler-venv
-          uv venv --python 3.12.13 plugin/out/test-venv
-          uv pip install --python plugin/out/compiler-venv/bin/python -r plugin/compiler-requirements.txt
-          if [ "${{ matrix.platform }}" = linux-x64 ]; then
-            uv pip install --python plugin/out/test-venv/bin/python torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
-          else
-            # Capture acceptance owns Torch; the core service does not.
-            uv pip install --python plugin/out/test-venv/bin/python torch==2.14.1
-          fi
-          uv pip install --python plugin/out/test-venv/bin/python -r backend/requirements-standalone.txt
-          {
-            echo "TENSORVIZ_COMPILER_PYTHON=$PWD/plugin/out/compiler-venv/bin/python"
-            echo "TENSORVIZ_TEST_PYTHON=$PWD/plugin/out/test-venv/bin/python"
-            echo "TENSORVIZ_TEST_BACKEND=$PWD/plugin/out/native-runtime/backend"
-          } >> "$GITHUB_ENV"
-          if [ "${{ matrix.platform }}" = darwin-arm64 ]; then echo "$(brew --prefix openssl@3)/bin" >> "$GITHUB_PATH"; fi
-      - name: Check shared behavior and plugin units
-        run: |
-          npm test --prefix plugin
-          npm test --prefix packages/graph-host
-      - name: Build and audit the compiled runtime and thin plugin packages
+          if [ "${{ runner.os }}" = macOS ]; then echo "$(brew --prefix openssl@3)/bin" >> "$GITHUB_PATH"; fi
+      - name: Check portable units before compilation
+        run: node --test plugin/test/unit/portable-launcher.test.cjs plugin/test/unit/native-platform-shape.test.cjs
+      - name: Build and audit the real licensed native runtime
         env:
           TLDRAW_LICENSE_KEY: ${{ secrets.TLDRAW_LICENSE_KEY }}
+        run: node plugin/scripts/build-release.mjs --native-archive
+      - name: Verify native startup and compiled service without PyTorch
         run: |
-          node plugin/scripts/build-release.mjs --native-archive
-          node plugin/scripts/assemble-native-release.mjs plugin/out/integration \
-            "plugin/dist/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-${{ matrix.platform }}.tar.gz"
-      - name: Verify real client installation, downloads and capture
-        run: |
-          npm run test:release --prefix plugin
-          TENSORVIZ_TEST_RUNTIME="$PWD/plugin/out/native-runtime" node --test plugin/test/integration/open-graph.test.cjs
-          claude --bare plugin validate --strict "plugin/dist/candidate-$TENSORVIZ_RELEASE_VERSION/integration/plugins/tensorviz"
-      - name: Verify Linux launcher with a local archive and real CPU capture
-        if: matrix.platform == 'linux-x64'
-        run: TENSORVIZ_TEST_RUNTIME="$PWD/plugin/out/native-runtime" node --test plugin/test/linux/launcher-capture.cjs
-      - name: Reclaim completed build scratch before native migration
-        run: node plugin/scripts/cleanup-build-scratch.mjs
-      - name: Checkout the immutable previous public plugin export
-        if: env.TENSORVIZ_RELEASE_VERSION == '0.1.43'
-        uses: actions/checkout@v4
-        with:
-          repository: tensorviz-org/tensorviz-plugins
-          ref: 1a3c3618082603030b5ef68b793d9834b8bb7f3d
-          path: plugin/out/migration-old-catalog
-          persist-credentials: false
-      - name: Retrieve the pinned previous native runtime
-        if: env.TENSORVIZ_RELEASE_VERSION == '0.1.43'
-        env:
-          MIGRATION_PLATFORM: ${{ matrix.platform }}
-        run: |
+          node --test plugin/test/native/host.cjs plugin/test/native/no-torch.cjs
           node --input-type=module <<'JS'
-          import {readFileSync} from 'node:fs';
           import {execFileSync} from 'node:child_process';
-          const publication = JSON.parse(readFileSync('plugin/out/migration-old-catalog/PUBLICATION.json','utf8'));
-          if(publication.version !== '0.3.110') throw new Error('Unexpected previous release');
-          const runtime = publication.runtime.formatVersion === 2 ? publication.runtime.runtimes[process.env.MIGRATION_PLATFORM] : publication.runtime;
-          const expected = `https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.3.110/tensorviz-runtime-0.3.110-${process.env.MIGRATION_PLATFORM}.tar.gz`;
-          if(runtime.url !== expected || runtime.version !== '0.3.110' || runtime.platform !== process.env.MIGRATION_PLATFORM) throw new Error('Previous runtime provenance mismatch');
-          execFileSync('curl',['--fail','--silent','--show-error','--location','--proto','=https','--proto-redir','=https','--max-time','300','--output','plugin/out/migration-old-runtime.tar.gz',runtime.url],{stdio:'inherit'});
+          execFileSync(process.env.TENSORVIZ_SERVICE_TEST_PYTHON, ['-I', '-c', 'import importlib.util; assert importlib.util.find_spec("torch") is None'], {stdio:'inherit'});
+          execFileSync(process.env.TENSORVIZ_SERVICE_TEST_PYTHON, ['backend/tests/runtime/test_service_without_torch.py'], {stdio:'inherit', env:process.env});
           JS
-      - name: Verify native installed-client version migration and rollback
-        if: env.TENSORVIZ_RELEASE_VERSION == '0.1.43'
-        env:
-          TENSORVIZ_MIGRATION_OLD_CATALOG: ${{ github.workspace }}/plugin/out/migration-old-catalog
-          TENSORVIZ_MIGRATION_NEW_CATALOG: ${{ github.workspace }}/plugin/dist/candidate-0.1.43/integration
-          TENSORVIZ_MIGRATION_OLD_ARCHIVE: ${{ github.workspace }}/plugin/out/migration-old-runtime.tar.gz
-          TENSORVIZ_MIGRATION_NEW_ARCHIVE: ${{ github.workspace }}/plugin/dist/tensorviz-runtime-0.1.43-${{ matrix.platform }}.tar.gz
-          TENSORVIZ_MIGRATION_RECEIPT: ${{ github.workspace }}/plugin/out/migration-receipts/${{ matrix.platform }}.json
-        run: node --test plugin/test/migration/native-version-transition.cjs
-      - name: Retain verified migration receipt
-        if: env.TENSORVIZ_RELEASE_VERSION == '0.1.43'
-        uses: actions/upload-artifact@v4
-        with:
-          name: plugin-migration-${{ matrix.platform }}
-          path: plugin/out/migration-receipts/${{ matrix.platform }}.json
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Retain only verified release files
+      - name: Select the actual package lock and build native Windows bootstrap
+        run: node plugin/scripts/release-native-setup.mjs bootstrap
+      - name: Create ephemeral local HTTPS acceptance certificate
+        run: |
+          mkdir -p plugin/out/test-tls
+          openssl_bin=openssl
+          if [ "${{ runner.os }}" = macOS ]; then openssl_bin="$(brew --prefix openssl@3)/bin/openssl"; fi
+          MSYS_NO_PATHCONV=1 "$openssl_bin" req -x509 -newkey rsa:2048 -nodes -days 1 -keyout plugin/out/test-tls/key.pem -out plugin/out/test-tls/cert.pem -subj '/CN=localhost' -addext 'subjectAltName=IP:127.0.0.1' -addext 'basicConstraints=critical,CA:TRUE'
+          node --input-type=module <<'JS'
+          import fs from 'node:fs'; import path from 'node:path';
+          fs.appendFileSync(process.env.GITHUB_ENV, `TENSORVIZ_TEST_TLS_CERT=${path.resolve('plugin/out/test-tls/cert.pem')}\nTENSORVIZ_TEST_TLS_KEY=${path.resolve('plugin/out/test-tls/key.pem')}\n`);
+          JS
+      - name: Actual Windows installed catalog and cold HTTPS native MCP acceptance
+        if: startsWith(matrix.platform, 'win32-')
+        run: node plugin/test/native/windows-production-mcp.mjs
+      - name: Attest the exact Windows bootstrap after successful acceptance
+        if: startsWith(matrix.platform, 'win32-')
+        run: node plugin/scripts/release-native-setup.mjs attest-windows
+      - name: Actual Unix installed catalog and cold HTTPS native MCP acceptance
+        if: ${{ !startsWith(matrix.platform, 'win32-') }}
+        run: node plugin/test/native/unix-production-mcp.mjs
+      - name: Verify installed-client capture on established capture targets
+        if: matrix.capture
+        run: |
+          node plugin/scripts/assemble-native-release.mjs plugin/out/integration "plugin/dist/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-${{ matrix.platform }}.tar.gz"
+          npm run test:release --prefix plugin
+          node --test plugin/test/integration/open-graph.test.cjs
+          claude --bare plugin validate --strict "plugin/dist/candidate-$TENSORVIZ_RELEASE_VERSION/integration/plugins/tensorviz"
+      - name: Verify real Linux x64 launcher CPU capture and cache reuse
+        if: matrix.platform == 'linux-x64'
+        run: node --test plugin/test/linux/launcher-capture.cjs
+      - name: Reclaim completed build scratch after native acceptance
+        run: node plugin/scripts/cleanup-build-scratch.mjs
+      - name: Retain only tested native archives and bootstrap provenance
         uses: actions/upload-artifact@v4
         with:
           name: native-plugin-${{ matrix.platform }}-${{ needs.configuration.outputs.version }}
           path: |
             plugin/dist/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz
             plugin/dist/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz.json
-          include-hidden-files: true
+            plugin/dist/tensorviz-bootstrap-*.exe
+            plugin/dist/tensorviz-bootstrap-*.exe.json
+            plugin/dist/tensorviz-bootstrap-*.NOTICES.md
           if-no-files-found: error
           retention-days: 7
-      - name: Record candidate status
-        run: |
-          echo "Verified compiled plugin $TENSORVIZ_RELEASE_VERSION. Public publication is handled only by the publish job; build-only runs retain a candidate artifact; public repository artifacts are public." >> "$GITHUB_STEP_SUMMARY"
 
   assemble:
     needs: [configuration, build]
     runs-on: ubuntu-22.04
-    timeout-minutes: 10
+    timeout-minutes: 30
     env:
       TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
       TENSORVIZ_RELEASE_VERSION: ${{ needs.configuration.outputs.version }}
@@ -239,11 +219,15 @@ jobs:
           pattern: native-plugin-*-${{ needs.configuration.outputs.version }}
           merge-multiple: true
           path: plugin/out/native-assets
-      - name: Require both native jobs before creating one catalog
+      - name: Require all six verified native jobs before creating one catalog
         run: |
           node plugin/scripts/assemble-native-release.mjs plugin/out/integration \
             plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-darwin-arm64.tar.gz \
-            plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-linux-x64.tar.gz
+            plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-darwin-x64.tar.gz \
+            plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-linux-x64.tar.gz \
+            plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-linux-arm64.tar.gz \
+            plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-win32-x64.tar.gz \
+            plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-win32-arm64.tar.gz
       - uses: actions/upload-artifact@v4
         with:
           name: compiled-plugin-${{ needs.configuration.outputs.version }}
@@ -253,10 +237,9 @@ jobs:
           retention-days: 7
 
   current_migration:
-    # Old 0.1.43 requires glibc 2.35; validate migration on a modern host,
-    # separately from the new runtime's Ubuntu 20.04 compatibility job.
+    # Upgrade and rollback existing supported installations; new targets
+    # must independently pass their native first-install acceptance above.
     needs: [configuration, assemble]
-    if: needs.configuration.outputs.version == '0.1.44'
     strategy:
       fail-fast: false
       matrix:
@@ -269,7 +252,7 @@ jobs:
     timeout-minutes: 35
     env:
       TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
-      TENSORVIZ_MIGRATION_TARGET_VERSION: '0.1.44'
+      TENSORVIZ_MIGRATION_TARGET_VERSION: '0.1.45'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -289,7 +272,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: tensorviz-org/tensorviz-plugins
-          ref: de268bb05a44d21fba51dc53b2d711ccee8a2738
+          ref: 6fff2d501cbe037e2d90b252ee484a446c37bd61
           path: plugin/out/migration-old-catalog
           persist-credentials: false
       - name: Install locked clients and CPU capture dependencies
@@ -301,6 +284,8 @@ jobs:
           uv venv --python 3.12.13 plugin/out/test-venv
           if [ "${{ matrix.platform }}" = linux-x64 ]; then
             uv pip install --python plugin/out/test-venv/bin/python torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+          else
+            uv pip install --python plugin/out/test-venv/bin/python torch==2.14.1
           fi
           uv pip install --python plugin/out/test-venv/bin/python -r backend/requirements-standalone.txt
           echo "TENSORVIZ_TEST_PYTHON=$PWD/plugin/out/test-venv/bin/python" >> "$GITHUB_ENV"
@@ -313,8 +298,8 @@ jobs:
           import {execFileSync} from 'node:child_process';
           const publication = JSON.parse(readFileSync('plugin/out/migration-old-catalog/PUBLICATION.json','utf8'));
           const runtime = publication.runtime.runtimes[process.env.MIGRATION_PLATFORM];
-          const expected = `https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.43/tensorviz-runtime-0.1.43-${process.env.MIGRATION_PLATFORM}.tar.gz`;
-          if(publication.version !== '0.1.43' || runtime.url !== expected || runtime.version !== '0.1.43' || runtime.platform !== process.env.MIGRATION_PLATFORM) throw new Error('Previous runtime provenance mismatch');
+          const expected = `https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/tensorviz-runtime-0.1.44-${process.env.MIGRATION_PLATFORM}.tar.gz`;
+          if(publication.version !== '0.1.44' || runtime.url !== expected || runtime.version !== '0.1.44' || runtime.platform !== process.env.MIGRATION_PLATFORM) throw new Error('Previous runtime provenance mismatch');
           execFileSync('curl',['--fail','--silent','--show-error','--location','--proto','=https','--proto-redir','=https','--max-time','300','--output','plugin/out/migration-old-runtime.tar.gz',runtime.url],{stdio:'inherit'});
           JS
       - name: Verify real native client upgrade and rollback
@@ -322,10 +307,11 @@ jobs:
           TENSORVIZ_MIGRATION_OLD_CATALOG: ${{ github.workspace }}/plugin/out/migration-old-catalog
           TENSORVIZ_MIGRATION_NEW_CATALOG: ${{ github.workspace }}/plugin/out/release-candidate/integration
           TENSORVIZ_MIGRATION_OLD_ARCHIVE: ${{ github.workspace }}/plugin/out/migration-old-runtime.tar.gz
-          TENSORVIZ_MIGRATION_NEW_ARCHIVE: ${{ github.workspace }}/plugin/out/release-candidate/tensorviz-runtime-0.1.44-${{ matrix.platform }}.tar.gz
+          TENSORVIZ_MIGRATION_NEW_ARCHIVE: ${{ github.workspace }}/plugin/out/release-candidate/tensorviz-runtime-0.1.45-${{ matrix.platform }}.tar.gz
           TENSORVIZ_MIGRATION_RECEIPT: ${{ github.workspace }}/plugin/out/migration-receipts/${{ matrix.platform }}.json
         run: node --test plugin/test/migration/native-version-transition.cjs
-      - uses: actions/upload-artifact@v4
+      - name: Retain verified migration receipt
+        uses: actions/upload-artifact@v4
         with:
           name: plugin-migration-current-${{ matrix.platform }}
           path: plugin/out/migration-receipts/${{ matrix.platform }}.json
@@ -335,11 +321,11 @@ jobs:
 
   publish:
     needs: [configuration, assemble, current_migration]
-    if: always() && needs.assemble.result == 'success' && (needs.configuration.outputs.version != '0.1.44' || needs.current_migration.result == 'success') && needs.configuration.outputs.publish == 'true'
+    if: always() && needs.assemble.result == 'success' && needs.current_migration.result == 'success' && needs.configuration.outputs.publish == 'true'
     permissions:
       contents: read
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -353,9 +339,8 @@ jobs:
           name: compiled-plugin-${{ needs.configuration.outputs.version }}
           path: plugin/out/release-candidate
       - uses: actions/download-artifact@v4
-        if: needs.configuration.outputs.version == '0.1.43'
         with:
-          pattern: plugin-migration-*
+          pattern: plugin-migration-current-*
           merge-multiple: true
           path: plugin/out/migration-receipts
       - name: Publish immutable public assets and advance the audited catalog
@@ -374,5 +359,6 @@ jobs:
           const release = JSON.parse(readFileSync('plugin/out/release-result.json', 'utf8'));
           appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Published [TensorViz ${release.version}](${release.release}) with its downloadable integration catalog. Vendor directory approval is separate.\n`);
           JS
+
 
 

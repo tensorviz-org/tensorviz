@@ -109,3 +109,13 @@ unknown until a selected interpreter is checked. Cancel preserves the previous c
 Selection works before service setup; subsequent inspection and setup still require
 Workspace Trust, a current target and the existing installation approvals.
 
+
+## Noninteractive setup children
+
+TensorViz setup helpers reserve their parent stdin pipe for lifecycle ownership.
+Their noninteractive Python, pip and venv bootstrap children use closed standard
+input instead of inheriting that pipe. This avoids a Windows setup hang when the
+lifetime watcher and a setup child otherwise share the same input handle. The
+parent-lifetime guard remains enabled, including cleanup when its owner exits.
+This does not change approval, package selection or download verification.
+

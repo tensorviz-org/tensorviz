@@ -115,7 +115,7 @@ def target_snapshot(modules: list[str] | None = None) -> dict:
 def _target_snapshot(modules: list[str] | None = None) -> dict:
     try:
         result = subprocess.run([TARGET_PYTHON, '-I', '-B', '-c', TARGET_INSPECTION,
-                                 json.dumps(modules or [])], capture_output=True, text=True, timeout=30)
+                                 json.dumps(modules or [])], stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30)
         if result.returncode or len(result.stdout) > 512 * 1024:
             raise ValueError()
         value = json.loads(result.stdout)
@@ -245,7 +245,7 @@ def torch_unavailable(stderr: str) -> str:
 
 def pip_run(arguments: list[str]) -> None:
     result = subprocess.run([sys.executable, "-m", "pip", *(['--python', TARGET_PYTHON] if TARGET_PYTHON else []), "--disable-pip-version-check",
-                             "--isolated", "--no-input", *arguments], capture_output=True, text=True,
+                             "--isolated", "--no-input", *arguments], stdin=subprocess.DEVNULL, capture_output=True, text=True,
                             env={**os.environ, "PIP_CONFIG_FILE": os.devnull})
     if result.returncode:
         # pip output can contain private index credentials. Do not forward it to UI/logs.
@@ -574,7 +574,7 @@ def installed_requirements() -> dict:
     """Each installed distribution's declared requirements and the target's marker values."""
     try:
         result = subprocess.run([TARGET_PYTHON or sys.executable, '-I', '-B', '-c', TARGET_REQUIRES],
-                                capture_output=True, text=True, timeout=30)
+                                stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30)
         if result.returncode or len(result.stdout) > 4 * 1024 * 1024:
             raise ValueError()
         return json.loads(result.stdout)
@@ -770,7 +770,7 @@ def model_import_diagnostic(error: BaseException) -> dict:
 def probe_model_import(root: Path, file: Path) -> dict:
     if TARGET_PYTHON:
         result = subprocess.run([TARGET_PYTHON, '-I', '-B', str(REQUIREMENTS.parent / 'services' / 'ide' / 'environment_setup.py'),
-                                 'probe-model', str(root), str(file)], capture_output=True, text=True, timeout=90)
+                                 'probe-model', str(root), str(file)], stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=90)
         return json.loads(result.stdout.strip().splitlines()[-1])
     root, file = root.resolve(), file.resolve()
     if not file.is_relative_to(root):
@@ -813,7 +813,7 @@ except Exception as error:
 '''
     result = subprocess.run([TARGET_PYTHON or sys.executable, '-I', '-B', '-c', script,
                              str(REQUIREMENTS.parent / 'services' / 'ingest' / 'bootstrap.py')],
-                            capture_output=True, text=True, timeout=90)
+                            stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=90)
     try:
         return json.loads(result.stdout.strip().splitlines()[-1])
     except (ValueError, IndexError):
@@ -1142,7 +1142,13 @@ def main(probe_backend=None, *, requirements=REQUIREMENTS, minimum_python=(3, 10
             result = {"environment": environment_info()}
         elif action == "create-environment":
             import venv
-            venv.EnvBuilder(with_pip=True).create(Path(sys.argv[2]))
+            # Setup children must not share the lifetime watcher's blocking stdin.
+            class SetupEnvBuilder(venv.EnvBuilder):
+                def _call_new_python(self, context, *args, **kwargs):
+                    kwargs["stdin"] = subprocess.DEVNULL
+                    return super()._call_new_python(context, *args, **kwargs)
+
+            SetupEnvBuilder(with_pip=True).create(Path(sys.argv[2]))
             result = {}
         elif action == "probe" and probe_backend is not None:
             result = probe_backend()
@@ -1197,5 +1203,6 @@ def main(probe_backend=None, *, requirements=REQUIREMENTS, minimum_python=(3, 10
 
 if __name__ == "__main__":
     main()
+
 
 

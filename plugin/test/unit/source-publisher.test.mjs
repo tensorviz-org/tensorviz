@@ -42,3 +42,8 @@ test('transport does not treat authentication error as absence',()=>{const comma
 
 test('public bytes must match before reporting success',async()=>{const f=fixture();f.api.publicDownload=async()=>Buffer.from('bad');await assert.rejects(publishSourceAssets(f.input,f.api),/Public asset verification/);assert.equal(f.state.published,1);});
 test('public unavailable is retryable without overwriting published bytes',async()=>{const f=fixture(),download=f.api.publicDownload;f.api.publicDownload=async()=>{throw Error('unavailable');};await assert.rejects(publishSourceAssets(f.input,f.api));f.api.publicDownload=download;await publishSourceAssets(f.input,f.api);assert.equal(f.state.uploads,1);assert.equal(f.state.published,1);});
+
+test('obsolete callback-authorized candidate publisher is not exported',async()=>{
+ const exports=await import('../../scripts/publish-source-release.mjs');
+ assert.equal(Object.hasOwn(exports,'publishSourceCandidate'),false);
+});

@@ -24,7 +24,7 @@ export function verifySourceAdmission(manifest,envelopes,policy) {
     seen.add(row);
     if(receipt.schemaVersion!==1 || receipt.sourceRevision!==manifest.sourceRevision || receipt.version!==manifest.version
       || receipt.inventorySha256!==inventory || receipt.fromVersion!==policy.previousVersion || receipt.previousCatalogCommit!==policy.previousCatalogCommit
-      || receipt.fromRepository!=='tensorviz-org/tensorviz-plugins' || receipt.toRepository!=='tensorviz-org/tensorviz'
+      || receipt.fromRepository!==(receipt.client==='extension'?'tensorviz-org/tensorviz':'tensorviz-org/tensorviz-plugins') || receipt.toRepository!=='tensorviz-org/tensorviz'
       || receipt.clientVersion!==policy.clientVersions?.[receipt.client] || typeof receipt.clientVersion!=='string'
       || !/^[a-f0-9]{64}$/.test(receipt.logSha256??'') || !Number.isFinite(Date.parse(receipt.completedAt))) throw Error('Evidence provenance mismatch');
     for(const check of ['cleanInstall','upgrade','rollback','preservedSettings','nativeCapture','noTorchStartup','missingTorchGuidance','sourceMigration']) {

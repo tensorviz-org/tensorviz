@@ -54,26 +54,6 @@ export async function publishSourceAssets({version, sourceRevision, assets}, tra
   return {repository,tag,sourceRevision,assets:names};
 }
 
-export async function publishSourceCandidate(directory, {transport, reviewedSource, approvedMigration} = {}) {
-  if (process.env.TENSORVIZ_PUBLIC_CUTOVER !== 'true') throw Error('Public cutover is not enabled');
-  if (process.env.TLDRAW_DISTRIBUTION_CONFIRMED !== 'true') throw Error('Renderer distribution approval required');
-  const {verifyReleaseCandidate} = await import('./release-candidate.mjs');
-  const release = await verifyReleaseCandidate(directory,{publishing:true});
-  if (release.sourceRevision !== reviewedSource || !/^[a-f0-9]{40}$/.test(reviewedSource ?? '')) throw Error('Reviewed source mismatch');
-  // Migration validator is deliberately mandatory; no generic boolean waiver.
-  if (typeof approvedMigration !== 'function') throw Error('Canonical-client migration validator not wired; activation blocked');
-  await approvedMigration(release);
-  const files = {...release.files, 'release.json':digest(await fs.readFile(path.join(directory,'release.json')))};
-  const assets = Object.create(null);
-  for (const [name,sha256] of Object.entries(files)) {
-    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name)) throw Error('Unsafe candidate asset path');
-    const filename = path.join(directory,name);
-    if (!(await fs.lstat(filename)).isFile()) throw Error('Asset must be a regular file');
-    assets[name] = {bytes:await fs.readFile(filename),sha256};
-  }
-  return publishSourceAssets({...release,assets},transport);
-}
-
 // Transport performs only additive release operations; never source/catalog mutations.
 export function githubTransport(directory, {command=execFileSync} = {}) {
   const run = args => command('gh',args,{encoding:'utf8',maxBuffer:1024*1024*8});

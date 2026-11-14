@@ -105,3 +105,11 @@ not a claim those channels have been published or are fully automated.
 Canonical1.x public document rendering now rewrites installation repository
 commands/current URLs and stale private-source assertions while preserving old
 versioned asset URLs. Actual installed-client acceptance remains required.
+
+Extension evidence names core as both the old and new source repository, because
+extension releases already originate there. Its `sourceMigration` check confirms
+preserved marketplace identity and source routing, not a fictitious move from the
+plugin repository. Plugin-client evidence names the legacy plugin repository as
+the prior source. Bundle manifest/evidence bytes and VSIX metadata are snapshotted
+before validation and reused for upload; later input-path replacements cannot
+change the bytes admitted for publication.

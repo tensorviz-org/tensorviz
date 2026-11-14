@@ -146,7 +146,8 @@ test('managed availability and venv paths follow supported platform pins', async
   const manifest = JSON.parse(await fs.readFile(path.resolve(__dirname, '../../../runtime/python/manifest.json'), 'utf8'));
   for (const [osName, cpu, available] of [
     ['darwin', 'arm64', true], ['linux', 'x64', true], ['win32', 'x64', true],
-    ['linux', 'arm64', false], ['darwin', 'x64', true],
+    ['linux', 'arm64', true], ['darwin', 'x64', true], ['win32', 'arm64', true],
+    ['freebsd', 'x64', false],
   ]) {
     // Isolate process and path together: changing process.platform alone leaves
     // Linux path.join semantics in place and cannot catch Windows path bugs.

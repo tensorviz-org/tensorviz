@@ -202,6 +202,20 @@ def inspect_environment(requirements: Path = REQUIREMENTS) -> dict:
             "environment": environment, "fingerprint": digest(json.dumps(identity(), sort_keys=True).encode())}
 
 
+def torch_unavailable(stderr: str) -> str:
+    """PyPI has never published a PyTorch sdist, so a source build cannot supply a missing wheel."""
+    info = environment_info()
+    system = {"darwin": "macOS", "win32": "Windows", "linux": "Linux"}.get(info["platform"], info["platform"])
+    # pip lists only version numbers here; nothing else from its output is forwarded.
+    found = re.search(r"\(from versions: ([0-9A-Za-z.+!, ]{1,4000})\)", stderr)
+    versions = found.group(1).split(", ") if found else []
+    newest = ("; it has none for this platform" if versions == ["none"]
+              else f"; the newest available there is {versions[-1]}" if versions else "")
+    return (f"The package index has no PyTorch build matching this requirement for {system} {info['architecture']} "
+            f"with Python {info['python']}{newest}. PyTorch is published only as prebuilt wheels, so no source build "
+            "is offered. Select an environment that already has a compatible PyTorch.")
+
+
 def pip_run(arguments: list[str]) -> None:
     result = subprocess.run([sys.executable, "-m", "pip", *(['--python', TARGET_PYTHON] if TARGET_PYTHON else []), "--disable-pip-version-check",
                              "--isolated", "--no-input", *arguments], capture_output=True, text=True,
@@ -220,6 +234,8 @@ def pip_run(arguments: list[str]) -> None:
         if "no matching distribution found" in detail or "could not find a version that satisfies" in detail:
             named = re.search(r"no matching distribution found for ([A-Za-z0-9][A-Za-z0-9_.,<>=!~*\[\] -]{0,120})", result.stderr, re.IGNORECASE)
             requirement = named.group(1).strip() if named else None
+            if requirement and canonical(re.match(r"[\w.-]+", requirement)[0]) == "torch":
+                raise SetupError(torch_unavailable(result.stderr), "PACKAGE_UNAVAILABLE", requirement)
             if "--only-binary=:all:" in arguments:
                 raise SetupError("No compatible wheel satisfies these requirements in this environment. A reviewed source build may be required.", "NO_COMPATIBLE_WHEEL", requirement)
             raise SetupError("No distribution satisfies these requirements for this Python/platform. Check the package names and supported versions.", "PACKAGE_UNAVAILABLE", requirement)

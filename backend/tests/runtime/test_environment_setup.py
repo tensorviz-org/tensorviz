@@ -1013,6 +1013,44 @@ def test_unavailable_requirement_is_named_without_forwarding_pip_output(monkeypa
     assert 'secret' not in str(error.value)
 
 
+INTEL_MAC = {'platform': 'darwin', 'architecture': 'x86_64', 'python': '3.12.13'}
+
+
+@pytest.mark.parametrize(('stderr', 'requirement', 'availability'), [
+    # Intel Mac: newer PyTorch has no x86_64 wheel; pip still lists the older ones.
+    ('ERROR: Could not find a version that satisfies the requirement torch==2.14.1 (from versions: 2.2.0, 2.2.1, 2.2.2)\n'
+     'ERROR: No matching distribution found for torch==2.14.1', 'torch==2.14.1', 'the newest available there is 2.2.2'),
+    # Managed CPU pin on a platform the CPU index does not cover.
+    ('ERROR: Could not find a version that satisfies the requirement torch==2.14.1+cpu (from versions: none)\n'
+     'ERROR: No matching distribution found for torch==2.14.1+cpu', 'torch==2.14.1', 'it has none for this platform'),
+])
+@pytest.mark.parametrize('arguments', [['install', '--dry-run', '--only-binary=:all:'], ['install', '--dry-run']])
+def test_missing_pytorch_wheel_is_reported_as_unavailable_not_as_a_source_build(monkeypatch, stderr, requirement, availability, arguments):
+    # NO_COMPATIBLE_WHEEL makes both hosts ask to build from source. PyPI has never
+    # published a PyTorch sdist, so that approval could only end in a second failure.
+    stderr += '\nLooking in indexes: https://user:secret@index.example/simple'
+    monkeypatch.setattr(setup.subprocess, 'run', lambda *a, **k: SimpleNamespace(returncode=1, stderr=stderr))
+    monkeypatch.setattr(setup, 'environment_info', lambda: INTEL_MAC)
+    with pytest.raises(setup.SetupError) as error:
+        setup.pip_run(arguments)
+    assert error.value.code == 'PACKAGE_UNAVAILABLE'
+    assert error.value.requirement == requirement
+    message = str(error.value)
+    assert 'PyTorch' in message and 'macOS x86_64 with Python 3.12.13' in message and availability in message
+    assert 'source build is offered' in message and 'Check the package names' not in message
+    assert 'secret' not in message and 'index.example' not in message
+
+
+@pytest.mark.parametrize('package', ['torch-geometric==2.6.1', 'torchvision==0.29.1', 'fairscale'])
+def test_other_unavailable_wheels_still_offer_a_reviewed_source_build(monkeypatch, package):
+    monkeypatch.setattr(setup.subprocess, 'run', lambda *a, **k: SimpleNamespace(
+        returncode=1, stderr=f'ERROR: No matching distribution found for {package}'))
+    with pytest.raises(setup.SetupError) as error:
+        setup.pip_run(['install', '--dry-run', '--only-binary=:all:'])
+    assert error.value.code == 'NO_COMPATIBLE_WHEEL'
+    assert error.value.requirement == package
+
+
 def test_managed_cpu_policy_preserves_additive_planner_and_exact_request(tmp_path, monkeypatch):
     observed = []
     def record(directory, requirements, **options):

@@ -185,10 +185,10 @@ keywords. Use named constructor arguments in the original source and project it 
 before exporting, or run the original source. Other generated parameters are checked
 against the identifier grammar; without PyTorch, no constructor signature is assumed.
 
-The managed runtime still installs PyTorch (`backend/requirements.txt` and
-`backend/requirements-cpu.txt`). The service probe in `extension/src/runtime.ts`
-(`BACKEND_PROBE`) imports `server_v2`, which no longer imports PyTorch. The
-probe therefore accepts a backend interpreter without PyTorch.
+Managed service setup installs `backend/requirements-standalone.txt`, without
+PyTorch. The service probe in `extension/src/runtime.ts` (`BACKEND_PROBE`)
+imports `server_v2`, which no longer imports PyTorch. Readiness therefore confirms
+service availability, not that a model capture environment has its frameworks.
 
 `backend/tests/runtime/test_server_v2_without_torch.py` starts the service with
 `torch` imports blocked as missing and as broken. It runs with or without
@@ -203,11 +203,10 @@ service. **Open as Graph** requires the separate TensorViz service setup; approv
 that setup or retry **Repair Runtime** after correcting its reported prerequisite.
 The selected model interpreter retains its installed Torch/CUDA versions.
 
-New TensorViz-owned Linux/Windows environments request Torch 2.14.1+cpu from the
-official PyTorch CPU index. The extension also requests torchvision 0.29.1+cpu.
-This CPU policy selects a new managed cache identity; existing live managed
-and user environments are preserved. Missing CPU wheels fail setup without
-falling back to a source build or a GPU distribution.
+The full development requirements (`backend/requirements-cpu.txt`) still request
+Torch 2.14.1+cpu and torchvision 0.29.1+cpu on Linux/Windows. They are not used by
+managed service setup. Model capture dependencies are separately reviewed for the
+selected environment; existing user Torch/CUDA installations are preserved.
 
 
 ### Managed service and model frameworks

@@ -64,6 +64,10 @@ If only the project’s version pins differ, choose **Try with installed version
 
 ## Fix a setup problem
 
+Installed capture libraries can still fail to load. When the capture check fails,
+that interpreter is marked **Capture check failed** in the environment list.
+Choose another environment, or repair the reported issue and check it again.
+
 | Problem | What to try |
 | --- | --- |
 | Python is missing or incompatible | Select a compatible interpreter from the prompt |

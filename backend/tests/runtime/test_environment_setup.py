@@ -1067,3 +1067,35 @@ def test_managed_cpu_refuses_gpu_payload_before_review(tmp_path, monkeypatch):
     monkeypatch.setattr(setup, 'plan', lambda *args, **kwargs: {'packages': [{'name': 'nvidia-cublas-cu13'}]})
     with pytest.raises(setup.SetupError, match='GPU dependencies'):
         setup.plan_packages(tmp_path, ['torch==2.14.1+cpu'], managed_cpu=True)
+
+
+@pytest.mark.parametrize("versions", [
+    "PRIVATE INDEX TOKEN secretABC123",
+    "2.2.2, https://user:secret@index.example",
+    "2.2.2, malformed-entry",
+])
+def test_pytorch_unavailable_does_not_forward_unvalidated_index_text(monkeypatch, versions):
+    monkeypatch.setattr(setup, "environment_info", lambda: INTEL_MAC)
+    message = setup.torch_unavailable(f"ERROR: (from versions: {versions})")
+    assert "newest available" not in message
+    assert "secret" not in message
+    assert "PRIVATE" not in message
+    assert "index.example" not in message
+
+
+def test_pytorch_unavailable_uses_semantic_version_order(monkeypatch):
+    monkeypatch.setattr(setup, "environment_info", lambda: INTEL_MAC)
+    message = setup.torch_unavailable("ERROR: (from versions: 2.10.0, 2.9.0)")
+    assert "the newest available there is 2.10.0" in message
+
+
+def test_pytorch_unavailable_omits_details_without_version_parser(monkeypatch):
+    import builtins
+    original_import = builtins.__import__
+    def no_version_parser(name, *args, **kwargs):
+        if name in {"packaging.version", "pip._vendor.packaging.version"}:
+            raise ImportError("version parser unavailable")
+        return original_import(name, *args, **kwargs)
+    monkeypatch.setattr(builtins, "__import__", no_version_parser)
+    monkeypatch.setattr(setup, "environment_info", lambda: INTEL_MAC)
+    assert "newest available" not in setup.torch_unavailable("ERROR: (from versions: 2.10.0)")

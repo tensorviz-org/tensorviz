@@ -206,11 +206,23 @@ def torch_unavailable(stderr: str) -> str:
     """PyPI has never published a PyTorch sdist, so a source build cannot supply a missing wheel."""
     info = environment_info()
     system = {"darwin": "macOS", "win32": "Windows", "linux": "Linux"}.get(info["platform"], info["platform"])
-    # pip lists only version numbers here; nothing else from its output is forwarded.
-    found = re.search(r"\(from versions: ([0-9A-Za-z.+!, ]{1,4000})\)", stderr)
-    versions = found.group(1).split(", ") if found else []
-    newest = ("; it has none for this platform" if versions == ["none"]
-              else f"; the newest available there is {versions[-1]}" if versions else "")
+    # Treat installer output as untrusted. Only validated PEP 440 versions may
+    # reach the UI; never echo arbitrary text from the index or rely on list order.
+    found = re.search(r"\(from versions: ([^\r\n)]{1,4000})\)", stderr)
+    newest = ""
+    if found and found.group(1).strip() == "none":
+        newest = "; it has none for this platform"
+    elif found:
+        try:
+            try:
+                from packaging.version import Version
+            except ImportError:
+                from pip._vendor.packaging.version import Version
+            versions = [Version(value.strip()) for value in found.group(1).split(",")]
+            if versions:
+                newest = f"; the newest available there is {max(versions)}"
+        except (ImportError, ValueError):
+            pass  # Missing parser or any malformed entry: omit index detail entirely.
     return (f"The package index has no PyTorch build matching this requirement for {system} {info['architecture']} "
             f"with Python {info['python']}{newest}. PyTorch is published only as prebuilt wheels, so no source build "
             "is offered. Select an environment that already has a compatible PyTorch.")

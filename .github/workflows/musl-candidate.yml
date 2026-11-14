@@ -24,7 +24,7 @@ jobs:
           TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
         run: |
           docker run --rm --platform linux/amd64 \
-            -v "$PWD:/repo" -w /repo \
+            -v "$PWD:/tensorviz-native-build/reviewed-source" -w /tensorviz-native-build/reviewed-source \
             -e TLDRAW_LICENSE_KEY -e TLDRAW_DISTRIBUTION_CONFIRMED \
             -e TENSORVIZ_REVIEWED_SOURCE_SHA="${{ github.sha }}" \
             alpine:3.24.4 sh plugin/scripts/test-musl-candidate.sh

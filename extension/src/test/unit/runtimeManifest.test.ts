@@ -17,8 +17,10 @@ suite('runtimeManifest', () => {
     assert.equal(runtimePlatformKey('darwin', 'arm64'), 'darwin-arm64');
     assert.equal(runtimePlatformKey('linux', 'x64'), 'linux-x64');
     assert.equal(runtimePlatformKey('win32', 'x64'), 'win32-x64');
+    assert.equal(runtimePlatformKey('linux', 'arm64'), 'linux-arm64');
+    assert.equal(runtimePlatformKey('win32', 'arm64'), 'win32-arm64');
 
-    for (const key of ['darwin-arm64', 'linux-x64', 'win32-x64']) {
+    for (const key of ['darwin-arm64', 'linux-x64', 'win32-x64', 'linux-arm64', 'win32-arm64']) {
       const selection = selectRuntimeAsset(manifest, key.split('-')[0] as NodeJS.Platform, key.split('-')[1]);
       assert.equal(selection.ok, true, key);
       if (!selection.ok) return;

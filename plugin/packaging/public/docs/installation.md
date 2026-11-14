@@ -123,17 +123,27 @@ and extracts separate session files. See [runtime details](../BUILD.md).
 ## Update or remove
 
 To update, download the new catalog ZIP, keep the previous complete folder for
-rollback, and replace the catalog directory with the complete new export. Do not
-merge files from different releases. Then refresh Codex:
+rollback, and replace the catalog directory at its registered path with the
+complete new export. Do not merge files from different releases. Then reinstall
+the plugin from that local catalog:
+
+```sh
+codex plugin add tensorviz@tensorviz-standalone --json
+```
+
+`marketplace upgrade` only refreshes Git marketplaces; it rejects a marketplace
+registered from a local folder. If you registered the marketplace from Git
+instead of an extracted catalog, refresh it before reinstalling:
 
 ```sh
 codex plugin marketplace upgrade tensorviz-standalone
 codex plugin add tensorviz@tensorviz-standalone --json
 ```
 
-Run both commands in the same execution environment and Codex profile as the
-failing chat. Confirm `version` and `installedPath` in the install result, then
-start a new chat or restart the client. A catalog refresh alone can leave the old
+Run the commands for your marketplace source in the same execution environment
+and Codex profile as the failing chat. Confirm `version` and `installedPath` in
+the install result, then start a new chat or restart the client. A catalog refresh
+alone can leave the old
 plugin cache installed; `plugin list` is not sufficient evidence of replacement.
 Updating your Mac does not update a separate Linux/remote/cloud profile.
 

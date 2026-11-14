@@ -50,6 +50,17 @@ for (const broken of [false, true]) {
 const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'TensorViz Unix 测试 space ')));
 let server, child, lines, primaryError, diagnostics = '', downloads = 0, nextId = 0, unexpectedRequests = 0, shutdownMethod = 'eof';
 const pending = new Map();
+const closedThreads = new Set();
+const lifecycleSnapshots = [];
+const snapshot = async label => {
+  const sessions = (await fs.readdir(root)).filter(p => p.startsWith('tensorviz-native.'));
+  let processes = '';
+  try { processes = execFileSync('/bin/ps', ['-axo', 'pid=,ppid=,pgid=,args='], {encoding: 'utf8', timeout: 5000})
+    .split('\n').filter(line => line.includes(root)).join('\n'); } catch (error) { processes = String(error.message); }
+  lifecycleSnapshots.push({label, sessions, processes});
+  await fs.writeFile(path.join(output, 'lifecycle.json'), JSON.stringify(lifecycleSnapshots, null, 2));
+  return sessions;
+};
 const exited = () => !child || child.exitCode !== null || child.signalCode !== null;
 const waitForExit = milliseconds => new Promise(resolve => {
   if (exited()) return resolve();
@@ -114,12 +125,13 @@ try {
     return true;
   });
   assert.equal(downloads, 0); assert.deepEqual(await fs.readdir(cache), []);
-  child = spawn(codex, ['app-server', '--stdio'], {env: cenv, cwd: project, detached: true, stdio: ['pipe', 'pipe', 'pipe']});
+  child = spawn(codex, ['app-server', '--stdio', '-c', 'thread_unload_delay_secs=0'], {env: cenv, cwd: project, detached: true, stdio: ['pipe', 'pipe', 'pipe']});
   child.stderr.on('data', chunk => { diagnostics = (diagnostics + chunk.toString()).slice(-1024 * 1024); });
   child.on('error', error => { for (const entry of pending.values()) { clearTimeout(entry.timer); entry.reject(error); } pending.clear(); });
   lines = createInterface({input: child.stdout});
   lines.on('line', line => {
     let message; try { message = JSON.parse(line); } catch { return; }
+    if (message.method === 'thread/closed' && message.params?.threadId) closedThreads.add(message.params.threadId);
     if (message.id !== undefined && pending.has(message.id)) {
       const entry = pending.get(message.id); pending.delete(message.id); clearTimeout(entry.timer);
       message.error ? entry.reject(new Error(JSON.stringify(message.error))) : entry.resolve(message.result);
@@ -146,6 +158,7 @@ try {
   for (const name of ['list_models', 'get_model_context', 'open_graph', 'open_graph_panel', 'get_execution_environment']) assert.ok(tools.some(t => t.name === name), name);
   for (const name of ['get_pending_permission', 'present_permission', 'get_machine_info', 'read_project_file', 'request_project_command', 'get_project_command']) assert.ok(!tools.some(t => t.name === name), `Private tool leaked: ${name}`);
   const handshakeMs = Date.now() - start;
+  await snapshot('after-discovery');
   // Codex may initialize multiple transports concurrently. Each launcher uses
   // its own verified temporary download and atomically commits the cache.
   assert.ok(downloads >= 1, 'Cold installed startup must download the runtime');
@@ -160,7 +173,24 @@ try {
   assert.equal(unexpectedRequests, 0, 'Static discovery must not request consent or execute agents/models');
   const saved = await fs.readdir(state, {recursive: true});
   assert.ok(!saved.some(p => /(^|\/)(permissions|workspaces|runtimes|venvs)(\/|$)/.test(p)), 'Discovery must not provision or persist permission');
+  await snapshot('before-thread-unsubscribe');
+  const unsubscribed = await request('thread/unsubscribe', {threadId});
+  assert.equal(unsubscribed.status, 'unsubscribed');
+  // Let Codex shut down its separately grouped MCP processes while the owner
+  // is alive. Killing app-server first bypasses its managed thread teardown.
+  for (let attempt = 0; attempt < 300 && !closedThreads.has(threadId); attempt++)
+    await new Promise(resolve => setTimeout(resolve, 100));
+  assert.ok(closedThreads.has(threadId), 'Codex must confirm thread/closed after unsubscribe');
+  await snapshot('after-thread-closed');
+  let managedSessions = [];
+  for (let attempt = 0; attempt < 30; attempt++) {
+    managedSessions = (await fs.readdir(root)).filter(p => p.startsWith('tensorviz-native.'));
+    if (!managedSessions.length) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.deepEqual(managedSessions, [], 'Extracted runtime leaked after managed thread shutdown, before terminating client');
   await stop();
+  await snapshot('after-client-stop');
   assert.notEqual(shutdownMethod, 'sigkill', 'Client must shut down without SIGKILL');
   assert.ok(exited(), 'Client process must have exited before cleanup verification');
   let sessions = [];
@@ -176,10 +206,10 @@ try {
   cli(['plugin', 'remove', 'tensorviz@tensorviz-standalone']);
   assert.equal(JSON.parse(cli(['mcp', 'list', '--json'])).length, 0, 'Plugin MCP registration must be removed');
   const result = {platform: target.key, version: lock.version, sourceRevision: release.sourceRevision, runtimeSha256: lock.sha256, codexVersion, toolCount: tools.length, handshakeMs, coldDownloadCount, shutdownMethod,
-    passed: ['real native archive', 'installed production Unix catalog', 'untrusted TLS rejected', 'cold verified HTTPS download', 'verified warm cache reuse', 'Codex app-server MCP discovery', 'safe static tools', 'no Torch or model execution', 'compiled missing/broken Torch diagnostics', 'no consent or service provisioning', 'graceful client shutdown cleanup', 'plugin removal'],
+    passed: ['real native archive', 'installed production Unix catalog', 'untrusted TLS rejected', 'cold verified HTTPS download', 'verified warm cache reuse', 'Codex app-server MCP discovery', 'safe static tools', 'no Torch or model execution', 'compiled missing/broken Torch diagnostics', 'no consent or service provisioning', 'managed thread unsubscribe and client shutdown cleanup', 'plugin removal'],
     limitations: ['No browser UI or model capture', 'Codex client shutdown may require SIGTERM; this is not an EOF-only lifecycle test', 'Uses local HTTPS trusted CA, not public CDN', 'Linux shell metadata needs system Python3; no caller Python used by the runtime']};
   await fs.writeFile(path.join(output, 'result.json'), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
-} catch (error) { primaryError = error; await fs.writeFile(path.join(output, 'failure.txt'), String(error.stack ?? error)); throw error; }
+} catch (error) { primaryError = error; await snapshot('failure').catch(() => {}); await fs.writeFile(path.join(output, 'failure.txt'), String(error.stack ?? error)); throw error; }
 finally {
   for (const entry of pending.values()) { clearTimeout(entry.timer); entry.reject(new Error('Acceptance shutting down')); } pending.clear();
   await stop(); lines?.close();

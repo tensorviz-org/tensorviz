@@ -148,6 +148,14 @@ jobs:
           path: plugin/out/unix-production-mcp/
           if-no-files-found: warn
           retention-days: 7
+      - name: Retain failed candidate archive for private diagnosis only
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-unverified-runtime-${{ runner.os }}-${{ runner.arch }}
+          path: plugin/dist/tensorviz-runtime-*.tar.gz*
+          if-no-files-found: warn
+          retention-days: 3
       - name: Retain candidate runtime for further acceptance, not publication
         uses: actions/upload-artifact@v4
         with:

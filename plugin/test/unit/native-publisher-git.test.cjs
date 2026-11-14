@@ -20,7 +20,7 @@ test('real Git publishes only public export history and safely retries', async t
   }
   t.after(() => { for (const [key, value] of Object.entries(saved)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
   const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
-  const init = async name => { const dir = path.join(root, name); await fs.mkdir(dir); git(dir, 'init', '-q', '-b', 'main'); git(dir, 'config', 'user.name', 'Fixture'); git(dir, 'config', 'user.email', 'fixture@example.invalid'); return dir; };
+  const init = async name => { const dir = path.join(root, name); await fs.mkdir(dir); git(dir, 'init', '-q'); git(dir, 'symbolic-ref', 'HEAD', 'refs/heads/main'); git(dir, 'config', 'user.name', 'Fixture'); git(dir, 'config', 'user.email', 'fixture@example.invalid'); return dir; };
   const source = await init('private-source');
   await fs.writeFile(path.join(source, 'private-core.txt'), 'PRIVATE SOURCE MUST NEVER BE EXPORTED');
   git(source, 'add', '.'); git(source, 'commit', '-qm', 'private source');

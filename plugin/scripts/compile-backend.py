@@ -42,6 +42,15 @@ class PrivateImports(ast.NodeTransformer):
         return node
 
 
+def python_abi():
+    abi = sysconfig.get_config_var('SOABI')
+    if abi is None and sys.platform == 'win32':
+        suffix = sysconfig.get_config_var('EXT_SUFFIX') or ''
+        if suffix.startswith('.cp') and suffix.endswith('.pyd'):
+            abi = suffix[1:-4]
+    return abi
+
+
 def compile_backend(source, build, destination):
     targets = {
         ('darwin', 'arm64'): 'cpython-312-darwin',
@@ -54,8 +63,8 @@ def compile_backend(source, build, destination):
     expected_abi = targets.get((sys.platform, platform.machine()))
     if not expected_abi or sys.version_info[:2] != (3, 12):
         raise RuntimeError('Native builds require a supported x64/ARM64 platform and CPython 3.12.')
-    if sysconfig.get_config_var('SOABI') != expected_abi:
-        raise RuntimeError('Unsupported native Python ABI: ' + str(sysconfig.get_config_var('SOABI')))
+    if python_abi() != expected_abi:
+        raise RuntimeError('Unsupported native Python ABI: ' + str(python_abi()))
     if version('nuitka') != '2.8.10':
         raise RuntimeError('Use the pinned Nuitka 2.8.10 compiler; 4.2.2 fails on a Python 3.12 finally/list-comprehension case.')
     source, build, destination = map(Path, (source, build, destination))
@@ -74,18 +83,18 @@ def compile_backend(source, build, destination):
         "    if entry == 'services/ide/environment_setup.py' and arguments == ['probe-capture']:\n"
         "        try:\n"
         "            import torch\n"
+        "            if torch.nn.Module.__call__ is torch.nn.Module._call_impl:\n"
+        "                print(json.dumps(dict(ok=False, code='CAPTURE_RUNTIME_UNSUPPORTED', message='This PyTorch build uses an unsupported legacy module dispatcher. TensorViz started; choose a compatible capture environment.')))\n"
+        "                return 1\n"
+        "            importlib.import_module(__name__ + '.services.ingest.worker')\n"
+        "            print(json.dumps(dict(ok=True, torch=torch.__version__, cuda=torch.version.cuda, executable=sys.executable)))\n"
+        "            return 0\n"
         "        except ModuleNotFoundError as error:\n"
         "            print(json.dumps(dict(ok=False, code='MISSING_DEPENDENCIES', message=f'Missing capture library: {error.name}. The TensorViz runtime is available; select a Python environment with capture dependencies.')))\n"
         "            return 1\n"
-        "        except (ImportError, OSError) as error:\n"
-        "            print(json.dumps(dict(ok=False, code='CAPTURE_RUNTIME_UNSUPPORTED', message=f'PyTorch could not load its native libraries ({type(error).__name__}). TensorViz started; choose a compatible capture environment.')))\n"
+        "        except Exception as error:\n"
+        "            print(json.dumps(dict(ok=False, code='CAPTURE_RUNTIME_UNSUPPORTED', message=f'The selected capture environment could not load PyTorch or its worker ({type(error).__name__}). TensorViz started; choose a compatible capture environment.')))\n"
         "            return 1\n"
-        "        if torch.nn.Module.__call__ is torch.nn.Module._call_impl:\n"
-        "            print(json.dumps(dict(ok=False, code='CAPTURE_RUNTIME_UNSUPPORTED', message='This PyTorch build uses an unsupported legacy module dispatcher. Choose a compatible environment.')))\n"
-        "            return 1\n"
-        "        importlib.import_module(__name__ + '.services.ingest.worker')\n"
-        "        print(json.dumps(dict(ok=True, torch=torch.__version__, cuda=torch.version.cuda, executable=sys.executable)))\n"
-        "        return 0\n"
         "    module = importlib.import_module(__name__ + '.' + ENTRIES[entry])\n"
         "    return module.main()\n"
     )
@@ -121,7 +130,7 @@ def compile_backend(source, build, destination):
             shutil.copy2(file, public_data)
     (destination / "native-backend.json").write_text(json.dumps({
         "formatVersion": 1, "namespace": NAMESPACE,
-        "abi": sysconfig.get_config_var("SOABI"), "architecture": platform.machine(), "binary": binary.name,
+        "abi": python_abi(), "architecture": platform.machine(), "binary": binary.name,
         "entries": list(ENTRIES),
     }, indent=2) + "\n")
 

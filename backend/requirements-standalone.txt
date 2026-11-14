@@ -1,5 +1,5 @@
-# Initial verified standalone CPU runtime. Existing environments are never repinned.
-torch==2.14.1
+# Tool service and dependency planner only. Model libraries belong to a separately
+# reviewed capture environment (requirements-capture.txt), never this service.
 fastapi>=0.116,<1
 uvicorn>=0.35,<1
 libcst>=1.4,<2
@@ -10,3 +10,4 @@ numpy
 httpx
 requests
 websockets>=12
+

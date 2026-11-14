@@ -35,6 +35,7 @@ class SetupError(ValueError):
 
 REQUIREMENTS = Path(__file__).resolve().parents[2] / "requirements-project.txt"
 CAPTURE_REQUIREMENTS = REQUIREMENTS.parent / "requirements-capture.txt"
+SERVICE_REQUIREMENTS = REQUIREMENTS.parent / "requirements-standalone.txt"
 # One helper process serves one explicit target. The manager owns pip/packaging;
 # all environment facts and installed packages must come from the target.
 TARGET_PYTHON: str | None = None
@@ -1090,6 +1091,9 @@ def main(probe_backend=None, *, requirements=REQUIREMENTS, minimum_python=(3, 10
         elif action == "inspect-capture":
             with one_snapshot():
                 result = inspect_environment(CAPTURE_REQUIREMENTS)
+        elif action == "inspect-service":
+            with one_snapshot():
+                result = inspect_environment(SERVICE_REQUIREMENTS)
         elif action == "probe-capture":
             result = probe_capture()
         elif action == "inspect-runtime":
@@ -1151,3 +1155,4 @@ def main(probe_backend=None, *, requirements=REQUIREMENTS, minimum_python=(3, 10
 
 if __name__ == "__main__":
     main()
+

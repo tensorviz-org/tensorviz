@@ -1150,7 +1150,9 @@ class CodeParserService:
                         args.setdefault(parameter.name, default)
                 if layer_type == "RNN":
                     args.setdefault("nonlinearity", "tanh")
-            except (AttributeError, TypeError, ValueError):
+            except (ImportError, OSError, AttributeError, TypeError, ValueError):
+                # The static tool service deliberately has no model framework.
+                # Keep explicit arguments; absent signatures cannot prove defaults.
                 pass
         return {"target": layer_type, "arguments": args}
 

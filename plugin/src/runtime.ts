@@ -143,7 +143,7 @@ export class ManagedRuntime {
         await installStandaloneDependencies({ workspaceRoot: root, python: interpreter, prefix, backendDir: this.backend,
           storage: path.join(this.storage, 'temporary'), packages, managedCpu: process.platform === 'linux' || process.platform === 'win32', signal, approvals: this.approvals,
           current: async () => { check(); return await fs.readFile(record, 'utf8') === owner; } });
-        const inspected = await runEnvironmentHelper(interpreter, this.backend, [role === 'service' ? 'inspect' : 'inspect-capture'], () => signal.aborted, true, true);
+        const inspected = await runEnvironmentHelper(interpreter, this.backend, [role === 'service' ? 'inspect-service' : 'inspect-capture'], () => signal.aborted, true, true);
         check();
         if (!inspected.ok || inspected.missing?.length || inspected.incompatible?.length) throw new HostError('RUNTIME_INCOMPLETE', 'The managed environment still has missing or incompatible requirements. Inspect it and resume dependency repair.');
         await fs.writeFile(ready, owner, { mode: 0o600 });
@@ -152,3 +152,4 @@ export class ManagedRuntime {
     } finally { if (this.activity === activity) this.activity = undefined; }
   }
 }
+

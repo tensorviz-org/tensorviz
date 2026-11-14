@@ -30,6 +30,11 @@
       "triple": "aarch64-pc-windows-msvc",
       "interpreter": "python.exe",
       "sha256": "72f4713d056a17961bdba7b43be82a878035040fa1eee30cfd5e43b91a2852d9"
+    },
+    "darwin-x64": {
+      "triple": "x86_64-apple-darwin",
+      "interpreter": "bin/python3",
+      "sha256": "65b195c9cedc1fef6767f044f9822069adbd1bd9204d424ece4628776fdc04bb"
     }
   }
 }

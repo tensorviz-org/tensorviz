@@ -6,12 +6,12 @@ from collections import defaultdict, deque
 from models.graph_models import Graph, Node, Edge, HierarchicalGraph, ModuleDefinition
 from core.layer_builder import call_module
 from core.op_registry import normalized_parameter
+from core.source_ops import SOURCE_OPS as _SOURCE_OPS
 
 
 #: Ops that PRODUCE a tensor without consuming one — a second root, not a step in the
 #: chain. They have no input to check, no path from the graph's input, and no frame for
 #: the tracer to enter, so the shape engine skips them rather than reporting all three.
-_SOURCE_OPS = {"parameter", "buffer"}
 
 
 def _bare_op(name: object) -> str:

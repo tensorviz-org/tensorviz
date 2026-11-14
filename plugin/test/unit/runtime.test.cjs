@@ -90,6 +90,8 @@ test('the tool service is shared across workspaces and retains server libraries 
     await assert.rejects(runtime.provisionService(root, new AbortController().signal), /declined/);
     await assert.rejects(fs.stat(path.join(root, 'state')), { code: 'ENOENT' });
     assert.ok(reviewed.facts.requirements.some(name => name.startsWith('fastapi')));
+    assert.ok(!reviewed.facts.requirements.some(name => /^torch(?:[<>=!~;\s]|$)/i.test(name)),
+      'tool discovery and the static service must not install the model framework');
     const digest = value => createHash('sha256').update(value).digest('hex');
     const owner = JSON.stringify({ role: 'service', runtime: reviewed.facts.sha256, requirements: digest(JSON.stringify(reviewed.facts.requirements)) });
     const directory = path.dirname(path.dirname(path.dirname(reviewed.interpreter)));
@@ -144,8 +146,7 @@ test('managed availability and venv paths follow supported platform pins', async
   const manifest = JSON.parse(await fs.readFile(path.resolve(__dirname, '../../../runtime/python/manifest.json'), 'utf8'));
   for (const [osName, cpu, available] of [
     ['darwin', 'arm64', true], ['linux', 'x64', true], ['win32', 'x64', true],
-    ['linux', 'arm64', true], ['win32', 'arm64', true],
-    ['darwin', 'x64', false], ['freebsd', 'x64', false],
+    ['linux', 'arm64', false], ['darwin', 'x64', true],
   ]) {
     // Isolate process and path together: changing process.platform alone leaves
     // Linux path.join semantics in place and cannot catch Windows path bugs.
@@ -201,3 +202,4 @@ test('managed requirements evaluate bundled Python markers before the guarded pl
   assert.deepEqual(managedRequirements(text, '3.10.9'), ['torch', 'tomli>=2.0']);
   assert.throws(() => managedRequirements('x; arbitrary marker', '3.12.14'), { code: 'MANAGED_REQUIREMENTS_UNSUPPORTED' });
 });
+

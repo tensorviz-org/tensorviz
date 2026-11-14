@@ -106,7 +106,11 @@ def known_constructor_parameters(layer_operation: str) -> Optional[FrozenSet[str
 
     try:
         import torch
-
+    except Exception:
+        # Code generation is static and runs without PyTorch, or with an install
+        # that fails to load. Callers still enforce the identifier grammar.
+        return None
+    try:
         target = getattr(torch.nn, canonical.removeprefix("nn."))
         signature = inspect.signature(target)
     except (AttributeError, TypeError, ValueError):

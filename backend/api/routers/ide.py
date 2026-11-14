@@ -734,10 +734,11 @@ def workspace_classes(
     """
     root = _resolve_scan_root(request.root)
 
-    # Imported here, not at module scope: services.ingest pulls in torch and the
-    # whole tracer, and this router's other two endpoints need neither.
+    # Imported here, not at module scope, and never from services.ingest.service:
+    # that module pulls in torch and the whole tracer, and this route is static.
+    # package_root is defined in services.validation.setup; the service re-exports it.
     from services.ingest.repo_scan import module_path_for, scan_repo
-    from services.ingest.service import package_root
+    from services.validation.setup import package_root
 
     scan = scan_repo(root)
     classes: List[Dict[str, Any]] = []

@@ -134,6 +134,66 @@ When `TENSORVIZ_LOCAL_TOKEN` is set, unauthenticated `GET /health` keeps `device
 
 The plugin service (`backend/standalone_server.py`) binds `127.0.0.1`, requires a launch token of at least 32 characters, and does not bind `0.0.0.0`. `backend/auth.py` accepts `AUTH_DISABLED` (the dev principal) and then the local token. Any other credential, including a bearer token, is 401. Firebase Admin is not a backend dependency.
 
+### Service without PyTorch
+
+The extension's service (`backend/server_v2.py`) starts without PyTorch.
+Model capture runs in the selected model interpreter, not in this service. The
+service loads PyTorch only in the routes that run layers. If PyTorch is missing
+or fails to load, these routes still work:
+
+- `/health`, which reports `environment.torch` as `null`.
+- `/api/ide/*`. Tests cover parse, multifile projection, the review index,
+  graph-setup discovery, and workspace and buffer classes. Every module the IDE
+  router imports also loads with PyTorch blocked.
+- Templates and the catalog, `/api/models/validate`, `/api/models/generate-code`,
+  `/api/code/parse`, `/api/code/export` and `/api/ingest/repo/scan`.
+
+These routes return HTTP 503:
+
+| Route | `feature` |
+| --- | --- |
+| `/api/models/infer-shapes` | Shape inference |
+| `/api/validate_shapes` | Shape validation |
+| `/api/models/verify` | Model verification |
+| `/api/models/export-package` | Package export |
+| `/api/models/export-onnx` | ONNX export |
+| `/api/ingest/libraries`, `/api/ingest/catalog` | Model library import |
+| `/api/ingest/model`, `/api/ingest/repo` | Model import |
+
+In IDE mode, `/api/ingest/model` and `/api/ingest/repo` still return 403
+`ide_mode_uses_worker` first. Export package returns its structural 422 before
+it checks PyTorch.
+
+```json
+{"detail": {"code": "pytorch_unavailable", "reason": "broken", "feature": "Shape inference",
+  "message": "Shape inference needs PyTorch, which is installed in the backend's Python environment but failed to load.",
+  "hint": "Graph projection, templates and code generation work without PyTorch. Install or repair PyTorch in this interpreter, then restart the tensorViz backend.",
+  "interpreter": "/path/to/python", "error": "OSError: …"}}
+```
+
+`reason` is `missing` when no `torch` package is installed. It is `broken` when
+PyTorch is installed but its import raises, for example from a missing native
+library or an ABI mismatch. Only `broken` includes `error`, which holds the
+exception type and its first line, at most 300 characters. The service keeps
+the first `broken` result until it restarts. A `missing` result is checked
+again on each request.
+
+Without PyTorch, static projection reads positional constructor arguments by
+name only for the recurrent layers. `nn.Linear(4, 3)` projects as `arg_0` and
+`arg_1`, because those names come from PyTorch's signatures. Export refuses unresolved `arg_N` parameters rather than emitting invalid constructor
+keywords. Use named constructor arguments in the original source and project it again
+before exporting, or run the original source. Other generated parameters are checked
+against the identifier grammar; without PyTorch, no constructor signature is assumed.
+
+The managed runtime still installs PyTorch (`backend/requirements.txt` and
+`backend/requirements-cpu.txt`). The service probe in `extension/src/runtime.ts`
+(`BACKEND_PROBE`) imports `server_v2`, which no longer imports PyTorch. The
+probe therefore accepts a backend interpreter without PyTorch.
+
+`backend/tests/runtime/test_server_v2_without_torch.py` starts the service with
+`torch` imports blocked as missing and as broken. It runs with or without
+pytest.
+
 ### Model Python and the local service
 
 **Select Python Environment** saves the interpreter for model execution even when

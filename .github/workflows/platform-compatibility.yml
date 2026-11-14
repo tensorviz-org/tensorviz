@@ -68,8 +68,9 @@ jobs:
           import path from 'node:path';
           import assert from 'node:assert/strict';
           import {nativePlatform} from './plugin/scripts/native-platforms.mjs';
+          import {stageWindowsArmPython} from './plugin/scripts/stage-windows-arm-python.mjs';
           const requested = process.platform === 'win32' && process.arch === 'arm64'
-            ? 'cpython-3.12.14-windows-aarch64-none' : '3.12.13';
+            ? await stageWindowsArmPython() : '3.12.13';
           for (const name of ['compiler-venv', 'service-venv'])
             execFileSync('uv', ['venv', '--python', requested, `plugin/out/${name}`], {stdio:'inherit'});
           const python = path.resolve('plugin/out/compiler-venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');

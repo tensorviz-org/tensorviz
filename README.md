@@ -9,7 +9,7 @@ Explore your PyTorch or JAX/Flax model as an interactive graph. Follow tensor sh
 
 ## Install
 
-**Coding-agent plugin** (preview: Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture):
+**Coding-agent plugin** (preview: Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.31), with CPython 3.12 and CPU capture):
 
 Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin.
 

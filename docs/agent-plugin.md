@@ -10,7 +10,7 @@ Use one TensorViz host per agent. Do not connect the same agent to both the plug
 
 Use your client’s terminal CLI. If it is not installed, start with the [installation requirements](install.md#plugin).
 
-The published plugin is a preview for Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js installation. Allow internet access for that first download.
+The published plugin is a preview for Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.31), with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js installation. Allow internet access for that first download.
 
 Codex:
 

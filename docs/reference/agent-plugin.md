@@ -79,7 +79,7 @@ a Unix shell. On Windows, run the installer with
 `node "C:\path to\tensorviz\plugins\tensorviz\scripts\install.cjs" --apply --host plugin`.
 Node.js 22+ must be on the coding client's PATH. The published compiled preview
 uses a separate compiled launcher for Apple Silicon macOS (ARM64) and Linux x64
-(glibc >=2.35), with CPython 3.12 and CPU capture. Windows, Intel Mac, Linux ARM64,
+(glibc >=2.31), with CPython 3.12 and CPU capture. Windows, Intel Mac, Linux ARM64,
 and musl are unsupported by the published standalone plugin. See
 [Install](../install.md#plugin) for published package requirements.
 

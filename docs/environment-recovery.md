@@ -81,7 +81,7 @@ chat for retained error evidence. Animated dots beneath the latest message show
 the agent working; they stop when the turn ends or needs your approval. Hover or
 focus the indicator for details. Approval, stopped and error states remain distinct.
 
-The published plugin preview requires **CPython 3.12 on Apple Silicon macOS (ARM64) or Linux x64 (glibc >=2.35)** and targets CPU capture. See [installation options](install.md) for package requirements; [local setup](local-setup.md#versions) lists source-development versions.
+The published plugin preview requires **CPython 3.12 on Apple Silicon macOS (ARM64) or Linux x64 (glibc >=2.31)** and targets CPU capture. See [installation options](install.md) for package requirements; [local setup](local-setup.md#versions) lists source-development versions.
 
 ## Before installing dependencies
 

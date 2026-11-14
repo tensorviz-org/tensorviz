@@ -1013,6 +1013,44 @@ def test_unavailable_requirement_is_named_without_forwarding_pip_output(monkeypa
     assert 'secret' not in str(error.value)
 
 
+INTEL_MAC = {'platform': 'darwin', 'architecture': 'x86_64', 'python': '3.12.13'}
+
+
+@pytest.mark.parametrize(('stderr', 'requirement', 'availability'), [
+    # Intel Mac: newer PyTorch has no x86_64 wheel; pip still lists the older ones.
+    ('ERROR: Could not find a version that satisfies the requirement torch==2.14.1 (from versions: 2.2.0, 2.2.1, 2.2.2)\n'
+     'ERROR: No matching distribution found for torch==2.14.1', 'torch==2.14.1', 'the newest available there is 2.2.2'),
+    # Managed CPU pin on a platform the CPU index does not cover.
+    ('ERROR: Could not find a version that satisfies the requirement torch==2.14.1+cpu (from versions: none)\n'
+     'ERROR: No matching distribution found for torch==2.14.1+cpu', 'torch==2.14.1', 'it has none for this platform'),
+])
+@pytest.mark.parametrize('arguments', [['install', '--dry-run', '--only-binary=:all:'], ['install', '--dry-run']])
+def test_missing_pytorch_wheel_is_reported_as_unavailable_not_as_a_source_build(monkeypatch, stderr, requirement, availability, arguments):
+    # NO_COMPATIBLE_WHEEL makes both hosts ask to build from source. PyPI has never
+    # published a PyTorch sdist, so that approval could only end in a second failure.
+    stderr += '\nLooking in indexes: https://user:secret@index.example/simple'
+    monkeypatch.setattr(setup.subprocess, 'run', lambda *a, **k: SimpleNamespace(returncode=1, stderr=stderr))
+    monkeypatch.setattr(setup, 'environment_info', lambda: INTEL_MAC)
+    with pytest.raises(setup.SetupError) as error:
+        setup.pip_run(arguments)
+    assert error.value.code == 'PACKAGE_UNAVAILABLE'
+    assert error.value.requirement == requirement
+    message = str(error.value)
+    assert 'PyTorch' in message and 'macOS x86_64 with Python 3.12.13' in message and availability in message
+    assert 'source build is offered' in message and 'Check the package names' not in message
+    assert 'secret' not in message and 'index.example' not in message
+
+
+@pytest.mark.parametrize('package', ['torch-geometric==2.6.1', 'torchvision==0.29.1', 'fairscale'])
+def test_other_unavailable_wheels_still_offer_a_reviewed_source_build(monkeypatch, package):
+    monkeypatch.setattr(setup.subprocess, 'run', lambda *a, **k: SimpleNamespace(
+        returncode=1, stderr=f'ERROR: No matching distribution found for {package}'))
+    with pytest.raises(setup.SetupError) as error:
+        setup.pip_run(['install', '--dry-run', '--only-binary=:all:'])
+    assert error.value.code == 'NO_COMPATIBLE_WHEEL'
+    assert error.value.requirement == package
+
+
 def test_managed_cpu_policy_preserves_additive_planner_and_exact_request(tmp_path, monkeypatch):
     observed = []
     def record(directory, requirements, **options):
@@ -1029,3 +1067,35 @@ def test_managed_cpu_refuses_gpu_payload_before_review(tmp_path, monkeypatch):
     monkeypatch.setattr(setup, 'plan', lambda *args, **kwargs: {'packages': [{'name': 'nvidia-cublas-cu13'}]})
     with pytest.raises(setup.SetupError, match='GPU dependencies'):
         setup.plan_packages(tmp_path, ['torch==2.14.1+cpu'], managed_cpu=True)
+
+
+@pytest.mark.parametrize("versions", [
+    "PRIVATE INDEX TOKEN secretABC123",
+    "2.2.2, https://user:secret@index.example",
+    "2.2.2, malformed-entry",
+])
+def test_pytorch_unavailable_does_not_forward_unvalidated_index_text(monkeypatch, versions):
+    monkeypatch.setattr(setup, "environment_info", lambda: INTEL_MAC)
+    message = setup.torch_unavailable(f"ERROR: (from versions: {versions})")
+    assert "newest available" not in message
+    assert "secret" not in message
+    assert "PRIVATE" not in message
+    assert "index.example" not in message
+
+
+def test_pytorch_unavailable_uses_semantic_version_order(monkeypatch):
+    monkeypatch.setattr(setup, "environment_info", lambda: INTEL_MAC)
+    message = setup.torch_unavailable("ERROR: (from versions: 2.10.0, 2.9.0)")
+    assert "the newest available there is 2.10.0" in message
+
+
+def test_pytorch_unavailable_omits_details_without_version_parser(monkeypatch):
+    import builtins
+    original_import = builtins.__import__
+    def no_version_parser(name, *args, **kwargs):
+        if name in {"packaging.version", "pip._vendor.packaging.version"}:
+            raise ImportError("version parser unavailable")
+        return original_import(name, *args, **kwargs)
+    monkeypatch.setattr(builtins, "__import__", no_version_parser)
+    monkeypatch.setattr(setup, "environment_info", lambda: INTEL_MAC)
+    assert "newest available" not in setup.torch_unavailable("ERROR: (from versions: 2.10.0)")

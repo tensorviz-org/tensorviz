@@ -225,8 +225,10 @@ model dependencies, but installation requires native VS Code approval of a froze
 additive plan. It never replaces existing packages. The worker has the same 180-second process limit as manual Validate;
 the complete validation operation is cancelled after 210 seconds.
 When a package has no compatible wheel, source builds need approval before package
-build code runs, followed by review of the resulting installation plan. Dependency
-repair stays in TensorViz's reported capture environment.
+build code runs, followed by review of the resulting installation plan. A missing
+PyTorch wheel is reported as `PACKAGE_UNAVAILABLE` instead, because PyTorch has no
+source distribution to build. Dependency repair stays in TensorViz's reported
+capture environment.
 
 Environment recovery in Canvas and MCP shares the retained model opening.
 `select_environment` accepts a listed candidate ID; `refresh_environments` checks

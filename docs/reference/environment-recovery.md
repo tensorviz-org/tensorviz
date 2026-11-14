@@ -73,6 +73,12 @@ for any distribution compatible with this Python/platform. No indexed distributi
 means a named failure before offering a futile **Build libraries** prompt. An
 available source distribution still needs build approval; the metadata check does
 not prove that the requested version will resolve or build successfully.
+PyTorch never reaches that prompt: PyPI publishes no PyTorch source distribution.
+When the requested PyTorch has no wheel for the target environment (for example
+PyTorch newer than 2.2.2 on an Intel Mac), planning fails at once with
+`PACKAGE_UNAVAILABLE`. The message names the target's operating system,
+processor and Python, plus the newest PyTorch the index offers there. Select an
+environment that already has a compatible PyTorch.
 While environment recovery is visible, the minimized chat bubble is hidden so
 it cannot cover Cancel; the panel's agent help action remains available.
 

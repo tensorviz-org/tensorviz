@@ -1,0 +1,67 @@
+name: Windows bootstrap candidate
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'plugin/integration/launch.cjs'
+      - 'plugin/scripts/windows-bootstrap.mjs'
+      - 'plugin/test/native/windows-bootstrap.mjs'
+      - 'plugin/test/unit/windows-bootstrap.test.mjs'
+      - '.github/workflows/windows-bootstrap-candidate.yml'
+permissions:
+  contents: read
+concurrency:
+  group: windows-bootstrap-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native-bootstrap:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            arch: x64
+          - runner: windows-11-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+          architecture: ${{ matrix.arch }}
+      - name: Install isolated build-only compiler
+        shell: pwsh
+        run: |
+          npm install --prefix .bootstrap-build --ignore-scripts --no-audit --no-fund @yao-pkg/pkg@6.24.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node -p "process.platform + '-' + process.arch"
+      - name: Candidate catalog unit checks
+        run: node --test plugin/test/unit/windows-bootstrap.test.mjs
+      - name: Install official Codex CLI for isolated catalog discovery
+        id: codex
+        shell: pwsh
+        run: |
+          npm install --prefix .bootstrap-codex --ignore-scripts --no-audit --no-fund @openai/codex@0.169.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $exe = Get-ChildItem .bootstrap-codex/node_modules -Recurse -Filter codex.exe | Select-Object -First 1
+          if (-not $exe) { throw 'Official native Codex executable unavailable for this architecture' }
+          "TENSORVIZ_TEST_CODEX=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          & $exe.FullName --version
+      - name: Native bootstrap build and native Windows stdio, EOF and validation tests
+        shell: pwsh
+        run: node plugin/test/native/windows-bootstrap.mjs
+      - name: Preserve evidence, never publish a runtime/catalog
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-bootstrap-evidence-${{ matrix.arch }}
+          path: |
+            plugin/out/windows-bootstrap/result.json
+            plugin/out/windows-bootstrap/failure.txt
+            .bootstrap-build/package-lock.json
+            .bootstrap-codex/package-lock.json
+          if-no-files-found: warn

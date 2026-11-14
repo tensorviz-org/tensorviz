@@ -1,0 +1,127 @@
+name: Windows production MCP acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'packages/graph-host/**'
+      - 'plugin/src/**'
+      - 'plugin/integration/**'
+      - 'plugin/scripts/**'
+      - 'plugin/test/native/**'
+      - 'runtime/python/**'
+      - 'extension/src/**'
+      - '.github/workflows/windows-production-mcp.yml'
+permissions:
+  contents: read
+concurrency:
+  group: windows-production-mcp-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  production-mcp:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            arch: x64
+          - runner: windows-11-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: '1'
+      TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
+      TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+          architecture: ${{ matrix.arch }}
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
+        with:
+          version: '0.11.26'
+      - name: Preflight native Python, compiler ABI and service wheels before npm
+        run: |
+          node --input-type=module <<'JS'
+          import {appendFileSync} from 'node:fs';
+          import {execFileSync} from 'node:child_process';
+          import path from 'node:path';
+          import assert from 'node:assert/strict';
+          import {nativePlatform} from './plugin/scripts/native-platforms.mjs';
+          import {stageWindowsArmPython} from './plugin/scripts/stage-windows-arm-python.mjs';
+          const requested = process.platform === 'win32' && process.arch === 'arm64'
+            ? await stageWindowsArmPython() : '3.12.13';
+          for (const name of ['compiler-venv', 'service-venv'])
+            execFileSync('uv', ['venv', '--python', requested, `plugin/out/${name}`], {stdio:'inherit'});
+          const python = path.resolve('plugin/out/compiler-venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+          execFileSync('uv', ['pip', 'install', '--python', python, '-r', 'plugin/compiler-requirements.txt'], {stdio:'inherit'});
+          const check = JSON.parse(execFileSync(python, ['-c', "import importlib.util,json,platform; s=importlib.util.spec_from_file_location('compiler','plugin/scripts/compile-backend.py'); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); print(json.dumps(dict(abi=m.python_abi(),machine=platform.machine())))"], {encoding:'utf8'}));
+          assert.equal(check.abi, nativePlatform().abi, 'Compiler Python architecture/ABI does not match native Node target');
+          console.log('Verified compiler ABI', check);
+          const service = path.resolve('plugin/out/service-venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+          execFileSync('uv', ['pip', 'install', '--only-binary', ':all:', '--python', service, '-r', 'backend/requirements-standalone.txt'], {stdio:'inherit'});
+          for (const [key, value] of Object.entries({
+            TENSORVIZ_COMPILER_PYTHON: python,
+            TENSORVIZ_NO_TORCH_PYTHON: python,
+            TENSORVIZ_SERVICE_TEST_PYTHON: service,
+            TENSORVIZ_SERVICE_TEST_BACKEND: path.resolve('plugin/out/native-runtime/backend'),
+            TENSORVIZ_TEST_BACKEND: path.resolve('plugin/out/native-runtime/backend'),
+          })) appendFileSync(process.env.GITHUB_ENV, `${key}=${value}\n`);
+          JS
+      - name: Install build dependencies and official Codex
+        run: |
+          npm ci
+          npm ci --prefix plugin
+          npm ci --prefix canvas
+          npm install --prefix .bootstrap-build --ignore-scripts --no-audit --no-fund @yao-pkg/pkg@6.24.0
+          npm install --prefix .bootstrap-codex --ignore-scripts --no-audit --no-fund @openai/codex@0.169.0
+      - name: Resolve mandatory official native Codex executable
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem .bootstrap-codex/node_modules -Recurse -Filter codex.exe | Select-Object -First 1
+          if (-not $exe) { throw 'Official Codex executable unavailable' }
+          "TENSORVIZ_TEST_CODEX=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          & $exe.FullName --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build real compiled TensorViz archive
+        env:
+          TLDRAW_LICENSE_KEY: ${{ secrets.TLDRAW_LICENSE_KEY }}
+        run: node plugin/scripts/build-release.mjs --native-archive
+      - name: Build bootstrap and select matching actual package lock
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs/promises';
+          import path from 'node:path';
+          import {buildBootstrap} from './plugin/scripts/windows-bootstrap.mjs';
+          const binary=await buildBootstrap({launcher:path.resolve('plugin/integration/launch.cjs'),pkg:path.resolve('.bootstrap-build/node_modules/@yao-pkg/pkg/lib-es5/bin.js'),output:path.resolve('plugin/out/windows-production-bootstrap'),arch:process.arch});
+          const locks=(await fs.readdir('plugin/dist')).filter(f=>f.endsWith(`-win32-${process.arch}.tar.gz.json`));
+          if(locks.length!==1)throw new Error('Expected exactly one actual native runtime lock');
+          await fs.appendFile(process.env.GITHUB_ENV,`TENSORVIZ_WINDOWS_BOOTSTRAP=${binary}\nTENSORVIZ_PRODUCTION_RUNTIME_LOCK=${path.resolve('plugin/dist',locks[0])}\n`);
+          JS
+      - name: Create ephemeral TLS certificate for local cold-download test
+        run: |
+          mkdir -p plugin/out/test-tls
+          MSYS_NO_PATHCONV=1 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -keyout plugin/out/test-tls/key.pem -out plugin/out/test-tls/cert.pem -subj '/CN=localhost' -addext 'subjectAltName=IP:127.0.0.1' -addext 'basicConstraints=critical,CA:TRUE'
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import path from 'node:path';
+          fs.appendFileSync(process.env.GITHUB_ENV,`TENSORVIZ_TEST_TLS_CERT=${path.resolve('plugin/out/test-tls/cert.pem')}\nTENSORVIZ_TEST_TLS_KEY=${path.resolve('plugin/out/test-tls/key.pem')}\n`);
+          JS
+      - name: Actual production MCP through installed catalog and cold verified HTTPS
+        run: node plugin/test/native/windows-production-mcp.mjs
+      - name: Preserve evidence only, not runtime or ephemeral private key
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-production-mcp-${{ matrix.arch }}
+          path: |
+            plugin/out/windows-production-mcp/result.json
+            plugin/out/windows-production-mcp/failure.txt
+            plugin/out/windows-production-mcp/stderr.txt
+          if-no-files-found: warn

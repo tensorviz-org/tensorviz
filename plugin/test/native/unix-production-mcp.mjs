@@ -14,6 +14,7 @@ import https from 'node:https';
 import {exportPublic} from '../../scripts/export-public.mjs';
 import {nativePlatform} from '../../scripts/native-platforms.mjs';
 import {waitForInstalledMcp} from './unix-mcp-readiness.mjs';
+import {removeUnixFixture} from './unix-fixture-cleanup.mjs';
 
 assert.ok(['darwin', 'linux'].includes(process.platform), 'A real Unix runner is required');
 const required = name => { assert.ok(process.env[name], `Set ${name}`); return path.resolve(process.env[name]); };
@@ -230,5 +231,5 @@ finally {
   await stop(); lines?.close();
   await fs.writeFile(path.join(output, 'stderr.txt'), sanitize(diagnostics));
   if (server) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
-  await fs.rm(root, {recursive: true, force: true}).catch(error => { if (!primaryError) throw error; });
+  await removeUnixFixture(root).catch(error => { if (!primaryError) throw error; });
 }

@@ -1,8 +1,8 @@
 {
   "name": "tensorviz-vscode",
-  "displayName": "tensorViz — PyTorch & JAX Model Visualizer",
+  "displayName": "tensorViz \u2014 PyTorch & JAX Model Visualizer",
   "description": "Explore PyTorch and JAX/Flax model graphs, inspect tensor shapes, jump to Python source, and review PyTorch architecture changes in VS Code.",
-  "version": "0.1.45",
+  "version": "0.1.46",
   "publisher": "tensorviz",
   "license": "MIT",
   "homepage": "https://tensorviz.dev/",
@@ -369,7 +369,7 @@
         }
       ]
     },
-    "//viewsContainers": "A committed SVG under extension/icons/ (extension/media/ is gitignored — it is where the built React app is staged — so an icon there would never be committed). icons/tensorviz.svg is the website brand mark drawn with stroke=currentColor and a transparent background so VS Code can tint it to the active/inactive activity-bar color.",
+    "//viewsContainers": "A committed SVG under extension/icons/ (extension/media/ is gitignored \u2014 it is where the built React app is staged \u2014 so an icon there would never be committed). icons/tensorviz.svg is the website brand mark drawn with stroke=currentColor and a transparent background so VS Code can tint it to the active/inactive activity-bar color.",
     "viewsContainers": {
       "activitybar": [
         {
@@ -453,19 +453,19 @@
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "**Developer override.** Absolute path to a canvas checkout, used as the backend source instead of the one tensorViz ships with. You do not need this: the backend is bundled with the app and packaged inside the extension, and is found first. It exists for running against a checkout. When set, it is used as-is — tensorViz will not fall back to guessing if it does not validate."
+          "markdownDescription": "**Developer override.** Absolute path to a canvas checkout, used as the backend source instead of the one tensorViz ships with. You do not need this: the backend is bundled with the app and packaged inside the extension, and is found first. It exists for running against a checkout. When set, it is used as-is \u2014 tensorViz will not fall back to guessing if it does not validate."
         },
         "tensorviz.pythonPath": {
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "Absolute Python path offered in the environment picker and used for model execution when this workspace folder has no saved choice. Use tensorViz: Select Python Environment to choose a Conda/venv for the model’s owning folder. The tensorViz service has its own Python. Missing capture/model libraries require approval and existing Torch/CUDA versions are preserved."
+          "markdownDescription": "Absolute Python path offered in the environment picker and used for model execution when this workspace folder has no saved choice. Use tensorViz: Select Python Environment to choose a Conda/venv for the model\u2019s owning folder. The tensorViz service has its own Python. Missing capture/model libraries require approval and existing Torch/CUDA versions are preserved."
         },
         "tensorviz.devServerUrl": {
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "Load the canvas from this URL instead of the app bundled with the extension — for developing the frontend against a live `npm start`. When empty (the default) the backend serves the built app on a port chosen at launch. The value is used verbatim, and its origin becomes the panel's `frame-src`."
+          "markdownDescription": "Load the canvas from this URL instead of the app bundled with the extension \u2014 for developing the frontend against a live `npm start`. When empty (the default) the backend serves the built app on a port chosen at launch. The value is used verbatim, and its origin becomes the panel's `frame-src`."
         },
         "tensorviz.graphSurface": {
           "type": "string",
@@ -528,7 +528,7 @@
           "enumDescriptions": [
             "No execution cache. Every Run executes your model exactly as before.",
             "Diagnostic only: every Run still executes your model. tensorViz also keeps the result in memory and, when a later Run has exactly the same inputs, compares the two and writes the outcome to the tensorViz output channel. A stored result is never shown.",
-            "Default: when a Run has exactly the same inputs as an earlier Run in this window, tensorViz shows that earlier result instead of running your model again, labelled \"Reused identical result … (model not run again)\". Use Run fresh to execute anyway."
+            "Default: when a Run has exactly the same inputs as an earlier Run in this window, tensorViz shows that earlier result instead of running your model again, labelled \"Reused identical result \u2026 (model not run again)\". Use Run fresh to execute anyway."
           ],
           "default": "on",
           "scope": "machine-overridable",

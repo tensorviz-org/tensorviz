@@ -30,19 +30,20 @@ jobs:
         with:
           node-version: '22.23.4'
       - run: node --test plugin/test/unit/portable-launcher.test.cjs plugin/test/unit/native-platform-shape.test.cjs
-  windows-native:
+  native-runtime:
     # Candidate builds do not publish or change the public catalog. Full capture
-    # and installed-client verification are additional gates before distribution.
+    # is a separate capability; installed-client verification is still required.
     strategy:
       fail-fast: false
       matrix:
-        runner: [windows-2022, windows-11-arm]
+        runner: [windows-2022, windows-11-arm, macos-15-intel, ubuntu-22.04-arm]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     defaults:
       run:
         shell: bash
     env:
+      PYTHONUTF8: '1'
       TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
       TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
     steps:
@@ -56,22 +57,21 @@ jobs:
         with:
           version: '0.11.26'
           python-version: '3.12.13'
-      - name: Install build and CPU test environments
+      - name: Install build and clean no-Torch environments
         run: |
           npm ci
           npm ci --prefix plugin
           npm ci --prefix canvas
           uv venv --python 3.12.13 plugin/out/compiler-venv
-          uv venv --python 3.12.13 plugin/out/test-venv
-          uv pip install --python plugin/out/compiler-venv/Scripts/python.exe -r plugin/compiler-requirements.txt
-          uv pip install --python plugin/out/test-venv/Scripts/python.exe torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
-          uv pip install --python plugin/out/test-venv/Scripts/python.exe -r backend/requirements-standalone.txt
           node --input-type=module <<'JS'
           import {appendFileSync} from 'node:fs';
+          import {execFileSync} from 'node:child_process';
           import path from 'node:path';
+          const python = path.resolve('plugin/out/compiler-venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+          execFileSync('uv', ['pip', 'install', '--python', python, '-r', 'plugin/compiler-requirements.txt'], {stdio:'inherit'});
           for (const [key, value] of Object.entries({
-            TENSORVIZ_COMPILER_PYTHON: path.resolve('plugin/out/compiler-venv/Scripts/python.exe'),
-            TENSORVIZ_TEST_PYTHON: path.resolve('plugin/out/test-venv/Scripts/python.exe'),
+            TENSORVIZ_COMPILER_PYTHON: python,
+            TENSORVIZ_NO_TORCH_PYTHON: python,
             TENSORVIZ_TEST_BACKEND: path.resolve('plugin/out/native-runtime/backend'),
           })) appendFileSync(process.env.GITHUB_ENV, `${key}=${value}\n`);
           JS
@@ -79,12 +79,12 @@ jobs:
         env:
           TLDRAW_LICENSE_KEY: ${{ secrets.TLDRAW_LICENSE_KEY }}
         run: node plugin/scripts/build-release.mjs --native-archive
-      - name: Verify native executable and backend behavior
-        run: node --test plugin/test/native/host.cjs plugin/test/native/backend.cjs
+      - name: Verify native startup without PyTorch and clear capture diagnostics
+        run: node --test plugin/test/native/host.cjs plugin/test/native/no-torch.cjs
       - name: Retain candidate runtime for further acceptance, not publication
         uses: actions/upload-artifact@v4
         with:
-          name: windows-candidate-${{ runner.arch }}
+          name: runtime-candidate-${{ runner.os }}-${{ runner.arch }}
           path: plugin/dist/tensorviz-runtime-*.tar.gz*
           if-no-files-found: error
           retention-days: 3

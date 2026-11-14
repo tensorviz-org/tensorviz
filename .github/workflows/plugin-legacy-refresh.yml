@@ -1,0 +1,44 @@
+name: Plugin legacy cache refresh
+on:
+  pull_request:
+    paths:
+      - 'plugin/test/clients/codex-legacy-refresh.cjs'
+      - 'plugin/packaging/public/**'
+      - '.github/workflows/plugin-legacy-refresh.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'plugin/test/clients/codex-legacy-refresh.cjs'
+      - 'plugin/packaging/public/**'
+      - '.github/workflows/plugin-legacy-refresh.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  codex-legacy-cache:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        codex: ['0.165.0', '0.167.0-alpha.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: actions/checkout@v4
+        with:
+          repository: tensorviz-org/tensorviz-plugins
+          ref: de268bb05a44d21fba51dc53b2d711ccee8a2738
+          fetch-depth: 0
+          path: public-catalog
+          persist-credentials: false
+      - name: Install task-local Codex
+        run: npm install --prefix .audit-clients --no-audit --no-fund @openai/codex@${{ matrix.codex }}
+      - name: Verify legacy cache replacement without provider credentials
+        env:
+          TENSORVIZ_LEGACY_PUBLIC_CATALOG: ${{ github.workspace }}/public-catalog
+          TENSORVIZ_TEST_CODEX: ${{ github.workspace }}/.audit-clients/node_modules/.bin/codex
+        run: node --test plugin/test/clients/codex-legacy-refresh.cjs

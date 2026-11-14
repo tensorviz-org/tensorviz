@@ -110,9 +110,20 @@ merge files from different releases. Then refresh Codex:
 
 ```sh
 codex plugin marketplace upgrade tensorviz-standalone
+codex plugin add tensorviz@tensorviz-standalone --json
 ```
 
-Then use Codex's plugin update/install controls and start a new chat. For Claude Code:
+Run both commands in the same execution environment and Codex profile as the
+failing chat. Confirm `version` and `installedPath` in the install result, then
+start a new chat or restart the client. A catalog refresh alone can leave the old
+plugin cache installed; `plugin list` is not sufficient evidence of replacement.
+Updating your Mac does not update a separate Linux/remote/cloud profile.
+
+Version 0.3.104 was macOS-only; 0.1.43 supports glibc Linux x64 despite its smaller
+version number. Do not patch cached launchers or mix release files. Inspect the
+actual MCP startup error if a fresh chat still has no tools.
+
+For Claude Code:
 
 ```sh
 claude plugin update tensorviz@tensorviz-standalone

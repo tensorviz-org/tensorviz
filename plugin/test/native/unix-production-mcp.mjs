@@ -48,18 +48,31 @@ for (const broken of [false, true]) {
   }
 }
 const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'TensorViz Unix 测试 space ')));
-let server, child, lines, primaryError, diagnostics = '', downloads = 0, nextId = 0, unexpectedRequests = 0, forcedStop = false;
+let server, child, lines, primaryError, diagnostics = '', downloads = 0, nextId = 0, unexpectedRequests = 0, shutdownMethod = 'eof';
 const pending = new Map();
+const exited = () => !child || child.exitCode !== null || child.signalCode !== null;
+const waitForExit = milliseconds => new Promise(resolve => {
+  if (exited()) return resolve();
+  const done = () => { clearTimeout(timer); child.removeListener('exit', done); resolve(); };
+  const timer = setTimeout(done, milliseconds);
+  child.once('exit', done);
+});
 const stop = async () => {
-  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  if (exited()) return;
   child.stdin.end();
-  await Promise.race([new Promise(resolve => child.once('exit', resolve)), new Promise(resolve => setTimeout(resolve, 5000))]);
-  if (child.exitCode === null && child.signalCode === null) {
-    forcedStop = true;
+  await waitForExit(5000);
+  // Codex app-server can retain its event loop after stdin closes. TERM is the
+  // supported client teardown; the installed shell/runtime must still clean up.
+  if (!exited()) {
+    shutdownMethod = 'sigterm';
     try { process.kill(-child.pid, 'SIGTERM'); } catch {}
-    await Promise.race([new Promise(resolve => child.once('exit', resolve)), new Promise(resolve => setTimeout(resolve, 3000))]);
+    await waitForExit(5000);
   }
-  if (child.exitCode === null && child.signalCode === null) { try { process.kill(-child.pid, 'SIGKILL'); } catch {} }
+  if (!exited()) {
+    shutdownMethod = 'sigkill';
+    try { process.kill(-child.pid, 'SIGKILL'); } catch {}
+    await waitForExit(3000);
+  }
 };
 try {
   const home = path.join(root, 'home'), state = path.join(root, 'data'), codexHome = path.join(root, 'codex-home'), project = path.join(root, 'empty-project');
@@ -139,25 +152,32 @@ try {
   const coldDownloadCount = downloads;
   assert.equal((await fs.stat(path.join(cache, lock.sha256 + '.tar.gz'))).size, lock.bytes);
   assert.equal(crypto.createHash('sha256').update(await fs.readFile(path.join(cache, lock.sha256 + '.tar.gz'))).digest('hex'), lock.sha256);
-  const call = async (tool, args) => { const result = await request('mcpServer/tool/call', {threadId, server: mcp.name, tool, arguments: args}); assert.ok(!result.isError, JSON.stringify(result)); return result.structuredContent; };
+  const call = async (tool, args, expectedError = false) => { const result = await request('mcpServer/tool/call', {threadId, server: mcp.name, tool, arguments: args}); assert.equal(Boolean(result.isError), expectedError, JSON.stringify(result)); return result.structuredContent; };
   const listing = await call('list_models', {});
   assert.equal(listing.host.kind, 'standalone'); assert.equal(listing.host.version, lock.version); assert.equal(listing.workspaceSelectionRequired, true);
-  const unopened = await call('get_model_context', {modelId: 'unopened', captureId: 'missing', sourceId: 'missing', revision: 'a'.repeat(64)});
+  const unopened = await call('get_model_context', {modelId: 'unopened', captureId: 'missing', sourceId: 'missing', revision: 'a'.repeat(64)}, true);
   assert.equal(unopened.error.code, 'NO_MODEL');
   assert.equal(unexpectedRequests, 0, 'Static discovery must not request consent or execute agents/models');
   const saved = await fs.readdir(state, {recursive: true});
   assert.ok(!saved.some(p => /(^|\/)(permissions|workspaces|runtimes|venvs)(\/|$)/.test(p)), 'Discovery must not provision or persist permission');
   await stop();
-  assert.equal(forcedStop, false, 'Client must exit after EOF without forced termination');
-  assert.deepEqual((await fs.readdir(root)).filter(p => p.startsWith('tensorviz-native.')), [], 'Extracted runtime leaked after client exit');
+  assert.notEqual(shutdownMethod, 'sigkill', 'Client must shut down without SIGKILL');
+  assert.ok(exited(), 'Client process must have exited before cleanup verification');
+  let sessions = [];
+  for (let attempt = 0; attempt < 30; attempt++) {
+    sessions = (await fs.readdir(root)).filter(p => p.startsWith('tensorviz-native.'));
+    if (!sessions.length) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.deepEqual(sessions, [], 'Extracted runtime leaked after client shutdown');
   await promisify(execFile)('/bin/sh', [path.join(installed.installedPath, 'scripts/launch.sh'), '--prepare-runtime'],
     {env: {...env, CURL_CA_BUNDLE: certificate}, cwd: project, timeout: 30000});
   assert.equal(downloads, coldDownloadCount, 'Warm preparation must reuse the verified cached archive without another HTTPS request');
   cli(['plugin', 'remove', 'tensorviz@tensorviz-standalone']);
   assert.equal(JSON.parse(cli(['mcp', 'list', '--json'])).length, 0, 'Plugin MCP registration must be removed');
-  const result = {platform: target.key, version: lock.version, sourceRevision: release.sourceRevision, runtimeSha256: lock.sha256, codexVersion, toolCount: tools.length, handshakeMs, coldDownloadCount,
-    passed: ['real native archive', 'installed production Unix catalog', 'untrusted TLS rejected', 'cold verified HTTPS download', 'verified warm cache reuse', 'Codex app-server MCP discovery', 'safe static tools', 'no Torch or model execution', 'compiled missing/broken Torch diagnostics', 'no consent or service provisioning', 'EOF cleanup', 'plugin removal'],
-    limitations: ['No browser UI or model capture', 'Uses local HTTPS trusted CA, not public CDN', 'Linux shell metadata needs system Python3; no caller Python used by the runtime']};
+  const result = {platform: target.key, version: lock.version, sourceRevision: release.sourceRevision, runtimeSha256: lock.sha256, codexVersion, toolCount: tools.length, handshakeMs, coldDownloadCount, shutdownMethod,
+    passed: ['real native archive', 'installed production Unix catalog', 'untrusted TLS rejected', 'cold verified HTTPS download', 'verified warm cache reuse', 'Codex app-server MCP discovery', 'safe static tools', 'no Torch or model execution', 'compiled missing/broken Torch diagnostics', 'no consent or service provisioning', 'graceful client shutdown cleanup', 'plugin removal'],
+    limitations: ['No browser UI or model capture', 'Codex client shutdown may require SIGTERM; this is not an EOF-only lifecycle test', 'Uses local HTTPS trusted CA, not public CDN', 'Linux shell metadata needs system Python3; no caller Python used by the runtime']};
   await fs.writeFile(path.join(output, 'result.json'), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
 } catch (error) { primaryError = error; await fs.writeFile(path.join(output, 'failure.txt'), String(error.stack ?? error)); throw error; }
 finally {

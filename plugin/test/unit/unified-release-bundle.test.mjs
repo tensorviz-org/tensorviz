@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {generateKeyPairSync,sign} from 'node:crypto';
+import {prepareDocsArtifact} from '../../scripts/docs-release-artifact.mjs';
 import {verifyUnifiedBundle} from '../../scripts/unified-release-bundle.mjs';
 import {contentHash,inventoryHash,sourceReleasePlatforms,sourceReleaseClients,sourceReleaseMatrix} from '../../scripts/source-release-admission.mjs';
 async function fixture() {
@@ -18,6 +19,8 @@ async function fixture() {
  await fs.copyFile(path.join(root,'plugin/release.json'),path.join(root,'assets/plugin-release.json'));
  await fs.writeFile(path.join(root,'assets/plugin.zip'),'dummy mocked plugin');
  await fs.writeFile(path.join(root,'assets/extension-provenance.json'),JSON.stringify({schemaVersion:1,version,sourceRevision,sha256:contentHash(await fs.readFile(path.join(root,'assets',vsix)))}));
+ const docsDir=path.join(root,'docs');await fs.mkdir(docsDir);await fs.writeFile(path.join(docsDir,'index.html'),'<h1>Docs</h1>');await fs.writeFile(path.join(docsDir,'build-info.json'),JSON.stringify({source:'https://github.com/tensorviz-org/tensorviz',revision:sourceRevision,base:'/'}));
+ await prepareDocsArtifact(docsDir,path.join(root,'assets',`tensorviz-docs-${version}.zip`),{version,sourceRevision});
  const files={};for(const name of await fs.readdir(path.join(root,'assets')))files[name]=contentHash(await fs.readFile(path.join(root,'assets',name)));
  const manifest={schemaVersion:1,repository:'tensorviz-org/tensorviz',version,sourceRevision,files};
  const keys=generateKeyPairSync('ed25519');
@@ -29,7 +32,7 @@ async function fixture() {
  await fs.writeFile(path.join(root,'unified-release.json'),JSON.stringify(manifest));await fs.writeFile(path.join(root,'admission.json'),JSON.stringify(envelopes));
  return {root,manifest,policy,release,options:{verifyCandidate:async()=>release}};
 }
-test('combined admission validates real ZIP metadata, signed inventory and exact plugin bytes (plugin verifier mocked)',async()=>{const f=await fixture();try{const result=await verifyUnifiedBundle(f.root,f.policy,f.options);assert.equal(result.admission.rows,20);assert.equal(Object.keys(result.assets).length,6);}finally{await fs.rm(f.root,{recursive:true,force:true});}});
+test('combined admission validates real ZIP metadata, signed inventory and exact plugin bytes (plugin verifier mocked)',async()=>{const f=await fixture();try{const result=await verifyUnifiedBundle(f.root,f.policy,f.options);assert.equal(result.admission.rows,20);assert.equal(Object.keys(result.assets).length,7);}finally{await fs.rm(f.root,{recursive:true,force:true});}});
 for(const [name,mutate] of [
  ['unexpected file',f=>fs.writeFile(path.join(f.root,'assets/extra'),'x')],
  ['tampered VSIX',f=>fs.appendFile(path.join(f.root,'assets/tensorviz-1.0.0.vsix'),'tampered')],

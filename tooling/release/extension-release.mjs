@@ -11,6 +11,7 @@ export function readReleaseResult(file, requestedSource) {
   if (result.schema !== 1 || result.repository !== releaseRepository || typeof result.publish !== 'boolean'
     || !/^[a-f0-9]{40}$/.test(result.source ?? '') || result.source !== requestedSource
     || !stableVersion(result.version)) throw new Error('Release handoff does not match this trusted source run.');
+  if (Number(result.version.split('.')[0]) >= 1) throw new Error('Public 1.x releases require the unified source publisher.');
   return result;
 }
 
@@ -29,6 +30,7 @@ export function prepareExtensionRelease({ root = process.cwd(), source, reposito
   if (!stableVersion(manifest.version) || manifest.name !== 'tensorviz-vscode' || manifest.publisher !== 'tensorviz'
     || lock.name !== manifest.name || lock.version !== manifest.version
     || lock.packages?.['']?.version !== manifest.version) throw new Error('Extension manifest and lockfile identity/version must match.');
+  if (Number(manifest.version.split('.')[0]) >= 1) throw new Error('Public 1.x releases require the unified source publisher.');
   const changelog = readFileSync(join(root, 'extension/CHANGELOG.md'), 'utf8');
   if (!changelog.split(`## ${manifest.version}\n`)[1]?.split(/\n## /)[0]?.trim()) {
     throw new Error('Commit release notes and the intended version in a reviewed PR before releasing.');
@@ -44,3 +46,4 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   appendFileSync(process.env.GITHUB_OUTPUT, `version=${result.version}\nsource=${result.source}\npublish=${result.publish}\n`);
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Verified reviewed source ${result.source}, extension ${result.version}; publish=${result.publish}. No source files or branches changed.\n`);
 }
+

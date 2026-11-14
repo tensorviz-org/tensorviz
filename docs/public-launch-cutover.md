@@ -58,12 +58,19 @@ destination. This verifies transformation, not installed-client acceptance or
   assets only to a draft, reject different bytes, publish only after verification,
   then advance catalog with an expected-head lease. No force push/deletion.
   External registries are non-atomic: report partial publication and retry exact
-  bytes, never silently mark every channel complete.
+  bytes, never silently mark every channel complete. The staged
+  [production channel adapters](public-launch/production-channels.md) now implement
+  verified registry/docs publication with signed docs bytes, isolated tools and
+  scoped submission journals. The full Actions activation still requires approved
+  durable journal storage and trusted-code workflow wiring.
 - Signed local evidence admission and version/source gates are implemented, but
   genuine launch receipts and trusted reviewer policy are still required. Preserve
   historical release-specific migration contracts. Never replace evidence with a
   boolean environment bypass. No test jobs on pushes/PRs; Actions used for necessary
   publication only. Local/native tests run before approval.
+- Legacy extension preparation, GitHub/rolling synchronization and OpenVSX paths
+  explicitly refuse 1.x, just as the legacy plugin publisher does. This prevents
+  competing old publishers from modifying the unified release. 0.x remains valid.
 - Align package manifests, lockfile roots, client manifests, archive names,
   extension/plugin versions and changelogs to 1.0.0 only at cutover. Keep extension
   publisher/name, plugin names and historical extension versions unchanged.

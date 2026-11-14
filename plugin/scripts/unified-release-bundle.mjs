@@ -36,7 +36,8 @@ export async function verifyUnifiedBundle(directory,policy,{verifyCandidate}={})
   const pluginFiles={...release.files,'plugin-release.json':contentHash(pluginManifestBytes)};
   for(const [name,sha] of Object.entries(pluginFiles)) if(manifest.files[name]!==sha) throw Error('Combined inventory omits or changes audited plugin bytes');
   const vsix=`tensorviz-${manifest.version}.vsix`;
-  const allowed=[...Object.keys(pluginFiles),vsix,'extension-provenance.json'].sort();
+  const docsName=`tensorviz-docs-${manifest.version}.zip`;
+  const allowed=[...Object.keys(pluginFiles),vsix,'extension-provenance.json',docsName].sort();
   if(JSON.stringify(names)!==JSON.stringify(allowed)) throw Error('Unexpected combined release asset; update closed inventory explicitly');
   const extension=JSON.parse(assets['extension-provenance.json'].bytes);
   if(extension.schemaVersion!==1||extension.sourceRevision!==manifest.sourceRevision||extension.version!==manifest.version||extension.sha256!==manifest.files[vsix]) throw Error('Extension source provenance mismatch');
@@ -50,8 +51,10 @@ export async function verifyUnifiedBundle(directory,policy,{verifyCandidate}={})
     pkg=JSON.parse(execFileSync('unzip',['-p',snapshotFile,'extension/package.json'],{encoding:'utf8',maxBuffer:1024*1024}));
   } finally { await fs.rm(snapshot,{recursive:true,force:true}); }
   if(pkg.version!==manifest.version || pkg.name!==policy.extensionName || pkg.publisher!==policy.extensionPublisher || !policy.extensionName || !policy.extensionPublisher) throw Error('VSIX identity/version mismatch');
+  const {verifyDocsArtifact}=await import('./docs-release-artifact.mjs');
+  const docs=await verifyDocsArtifact(assets[docsName].bytes,{version:manifest.version,sourceRevision:manifest.sourceRevision,sha256:manifest.files[docsName]});
   const admission=verifySourceAdmission(manifest,envelopes,policy);
   assets['unified-release.json']={bytes:manifestBytes,sha256:contentHash(manifestBytes)};
   assets['admission.json']={bytes:admissionBytes,sha256:contentHash(admissionBytes)};
-  return {...manifest,assets,admission};
+  return {...manifest,assets,admission,docs};
 }

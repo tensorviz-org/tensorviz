@@ -8,5 +8,32 @@
   "extensionName": null,
   "extensionPublisher": null,
   "clientVersions": {},
-  "reviewers": {}
+  "reviewers": {},
+  "channels": {
+    "enabled": false,
+    "publisher": null,
+    "extension": null,
+    "allowedDownloadHosts": [],
+    "tools": {
+      "vscode-marketplace": {
+        "root": "tooling/release-tools",
+        "version": "4.0.0"
+      },
+      "open-vsx": {
+        "root": "tooling/release-tools",
+        "version": "1.3.0"
+      },
+      "docs": {
+        "root": "tooling/release-tools",
+        "version": "15.36.0"
+      }
+    },
+    "docs": {
+      "project": "tensorviz-docs",
+      "site": null,
+      "serviceAccount": null,
+      "workloadIdentityAudience": null,
+      "oidcAudience": null
+    }
+  }
 }

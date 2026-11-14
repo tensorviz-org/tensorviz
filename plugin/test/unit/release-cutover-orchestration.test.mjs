@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {releaseChannels} from '../../scripts/release-channels.mjs';
 import {prepareCanonicalCatalogCommit} from '../../scripts/canonical-catalog-commit.mjs';
 import {catalogPaths} from '../../scripts/canonical-catalog.mjs';
-const identity={version:'1.0.0',sourceRevision:'a'.repeat(40),vsixSha256:'b'.repeat(64)};
+const identity={version:'1.0.0',sourceRevision:'a'.repeat(40),vsixSha256:'b'.repeat(64),docsSha256:'c'.repeat(64)};
 function channels(){const calls=[];const state={};const adapters=Object.fromEntries(['github','vscode-marketplace','open-vsx','docs'].map(name=>[name,{inspect:async()=>state[name],publish:async()=>{calls.push(name);state[name]={...identity,verified:true};}}]));return {calls,state,adapters};}
 test('channel retries reuse verified publications',async()=>{const f=channels();assert.equal((await releaseChannels(identity,f.adapters)).complete,true);await releaseChannels(identity,f.adapters);assert.equal(f.calls.length,4);});
 test('GitHub failure never advertises marketplace release',async()=>{const f=channels();f.adapters.github.publish=async()=>{throw Error('unavailable');};assert.equal((await releaseChannels(identity,f.adapters)).complete,false);assert.deepEqual(f.calls,[]);});

@@ -1,0 +1,9 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {inspectUnifiedGitHub,publishUnifiedChannels} from '../../scripts/publish-unified-channels.mjs';
+import {contentHash} from '../../scripts/source-release-admission.mjs';
+const bytes=Buffer.from('immutable');const bundle={version:'1.0.0',sourceRevision:'a'.repeat(40),assets:{'proof.json':{bytes,sha256:contentHash(bytes)}}};
+function fixture(){return{repository:async()=>({full_name:'tensorviz-org/tensorviz',private:false}),tag:async()=>({object:{type:'commit',sha:bundle.sourceRevision}}),release:async()=>({id:1,tag_name:'v1.0.0',target_commitish:bundle.sourceRevision,draft:false}),assets:async()=>[{name:'proof.json'}],publicDownload:async()=>bytes};}
+test('read-only canonical channel inspection verifies exact immutable public inventory',async()=>{assert.equal((await inspectUnifiedGitHub(bundle,fixture())).verified,true);});
+test('draft channel is pending rather than reported released',async()=>{const f=fixture();f.release=async()=>({draft:true});assert.equal(await inspectUnifiedGitHub(bundle,f),null);});
+for(const [name,mutate]of [['wrong source',f=>f.tag=async()=>({object:{type:'commit',sha:'b'.repeat(40)}})],['extra asset',f=>f.assets=async()=>[{name:'proof.json'},{name:'extra'}]],['public corruption',f=>f.publicDownload=async()=>Buffer.from('bad')]])test(`channel rejects ${name}`,async()=>{const f=fixture();mutate(f);await assert.rejects(inspectUnifiedGitHub(bundle,f));});
+test('production entrypoint cannot run without explicit cutover gates',async()=>{const saved=process.env.TENSORVIZ_PUBLIC_CUTOVER;delete process.env.TENSORVIZ_PUBLIC_CUTOVER;try{await assert.rejects(publishUnifiedChannels('/not-read','/not-read',bundle.sourceRevision,'/not-written'),/Explicit cutover/);}finally{if(saved!==undefined)process.env.TENSORVIZ_PUBLIC_CUTOVER=saved;}});

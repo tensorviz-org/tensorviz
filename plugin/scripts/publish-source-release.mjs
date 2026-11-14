@@ -85,7 +85,7 @@ export function githubTransport(directory, {command=execFileSync} = {}) {
   };
 }
 /** Policy and versions come from the exact reviewed Git object, never bundle input. */
-export async function publishUnifiedBundle(directory, sourceRoot, reviewedSource) {
+export async function admitUnifiedBundle(directory, sourceRoot, reviewedSource) {
   if(process.env.TENSORVIZ_PUBLIC_CUTOVER!=='true' || process.env.TLDRAW_DISTRIBUTION_CONFIRMED!=='true') throw Error('Explicit cutover and renderer approval required');
   if(!/^[a-f0-9]{40}$/.test(reviewedSource??'')) throw Error('Exact reviewed source required');
   const git=args=>execFileSync('git',args,{cwd:sourceRoot,encoding:'utf8',maxBuffer:4*1024*1024});
@@ -99,6 +99,10 @@ export async function publishUnifiedBundle(directory, sourceRoot, reviewedSource
   const {verifyUnifiedBundle}=await import('./unified-release-bundle.mjs');
   const bundle=await verifyUnifiedBundle(directory,policy);
   if(bundle.sourceRevision!==reviewedSource) throw Error('Bundle differs from reviewed source');
+  return {bundle,policy};
+}
+export async function publishUnifiedBundle(directory, sourceRoot, reviewedSource) {
+  const {bundle}=await admitUnifiedBundle(directory,sourceRoot,reviewedSource);
   // Upload private verified snapshots rather than reopening mutable source artifacts.
   const snapshot=await fs.mkdtemp(path.join(os.tmpdir(),'tensorviz-source-assets-'));
   try {

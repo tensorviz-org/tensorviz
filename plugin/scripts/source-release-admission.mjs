@@ -5,7 +5,7 @@ export const sourceReleaseClients=Object.freeze(['extension','codex','claude','c
 // Windows Claude/Cursor are not currently advertised. Do not invent their support.
 export const sourceReleaseMatrix=Object.freeze(sourceReleasePlatforms.flatMap(platform=>sourceReleaseClients.filter(client=>!platform.startsWith('win32-')||['extension','codex'].includes(client)).map(client=>({platform,client}))));
 export const contentHash=bytes=>createHash('sha256').update(bytes).digest('hex');
-export const inventoryHash=files=>contentHash(Buffer.from(JSON.stringify(Object.fromEntries(Object.entries(files).sort(([a],[b])=>a.localeCompare(b))))));
+export const inventoryHash=files=>contentHash(Buffer.from(JSON.stringify(Object.fromEntries(Object.entries(files).sort(([a],[b])=>a<b?-1:a>b?1:0)))));
 export function verifySourceAdmission(manifest,envelopes,policy) {
   if(policy?.schemaVersion!==1 || policy.enabled!==true || policy.repository!=='tensorviz-org/tensorviz') throw Error('Reviewed launch policy is not enabled');
   if(!/^[a-f0-9]{40}$/.test(manifest.sourceRevision??'') || !/^[1-9]\d*\.\d+\.\d+$/.test(manifest.version??'')) throw Error('Invalid source release');

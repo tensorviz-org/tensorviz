@@ -27,6 +27,7 @@ export async function syncOpenVsxRelease({ version, source, repository, token = 
     version = preparedVersion;
   }
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)) throw new Error('Expected a stable extension version.');
+  if (Number(version.split('.')[0]) >= 1) throw new Error('Public 1.x releases require the unified source publisher.');
   const get = url => request(url, { signal: AbortSignal.timeout(30_000) });
   const download = async url => {
     const response = await get(url);
@@ -111,3 +112,4 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   console.log(summary);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
 }
+

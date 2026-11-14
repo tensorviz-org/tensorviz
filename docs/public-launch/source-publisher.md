@@ -45,6 +45,7 @@ assets/                 # flat immutable upload inventory
   plugin-release.json  # byte-identical copy of plugin/release.json
   tensorviz-VERSION.vsix
   extension-provenance.json
+  tensorviz-docs-VERSION.zip # signed exact-source documentation archive
 unified-release.json    # schemaVersion:1, repository, version, sourceRevision, files
 admission.json          # 20 signed receipt envelopes
 ```
@@ -98,9 +99,10 @@ must inventory actual existing catalog files, not an assumed empty directory.
 through explicit adapters. Verified already-published channels are reused;
 conflicting bytes are never overwritten; partial failures are reported per
 channel. GitHub availability failure prevents advertising through marketplaces.
-Production marketplace/docs adapters, vendor authentication and release receipts
-still require wiring to existing release commands. This is tested orchestration,
-not a claim those channels have been published or are fully automated.
+Production Marketplace/OpenVSX/Firebase adapters and the admitted-bundle entrypoint
+are staged in this PR; see [production-channels.md](production-channels.md). Actual
+credentials, native acceptance, registry behavior and durable journal deployment
+still require final activation review. No channels have been published by this work.
 
 Canonical1.x public document rendering now rewrites installation repository
 commands/current URLs and stale private-source assertions while preserving old

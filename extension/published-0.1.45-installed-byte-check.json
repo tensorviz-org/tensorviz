@@ -1,0 +1,10 @@
+{
+  "checked_at": "2026-11-14T17:42:19.410458+00:00",
+  "artifact_sha256": "edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990",
+  "byte_identical_installed_files": 478,
+  "vscode_metadata_only_files": [
+    "package.json"
+  ],
+  "mismatched_files": [],
+  "status": "passed"
+}

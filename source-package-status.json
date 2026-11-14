@@ -49,5 +49,15 @@
       "extension/source-package-payload-diff.json",
       "extension/gui-final.json"
     ]
+  },
+  "published_extension_gui_followup": {
+    "classification": "Actual published artifact; not a local source build",
+    "version": "0.1.45",
+    "source_revision": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+    "vsix_sha256": "edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990",
+    "bounded_capture_and_graph_flows": "passed",
+    "known_failed_interpreter_badge": "failed",
+    "receipt": "extension/published-0.1.45-gui-followup.json",
+    "note": "Does not change earlier local d1 GUI-blocked outcome or imply PR76 is installed."
   }
 }

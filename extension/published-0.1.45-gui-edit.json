@@ -1,0 +1,7 @@
+{
+  "changed_at": "2026-11-14T17:40:35.403284+00:00",
+  "scope": "generated fixture only",
+  "edit": "final nn.Linear(8,5) -> nn.Linear(8,7)",
+  "before_sha256": "9c7434e2b9aae73df584f4409b772fda7418c2959a7fc301c252d15f01322aa3",
+  "after_sha256": "d453ee32d189196d35c13b72a2cdb7eec36c2c57560b3eef52446f645a21f2a5"
+}

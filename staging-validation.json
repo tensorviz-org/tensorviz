@@ -1,6 +1,6 @@
 {
   "scope": "Static syntax/JSON/privacy/link validation and lifecycle helper plan/error path only; no duplicate installs or product tests.",
-  "files_checked": 111,
+  "files_checked": 119,
   "json_valid": true,
   "python_syntax_valid": true,
   "privacy_pattern_flags": [],
@@ -18,7 +18,7 @@
     "execute_mode": "not run",
     "note": "Actual acceptance is in root lifecycle receipts; new helper plan validation is not a repeat execution."
   },
-  "updated_at_utc": "2026-11-14T17:16:02.917444+00:00",
+  "updated_at_utc": "2026-11-14T17:45:14.727428+00:00",
   "checklist": {
     "items": 13,
     "status_enum_valid": true,
@@ -28,5 +28,12 @@
       "blocked": 0,
       "not run": 7
     }
+  },
+  "gui_followup": {
+    "steps": 12,
+    "passed": 11,
+    "failed": 1,
+    "svg_exports_verified": 2,
+    "historical_blocker_receipt_unchanged": true
   }
 }

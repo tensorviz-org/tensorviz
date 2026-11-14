@@ -1,0 +1,107 @@
+{
+  "observed_date_utc": "2026-11-14",
+  "observed_interval_utc": "17:35–17:43",
+  "classification": "Actual published extension GUI acceptance, scoped manual follow-up",
+  "supersedes_current_blocker_in": "published-0.1.45-gui-status.json",
+  "historical_receipt_preserved": true,
+  "artifact": {
+    "repo": "tensorviz-org/tensorviz",
+    "tag": "v0.1.45",
+    "version": "0.1.45",
+    "source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+    "vsix_sha256": "edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990",
+    "installed_file_verification": "478 files byte-identical to the downloaded release; package.json differs only by VS Code installation metadata; zero unexplained mismatches."
+  },
+  "environment": {
+    "macos": "26.4 (25E246)",
+    "architecture": "arm64",
+    "vscode": "1.145.2",
+    "selected_capture_python": "3.12.14",
+    "selected_capture_torch": "2.14.1",
+    "missing_and_broken_fixture_python": "3.12.13 arm64",
+    "isolation": "Same disposable HOME/profile/extensions directories and user-trusted synthetic fixture folder as the earlier audit; no normal account used."
+  },
+  "steps": [
+    {
+      "check": "Native editor access and fixture activation",
+      "status": "passed",
+      "actions": ["User requested retry", "Computer control successfully read the retained published0.1.45 test window", "File: Open Folder > previously trusted fixture folder", "Open tiny_model.py and tensorViz view"],
+      "observed": "Static five-node graph; Not run — shapes read from the source. No new trust or sign-in prompt was accepted."
+    },
+    {
+      "check": "Real model capture in published VS Code GUI",
+      "status": "passed",
+      "actions": ["Run model", "Verify saved tiny_model.py::graph_inputs() factory and CPU execution", "Run"],
+      "observed": "Input [2,4], output [2,5], 16 graph nodes, Traced — shapes measured, Latest validation: Passed."
+    },
+    {
+      "check": "Representative graph inspection",
+      "status": "passed",
+      "actions": ["Expand layers", "Expand layers.0"],
+      "observed": "Linear measured [2,4] to [2,8]; addmm displayed bias[8], input[2,4], transposed weight[4,8] and output[2,8]; transpose and weight/bias nodes visible. Not all module types."
+    },
+    {
+      "check": "Fresh browser handoff and reconnect",
+      "status": "passed",
+      "actions": ["Open Canvas in Browser from the actual extension toolbar", "Inspect Chrome graph", "Reload browser tab"],
+      "observed": "A fresh host-owned session opened successfully. Reload restored the same measured [2,4] to [2,5] graph with 16 nodes and validation Passed. No token was extracted or session restriction bypassed."
+    },
+    {
+      "check": "SVG export",
+      "status": "passed",
+      "actions": ["More tools > Download SVG"],
+      "observed": "UI confirmed Saved as SVG. Parsed and inspected actual downloaded XML, 6336 bytes; no personal paths/hostnames or active content. Pre-edit output[2,5] export hash47b0de048a6a4bcac46ed7611569778d216e220aca76e1f29bfba6f96af36b37."
+    },
+    {
+      "check": "Missing-Torch graphical guidance",
+      "status": "passed",
+      "actions": ["tensorViz: Select Python Environment > isolated empty interpreter", "Set up manually"],
+      "observed": "Add the missing libraries, specifically torch, pydantic>=2.12,<3, packaging and numpy. UI offered explicit installation approval. No packages installed into the empty environment."
+    },
+    {
+      "check": "Broken-Torch graphical diagnosis",
+      "status": "passed",
+      "actions": ["tensorViz: Select Python Environment > Enter Python or environment path > isolated broken-torch-metadata-env interpreter"],
+      "observed": "Project setup needs attention: The capture worker could not load (OSError). Choose a compatible environment. The fixture has capture dependencies and synthetic torch2.14.1 metadata but deliberately fails import; it is not a real defective wheel."
+    },
+    {
+      "check": "Known-failed interpreter badge",
+      "status": "failed",
+      "actions": ["Set up manually after the broken-import error"],
+      "observed": "Environment setup failed and the clear OSError message coexist with This model Ready for this model on the same saved interpreter. Reproduced in the actual published0.1.45 artifact; draft PR76 addresses this UI inconsistency and was not installed in this test."
+    },
+    {
+      "check": "Recovery to compatible environment",
+      "status": "passed",
+      "actions": ["Select TensorViz Python3.12.14/Torch2.14.1", "Use TensorViz Python instead"],
+      "observed": "Valid measured [2,4] to [2,5] graph restored. UI explicitly disclosed Reused identical result (model not run again); this is not counted as a fresh capture."
+    },
+    {
+      "check": "Edit invalidation and fresh recapture",
+      "status": "passed",
+      "actions": ["Change only generated fixture final nn.Linear(8,5) to nn.Linear(8,7)", "Observe invalidation", "Run model"],
+      "observed": "Before capture, Not run — shapes read from source and Latest validation: Not run for this version. Fresh capture measured [2,4] to [2,7], 16 nodes, validation Passed."
+    },
+    {
+      "check": "Graph diff against HEAD and refresh",
+      "status": "passed",
+      "actions": ["tensorViz: Graph diff against HEAD", "Refresh graph diff", "Close graph diff"],
+      "observed": "Generated fixture HEAD has output width3; current code has width7. Diff shows one modified Linear out_features and zero added/removed connections. Refresh retained the same change."
+    },
+    {
+      "check": "Final browser reconnect and export",
+      "status": "passed",
+      "actions": ["Reload existing browser canvas", "More tools > Download SVG"],
+      "observed": "Measured [2,4] to [2,7], 16 nodes, validation Passed. Final6336-byte export hashd14180c759090e9a623ce0b628460b8cfc053a1c7caa268e854e0dd5a75dc35f. Working graph left open for the user."
+    }
+  ],
+  "limits": [
+    "This resolves the earlier actual published0.1.45 GUI blocker only for the observed checks; it is not exhaustive acceptance.",
+    "The published VSIX was already installed in the retained disposable profile. Fresh CLI install/upgrade/removal were verified separately, not rerun in this follow-up.",
+    "The managed capture environment was reused from the baseline setup; no new managed runtime installation is claimed here.",
+    "The selected saved input factory was tested; automatic input generation was not repeated in this follow-up.",
+    "Plugin permission-gated capture, agent-assisted/ACP paths, website upload, other operating systems and the full model matrix remain unverified.",
+    "The known-failed readiness badge remains a released-product failure; draft PR76 validation does not mean it is fixed in0.1.45.",
+    "No account switch, credential copy, security change, merge, release or workflow dispatch was performed."
+  ]
+}

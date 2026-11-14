@@ -112,7 +112,7 @@
       "id": "core.expand_collapse",
       "item": "Expand and collapse all modules",
       "status": "not run",
-      "evidence": "Published0.1.44 actual GUI expanded Sequential and Linear to measured operations and parameters. All module types and collapse variants were not covered.",
+      "evidence": "Published0.1.44 actual GUI expanded Sequential and Linear to measured operations and parameters. All module types and collapse variants were not covered. Actual published0.1.45 follow-up also passed representative Linear/measured-operation expansion; exhaustive collapse/module coverage remains unrun.",
       "receipt": "extension/gui-status.json",
       "scope": "Partial evidence; representative module types",
       "subchecks": [
@@ -123,6 +123,10 @@
         {
           "check": "All module expansion/collapse matrix",
           "status": "not run"
+        },
+        {
+          "check": "Actual published0.1.45 representative Linear expansion",
+          "status": "passed"
         }
       ]
     },
@@ -130,7 +134,7 @@
       "id": "core.graph_diff",
       "item": "MCP, ACP, manual graph edit and manual code edit graph diffs",
       "status": "not run",
-      "evidence": "Manual source edit in published0.1.44 Graph diff against HEAD showed one out_features modification and zero additions/removals; Refresh retained it. Backend structural-diff tests passed.",
+      "evidence": "Manual source edit in published0.1.44 Graph diff against HEAD showed one out_features modification and zero additions/removals; Refresh retained it. Backend structural-diff tests passed. Actual published0.1.45 HEAD width3 to current width7 graph diff and refresh passed with one out_features modification and zero additions/removals.",
       "receipt": "extension/gui-final.json",
       "scope": "Partial evidence; one of four GUI paths",
       "subchecks": [
@@ -153,6 +157,10 @@
         {
           "check": "Manual graphical edit diff",
           "status": "not run"
+        },
+        {
+          "check": "Actual published0.1.45 manual code-edit diff and refresh",
+          "status": "passed"
         }
       ]
     },
@@ -160,7 +168,7 @@
       "id": "core.new_project",
       "item": "Start a project from scratch",
       "status": "passed",
-      "evidence": "User-trusted fixture, managed runtime setup, measured captures, reconnect, export and edit/recapture passed on published0.1.44. This does not claim every project setup.",
+      "evidence": "User-trusted fixture, managed runtime setup, measured captures, reconnect, export and edit/recapture passed on published0.1.44. This does not claim every project setup. Actual published0.1.45 follow-up reused this fixture/runtime; it is not an additional fresh project setup claim.",
       "receipt": "extension/gui-final.json",
       "scope": "Scoped to a new synthetic project",
       "subchecks": [
@@ -174,7 +182,7 @@
       "id": "core.input_shapes",
       "item": "Automatic, agent-assisted and manual input shapes",
       "status": "not run",
-      "evidence": "Automatic and explicit Python factory input captures passed in actual GUI; backend input tests passed. Agent-assisted input setup not run.",
+      "evidence": "Automatic and explicit Python factory input captures passed in actual GUI; backend input tests passed. Agent-assisted input setup not run. Actual published0.1.45 saved-factory captures passed for output widths5 and7. Automatic-input generation was not repeated in this follow-up.",
       "receipt": "extension/gui-final.json",
       "scope": "Partial evidence; two of three input paths",
       "subchecks": [
@@ -189,6 +197,10 @@
         {
           "check": "Agent-assisted input flow",
           "status": "not run"
+        },
+        {
+          "check": "Actual published0.1.45 saved-factory capture",
+          "status": "passed"
         }
       ]
     },
@@ -196,8 +208,8 @@
       "id": "core.errors",
       "item": "Error messages point to the correct problem",
       "status": "failed",
-      "evidence": "Local eae source VSIX correctly diagnosed missing dependencies and synthetic OSError import failure, recovered capture afterward, but the failed interpreter candidate still claimed Ready. Draft PR76 fixes that badge;54 panel tests passed; patched VSIX/GUI not tested. Published0.1.44 service fails withoutTorch; sourceeae fixes startup. Actual published0.1.45 bundled backend now passes no-Torch startup/static routes and structured negative probes; this is separate from local-source GUI acceptance.",
-      "receipt": "extension/gui-final.json; backend/environment-status-fix.json; backend/installed-vsix-service-results.json; plugin/published-0.1.45-capture-probe.json",
+      "evidence": "Actual published0.1.45 GUI correctly diagnosed missing dependencies and synthetic OSError import failure but the same failed interpreter still claimed Ready. This reproduces the earlier local eae-source badge issue. Recovery displayed explicit cache reuse; a later edited-model fresh capture passed. PR76 remains an uninstalled draft fix with54 panel tests passed. Actual published0.1.45 no-Torch startup/static and helper diagnoses passed; baseline0.1.44 service-noTorch failure remains historical.",
+      "receipt": "extension/published-0.1.45-gui-followup.json; backend/environment-status-fix.json; backend/published-0.1.45-backend-results.json",
       "scope": "Partial evidence; one known UI contradiction",
       "subchecks": [
         {
@@ -233,8 +245,16 @@
           "status": "passed"
         },
         {
-          "check": "Actual published0.1.45 graphical diagnostics/capture",
-          "status": "blocked"
+          "check": "Actual published0.1.45 missing/broken environment GUI diagnosis",
+          "status": "passed"
+        },
+        {
+          "check": "Actual published0.1.45 known-failed interpreter Ready badge",
+          "status": "failed"
+        },
+        {
+          "check": "Actual published0.1.45 recovery cache disclosure and edited-model fresh capture",
+          "status": "passed"
         }
       ]
     },

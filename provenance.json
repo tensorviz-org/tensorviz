@@ -87,17 +87,22 @@
     "sha256": "edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990",
     "bytes": 5641948,
     "checked_at_utc": "2026-11-14T16:58:17.299574+00:00",
-    "acceptance": "passed CLI clean/upgrade/removal and8 actual-artifact backend checks; graphical acceptance blocked",
+    "acceptance": "passed CLI lifecycle,8 backend checks and11 scoped GUI checks; known failed-interpreter readiness badge failed",
     "marketplace_identity": "Release-body claim; not independently compared to Marketplace download",
     "receipts": [
       "extension/published-0.1.45-provenance.json",
       "extension/published-0.1.45-lifecycle.json",
       "backend/published-0.1.45-backend-results.json",
       "extension/published-0.1.45-gui-status.json",
-      "extension/published-source-payload-diff.json"
+      "extension/published-source-payload-diff.json",
+      "extension/published-0.1.45-gui-followup.json",
+      "extension/published-0.1.45-installed-byte-check.json",
+      "extension/published-0.1.45-svg-export.json",
+      "extension/published-0.1.45-svg-export-edited.json"
     ],
-    "graphical_acceptance": "blocked: native computer-control timeouts; direct browser access correctly requires fresh host session; no bypass",
-    "retained_test_state": "Disposable GUI profile remains running with published0.1.45 for optional user handoff; earlier cleanup receipt predates this attempt"
+    "graphical_acceptance": "Scoped observed GUI flows passed;12 checks comprise11 passed and1 known badge failure. Previous access blocker resolved.",
+    "retained_test_state": "Disposable GUI profile and actual published0.1.45 output-width7 graph remain open for the user",
+    "historical_gui_blocker_receipt": "extension/published-0.1.45-gui-status.json"
   },
   "svg_export": {
     "file": "extension/published-0.1.44-graph.svg",
@@ -105,7 +110,7 @@
     "bytes": 6336,
     "synthetic_only": true
   },
-  "updated_at_utc": "2026-11-14T17:16:02.915910+00:00",
+  "updated_at_utc": "2026-11-14T17:45:14.726478+00:00",
   "fixes": [
     {
       "url": "https://github.com/tensorviz-org/tensorviz/pull/72",
@@ -129,18 +134,37 @@
     }
   ],
   "preservation": {
-    "receipt": "extension/settings-preservation-final.json",
-    "checked_at_utc": "2026-11-14T17:15:16.150568+00:00",
+    "receipt": "extension/settings-preservation-gui-followup.json",
+    "checked_at_utc": "2026-11-14T17:43:11.564660+00:00",
     "unchanged": 6,
     "changed": 1,
     "changed_file": "$HOME/.claude.json",
     "cause": "unverified; no matching baseline backup found; concurrent state not restored",
-    "normal_editor_settings_in_initial_inventory": false
+    "normal_editor_settings_in_initial_inventory": false,
+    "previous_receipt": "extension/settings-preservation-final.json"
   },
   "later_source_followup": {
     "revision": "d1c463c37863d89c2ccc8e37ec75858de47d194a",
     "runtime_change": "f046c32d1188d84564576773d9164af64af0c9f1 (PR74)",
     "receipt": "current-source-followup/source-followup-report.md",
     "status": "passed selected58+5+5 cases; broader initial suite109passed/2failed retained; GUI blocked"
-  }
+  },
+  "published_0_1_45_svg_exports": [
+    {
+      "file": "extension/published-0.1.45-gui-graph.svg",
+      "sha256": "47b0de048a6a4bcac46ed7611569778d216e220aca76e1f29bfba6f96af36b37",
+      "output_shape": [
+        2,
+        5
+      ]
+    },
+    {
+      "file": "extension/published-0.1.45-gui-edited-graph.svg",
+      "sha256": "d14180c759090e9a623ce0b628460b8cfc053a1c7caa268e854e0dd5a75dc35f",
+      "output_shape": [
+        2,
+        7
+      ]
+    }
+  ]
 }

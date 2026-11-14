@@ -1,0 +1,8 @@
+{
+  "exported_at": "2026-11-14T17:42:45.482024+00:00",
+  "bytes": 6336,
+  "sha256": "d14180c759090e9a623ce0b628460b8cfc053a1c7caa268e854e0dd5a75dc35f",
+  "status": "passed",
+  "source": "Actual published0.1.45 browser Download SVG after fresh edited-model capture; UI confirmed Saved as SVG",
+  "output_shape": "[2,7]"
+}

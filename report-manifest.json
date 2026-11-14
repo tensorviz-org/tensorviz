@@ -1,11 +1,11 @@
 {
-  "generated_at_utc": "2026-11-14T17:16:49.655475+00:00",
+  "generated_at_utc": "2026-11-14T17:46:01.061492+00:00",
   "scope": "Explicitly reviewed text-file allowlist; no source artifacts, raw profiles, caches, environments, or workflow files",
   "validation": {
     "json_and_python_syntax": "passed",
     "privacy_pattern_scan": "passed",
     "readme_local_links": "passed",
-    "file_count": 111
+    "file_count": 119
   },
   "files": [
     {
@@ -15,8 +15,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 26799,
-      "sha256": "ce2cf65b1b63b979380394d62934eb561c03ae781b75e7ad91eb9d537d7a8eac"
+      "bytes": 29821,
+      "sha256": "7af84501690e2cd8834fff5fc5001dada14ecadf44e2c6b258c273470f524601"
     },
     {
       "path": "backend/README.md",
@@ -140,8 +140,8 @@
     },
     {
       "path": "checklist.json",
-      "bytes": 11075,
-      "sha256": "a837611885a2549bcaf0ba2e83e6f92f945c4d90ffdcec6034383ae5c35a8954"
+      "bytes": 12268,
+      "sha256": "0a70834e39b6364866b31be2b03bdc05735a6b351a227261e442cf398d81ac12"
     },
     {
       "path": "current-source-followup/build-receipts.json",
@@ -314,9 +314,34 @@
       "sha256": "302028327cdbb8021b0444b7661ef63e5b0106740c41023e310afc2fcbaf3901"
     },
     {
+      "path": "extension/published-0.1.45-gui-edit.json",
+      "bytes": 317,
+      "sha256": "4c1ca222c630c98cc2e0352774bf38c892c7b6ce4ca0873bf71ba4f79b5e47b3"
+    },
+    {
+      "path": "extension/published-0.1.45-gui-edited-graph.svg",
+      "bytes": 6336,
+      "sha256": "d14180c759090e9a623ce0b628460b8cfc053a1c7caa268e854e0dd5a75dc35f"
+    },
+    {
+      "path": "extension/published-0.1.45-gui-followup.json",
+      "bytes": 6901,
+      "sha256": "d33170bd4e98d2a1414ce0439c1d7987ac24930fce46137c5429945bd666eefd"
+    },
+    {
+      "path": "extension/published-0.1.45-gui-graph.svg",
+      "bytes": 6336,
+      "sha256": "47b0de048a6a4bcac46ed7611569778d216e220aca76e1f29bfba6f96af36b37"
+    },
+    {
       "path": "extension/published-0.1.45-gui-status.json",
       "bytes": 1675,
       "sha256": "ddb8555609ecabdeef21d38add6b76b939cfc1502d96f5764569748877df9b31"
+    },
+    {
+      "path": "extension/published-0.1.45-installed-byte-check.json",
+      "bytes": 291,
+      "sha256": "f9d420209ce72a136a1d0a09eb544916bb455f5dc12ffc3f4f5edae9efe2b3eb"
     },
     {
       "path": "extension/published-0.1.45-lifecycle.json",
@@ -327,6 +352,16 @@
       "path": "extension/published-0.1.45-provenance.json",
       "bytes": 939,
       "sha256": "a71c6964f210d0d80d732e064bf75306ac1ee91ac88d9e8f3266d12b3e81b746"
+    },
+    {
+      "path": "extension/published-0.1.45-svg-export-edited.json",
+      "bytes": 321,
+      "sha256": "039abf9d121e185062bc848f143cf1cc9d7795af36997556fe476b77bd935e58"
+    },
+    {
+      "path": "extension/published-0.1.45-svg-export.json",
+      "bytes": 288,
+      "sha256": "8e839a8e54a33819fcbbccec64eba8f2df5ae24437ea2d1db0e1f879c6f2057c"
     },
     {
       "path": "extension/published-source-payload-diff.json",
@@ -347,6 +382,11 @@
       "path": "extension/settings-preservation-final.json",
       "bytes": 1400,
       "sha256": "70eeb296e04fe56450b139e548461165a88ff8b60058f669fc82b0bae3165fdd"
+    },
+    {
+      "path": "extension/settings-preservation-gui-followup.json",
+      "bytes": 836,
+      "sha256": "dc9e9878c596aa5e26192ee97fbe45055d11e564c603cc10a0fcdd0d8ca7bb22"
     },
     {
       "path": "extension/settings-preservation-midrun.json",
@@ -540,8 +580,8 @@
     },
     {
       "path": "provenance.json",
-      "bytes": 6649,
-      "sha256": "04c7213fe76f110bc8f5950e63e6943b7c4c16efd820ef642d12cb03fc3a5284"
+      "bytes": 7481,
+      "sha256": "bd76ed3e1fac5c9630a82547a11c83818e33efcf9acce74a1c88746bacf6f3f7"
     },
     {
       "path": "refresh_manifest.py",
@@ -550,18 +590,18 @@
     },
     {
       "path": "report-allowlist.json",
-      "bytes": 4932,
-      "sha256": "9fe9dd5c0c7cefa8044f7c67c84e469ee0d809d5c03a5e1a47c48ea9c2b8a2f6"
+      "bytes": 5359,
+      "sha256": "07200bfde88418e80c05807ef3f8e3f89bfdf562e75472f15250edf191bf6188"
     },
     {
       "path": "source-package-status.json",
-      "bytes": 2610,
-      "sha256": "5b47c608064968a34e8ae2261b53d1198ed80766cd34d62271e3235e410d10dc"
+      "bytes": 3166,
+      "sha256": "fd134a7ce72723fe93e5830833ab83f03ab86f9b771f0225de174672300ddeb3"
     },
     {
       "path": "staging-validation.json",
-      "bytes": 928,
-      "sha256": "994cd0effed37f4e4eae5f4d89801d4485dfaa04d97f438b78e2ff846f1431d1"
+      "bytes": 1085,
+      "sha256": "8a8f90a06aab37ab253a3c390785732d251f393613f887f33394e898d25d23be"
     }
   ],
   "self_exclusion": "This manifest does not hash itself"

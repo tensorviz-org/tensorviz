@@ -198,6 +198,18 @@ jobs:
             plugin/dist/tensorviz-bootstrap-*.NOTICES.md
           if-no-files-found: error
           retention-days: 7
+      - name: Retain failed native release evidence for private diagnosis only
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-unverified-release-${{ matrix.platform }}-${{ needs.configuration.outputs.version }}
+          path: |
+            plugin/out/unix-production-mcp/
+            plugin/out/windows-production-mcp/
+            plugin/dist/tensorviz-runtime-*.tar.gz*
+            plugin/out/native-runtime/release-manifest.json
+          if-no-files-found: warn
+          retention-days: 3
 
   assemble:
     needs: [configuration, build]

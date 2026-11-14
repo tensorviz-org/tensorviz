@@ -1,0 +1,670 @@
+{
+  "checked_at_utc": "2026-11-14T16:18:26.111000+00:00",
+  "python_version": "3.14.6",
+  "openssl_version": "OpenSSL 3.6.3 9 Jun 2026",
+  "method": "Unauthenticated HTTPS GET; five workers; 25-second request timeout; 3 MiB response cap. No install or UI execution.",
+  "scope": "Seed installation/docs pages, their directly linked documentation pages, and documentation image assets in those seed pages.",
+  "results": [
+    {
+      "url": "https://docs.tensorviz.dev/",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/",
+      "content_type": "text/html",
+      "bytes_read": 35403,
+      "truncated": false,
+      "sha256": "c6a52c704cfa81c5e315c6797f93eba2a17d46b82205dbb54fdcaf9bdd184439"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/CONTRIBUTING.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/CONTRIBUTING.html",
+      "content_type": "text/html",
+      "bytes_read": 44754,
+      "truncated": false,
+      "sha256": "23fecbf75671cb5fa2f87f6496b642c5dfbfe5ab596097deaa50df734097df32"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/SECURITY.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/SECURITY.html",
+      "content_type": "text/html",
+      "bytes_read": 33981,
+      "truncated": false,
+      "sha256": "56f309740de09897b46f2f3c08fe56727aabf39c058479d27077eed61585df37"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/agent-plugin.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/agent-plugin.html",
+      "content_type": "text/html",
+      "bytes_read": 46399,
+      "truncated": false,
+      "sha256": "1350233069fef44fcbc8db4b8aded7073b53a9877fa11866fbd3b8697dca7c18"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/canvas.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/canvas.html",
+      "content_type": "text/html",
+      "bytes_read": 44962,
+      "truncated": false,
+      "sha256": "8128d3bae2b126713bd9830f78c87d6407ed90cffd89c5f6a0d07c85262012d0"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/code-focus.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/code-focus.html",
+      "content_type": "text/html",
+      "bytes_read": 35179,
+      "truncated": false,
+      "sha256": "707bb621b06fadb6c4fbef767a19f073ac7220d2d5fb64b222cc5b85037e4f38"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/concepts.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/concepts.html",
+      "content_type": "text/html",
+      "bytes_read": 36060,
+      "truncated": false,
+      "sha256": "602fef0fd965322f7215756b71caa651693107fcc3961bafa1a9c793cba92ea2"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/documentation-site.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/documentation-site.html",
+      "content_type": "text/html",
+      "bytes_read": 44442,
+      "truncated": false,
+      "sha256": "ba1e76387dfb38a5f3d3e4fbc945da204fbec2da017abb5f74524b5950953a82"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/environment-recovery.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/environment-recovery.html",
+      "content_type": "text/html",
+      "bytes_read": 41068,
+      "truncated": false,
+      "sha256": "1f39b00cb234e7acd9886d9ae3d78221f756dddf9700440c8a053d6976d4ed66"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/execution-cache.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/execution-cache.html",
+      "content_type": "text/html",
+      "bytes_read": 36644,
+      "truncated": false,
+      "sha256": "e5e856f78181429f5b6c1955af6ac792f5f19b07b3e15cfb5100eb5116cd42d4"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/extension/CHANGELOG.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/extension/CHANGELOG.html",
+      "content_type": "text/html",
+      "bytes_read": 81188,
+      "truncated": false,
+      "sha256": "50ce530d6b1a4b342a297620f127641467c5111fd89f61b84789194787f9b7e2"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/graph-diff-review/",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/graph-diff-review/",
+      "content_type": "text/html",
+      "bytes_read": 36405,
+      "truncated": false,
+      "sha256": "dc0b6f668ce8204d1ff15c3626e09976adc038d4e0598c634b3adbfd3286a15a"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/graph-diff-review/pr-workflow.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/graph-diff-review/pr-workflow.html",
+      "content_type": "text/html",
+      "bytes_read": 38941,
+      "truncated": false,
+      "sha256": "99ac0b98bc28762496773d87519cd5a8da68c8e95dac9fa0eadd45ce6663a093"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/graph-files.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/graph-files.html",
+      "content_type": "text/html",
+      "bytes_read": 34869,
+      "truncated": false,
+      "sha256": "f38ea70f4469f4e3392ee502648e549dbbe8525faffee107107571f32e40dfac"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/graph-libraries.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/graph-libraries.html",
+      "content_type": "text/html",
+      "bytes_read": 39897,
+      "truncated": false,
+      "sha256": "ee4125fc728780f9828dc4dc03d347e8ea3b1c3af3b053a211e63e499362329e"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/graph-opening.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/graph-opening.html",
+      "content_type": "text/html",
+      "bytes_read": 38548,
+      "truncated": false,
+      "sha256": "ac2378d56139e827def7e09045ec232a3d112efc77f249b37838bb5b08697075"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/graph-setup.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/graph-setup.html",
+      "content_type": "text/html",
+      "bytes_read": 36140,
+      "truncated": false,
+      "sha256": "8b46c06c32f277005c3a6d3046b14ee5a9d7f5574edb9bbac777828ca08e9706"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/guides.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/guides.html",
+      "content_type": "text/html",
+      "bytes_read": 35575,
+      "truncated": false,
+      "sha256": "d8f71a41840db4a13a781647aec231609a3b74e9c38abb30f0393bce870e0c7c"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/hugging-face-models.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/hugging-face-models.html",
+      "content_type": "text/html",
+      "bytes_read": 38972,
+      "truncated": false,
+      "sha256": "e817193301de06db6ee8a43bc30c0f2681645f554d795f10d17d41dcd5b69a27"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/images/explore-graph.png",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/images/explore-graph.png",
+      "content_type": "image/png",
+      "bytes_read": 583019,
+      "truncated": false,
+      "sha256": "da702ad780b295cde53832edb6a17e08c89accb7aa5dc410c9c18111385da2c7"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/images/follow-code.png",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/images/follow-code.png",
+      "content_type": "image/png",
+      "bytes_read": 581330,
+      "truncated": false,
+      "sha256": "6c0258eac1e67aa31c95934100e47388214c2c5ed16f3dd29b21821e9b7f7460"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/images/review-changes.png",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/images/review-changes.png",
+      "content_type": "image/png",
+      "bytes_read": 433647,
+      "truncated": false,
+      "sha256": "d59650856d94b9ce09ff87ca5c1c01a1d13a5d5a5b2243464a156dd0c1c00a50"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/install.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/install.html",
+      "content_type": "text/html",
+      "bytes_read": 42509,
+      "truncated": false,
+      "sha256": "6d57ec0e8f6b1ec55a3af9e337ae4c313081aa711b8f8441396b52f4c3b1747d"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/jax-support.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/jax-support.html",
+      "content_type": "text/html",
+      "bytes_read": 50812,
+      "truncated": false,
+      "sha256": "2478cbd18e8a642c58f0088e6a47e2c9983cb48864ade53aa8cd753d53e0bc61"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/licensing.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/licensing.html",
+      "content_type": "text/html",
+      "bytes_read": 36288,
+      "truncated": false,
+      "sha256": "df123df52e8efdc5db7588c8f36d195b4e239965137d11a11bcdc18b8c538cf5"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/linux-ssh-runtime.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/linux-ssh-runtime.html",
+      "content_type": "text/html",
+      "bytes_read": 39135,
+      "truncated": false,
+      "sha256": "c393126df7784756e7a70cc9f6c8e012d4f4b68c60f0b0fee65c483b01a18a22"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/local-setup.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/local-setup.html",
+      "content_type": "text/html",
+      "bytes_read": 60561,
+      "truncated": false,
+      "sha256": "fc60118974dfdba9a5fa03835fbf0d06c3904fd56fe32e1298559f3d8b026503"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/logo-dark.svg",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/logo-dark.svg",
+      "content_type": "image/svg+xml",
+      "bytes_read": 446,
+      "truncated": false,
+      "sha256": "dc9641dac1619fbac5373bdf76db4759346f958acdcb710720e676ffa7feef7d"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/logo-light.svg",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/logo-light.svg",
+      "content_type": "image/svg+xml",
+      "bytes_read": 446,
+      "truncated": false,
+      "sha256": "dc9641dac1619fbac5373bdf76db4759346f958acdcb710720e676ffa7feef7d"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/markdown/agent-plugin.md",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/markdown/agent-plugin.md",
+      "content_type": "text/markdown",
+      "bytes_read": 8615,
+      "truncated": false,
+      "sha256": "b56e7ff7f23d855e2a0c49a90f380deabdd4d92dc62fa9f6b2999325532172d5"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/markdown/graph-diff-review/index.md",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/markdown/graph-diff-review/index.md",
+      "content_type": "text/markdown",
+      "bytes_read": 3088,
+      "truncated": false,
+      "sha256": "cec25209ff8c05cb0368542ba2f38362d0402bc3ab82984d01243860057d12eb"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/markdown/install.md",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/markdown/install.md",
+      "content_type": "text/markdown",
+      "bytes_read": 4442,
+      "truncated": false,
+      "sha256": "be50cd74b10c86ac8b558fdaae4129562303dc5f5357d457d5cfb67f8dea6264"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/markdown/local-setup.md",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/markdown/local-setup.md",
+      "content_type": "text/markdown",
+      "bytes_read": 12837,
+      "truncated": false,
+      "sha256": "cd73333cea0f13bd8a872a51b914dfc026de06e9461b73dd77a2fef16a87339e"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/markdown/plugin-build.md",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/markdown/plugin-build.md",
+      "content_type": "text/markdown",
+      "bytes_read": 6177,
+      "truncated": false,
+      "sha256": "1efc1b729c6b26522d50b1554feb68e1469b26036fd2a079ed1bb8cfab9cf577"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/markdown/quickstart.md",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/markdown/quickstart.md",
+      "content_type": "text/markdown",
+      "bytes_read": 3424,
+      "truncated": false,
+      "sha256": "414b48cc52e629259c391b82e1006082ba793ae7c62d28ead3a4028c0192286a"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/markdown/share-to-website.md",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/markdown/share-to-website.md",
+      "content_type": "text/markdown",
+      "bytes_read": 5935,
+      "truncated": false,
+      "sha256": "f0138674ea85caf0d83ac6e6ae9f5f4c586045082f928ec7e00a9e0b18a3e353"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/mcp-security.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/mcp-security.html",
+      "content_type": "text/html",
+      "bytes_read": 39951,
+      "truncated": false,
+      "sha256": "0781a1b574cf1b99c72efeef33cc6d4dc69fe6038356c98fef381a98abf48f97"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/mcp-tools.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/mcp-tools.html",
+      "content_type": "text/html",
+      "bytes_read": 89172,
+      "truncated": false,
+      "sha256": "5fcb798d8ec6b375038a0792b61be92f6a91779ac46a86e30a90cc8d00538c5f"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/mcp.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/mcp.html",
+      "content_type": "text/html",
+      "bytes_read": 42896,
+      "truncated": false,
+      "sha256": "328136330085895bc0920a2de0d838596d023ef96d5dca74f39f947e87487185"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/model-context.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/model-context.html",
+      "content_type": "text/html",
+      "bytes_read": 33862,
+      "truncated": false,
+      "sha256": "e610e6ab35ca140d89055a8dd2fc2ec2238fa4497405e25bf23972e80fdf48b9"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/model-validation-profiles.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/model-validation-profiles.html",
+      "content_type": "text/html",
+      "bytes_read": 72160,
+      "truncated": false,
+      "sha256": "982d656686b87f765fd9dfab41c0bd2536e928af05e5ea010872119d56ec59c2"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/plugin-build.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/plugin-build.html",
+      "content_type": "text/html",
+      "bytes_read": 42828,
+      "truncated": false,
+      "sha256": "2e18e98e0de21fd212ade86846922d87f8d8f74ad793db5463199884e09a0650"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/quickstart.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/quickstart.html",
+      "content_type": "text/html",
+      "bytes_read": 42341,
+      "truncated": false,
+      "sha256": "4c42878e24746205d7ae959436736fd2f7426beca7d20df2b773578dba0dcfb2"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/reference.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/reference.html",
+      "content_type": "text/html",
+      "bytes_read": 57952,
+      "truncated": false,
+      "sha256": "91d6ce2aefdb444dd92093c993ea79bbd4c9a79a3a9b756055cf8504c6dd88cd"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/reference/agent-plugin.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/reference/agent-plugin.html",
+      "content_type": "text/html",
+      "bytes_read": 53828,
+      "truncated": false,
+      "sha256": "df0ca69840bbb9321a50ed33dd1465d2562bbc055a1f67e7197481f6a8a6769d"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/reference/canvas.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/reference/canvas.html",
+      "content_type": "text/html",
+      "bytes_read": 95348,
+      "truncated": false,
+      "sha256": "773fd5832fb335335803283ceb62232f4e533ed19af0eab9126209034cbd9e3f"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/reference/graph-review.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/reference/graph-review.html",
+      "content_type": "text/html",
+      "bytes_read": 48520,
+      "truncated": false,
+      "sha256": "5fa823d0085d644caff81418a9e617dcb6362aabe4eedc34508fc6cdf38ec5ec"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/releasing.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/releasing.html",
+      "content_type": "text/html",
+      "bytes_read": 53262,
+      "truncated": false,
+      "sha256": "0d7ea0109fd1b49d6a229c473d65f577b1c485fe832987512859c1bbc3e2bdc5"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/share-to-website.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/share-to-website.html",
+      "content_type": "text/html",
+      "bytes_read": 39241,
+      "truncated": false,
+      "sha256": "883b254145b635ca5b883a27c375702c3c3983d0cb286a1822f46cacf7c81ad2"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/source-editing.html",
+      "status": 200,
+      "final_url": "https://docs.tensorviz.dev/source-editing.html",
+      "content_type": "text/html",
+      "bytes_read": 36478,
+      "truncated": false,
+      "sha256": "f5346c867728cfadc8293f9083819292d6d0f21e5984ee0a3f0a35fb394c2d7b"
+    },
+    {
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins",
+      "status": 200,
+      "final_url": "https://github.com/tensorviz-org/tensorviz-plugins",
+      "content_type": "text/html",
+      "bytes_read": 281303,
+      "truncated": false,
+      "sha256": "535595b7d42fe751e268de00a252f0752fea793cb80043180d6c96e82efb35d9"
+    },
+    {
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/release.json",
+      "status": 200,
+      "final_url": "https://release-assets.githubusercontent.com/github-production-release-asset/1402044416/d4df46c2-d1b0-492b-af21-6b4da8084491",
+      "content_type": "application/octet-stream",
+      "bytes_read": 947,
+      "truncated": false,
+      "sha256": "7119a51320b5b51ac8b2b8d7e689cad468718b289564e2b00ec452a78d2810dd"
+    },
+    {
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/tensorviz-runtime-0.1.44-darwin-arm64.tar.gz.json",
+      "status": 200,
+      "final_url": "https://release-assets.githubusercontent.com/github-production-release-asset/1402044416/9416d779-b279-4da5-b4d7-f40b68ebd1de",
+      "content_type": "application/octet-stream",
+      "bytes_read": 350,
+      "truncated": false,
+      "sha256": "a5b3fbd6e3297130d6846dfcc955b08f011ad8a72188044bca21ff94aaa57378"
+    },
+    {
+      "url": "https://marketplace.visualstudio.com/items?itemName=tensorviz.tensorviz-vscode",
+      "status": 200,
+      "final_url": "https://marketplace.visualstudio.com/items?itemName=tensorviz.tensorviz-vscode",
+      "content_type": "text/html",
+      "bytes_read": 87585,
+      "truncated": false,
+      "sha256": "2996916f43a87d7632b6e064bc54920ca8d0696d667bf81f6520a69ac1e50360"
+    },
+    {
+      "url": "https://open-vsx.org/api/tensorviz/tensorviz-vscode/latest",
+      "status": 200,
+      "final_url": "https://open-vsx.org/api/tensorviz/tensorviz-vscode/latest",
+      "content_type": "application/json",
+      "bytes_read": 4961,
+      "truncated": false,
+      "sha256": "67322422afb8c48a1bd4488cbc357f4e68fe2e5d0daef574c161a8bc38e2b164"
+    },
+    {
+      "url": "https://tensorviz.dev/",
+      "status": 200,
+      "final_url": "https://tensorviz.dev/",
+      "content_type": "text/html",
+      "bytes_read": 54138,
+      "truncated": false,
+      "sha256": "a6fb03231dfc28767e1c1c0d44b0c4ac1dfa9de0b0e9845a6fec282edd0bae60"
+    }
+  ],
+  "missing_linked_anchor_ids": [],
+  "documentation_image_urls": [
+    "https://docs.tensorviz.dev/images/explore-graph.png",
+    "https://docs.tensorviz.dev/images/follow-code.png",
+    "https://docs.tensorviz.dev/images/review-changes.png",
+    "https://docs.tensorviz.dev/logo-dark.svg",
+    "https://docs.tensorviz.dev/logo-light.svg"
+  ],
+  "static_text_presence": {
+    "https://docs.tensorviz.dev/": {
+      "0.1.45": false,
+      "0.1.44": false,
+      "glibc": true,
+      "Linux x64": true,
+      "Apple Silicon": true,
+      "codex plugin": true,
+      "claude plugin": false,
+      "code --install-extension": false,
+      "Source repository": false
+    },
+    "https://docs.tensorviz.dev/install.html": {
+      "0.1.45": false,
+      "0.1.44": false,
+      "glibc": true,
+      "Linux x64": true,
+      "Apple Silicon": true,
+      "codex plugin": false,
+      "claude plugin": false,
+      "code --install-extension": false,
+      "Source repository": false
+    },
+    "https://docs.tensorviz.dev/quickstart.html": {
+      "0.1.45": false,
+      "0.1.44": false,
+      "glibc": true,
+      "Linux x64": true,
+      "Apple Silicon": true,
+      "codex plugin": false,
+      "claude plugin": false,
+      "code --install-extension": false,
+      "Source repository": false
+    },
+    "https://docs.tensorviz.dev/agent-plugin.html": {
+      "0.1.45": false,
+      "0.1.44": false,
+      "glibc": true,
+      "Linux x64": true,
+      "Apple Silicon": true,
+      "codex plugin": false,
+      "claude plugin": false,
+      "code --install-extension": false,
+      "Source repository": false
+    },
+    "https://docs.tensorviz.dev/local-setup.html": {
+      "0.1.45": true,
+      "0.1.44": false,
+      "glibc": false,
+      "Linux x64": false,
+      "Apple Silicon": false,
+      "codex plugin": false,
+      "claude plugin": false,
+      "code --install-extension": false,
+      "Source repository": false
+    },
+    "https://docs.tensorviz.dev/plugin-build.html": {
+      "0.1.45": false,
+      "0.1.44": false,
+      "glibc": false,
+      "Linux x64": false,
+      "Apple Silicon": false,
+      "codex plugin": false,
+      "claude plugin": false,
+      "code --install-extension": false,
+      "Source repository": false
+    },
+    "https://docs.tensorviz.dev/graph-diff-review/": {
+      "0.1.45": false,
+      "0.1.44": false,
+      "glibc": false,
+      "Linux x64": false,
+      "Apple Silicon": false,
+      "codex plugin": false,
+      "claude plugin": false,
+      "code --install-extension": false,
+      "Source repository": false
+    },
+    "https://docs.tensorviz.dev/share-to-website.html": {
+      "0.1.45": false,
+      "0.1.44": false,
+      "glibc": false,
+      "Linux x64": false,
+      "Apple Silicon": false,
+      "codex plugin": false,
+      "claude plugin": false,
+      "code --install-extension": false,
+      "Source repository": false
+    },
+    "https://tensorviz.dev/": {
+      "0.1.45": false,
+      "0.1.44": false,
+      "glibc": false,
+      "Linux x64": false,
+      "Apple Silicon": true,
+      "codex plugin": false,
+      "claude plugin": true,
+      "code --install-extension": true,
+      "Source repository": false
+    }
+  },
+  "public_metadata": {
+    "https://open-vsx.org/api/tensorviz/tensorviz-vscode/latest": {
+      "version": "0.1.44",
+      "namespace": "tensorviz",
+      "name": "tensorviz-vscode",
+      "timestamp": "2026-11-14T11:06:11.992179Z",
+      "files": {
+        "download": "https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.44/file/tensorviz.tensorviz-vscode-0.1.44.vsix",
+        "signature": "https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.44/file/tensorviz.tensorviz-vscode-0.1.44.sigzip",
+        "manifest": "https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.44/file/package.json",
+        "readme": "https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.44/file/readme.md",
+        "changelog": "https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.44/file/changelog.md",
+        "license": "https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.44/file/LICENSE.txt",
+        "icon": "https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.44/file/icon.png",
+        "vsixmanifest": "https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.44/file/extension.vsixmanifest",
+        "sha256": "https://open-vsx.org/api/tensorviz/tensorviz-vscode/0.1.44/file/tensorviz.tensorviz-vscode-0.1.44.sha256",
+        "publicKey": "https://open-vsx.org/api/-/public-key/14ccb407-4e79-41ed-be5a-6d608325c45a"
+      }
+    },
+    "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/release.json": {
+      "version": "0.1.44",
+      "sourceRevision": "f285a383f628af23ac4992970eeab3b006b1f0d2",
+      "files": {
+        "tensorviz-0.1.44.zip": "a779f42e7ebc09c8b17a5606c5ae4e48635ad09b6867ca2daa2710023b85b4ca",
+        "tensorviz-catalog-0.1.44.zip": "c9309b0d02b6e6f5efa7199718e5ba991d3213b88d1741f19718d85291c96057",
+        "tensorviz-cursor-0.1.44.zip": "934a3b19b3c76d9819ee90bbef4fe75e7fb325764b2e9198b81fc0653bedd320",
+        "tensorviz-runtime-0.1.44-darwin-arm64.tar.gz": "78a201724c5ebe2eaaf494826f29799a2c5ac2b4ef3b86bf20d4d75748aef450",
+        "tensorviz-runtime-0.1.44-darwin-arm64.tar.gz.json": "a5b3fbd6e3297130d6846dfcc955b08f011ad8a72188044bca21ff94aaa57378",
+        "tensorviz-runtime-0.1.44-linux-x64.tar.gz": "78badf11ae2be88648c8459836cc95dd5fa20a1ee6481d81046de903640c06d2",
+        "tensorviz-runtime-0.1.44-linux-x64.tar.gz.json": "7cd7aa2ae209db789d2dc08d54c44b3871ff4f237e7a91c4e4f34c5de0d235cc"
+      }
+    },
+    "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/tensorviz-runtime-0.1.44-darwin-arm64.tar.gz.json": {
+      "version": "0.1.44",
+      "formatVersion": 1,
+      "platform": "darwin-arm64",
+      "pythonABI": "cpython-312-darwin",
+      "sha256": "78a201724c5ebe2eaaf494826f29799a2c5ac2b4ef3b86bf20d4d75748aef450",
+      "bytes": 36282531,
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/tensorviz-runtime-0.1.44-darwin-arm64.tar.gz"
+    }
+  },
+  "limitations": [
+    "Delivery and static text checks do not prove rendered usability or installed behavior.",
+    "Version metadata is a point-in-time observation.",
+    "Unlinked or deeper pages/assets are outside this bounded check.",
+    "Redirect query strings, response headers, cookies, raw HTML, local paths, and exception messages are omitted."
+  ]
+}

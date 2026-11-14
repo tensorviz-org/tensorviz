@@ -1,0 +1,30 @@
+[
+  {
+    "file": ".codex/config.toml",
+    "unchanged": true
+  },
+  {
+    "file": ".codex/auth.json",
+    "unchanged": true
+  },
+  {
+    "file": ".claude.json",
+    "unchanged": true
+  },
+  {
+    "file": ".claude/settings.json",
+    "unchanged": true
+  },
+  {
+    "file": ".claude/plugins/installed_plugins.json",
+    "unchanged": true
+  },
+  {
+    "file": ".claude/plugins/known_marketplaces.json",
+    "unchanged": true
+  },
+  {
+    "file": ".ssh/config",
+    "unchanged": true
+  }
+]

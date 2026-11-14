@@ -1,0 +1,4 @@
+Source: eae4dd5d012c090d31ca1149891287ea01febc6c
+Command: <CAPTURE_PYTHON> -m pytest -q -p no:cacheprovider tests/runtime/test_capture_environment.py tests/capture/test_graph_runtime_inputs.py tests/graph/test_graph_diff_service.py tests/runtime/test_torch_cache.py
+Status: passed
+54 passed in 73.55s (0:01:13)

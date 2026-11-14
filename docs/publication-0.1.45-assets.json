@@ -1,0 +1,208 @@
+{
+  "checked_at_utc": "2026-11-14T16:37:05.003053+00:00",
+  "release_url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/tag/v0.1.45",
+  "published_at_utc": "2026-11-14T16:32:18Z",
+  "source_revision": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "public_export_commit": "1b5da75b72a38c903deb7ea749eda71996284986",
+  "release_json_sha256": "cf9af3bd0415d4605ecb68884683315746f673b0fa583c71086e60762c01fd39",
+  "platforms": [
+    {
+      "platform": "darwin-arm64",
+      "python_abi": "cpython-312-darwin",
+      "artifact": "tensorviz-runtime-0.1.45-darwin-arm64.tar.gz",
+      "bytes": 36294912,
+      "sha256": "a8a3849819860bb25ab7d79b3cb0ff136caa6efe14dfb17725a9b98d133364ab",
+      "metadata_download_sha256": "dd2c72e545305dc01acb184d1c1bff8188bb4d0ce9ba79a5cc6b641689e1a287",
+      "metadata_matches_release_and_api": true,
+      "native_execution_by_this_check": "not_run"
+    },
+    {
+      "platform": "darwin-x64",
+      "python_abi": "cpython-312-darwin",
+      "artifact": "tensorviz-runtime-0.1.45-darwin-x64.tar.gz",
+      "bytes": 38395409,
+      "sha256": "13ed6a786c03d7599ae791e03e9c2708fcd6a052098b2f88cd172378fb0d0bae",
+      "metadata_download_sha256": "84fea4344b9848252d3b2497b31d1e7abf2ed3530151b81a17fbcb0fd3e0655c",
+      "metadata_matches_release_and_api": true,
+      "native_execution_by_this_check": "not_run"
+    },
+    {
+      "platform": "linux-arm64",
+      "python_abi": "cpython-312-aarch64-linux-gnu",
+      "artifact": "tensorviz-runtime-0.1.45-linux-arm64.tar.gz",
+      "bytes": 42344378,
+      "sha256": "9524c877c3d1ec42fb409794c85875d7edcf801cf5e226b87b87cc47c61d604c",
+      "metadata_download_sha256": "a104edfb0bb0a62efd3f2c22defee4f8bcbb03c54eebc5cd0e949092e4e4a9e4",
+      "metadata_matches_release_and_api": true,
+      "native_execution_by_this_check": "not_run"
+    },
+    {
+      "platform": "linux-x64",
+      "python_abi": "cpython-312-x86_64-linux-gnu",
+      "artifact": "tensorviz-runtime-0.1.45-linux-x64.tar.gz",
+      "bytes": 43523294,
+      "sha256": "d08e37edbe0c9760482fee136cc8b11bd460987acbb7ba3d7a3dd21b1709d430",
+      "metadata_download_sha256": "12353598d3e3b7748db9ad4302747c551cf441ea837789ec013e05e8c4477347",
+      "metadata_matches_release_and_api": true,
+      "native_execution_by_this_check": "not_run"
+    },
+    {
+      "platform": "win32-arm64",
+      "python_abi": "cp312-win_arm64",
+      "artifact": "tensorviz-runtime-0.1.45-win32-arm64.tar.gz",
+      "bytes": 32780589,
+      "sha256": "9312b7aba4b2a3d905ecd4402f361ed075b3ae07b5eeed8a91a3b64a2ae04345",
+      "metadata_download_sha256": "786b696e7b7439c877bba98c73f2b6cae5ad34ecbdfd9f646217bb0eb91262d0",
+      "metadata_matches_release_and_api": true,
+      "native_execution_by_this_check": "not_run"
+    },
+    {
+      "platform": "win32-x64",
+      "python_abi": "cp312-win_amd64",
+      "artifact": "tensorviz-runtime-0.1.45-win32-x64.tar.gz",
+      "bytes": 35614787,
+      "sha256": "6e7a3db5db196a291eef69821a3749db7109505a303e120343be5b4d3b14ad4b",
+      "metadata_download_sha256": "8ee1bce2c80ffa99ee40750d75b91d794edb92c4c05d9f5ccbf1521bfa167c91",
+      "metadata_matches_release_and_api": true,
+      "native_execution_by_this_check": "not_run"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "tensorviz-0.1.45.zip",
+      "bytes": 43135,
+      "sha256": "24fb75738cbdc31dc0e82306327f398cd0d6615c54b10edaad89d02a7aaa357a",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": false
+    },
+    {
+      "name": "tensorviz-catalog-0.1.45.zip",
+      "bytes": 40856040,
+      "sha256": "70ac8455c043f9bca3deb79dd4a809a6b766581de6d29ba655d675826279972a",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": false
+    },
+    {
+      "name": "tensorviz-cursor-0.1.45.zip",
+      "bytes": 43483,
+      "sha256": "d8874276efb123e7c4756f699052f53ae38d1494b3a4c5cc6bff3b24a44e7f80",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": false
+    },
+    {
+      "name": "tensorviz-runtime-0.1.45-darwin-arm64.tar.gz",
+      "bytes": 36294912,
+      "sha256": "a8a3849819860bb25ab7d79b3cb0ff136caa6efe14dfb17725a9b98d133364ab",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": false
+    },
+    {
+      "name": "tensorviz-runtime-0.1.45-darwin-arm64.tar.gz.json",
+      "bytes": 350,
+      "sha256": "dd2c72e545305dc01acb184d1c1bff8188bb4d0ce9ba79a5cc6b641689e1a287",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": true
+    },
+    {
+      "name": "tensorviz-runtime-0.1.45-darwin-x64.tar.gz",
+      "bytes": 38395409,
+      "sha256": "13ed6a786c03d7599ae791e03e9c2708fcd6a052098b2f88cd172378fb0d0bae",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": false
+    },
+    {
+      "name": "tensorviz-runtime-0.1.45-darwin-x64.tar.gz.json",
+      "bytes": 346,
+      "sha256": "84fea4344b9848252d3b2497b31d1e7abf2ed3530151b81a17fbcb0fd3e0655c",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": true
+    },
+    {
+      "name": "tensorviz-runtime-0.1.45-linux-arm64.tar.gz",
+      "bytes": 42344378,
+      "sha256": "9524c877c3d1ec42fb409794c85875d7edcf801cf5e226b87b87cc47c61d604c",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": false
+    },
+    {
+      "name": "tensorviz-runtime-0.1.45-linux-arm64.tar.gz.json",
+      "bytes": 359,
+      "sha256": "a104edfb0bb0a62efd3f2c22defee4f8bcbb03c54eebc5cd0e949092e4e4a9e4",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": true
+    },
+    {
+      "name": "tensorviz-runtime-0.1.45-linux-x64.tar.gz",
+      "bytes": 43523294,
+      "sha256": "d08e37edbe0c9760482fee136cc8b11bd460987acbb7ba3d7a3dd21b1709d430",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": false
+    },
+    {
+      "name": "tensorviz-runtime-0.1.45-linux-x64.tar.gz.json",
+      "bytes": 354,
+      "sha256": "12353598d3e3b7748db9ad4302747c551cf441ea837789ec013e05e8c4477347",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": true
+    },
+    {
+      "name": "tensorviz-runtime-0.1.45-win32-arm64.tar.gz",
+      "bytes": 32780589,
+      "sha256": "9312b7aba4b2a3d905ecd4402f361ed075b3ae07b5eeed8a91a3b64a2ae04345",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": false
+    },
+    {
+      "name": "tensorviz-runtime-0.1.45-win32-arm64.tar.gz.json",
+      "bytes": 345,
+      "sha256": "786b696e7b7439c877bba98c73f2b6cae5ad34ecbdfd9f646217bb0eb91262d0",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": true
+    },
+    {
+      "name": "tensorviz-runtime-0.1.45-win32-x64.tar.gz",
+      "bytes": 35614787,
+      "sha256": "6e7a3db5db196a291eef69821a3749db7109505a303e120343be5b4d3b14ad4b",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": false
+    },
+    {
+      "name": "tensorviz-runtime-0.1.45-win32-x64.tar.gz.json",
+      "bytes": 341,
+      "sha256": "8ee1bce2c80ffa99ee40750d75b91d794edb92c4c05d9f5ccbf1521bfa167c91",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": true
+    },
+    {
+      "name": "tensorviz-windows-arm64-0.1.45.zip",
+      "bytes": 19166460,
+      "sha256": "cf8ecc51d5f0bca8e83fd79e220f4afe2c242dbddfc2ad76a3fecc05d445c534",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": false
+    },
+    {
+      "name": "tensorviz-windows-x64-0.1.45.zip",
+      "bytes": 21578525,
+      "sha256": "39ffdf523a3a9c52fbe424c29b9eed645dc433e9773ee94a6a9dc38c248c140f",
+      "release_manifest_matches_github_asset_digest": true,
+      "full_asset_bytes_downloaded_by_this_check": false
+    }
+  ],
+  "verification_scope": "Downloaded release.json and all six runtime JSON descriptors with TLS verification; verified their bytes against GitHub API SHA-256 digests and cross-checked every release-manifest artifact digest against API. Native archives/catalog execution is a separate plugin acceptance task. Other-platform native execution was not performed.",
+  "source_extension_v0_1_45_release_status": "not_found at 2026-11-14T16:35:46.496285+00:00",
+  "catalog_validation": {
+    "universal_runtime_lock_has_exact_six_targets": true,
+    "all_catalog_runtime_hashes_sizes_abis_match_downloaded_descriptors": true,
+    "windows_separate_locks_match": true,
+    "codex_entries": [
+      "tensorviz",
+      "tensorviz-windows-x64",
+      "tensorviz-windows-arm64"
+    ],
+    "windows_client_scope": "Codex only; Claude/Cursor outside published acceptance scope",
+    "linux_glibc_floors": {
+      "x64": "2.31",
+      "arm64": "2.35"
+    }
+  }
+}

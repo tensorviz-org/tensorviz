@@ -1,0 +1,6 @@
+{
+  "status": "not run",
+  "scope": "Owning-repository release check in this receipt was not run",
+  "receipt": "second-pass-release-check.json",
+  "note": "This earlier receipt queried archived tensorviz-org/tensorViz-extension for the extension and returned 404. The current owning extension repository is tensorviz-org/tensorviz. That legacy 404 is not evidence that extension 0.1.45 was unpublished. See docs/release-authoritative-recheck.json for the authoritative release published at 16:41:07Z."
+}

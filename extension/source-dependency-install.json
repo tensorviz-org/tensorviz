@@ -1,0 +1,20 @@
+[
+  {
+    "part": "root",
+    "command": "npm ci --no-audit --no-fund",
+    "exit_code": 0,
+    "seconds": 79.1
+  },
+  {
+    "part": "extension",
+    "command": "npm ci --no-audit --no-fund",
+    "exit_code": 0,
+    "seconds": 119.22
+  },
+  {
+    "part": "canvas",
+    "command": "npm ci --no-audit --no-fund",
+    "exit_code": 0,
+    "seconds": 206.57
+  }
+]

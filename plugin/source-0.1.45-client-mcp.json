@@ -1,0 +1,37 @@
+{
+  "label": "source-0.1.45",
+  "runtime_cache": "not applicable; local Node source build",
+  "runtime_sha256": "fd64777532af748dcdace3800f3345e230cebcfb816c4c6c31222c8017d06c7b",
+  "provider_calls": false,
+  "permission_replies": 0,
+  "checks": [
+    {
+      "client": "codex",
+      "skill_advertised": true,
+      "tool_count": 29,
+      "plugin_version": "0.1.45",
+      "model_count": 0,
+      "status": "passed",
+      "uninstall_command_succeeded": true,
+      "seconds": 2.819
+    },
+    {
+      "client": "claude",
+      "skill_advertised": true,
+      "tool_count": 29,
+      "plugin_version": "0.1.45",
+      "model_count": 0,
+      "status": "passed",
+      "uninstall_command_succeeded": true,
+      "seconds": 2.766
+    }
+  ],
+  "classification": "source-development only; not a published/native release",
+  "source_revision": "7dc2004edfbda4218ea683f3219a52d05d02e89a",
+  "source_working_tree_dirty": false,
+  "permission_record_created": false,
+  "capture": "not_run; static discovery only",
+  "desktop_rendering": "not_run",
+  "runtime_hash_scope": "plugins/tensorviz/runtime/host.cjs",
+  "artifact_sha256": "055f3e8a614d9fa7f566e49d25f68b9ef8e1fd96ddd77ecba5683b6cf234f2f3"
+}

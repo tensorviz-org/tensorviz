@@ -1,0 +1,43 @@
+{
+  "issue": "Known failed capture interpreter still labeled Ready for this model",
+  "reproduced_ui_source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "base_sha": "f046c32d1188d84564576773d9164af64af0c9f1",
+  "fix_sha": "b2cb6827ebb90c261d030ab64f3fbd98113edf3e",
+  "branch": "codex/environment-failed-capture-status",
+  "draft_pr": "https://github.com/tensorviz-org/tensorviz/pull/76",
+  "fix": "Use current worker_failed verdict for the saved candidate to display Capture check failed with error styling. Retain alternatives and package inventory.",
+  "checks": [
+    {
+      "status": "failed",
+      "phase": "pre_fix_regression",
+      "command": "npm test --prefix canvas -- --watchAll=false --watch=false --runInBand --no-cache src/__tests__/hosts/EnvironmentRecoveryPanel.test.tsx --testNamePattern='failed capture check'",
+      "observed": "Expected Capture check failed; received Capture libraries present / This model Ready for this model."
+    },
+    {
+      "status": "passed",
+      "phase": "post_fix",
+      "command": "npm test --prefix canvas -- --watchAll=false --watch=false --runInBand --no-cache src/__tests__/hosts/EnvironmentRecoveryPanel.test.tsx",
+      "result": "54 passed, 54 total"
+    },
+    {
+      "status": "passed",
+      "command": "git diff --check"
+    },
+    {
+      "status": "blocked",
+      "command": "cd canvas && ./node_modules/.bin/tsc --noEmit --pretty false",
+      "result": "TypeScript 4.9.5 rejects newer declaration syntax in installed tldraw/Zod dependencies; this additional typecheck did not pass."
+    },
+    {
+      "status": "not_run",
+      "check": "Patched VSIX rebuild and GUI retest"
+    }
+  ],
+  "main_delta_after_original_tests": "f046c32 includes #72 glibc documentation and #74 extension service provisioning changes; it is not docs-only. EnvironmentRecoveryPanel was byte-identical at eae4dd5 and f046c32.",
+  "github_verification": {
+    "draft": true,
+    "state": "open",
+    "head_sha": "b2cb6827ebb90c261d030ab64f3fbd98113edf3e",
+    "workflow_runs_for_head": 0
+  }
+}

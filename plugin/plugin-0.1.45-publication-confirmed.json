@@ -1,0 +1,20 @@
+{
+  "checked_at_utc": "2026-11-14T16:35:07.776885+00:00",
+  "repository": "tensorviz-org/tensorviz-plugins",
+  "tag": "v0.1.45",
+  "status": "published",
+  "published_at": "2026-11-14T16:32:18Z",
+  "prerelease": true,
+  "draft": false,
+  "listed_native_targets": [
+    "darwin-arm64",
+    "darwin-x64",
+    "linux-arm64",
+    "linux-x64",
+    "win32-arm64",
+    "win32-x64"
+  ],
+  "other_target_acceptance": "not_run; asset names only",
+  "production_workflow_gate_success": "not independently verified",
+  "target_under_test": "darwin-arm64"
+}

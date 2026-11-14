@@ -1,0 +1,78 @@
+{
+  "recordedAt": "2026-11-14T17:09:33.181104+00:00",
+  "sourceCommit": "d1c463c37863d89c2ccc8e37ec75858de47d194a",
+  "comparisonBase": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "commits": [
+    {
+      "sha": "c0d54ea043337bc04ebdcc6c0b4f56a3d54ded59",
+      "title": "docs: align published plugin glibc floor (#72) [skip ci]",
+      "files": [
+        "README.md",
+        "docs/.vitepress/theme/InstallOptions.vue",
+        "docs/agent-plugin.md",
+        "docs/environment-recovery.md",
+        "docs/install.md",
+        "docs/quickstart.md",
+        "docs/reference/agent-plugin.md"
+      ]
+    },
+    {
+      "sha": "f046c32d1188d84564576773d9164af64af0c9f1",
+      "title": "Keep extension service setup independent of PyTorch (#74) [skip ci]",
+      "files": [
+        "backend/services/ide/environment_setup.py",
+        "backend/tests/runtime/test_service_provisioning.py",
+        "docs/local-setup.md",
+        "extension/scripts/stage-backend.mjs",
+        "extension/src/preflight.ts",
+        "extension/src/runtime.ts",
+        "extension/src/test/unit/preflight.test.ts",
+        "extension/src/test/unit/runtime.test.ts",
+        "extension/src/test/unit/runtimeLifecycle.test.ts",
+        "extension/src/test/unit/stockRuntimeFixture.ts"
+      ]
+    },
+    {
+      "sha": "d1c463c37863d89c2ccc8e37ec75858de47d194a",
+      "title": "docs: describe published 0.1.45 native platform scope (#75) [skip ci]",
+      "files": [
+        "README.md",
+        "docs/.vitepress/theme/InstallOptions.vue",
+        "docs/agent-plugin.md",
+        "docs/environment-recovery.md",
+        "docs/install.md",
+        "docs/linux-ssh-runtime.md",
+        "docs/quickstart.md",
+        "docs/reference/agent-plugin.md"
+      ]
+    }
+  ],
+  "files": {
+    "runtime/python/manifest.json": {
+      "sha256": "4321f4d6f07c25eb5a178a268d3c3f34ab0c8adc698e7d127e587cb5eafe5297",
+      "unchangedSincePublishedPluginSource": true
+    },
+    "backend/requirements-standalone.txt": {
+      "sha256": "df9eff6a0c361ecfc4ac1092c52f20bebd9c171106f7068fd72bbb3bd02761d2",
+      "unchangedSincePublishedPluginSource": true
+    },
+    "backend/requirements-capture.txt": {
+      "sha256": "119daa9614a64728940d52784891ac3a7a5a2da349295bb70fb6ea1a63d40a06",
+      "unchangedSincePublishedPluginSource": true
+    }
+  },
+  "scope": "Source follow-up only; no new published artifact or desktop acceptance claim.",
+  "observations": [
+    "Fresh service provisioning selects backend/requirements-standalone.txt.",
+    "Additive update-managed now defaults to SERVICE_REQUIREMENTS.",
+    "Provisioning stamp hashes only the service manifest; capture-pin changes do not invalidate it.",
+    "First-install disclosure says model frameworks are not installed.",
+    "Stage-backend requires requirements-standalone.txt; root owns actual VSIX packaging acceptance.",
+    "requirements-capture.txt still declares torch; capture_environment.py uses the separate capture manifest and probe."
+  ],
+  "limitations": [
+    "Focused unit fixtures simulate installation and approval responses; no actual desktop permission was granted.",
+    "No new CPython download or full fresh service installation was performed by this follow-up.",
+    "Old requirements-cpu.txt comments and one runtime stamp comment still describe historical service behavior; executable provisioning paths select the service-only manifest."
+  ]
+}

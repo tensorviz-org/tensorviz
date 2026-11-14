@@ -1,0 +1,39 @@
+{
+  "recordedAt": "2026-11-14T17:10:04.499090+00:00",
+  "sourceCommit": "d1c463c37863d89c2ccc8e37ec75858de47d194a",
+  "scope": "Internal capture dependency probe, not the end-to-end MCP capture error UI.",
+  "checks": [
+    {
+      "label": "no-torch",
+      "command": [
+        "PYTHON",
+        "-B",
+        "capture_environment.py",
+        "probe-capture"
+      ],
+      "exitCode": 0,
+      "result": {
+        "ok": false,
+        "code": "MISSING_DEPENDENCIES",
+        "message": "Missing capture library: torch."
+      },
+      "stderrEmpty": true
+    },
+    {
+      "label": "healthy-torch",
+      "command": [
+        "PYTHON",
+        "-B",
+        "capture_environment.py",
+        "probe-capture"
+      ],
+      "exitCode": 0,
+      "result": {
+        "ok": true,
+        "torch": "2.14.1",
+        "cuda": null
+      },
+      "stderrEmpty": true
+    }
+  ]
+}

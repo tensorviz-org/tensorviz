@@ -1,0 +1,217 @@
+{
+  "checked_at_utc": "2026-11-14T16:17:54.390937+00:00",
+  "source_head": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "releases": {
+    "tensorviz-org/tensorviz": [
+      {
+        "tag_name": "v0.1.44",
+        "name": "tensorViz 0.1.44",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-14T11:05:35Z",
+        "target_commitish": "f285a383f628af23ac4992970eeab3b006b1f0d2",
+        "html_url": "https://github.com/tensorviz-org/tensorviz/releases/tag/v0.1.44",
+        "body": "- Build and validate Linux x64 native packages against glibc 2.31, retaining fail-closed checks for older or unsupported systems.\n- Update Python and JavaScript dependencies to address audited advisories and add Node.js 22 JavaScript dependency checks.\n- Document explicit Codex plugin reinstallation after marketplace refresh, with legacy-cache regression coverage.\n\nPublished on the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=tensorviz.tensorviz-vscode). This download is the exact Marketplace package.\n\nSource: f285a383f628af23ac4992970eeab3b006b1f0d2\n\nSHA-256: `cb56724877d9211d4e000ade2277062b7564589a2f9808065371f4f2e4234aa8`\n",
+        "assets": [
+          {
+            "name": "tensorviz-vscode-0.1.44.vsix",
+            "size": 5637169,
+            "browser_download_url": "https://github.com/tensorviz-org/tensorviz/releases/download/v0.1.44/tensorviz-vscode-0.1.44.vsix",
+            "digest": "sha256:cb56724877d9211d4e000ade2277062b7564589a2f9808065371f4f2e4234aa8"
+          },
+          {
+            "name": "tensorviz-vscode-0.1.44.vsix.sha256",
+            "size": 95,
+            "browser_download_url": "https://github.com/tensorviz-org/tensorviz/releases/download/v0.1.44/tensorviz-vscode-0.1.44.vsix.sha256",
+            "digest": "sha256:72ae28431816fccd94f2fd85b5fb074fb7711e392cf2ff3fce6332a4602f5e12"
+          }
+        ]
+      },
+      {
+        "tag_name": "latest",
+        "name": "tensorViz latest extension",
+        "draft": false,
+        "prerelease": true,
+        "published_at": "2026-11-10T17:28:47Z",
+        "target_commitish": "eb9608665c6eab18015f714c465200df623d169c",
+        "html_url": "https://github.com/tensorviz-org/tensorviz/releases/tag/latest",
+        "body": "Exact Marketplace package from https://github.com/tensorviz-org/tensorviz/releases/tag/v0.1.44.\n\nSource: f285a383f628af23ac4992970eeab3b006b1f0d2\n\nThe latest tag is an immutable download anchor; use the numbered release for source.\n",
+        "assets": [
+          {
+            "name": "tensorviz-vscode-main.vsix",
+            "size": 5637169,
+            "browser_download_url": "https://github.com/tensorviz-org/tensorviz/releases/download/latest/tensorviz-vscode-main.vsix",
+            "digest": "sha256:cb56724877d9211d4e000ade2277062b7564589a2f9808065371f4f2e4234aa8"
+          },
+          {
+            "name": "tensorviz-vscode-main.vsix.sha256",
+            "size": 93,
+            "browser_download_url": "https://github.com/tensorviz-org/tensorviz/releases/download/latest/tensorviz-vscode-main.vsix.sha256",
+            "digest": "sha256:0ee8280008e54c757cccbd2b9740d0757032661ad1838054ff7e486d5e2280f8"
+          }
+        ]
+      }
+    ],
+    "tensorviz-org/tensorviz-plugins": [
+      {
+        "tag_name": "v0.1.44",
+        "name": "TensorViz plugin 0.1.44",
+        "draft": false,
+        "prerelease": true,
+        "published_at": "2026-11-14T10:45:55Z",
+        "target_commitish": "6fff2d501cbe037e2d90b252ee484a446c37bd61",
+        "html_url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/tag/v0.1.44",
+        "body": "TensorViz plugin 0.1.44 preview with compiled platform runtimes and CPython 3.12.\n\nInstall from https://github.com/tensorviz-org/tensorviz-plugins. Complete local catalog and standalone client ZIPs are also attached. Core source is excluded; browser JavaScript remains inspectable.\n\nSource repository: tensorviz-org/tensorviz\nSource revision: f285a383f628af23ac4992970eeab3b006b1f0d2\nPublic export commit: 6fff2d501cbe037e2d90b252ee484a446c37bd61\n",
+        "assets": [
+          {
+            "name": "release.json",
+            "size": 947,
+            "browser_download_url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/release.json",
+            "digest": "sha256:7119a51320b5b51ac8b2b8d7e689cad468718b289564e2b00ec452a78d2810dd"
+          },
+          {
+            "name": "tensorviz-0.1.44.zip",
+            "size": 42145,
+            "browser_download_url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/tensorviz-0.1.44.zip",
+            "digest": "sha256:a779f42e7ebc09c8b17a5606c5ae4e48635ad09b6867ca2daa2710023b85b4ca"
+          },
+          {
+            "name": "tensorviz-catalog-0.1.44.zip",
+            "size": 106567,
+            "browser_download_url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/tensorviz-catalog-0.1.44.zip",
+            "digest": "sha256:c9309b0d02b6e6f5efa7199718e5ba991d3213b88d1741f19718d85291c96057"
+          },
+          {
+            "name": "tensorviz-cursor-0.1.44.zip",
+            "size": 42492,
+            "browser_download_url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/tensorviz-cursor-0.1.44.zip",
+            "digest": "sha256:934a3b19b3c76d9819ee90bbef4fe75e7fb325764b2e9198b81fc0653bedd320"
+          },
+          {
+            "name": "tensorviz-runtime-0.1.44-darwin-arm64.tar.gz",
+            "size": 36282531,
+            "browser_download_url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/tensorviz-runtime-0.1.44-darwin-arm64.tar.gz",
+            "digest": "sha256:78a201724c5ebe2eaaf494826f29799a2c5ac2b4ef3b86bf20d4d75748aef450"
+          },
+          {
+            "name": "tensorviz-runtime-0.1.44-darwin-arm64.tar.gz.json",
+            "size": 350,
+            "browser_download_url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/tensorviz-runtime-0.1.44-darwin-arm64.tar.gz.json",
+            "digest": "sha256:a5b3fbd6e3297130d6846dfcc955b08f011ad8a72188044bca21ff94aaa57378"
+          },
+          {
+            "name": "tensorviz-runtime-0.1.44-linux-x64.tar.gz",
+            "size": 43516066,
+            "browser_download_url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/tensorviz-runtime-0.1.44-linux-x64.tar.gz",
+            "digest": "sha256:78badf11ae2be88648c8459836cc95dd5fa20a1ee6481d81046de903640c06d2"
+          },
+          {
+            "name": "tensorviz-runtime-0.1.44-linux-x64.tar.gz.json",
+            "size": 354,
+            "browser_download_url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/tensorviz-runtime-0.1.44-linux-x64.tar.gz.json",
+            "digest": "sha256:7cd7aa2ae209db789d2dc08d54c44b3871ff4f237e7a91c4e4f34c5de0d235cc"
+          }
+        ]
+      }
+    ]
+  },
+  "tags": {
+    "tensorviz-org/tensorviz": {
+      "v0.1.44": {
+        "ref": "refs/tags/v0.1.44",
+        "object": {
+          "sha": "f285a383f628af23ac4992970eeab3b006b1f0d2",
+          "type": "commit",
+          "url": "https://api.github.com/repos/tensorviz-org/tensorviz/git/commits/f285a383f628af23ac4992970eeab3b006b1f0d2"
+        },
+        "lookup_failed": null
+      },
+      "v0.1.45": {
+        "ref": null,
+        "object": null,
+        "lookup_failed": true
+      },
+      "latest": {
+        "ref": "refs/tags/latest",
+        "object": {
+          "sha": "eb9608665c6eab18015f714c465200df623d169c",
+          "type": "commit",
+          "url": "https://api.github.com/repos/tensorviz-org/tensorviz/git/commits/eb9608665c6eab18015f714c465200df623d169c"
+        },
+        "lookup_failed": null
+      }
+    },
+    "tensorviz-org/tensorviz-plugins": {
+      "v0.1.44": {
+        "ref": "refs/tags/v0.1.44",
+        "object": {
+          "sha": "6fff2d501cbe037e2d90b252ee484a446c37bd61",
+          "type": "commit",
+          "url": "https://api.github.com/repos/tensorviz-org/tensorviz-plugins/git/commits/6fff2d501cbe037e2d90b252ee484a446c37bd61"
+        },
+        "lookup_failed": null
+      },
+      "v0.1.45": {
+        "ref": null,
+        "object": null,
+        "lookup_failed": true
+      },
+      "latest": {
+        "ref": null,
+        "object": null,
+        "lookup_failed": true
+      }
+    }
+  },
+  "pull_requests": {
+    "69": {
+      "number": 69,
+      "title": "fix: Start the extension backend without PyTorch",
+      "state": "closed",
+      "merged_at": "2026-11-14T13:48:27Z",
+      "merge_commit_sha": "44fe97077e389517cd15000cf8dedad57ce15b71",
+      "html_url": "https://github.com/tensorviz-org/tensorviz/pull/69"
+    },
+    "70": {
+      "number": 70,
+      "title": "Release 0.1.45: six native platform catalogs with verified installers and migration gates",
+      "state": "closed",
+      "merged_at": "2026-11-14T14:20:16Z",
+      "merge_commit_sha": "4b575e7ff2955f8d04f70af0a05d90e17631c406",
+      "html_url": "https://github.com/tensorviz-org/tensorviz/pull/70"
+    },
+    "71": {
+      "number": 71,
+      "title": "Fix Ubuntu20 release TLS fixture and retain native startup evidence",
+      "state": "closed",
+      "merged_at": "2026-11-14T15:00:47Z",
+      "merge_commit_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+      "html_url": "https://github.com/tensorviz-org/tensorviz/pull/71"
+    }
+  },
+  "open_pull_requests": {
+    "tensorviz-org/tensorviz": [],
+    "tensorviz-org/tensorviz-plugins": [
+      {
+        "number": 3,
+        "title": "Document slow cold-start recovery and candidate cache isolation",
+        "html_url": "https://github.com/tensorviz-org/tensorviz-plugins/pull/3",
+        "draft": true
+      }
+    ],
+    "tensorviz-org/tensorViz-website": [
+      {
+        "number": 15,
+        "title": "Add pretrained Kyutai CALM to Model Explorer",
+        "html_url": "https://github.com/tensorviz-org/tensorViz-website/pull/15",
+        "draft": false
+      }
+    ]
+  },
+  "checklist_issue": {
+    "number": 179,
+    "title": "Release tensorviz",
+    "state": "open",
+    "html_url": "https://github.com/tensorviz-org/tensorViz-extension/issues/179"
+  }
+}

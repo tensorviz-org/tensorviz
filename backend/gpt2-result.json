@@ -1,0 +1,54 @@
+{
+  "family": "GPT2",
+  "source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "status": "passed",
+  "capture_status": "partial",
+  "omissions": [
+    "unsupported_type"
+  ],
+  "inputs": {
+    "input_ids": {
+      "shape": [
+        3,
+        5
+      ],
+      "dtype": "int64"
+    }
+  },
+  "nodes": 86,
+  "edges": 74,
+  "output": {
+    "kind": "dict",
+    "entries": [
+      {
+        "key": {
+          "kind": "str",
+          "value": "last_hidden_state"
+        },
+        "value": {
+          "kind": "value",
+          "id": "tensor74"
+        }
+      },
+      {
+        "key": {
+          "kind": "str",
+          "value": "past_key_values"
+        },
+        "value": {
+          "kind": "opaque",
+          "reason": "unsupported_type",
+          "typeName": "transformers.cache_utils.DynamicCache"
+        }
+      }
+    ]
+  },
+  "scope": "Tiny randomly initialized GPT2Model; cache default unchanged; offline; no pretrained weights or UI.",
+  "output_shapes": {
+    "last_hidden_state": [
+      3,
+      5,
+      16
+    ]
+  }
+}

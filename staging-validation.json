@@ -1,0 +1,32 @@
+{
+  "scope": "Static syntax/JSON/privacy/link validation and lifecycle helper plan/error path only; no duplicate installs or product tests.",
+  "files_checked": 111,
+  "json_valid": true,
+  "python_syntax_valid": true,
+  "privacy_pattern_flags": [],
+  "readme_local_links_resolve": true,
+  "lifecycle_helper": {
+    "pinned_artifacts_plan_only": {
+      "status": "passed",
+      "version_pairs": [
+        "0.1.43 to0.1.44",
+        "0.1.44 to0.1.45"
+      ],
+      "steps_per_pair": 10
+    },
+    "invalid_artifact_rejected_before_cli": "passed",
+    "execute_mode": "not run",
+    "note": "Actual acceptance is in root lifecycle receipts; new helper plan validation is not a repeat execution."
+  },
+  "updated_at_utc": "2026-11-14T17:16:02.917444+00:00",
+  "checklist": {
+    "items": 13,
+    "status_enum_valid": true,
+    "counts": {
+      "passed": 1,
+      "failed": 5,
+      "blocked": 0,
+      "not run": 7
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "checked_at_utc": "2026-11-14T17:13:18.739770+00:00",
+  "pull_requests": [
+    {
+      "headRefOid": "3c95274e16114c1289b25c2958a238085037b91f",
+      "isDraft": false,
+      "mergeCommit": {
+        "oid": "c0d54ea043337bc04ebdcc6c0b4f56a3d54ded59"
+      },
+      "mergedAt": "2026-11-14T16:46:09Z",
+      "number": 72,
+      "state": "MERGED",
+      "title": "docs: align published plugin glibc floor",
+      "url": "https://github.com/tensorviz-org/tensorviz/pull/72"
+    },
+    {
+      "headRefOid": "7dc2004edfbda4218ea683f3219a52d05d02e89a",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 73,
+      "state": "OPEN",
+      "title": "docs: correct local catalog update commands",
+      "url": "https://github.com/tensorviz-org/tensorviz/pull/73"
+    },
+    {
+      "headRefOid": "ca5022eb643fca77c19e442edbc865712d08beea",
+      "isDraft": false,
+      "mergeCommit": {
+        "oid": "f046c32d1188d84564576773d9164af64af0c9f1"
+      },
+      "mergedAt": "2026-11-14T16:51:24Z",
+      "number": 74,
+      "state": "MERGED",
+      "title": "Keep extension service setup independent of PyTorch [skip ci]",
+      "url": "https://github.com/tensorviz-org/tensorviz/pull/74"
+    },
+    {
+      "headRefOid": "c622394ccb5eaf2353970181a2b11bf9e0475fa0",
+      "isDraft": false,
+      "mergeCommit": {
+        "oid": "d1c463c37863d89c2ccc8e37ec75858de47d194a"
+      },
+      "mergedAt": "2026-11-14T16:57:13Z",
+      "number": 75,
+      "state": "MERGED",
+      "title": "docs: describe published 0.1.45 native platform scope",
+      "url": "https://github.com/tensorviz-org/tensorviz/pull/75"
+    },
+    {
+      "headRefOid": "b2cb6827ebb90c261d030ab64f3fbd98113edf3e",
+      "isDraft": true,
+      "mergeCommit": null,
+      "mergedAt": null,
+      "number": 76,
+      "state": "OPEN",
+      "title": "fix: stop labeling failed capture environments as ready",
+      "url": "https://github.com/tensorviz-org/tensorviz/pull/76"
+    }
+  ]
+}

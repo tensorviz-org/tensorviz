@@ -1,0 +1,123 @@
+{
+  "source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "platform": "Darwin",
+  "architecture": "arm64",
+  "macos": "26.4",
+  "versions": {
+    "no_torch": {
+      "python": "3.12.13",
+      "torch_importable": false,
+      "packages": {
+        "uvicorn": "0.54.0",
+        "starlette": "1.10.0",
+        "packaging": "26.3",
+        "websockets": "17.4",
+        "Pygments": "2.21.0",
+        "requests": "2.34.2",
+        "certifi": "2026.10.23",
+        "pydantic": "2.14.3",
+        "click": "8.5.1",
+        "iniconfig": "2.3.1",
+        "httpcore": "1.0.9",
+        "numpy": "2.5.4",
+        "annotated-doc": "0.0.6",
+        "pydantic_core": "2.50.4",
+        "pluggy": "1.7.0",
+        "opentelemetry-api": "1.45.2",
+        "typing-inspection": "0.4.5",
+        "urllib3": "2.8.0",
+        "h11": "0.16.0",
+        "PyYAML": "6.0.3",
+        "python-dotenv": "1.2.4",
+        "fastapi": "0.162.7",
+        "pytest": "9.2.0",
+        "annotated-types": "0.8.0",
+        "anyio": "4.16.0",
+        "libcst": "1.9.0",
+        "httpx": "0.28.1",
+        "typing_extensions": "4.16.0",
+        "charset-normalizer": "3.5.2",
+        "idna": "3.20"
+      },
+      "architecture": "arm64"
+    },
+    "capture": {
+      "python": "3.12.13",
+      "torch_importable": true,
+      "packages": {
+        "setuptools": "84.2.1",
+        "torch": "2.14.1",
+        "packaging": "26.3",
+        "networkx": "3.7",
+        "Pygments": "2.21.0",
+        "pydantic": "2.14.3",
+        "iniconfig": "2.3.1",
+        "numpy": "2.5.4",
+        "pydantic_core": "2.50.4",
+        "sympy": "1.14.0",
+        "pluggy": "1.7.0",
+        "typing-inspection": "0.4.5",
+        "mpmath": "1.3.0",
+        "fsspec": "2026.9.0",
+        "pytest": "9.2.0",
+        "Jinja2": "3.1.6",
+        "annotated-types": "0.8.0",
+        "typing_extensions": "4.16.0",
+        "MarkupSafe": "3.0.4",
+        "filelock": "4.2.10"
+      },
+      "architecture": "arm64"
+    }
+  },
+  "checks": [
+    {
+      "name": "static_without_torch",
+      "status": "passed",
+      "exit_code": 0,
+      "started_utc": "2026-11-14T16:18:33.429672+00:00",
+      "duration_seconds": 13.08,
+      "command": "<NO_TORCH_PYTHON> -m pytest -q -p no:cacheprovider tests/runtime/test_service_without_torch.py tests/runtime/test_server_v2_without_torch.py",
+      "working_directory": "<SOURCE>/backend",
+      "result_summary": [
+        "7 passed, 1 warning in 11.85s"
+      ]
+    },
+    {
+      "name": "capture_and_inputs",
+      "status": "passed",
+      "exit_code": 0,
+      "started_utc": "2026-11-14T16:18:46.512470+00:00",
+      "duration_seconds": 74.51,
+      "command": "<CAPTURE_PYTHON> -m pytest -q -p no:cacheprovider tests/runtime/test_capture_environment.py tests/capture/test_graph_runtime_inputs.py tests/graph/test_graph_diff_service.py tests/runtime/test_torch_cache.py",
+      "working_directory": "<SOURCE>/backend",
+      "result_summary": [
+        "54 passed in 73.55s (0:01:13)"
+      ]
+    },
+    {
+      "name": "environment_diagnostics",
+      "status": "failed",
+      "exit_code": 1,
+      "started_utc": "2026-11-14T16:20:01.023689+00:00",
+      "duration_seconds": 150.83,
+      "command": "<NO_TORCH_PYTHON> -m pytest -q -p no:cacheprovider tests/runtime/test_environment_setup.py",
+      "working_directory": "<SOURCE>/backend",
+      "result_summary": [
+        "1 failed, 110 passed in 150.09s (0:02:30)"
+      ],
+      "interpretation": "110 environment diagnostic tests passed. One test needs actual PyTorch and was incorrectly selected in the no-Torch environment; this was a harness setup error, not a product defect. That test is rerun in the capture environment below."
+    },
+    {
+      "name": "capture_without_server_dependencies",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_seconds": 3.67,
+      "command": "<CAPTURE_PYTHON> -m pytest -q -p no:cacheprovider tests/runtime/test_environment_setup.py::test_private_capture_worker_executes_without_importing_server_dependencies",
+      "working_directory": "<SOURCE>/backend",
+      "result_summary": [
+        "1 passed in 3.37s"
+      ]
+    }
+  ],
+  "scope": "Synthetic models and selected regression suites; no GUI, weights, provider calls, or sign-ins."
+}

@@ -1,0 +1,16 @@
+{
+  "source_sha": "d1c463c37863d89c2ccc8e37ec75858de47d194a",
+  "command": [
+    "npm",
+    "run",
+    "vsix",
+    "--prefix",
+    "extension"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 37.99,
+  "published": false,
+  "release_renderer_license_verified": false,
+  "sha256": "cfb1812b9105979fd236a40ab342d17476a8967c12f69c4ae4e7ad01a0cf832f",
+  "size": 5641079
+}

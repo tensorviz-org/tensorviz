@@ -1,0 +1,71 @@
+{
+  "tested_utc": "2026-11-14T16:46:56.915354+00:00",
+  "source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "fixture": "Synthetic broken torch import with torch2.14.1 dist-info and installed capture dependencies; arm64 Python3.12.13; no healthy package modified.",
+  "checks": [
+    {
+      "artifact": "source_eae4dd5",
+      "action": "inspect",
+      "exit_code": 0,
+      "result": {
+        "ok": true,
+        "pip": false,
+        "torch": "2.14.1",
+        "missing": [],
+        "incompatible": []
+      }
+    },
+    {
+      "artifact": "source_eae4dd5",
+      "action": "probe",
+      "exit_code": 1,
+      "result": {
+        "ok": false,
+        "message": "Backend compatibility check failed (OSError). Choose another environment or repair its dependencies.",
+        "code": "DEPENDENCY_SETUP_FAILED"
+      }
+    },
+    {
+      "artifact": "source_eae4dd5",
+      "action": "probe-capture",
+      "exit_code": 0,
+      "result": {
+        "ok": false,
+        "code": "CAPTURE_RUNTIME_UNSUPPORTED",
+        "message": "The capture worker could not load (OSError). Choose a compatible environment."
+      }
+    },
+    {
+      "artifact": "installed_vsix_0.1.44",
+      "action": "inspect",
+      "exit_code": 0,
+      "result": {
+        "ok": true,
+        "pip": false,
+        "torch": "2.14.1",
+        "missing": [],
+        "incompatible": []
+      }
+    },
+    {
+      "artifact": "installed_vsix_0.1.44",
+      "action": "probe",
+      "exit_code": 1,
+      "result": {
+        "ok": false,
+        "message": "Backend compatibility check failed (OSError). Choose another environment or repair its dependencies.",
+        "code": "DEPENDENCY_SETUP_FAILED"
+      }
+    },
+    {
+      "artifact": "installed_vsix_0.1.44",
+      "action": "probe-capture",
+      "exit_code": 0,
+      "result": {
+        "ok": false,
+        "code": "CAPTURE_RUNTIME_UNSUPPORTED",
+        "message": "The capture worker could not load (OSError). Choose a compatible environment."
+      }
+    }
+  ]
+}

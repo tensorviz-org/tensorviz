@@ -1,0 +1,139 @@
+
+> tensorviz-vscode@0.1.45 vsix
+> node scripts/build-vsix.mjs
+
+
+==> Building from HEAD
+    HEAD: d1c463c docs: describe published 0.1.45 native platform scope (#75) [skip ci]
+    shared packages deps: present
+    frontend (canvas) deps: present
+    extension deps: present
+
+==> Building the webview canvas (build:webview)
+
+> tensorviz-vscode@0.1.45 build:webview
+> node scripts/build-webview.mjs
+
+build-webview: building $AUDIT_ROOT/ui-source/canvas for the IDE…
+
+> canvas@0.1.45 build
+> react-scripts build
+
+Creating an optimized production build...
+Compiled with warnings.
+
+Failed to parse source map from '$AUDIT_ROOT/ui-source/canvas/node_modules/@workflow/serde/src/index.ts' file: Error: ENOENT: no such file or directory, open '$AUDIT_ROOT/ui-source/canvas/node_modules/@workflow/serde/src/index.ts'
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+File sizes after gzip:
+
+  569.85 kB  build/static/js/51.88c2c79f.chunk.js
+  299.64 kB  build/static/js/438.7de48034.chunk.js
+  62.1 kB    build/static/js/main.ec7dd91a.js
+  40.13 kB   build/static/css/438.c4cdfe04.chunk.css
+  13.9 kB    build/static/css/51.d48ed63c.chunk.css
+  7.13 kB    build/static/css/main.0ed72d93.css
+  1.76 kB    build/static/js/453.dc3286e6.chunk.js
+
+The project was built assuming it is hosted at ./.
+You can control this with the homepage field in your package.json.
+
+The build folder is ready to be deployed.
+
+Find out more about deployment here:
+
+  https://cra.link/deployment
+
+build-webview: staged $AUDIT_ROOT/ui-source/extension/media/app
+
+> canvas@0.1.45 build:viewer
+> node scripts/build-viewer.cjs
+
+Graph viewer built in viewer-dist (static files; no backend).
+build-webview: staged the standalone graph-file viewer
+
+==> Type + compile gate (compile)
+
+> tensorviz-vscode@0.1.45 precompile
+> npm run build:shared --prefix .. && node scripts/stage-runtime.mjs
+
+
+> build:shared
+> tsc -b packages/contracts packages/graph-host
+
+
+> tensorviz-vscode@0.1.45 compile
+> tsc -p ./
+
+
+==> Packaging (package)
+
+> tensorviz-vscode@0.1.45 package
+> npm run stage:backend && vsce package --no-dependencies && node scripts/verify-package.mjs
+
+
+> tensorviz-vscode@0.1.45 stage:backend
+> node scripts/stage-backend.mjs
+
+stage-backend: 180 files, 3.1 MiB -> backend
+Executing prepublish script 'npm run vscode:prepublish'...
+
+> tensorviz-vscode@0.1.45 vscode:prepublish
+> npm run compile && node scripts/bundle-extension.mjs
+
+
+> tensorviz-vscode@0.1.45 precompile
+> npm run build:shared --prefix .. && node scripts/stage-runtime.mjs
+
+
+> build:shared
+> tsc -b packages/contracts packages/graph-host
+
+
+> tensorviz-vscode@0.1.45 compile
+> tsc -p ./
+
+Bundled the extension and standard MCP SDK; no separate Node.js install is needed.
+ INFO  Files included in the VSIX:
+tensorviz-vscode-0.1.45.vsix
+├─ [Content_Types].xml
+├─ extension.vsixmanifest
+└─ extension/
+   ├─ DEPENDENCY_NOTICES.txt [35.57 KB]
+   ├─ LICENSE.txt [1.05 KB]
+   ├─ MCP_PARSER_NOTICES.md [2.58 KB]
+   ├─ SUPPORT.md [0.84 KB]
+   ├─ THIRD_PARTY_NOTICES.md [1.15 KB]
+   ├─ changelog.md [39.24 KB]
+   ├─ package.json [27.78 KB]
+   ├─ readme.md [10.59 KB]
+   ├─ runtime-manifest.json [1.77 KB]
+   ├─ backend/ (180 files) [3.06 MB]
+   ├─ icons/ (2 files) [37.43 KB]
+   ├─ licenses/ (1 file) [4.5 KB]
+   ├─ media/ (282 files) [9.54 MB]
+   ├─ out/ (1 file) [4.43 MB]
+   ├─ themes/ (2 files) [16.08 KB]
+   └─ webview/ (2 files) [13.42 KB]
+
+=> Run vsce ls --tree to see all included files.
+
+ DONE  Packaged: $AUDIT_ROOT/ui-source/extension/tensorviz-vscode-0.1.45.vsix (481 files, 5.38 MB)
+verify-package: renderer license not checked; REACT_APP_TLDRAW_LICENSE_KEY is not set for this build.
+verify-package: ok — tensorviz-vscode-0.1.45.vsix, 481 entries, 5.4 MB, runtime manifest pinned, no runtime artifacts shipped.
+
+==> Done.
+    VSIX: $AUDIT_ROOT/ui-source/extension/tensorviz-vscode-0.1.45.vsix
+    Size: 5.4 MB
+
+Install it with:
+
+    code --install-extension "$AUDIT_ROOT/ui-source/extension/tensorviz-vscode-0.1.45.vsix" --force
+
+npm notice
+npm notice New major version of npm available! 11.17.0 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice

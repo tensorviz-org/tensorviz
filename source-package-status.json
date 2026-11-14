@@ -1,0 +1,53 @@
+{
+  "status": "Separate source artifacts and scoped acceptance",
+  "source_revision": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "development_version": "0.1.45",
+  "published_package_acceptance": false,
+  "note": "Do not infer package/build/desktop success from the backend source suite.",
+  "source_plugin": {
+    "status": "passed_static_client_mcp",
+    "classification": "source-development only; not published/native; no capture or desktop acceptance",
+    "source_revision": "7dc2004edfbda4218ea683f3219a52d05d02e89a",
+    "base_revision": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+    "artifact_sha256": "055f3e8a614d9fa7f566e49d25f68b9ef8e1fd96ddd77ecba5683b6cf234f2f3",
+    "receipts": [
+      "plugin/source-0.1.45-provenance.json",
+      "plugin/source-0.1.45-client-mcp.json"
+    ]
+  },
+  "source_extension": {
+    "status": "failed",
+    "source_revision": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+    "development_version": "0.1.45",
+    "artifact_sha256": "a69d94fdc707077cfebeefe47e41e693068460d15576544c5f27b5e9c4adc4dc",
+    "independent_archive_hash_verified": true,
+    "package_id": "tensorviz.tensorviz-vscode",
+    "classification": "local unlicensed-development VSIX; not a published extension artifact",
+    "installed_cli_lifecycle": "passed install/list/uninstall/list",
+    "desktop_acceptance": "Bounded capture/reload/diagnosis/recovery passed; known failed-candidate Ready badge failed",
+    "renderer_license_checked": false,
+    "receipts": [
+      "extension/source-vsix-build.json",
+      "extension/source-extension-install.json",
+      "extension/source-gui-upgrade.json",
+      "extension/gui-final.json"
+    ],
+    "scope": "Build, CLI lifecycle and bounded capture/reload/diagnosis/recovery checks passed; known failed-candidate readiness badge failed"
+  },
+  "later_source_extension": {
+    "status": "blocked",
+    "source_revision": "d1c463c37863d89c2ccc8e37ec75858de47d194a",
+    "sha256": "cfb1812b9105979fd236a40ab342d17476a8967c12f69c4ae4e7ad01a0cf832f",
+    "classification": "Local unlicensed-development VSIX, not published package",
+    "build": "passed",
+    "cli_install_list_uninstall_list": "passed",
+    "graphical_acceptance": "blocked by native computer-control timeout; no observed acceptance",
+    "payload_delta": "backend identity, environment_setup.py and extension.js changed; earlier eae GUI acceptance does not transfer",
+    "receipts": [
+      "extension/latest-source-vsix-build.json",
+      "extension/latest-source-gui-install.json",
+      "extension/source-package-payload-diff.json",
+      "extension/gui-final.json"
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "version": "0.1.45",
+  "published": true,
+  "source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "artifact_sha256": "edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990",
+  "install_into_existing_disposable_trusted_profile": "passed",
+  "command": ["<CODE_CLI>", "--user-data-dir", "$TEST_PROFILE/profile", "--extensions-dir", "$AUDIT_ROOT/editor-clean/extensions", "--install-extension", "$ARTIFACTS/tensorviz-vscode-0.1.45.vsix", "--force"],
+  "actual_published_gui_capture": "blocked",
+  "reason": "Native computer control repeatedly timed out reading VS Code. The installed extension started a loopback server. Opening that server directly in Chrome showed Reconnect to your model and requested a fresh Open Canvas in Browser session from VS Code. No host session token was extracted and no session restriction was bypassed.",
+  "handoff": "User was offered a manual Open Canvas in Browser step while the report completed. No completed fresh-session handoff was observed at report finalization.",
+  "retained_for_handoff": "The disposable editor profile retains published0.1.45 and its generated fixture. Normal client installations are unchanged. Clean-install/upgrade/removal in separate fresh profiles passed in published-0.1.45-lifecycle.json.",
+  "limits": [
+    "Earlier actual0.1.44 GUI results and local eae source-VSIX GUI results remain separate; neither is transferred to the published0.1.45 artifact.",
+    "Actual published0.1.45 backend/service and real model capture checks passed separately; those are not graphical acceptance.",
+    "The earlier final-test-cleanup receipt predates this last published-release GUI attempt."
+  ]
+}

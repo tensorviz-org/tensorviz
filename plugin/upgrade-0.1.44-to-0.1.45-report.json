@@ -1,0 +1,102 @@
+{
+  "classification": "CLI lifecycle only; no account/provider/desktop test",
+  "checks": [
+    {
+      "name": "codex-marketplace-add-old",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.038
+    },
+    {
+      "name": "codex-install-old",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.049
+    },
+    {
+      "name": "claude-marketplace-add-old",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.809
+    },
+    {
+      "name": "claude-install-old",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.72
+    },
+    {
+      "name": "claude-list-old",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.249
+    },
+    {
+      "name": "codex-marketplace-upgrade",
+      "status": "failed",
+      "exit_code": 1,
+      "seconds": 0.034
+    },
+    {
+      "name": "codex-install-upgraded",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.041
+    },
+    {
+      "name": "codex-mcp-after-upgrade",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.036
+    },
+    {
+      "name": "claude-plugin-update",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.623
+    },
+    {
+      "name": "claude-list-upgraded",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.275
+    },
+    {
+      "name": "codex-uninstall",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.045
+    },
+    {
+      "name": "claude-uninstall",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.821
+    },
+    {
+      "name": "codex-list-removed",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.037
+    },
+    {
+      "name": "claude-list-removed",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.242
+    }
+  ],
+  "codex_versions": {
+    "before": "0.1.44",
+    "after": "0.1.45"
+  },
+  "claude_versions": {
+    "before": "0.1.44",
+    "after": "0.1.45"
+  },
+  "codex_plugin_replacement_passed": true,
+  "documented_codex_local_catalog_flow": "failed: marketplace upgrade rejects a local-folder marketplace; plugin add afterward succeeded",
+  "claude_upgrade_passed": true,
+  "codex_removed": true,
+  "claude_removed": true
+}

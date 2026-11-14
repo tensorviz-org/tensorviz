@@ -1,0 +1,141 @@
+[
+  {
+    "scenario": "clean",
+    "action": "install",
+    "version": "0.1.44",
+    "exit_code": 0,
+    "seconds": 6.28,
+    "command": [
+      "<CODE_CLI>",
+      "--user-data-dir",
+      "$AUDIT_ROOT/editor-clean/profile",
+      "--extensions-dir",
+      "$AUDIT_ROOT/editor-clean/extensions",
+      "--install-extension",
+      "$AUDIT_ROOT/releases/tensorviz-vscode-0.1.44.vsix",
+      "--force"
+    ],
+    "output": "Installing extensions...\nExtension 'tensorviz-vscode-0.1.44.vsix' was successfully installed.\n(node:<PID>) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n"
+  },
+  {
+    "scenario": "clean",
+    "action": "list",
+    "version": null,
+    "exit_code": 0,
+    "seconds": 0.23,
+    "command": [
+      "<CODE_CLI>",
+      "--user-data-dir",
+      "$AUDIT_ROOT/editor-clean/profile",
+      "--extensions-dir",
+      "$AUDIT_ROOT/editor-clean/extensions",
+      "--list-extensions",
+      "--show-versions"
+    ],
+    "output": "tensorviz.tensorviz-vscode@0.1.44\n"
+  },
+  {
+    "scenario": "upgrade",
+    "action": "install",
+    "version": "0.1.43",
+    "exit_code": 0,
+    "seconds": 0.99,
+    "command": [
+      "<CODE_CLI>",
+      "--user-data-dir",
+      "$AUDIT_ROOT/editor-upgrade/profile",
+      "--extensions-dir",
+      "$AUDIT_ROOT/editor-upgrade/extensions",
+      "--install-extension",
+      "$AUDIT_ROOT/releases/tensorviz-vscode-0.1.43.vsix",
+      "--force"
+    ],
+    "output": "Installing extensions...\nExtension 'tensorviz-vscode-0.1.43.vsix' was successfully installed.\n(node:<PID>) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n"
+  },
+  {
+    "scenario": "upgrade",
+    "action": "list",
+    "version": null,
+    "exit_code": 0,
+    "seconds": 0.27,
+    "command": [
+      "<CODE_CLI>",
+      "--user-data-dir",
+      "$AUDIT_ROOT/editor-upgrade/profile",
+      "--extensions-dir",
+      "$AUDIT_ROOT/editor-upgrade/extensions",
+      "--list-extensions",
+      "--show-versions"
+    ],
+    "output": "tensorviz.tensorviz-vscode@0.1.43\n"
+  },
+  {
+    "scenario": "upgrade",
+    "action": "install",
+    "version": "0.1.44",
+    "exit_code": 0,
+    "seconds": 1.23,
+    "command": [
+      "<CODE_CLI>",
+      "--user-data-dir",
+      "$AUDIT_ROOT/editor-upgrade/profile",
+      "--extensions-dir",
+      "$AUDIT_ROOT/editor-upgrade/extensions",
+      "--install-extension",
+      "$AUDIT_ROOT/releases/tensorviz-vscode-0.1.44.vsix",
+      "--force"
+    ],
+    "output": "Installing extensions...\nExtension 'tensorviz-vscode-0.1.44.vsix' was successfully installed.\n(node:<PID>) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n"
+  },
+  {
+    "scenario": "upgrade",
+    "action": "list",
+    "version": null,
+    "exit_code": 0,
+    "seconds": 0.2,
+    "command": [
+      "<CODE_CLI>",
+      "--user-data-dir",
+      "$AUDIT_ROOT/editor-upgrade/profile",
+      "--extensions-dir",
+      "$AUDIT_ROOT/editor-upgrade/extensions",
+      "--list-extensions",
+      "--show-versions"
+    ],
+    "output": "tensorviz.tensorviz-vscode@0.1.44\n"
+  },
+  {
+    "scenario": "upgrade",
+    "action": "uninstall",
+    "version": null,
+    "exit_code": 0,
+    "seconds": 0.21,
+    "command": [
+      "<CODE_CLI>",
+      "--user-data-dir",
+      "$AUDIT_ROOT/editor-upgrade/profile",
+      "--extensions-dir",
+      "$AUDIT_ROOT/editor-upgrade/extensions",
+      "--uninstall-extension",
+      "tensorviz.tensorviz-vscode"
+    ],
+    "output": "Uninstalling tensorviz.tensorviz-vscode...\nExtension 'tensorviz.tensorviz-vscode' was successfully uninstalled!\n"
+  },
+  {
+    "scenario": "upgrade",
+    "action": "list",
+    "version": null,
+    "exit_code": 0,
+    "seconds": 0.19,
+    "command": [
+      "<CODE_CLI>",
+      "--user-data-dir",
+      "$AUDIT_ROOT/editor-upgrade/profile",
+      "--extensions-dir",
+      "$AUDIT_ROOT/editor-upgrade/extensions",
+      "--list-extensions",
+      "--show-versions"
+    ],
+    "output": ""
+  }
+]

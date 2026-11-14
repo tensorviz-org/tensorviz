@@ -1,0 +1,184 @@
+{
+  "source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "versions": {
+    "python": "3.12.13",
+    "packages": {
+      "shellingham": "1.5.4",
+      "markdown-it-py": "4.3.0",
+      "setuptools": "84.2.1",
+      "torch": "2.14.1",
+      "packaging": "26.3",
+      "networkx": "3.7",
+      "tokenizers": "0.23.3",
+      "zipp": "4.1.2",
+      "Pygments": "2.21.0",
+      "requests": "2.34.2",
+      "rich": "15.0.0",
+      "transformers": "5.23.0",
+      "certifi": "2026.10.23",
+      "lazy-importer": "0.1.0",
+      "pydantic": "2.14.3",
+      "click": "8.5.1",
+      "iniconfig": "2.3.1",
+      "regex": "2026.11.9",
+      "numpy": "2.5.4",
+      "annotated-doc": "0.0.6",
+      "pydantic_core": "2.50.4",
+      "pillow": "13.0.0",
+      "sympy": "1.14.0",
+      "importlib_metadata": "10.2.0",
+      "pluggy": "1.7.0",
+      "safetensors": "0.8.0",
+      "typing-inspection": "0.4.5",
+      "tqdm": "4.70.1",
+      "urllib3": "2.8.0",
+      "h11": "0.16.0",
+      "mdurl": "0.1.2",
+      "mpmath": "1.3.0",
+      "PyYAML": "6.0.3",
+      "httpcore2": "2.16.0",
+      "fsspec": "2026.9.0",
+      "truststore": "0.10.5",
+      "diffusers": "0.43.0",
+      "python-dotenv": "1.2.4",
+      "httpx2": "2.16.0",
+      "pytest": "9.2.0",
+      "Jinja2": "3.1.6",
+      "annotated-types": "0.8.0",
+      "typer": "0.29.1",
+      "anyio": "4.16.0",
+      "libcst": "1.9.0",
+      "typing_extensions": "4.16.0",
+      "MarkupSafe": "3.0.4",
+      "filelock": "4.2.10",
+      "hf-xet": "1.8.0",
+      "huggingface_hub": "2.4.0",
+      "charset-normalizer": "3.5.2",
+      "idna": "3.20"
+    },
+    "architecture": "arm64"
+  },
+  "scope": "Tiny random-weight constructors; offline; no pretrained models, text, image data, or interactive GUI.",
+  "checks": [
+    {
+      "name": "transformer_families",
+      "status": "passed",
+      "exit_code": 0,
+      "started_utc": "2026-11-14T16:21:39.699484+00:00",
+      "duration_seconds": 85.24,
+      "command": "<CAPTURE_PYTHON> -m pytest -q -s -p no:cacheprovider tests/capture/test_graph_library_inputs.py",
+      "working_directory": "<SOURCE>/backend",
+      "result_summary": [
+        "4 passed in 84.43s (0:01:24)"
+      ],
+      "measurements": [
+        {
+          "family": "Bert",
+          "inputs": {
+            "input_ids": [
+              3,
+              5
+            ]
+          },
+          "nodes": 108,
+          "capture": "complete"
+        },
+        {
+          "family": "T5",
+          "inputs": {
+            "decoder_input_ids": [
+              3,
+              5
+            ],
+            "input_ids": [
+              3,
+              5
+            ],
+            "decoder_attention_mask": [
+              3,
+              5
+            ]
+          },
+          "nodes": 339,
+          "capture": "partial"
+        },
+        {
+          "family": "ViT",
+          "inputs": {
+            "pixel_values": [
+              1,
+              3,
+              32,
+              32
+            ]
+          },
+          "nodes": 99,
+          "capture": "complete"
+        },
+        {
+          "family": "Dinov2",
+          "inputs": {
+            "pixel_values": [
+              1,
+              3,
+              28,
+              28
+            ]
+          },
+          "nodes": 98,
+          "capture": "complete"
+        }
+      ]
+    },
+    {
+      "name": "conditional_unet",
+      "status": "passed",
+      "exit_code": 0,
+      "started_utc": "2026-11-14T16:23:04.942658+00:00",
+      "duration_seconds": 32.97,
+      "command": "<CAPTURE_PYTHON> -m pytest -q -s -p no:cacheprovider tests/capture/test_graph_diffusion_inputs.py -k not full_defaults",
+      "working_directory": "<SOURCE>/backend",
+      "result_summary": [
+        "25 passed, 1 deselected in 31.59s"
+      ],
+      "measurements": [
+        {
+          "variant": "projected_text",
+          "status": "complete",
+          "omissions": [],
+          "operations": 467,
+          "invocations": 205
+        },
+        {
+          "variant": "projected_text",
+          "nodes": 885,
+          "coverage": "complete",
+          "output_shape": [
+            1,
+            4,
+            16,
+            16
+          ]
+        },
+        {
+          "variant": "text_time",
+          "status": "complete",
+          "omissions": [],
+          "operations": 488,
+          "invocations": 209
+        },
+        {
+          "variant": "text_time",
+          "nodes": 912,
+          "coverage": "complete",
+          "output_shape": [
+            1,
+            4,
+            16,
+            16
+          ]
+        }
+      ]
+    }
+  ]
+}

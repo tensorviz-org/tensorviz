@@ -1,0 +1,82 @@
+{
+  "label": "published-0.1.44-verified",
+  "classification": "native stdio; no signed-in client or GUI",
+  "path": "system utilities only; no project Python or Torch supplied",
+  "checks": [
+    {
+      "name": "initialize",
+      "status": "passed"
+    },
+    {
+      "name": "tools-list",
+      "status": "passed",
+      "count": 29
+    },
+    {
+      "name": "list_models",
+      "status": "responded",
+      "isError": false,
+      "errorCode": null,
+      "modelCount": 0
+    },
+    {
+      "name": "get_model_context",
+      "status": "responded",
+      "isError": true,
+      "errorCode": "NO_MODEL",
+      "modelCount": null
+    },
+    {
+      "name": "find_computation",
+      "status": "responded",
+      "isError": true,
+      "errorCode": "NO_MODEL",
+      "modelCount": null
+    },
+    {
+      "name": "open-graph-without-granting-permission",
+      "status": "blocked_permission",
+      "nextAction": null,
+      "errorCode": null
+    }
+  ],
+  "permission_granted_by_test": false,
+  "provider_calls": false,
+  "server": {
+    "name": "tensorviz",
+    "version": "0.1.44"
+  },
+  "tools": [
+    "analyze_computation_change",
+    "cancel_run",
+    "close_graph_panel",
+    "compare_runs",
+    "configure_graph_environment",
+    "configure_graph_setup",
+    "detach_graph_panel",
+    "find_computation",
+    "focus_view",
+    "get_execution_environment",
+    "get_graph",
+    "get_graph_setup",
+    "get_model_context",
+    "get_run",
+    "get_selection",
+    "graph_panel_exchange",
+    "graph_panel_read",
+    "inspect_capture",
+    "inspect_nodes",
+    "inspect_run",
+    "list_captures",
+    "list_models",
+    "open_graph",
+    "open_graph_diff",
+    "open_graph_panel",
+    "open_graph_view",
+    "query_computation",
+    "suggest_graph_inputs",
+    "validate_model"
+  ],
+  "capture": "not_run: no permission was granted by this harness",
+  "permission_record_created": false
+}

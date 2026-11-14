@@ -1,0 +1,116 @@
+{
+  "sourceCommit": "d1c463c37863d89c2ccc8e37ec75858de47d194a",
+  "recordedAt": "2026-11-14T17:10:19.526584+00:00",
+  "runtimes": {
+    "noTorch": {
+      "python": "3.12.13",
+      "arch": "arm64",
+      "packages": {
+        "pytest": "9.2.0",
+        "torch": null,
+        "fastapi": "0.162.7",
+        "websockets": "17.4",
+        "pydantic": "2.14.3"
+      },
+      "torchImportable": false
+    },
+    "capture": {
+      "python": "3.12.13",
+      "arch": "arm64",
+      "packages": {
+        "pytest": "9.2.0",
+        "torch": "2.14.1",
+        "fastapi": null,
+        "websockets": null,
+        "pydantic": "2.14.3"
+      },
+      "torchImportable": true
+    }
+  },
+  "checks": [
+    {
+      "label": "extension-runtime-preflight-lifecycle",
+      "command": [
+        "node",
+        "node_modules/mocha/bin/mocha.js",
+        "--ui",
+        "tdd",
+        "--require",
+        "./out/test/bootstrap.js",
+        "out/test/unit/runtime.test.js",
+        "out/test/unit/runtimeLifecycle.test.js",
+        "out/test/unit/preflight.test.js"
+      ],
+      "cwd": "extension",
+      "exitCode": 0,
+      "counts": [
+        "58 passing"
+      ],
+      "durationSeconds": 10.24,
+      "rawLogSha256": "cd2657470174615a2638b73890ddca51b3620ee1208ac25a5a76fcd6c2cb39c9"
+    },
+    {
+      "label": "backend-service-and-static",
+      "command": [
+        "NO_TORCH_PYTHON",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/runtime/test_service_provisioning.py",
+        "tests/runtime/test_service_without_torch.py"
+      ],
+      "cwd": "backend",
+      "exitCode": 0,
+      "counts": [
+        "5 passed"
+      ],
+      "durationSeconds": 2.48,
+      "rawLogSha256": "e1194ea6f8e6694b10372e29a45c4d5c36f71f83b8cb51985b903a4fe161c7bc"
+    },
+    {
+      "label": "backend-additive-environment",
+      "command": [
+        "NO_TORCH_PYTHON",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/runtime/test_environment_setup.py"
+      ],
+      "cwd": "backend",
+      "exitCode": 1,
+      "counts": [
+        "2 failed",
+        "109 passed"
+      ],
+      "durationSeconds": 66.64,
+      "rawLogSha256": "ba4d14d7284cf84bb7d7abbb025b445dbf395603d6d9fbaab3084fc81faff998"
+    },
+    {
+      "label": "backend-capture-separation",
+      "command": [
+        "CAPTURE_PYTHON",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/runtime/test_capture_environment.py"
+      ],
+      "cwd": "backend",
+      "exitCode": 0,
+      "counts": [
+        "5 passed"
+      ],
+      "durationSeconds": 5.08,
+      "rawLogSha256": "adf703b13f930b0b34a3ddcf8064eb06f84dfe43d2bd135f80c9eca129e0bd44"
+    }
+  ],
+  "scope": "Focused local source tests; no desktop UI or release gate claim."
+}

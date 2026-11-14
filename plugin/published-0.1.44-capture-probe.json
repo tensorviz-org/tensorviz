@@ -1,0 +1,30 @@
+{
+  "label": "published-0.1.44",
+  "classification": "compiled dependency probe only; no capture, client or desktop acceptance",
+  "checks": [
+    {
+      "mode": "missing-torch",
+      "status": "failed",
+      "exit_code": 1,
+      "response_ok": null,
+      "response_code": null,
+      "stderr_present": true
+    },
+    {
+      "mode": "broken-torch",
+      "status": "failed",
+      "exit_code": 1,
+      "response_ok": null,
+      "response_code": null,
+      "stderr_present": true
+    },
+    {
+      "mode": "valid-torch",
+      "status": "passed",
+      "exit_code": 0,
+      "response_ok": true,
+      "response_code": null,
+      "stderr_present": false
+    }
+  ]
+}

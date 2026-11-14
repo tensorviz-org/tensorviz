@@ -1,0 +1,88 @@
+{
+  "label": "published-0.1.44",
+  "catalog_changes": "MCP state/cache paths only",
+  "provider_calls": false,
+  "permission_granted_by_test": false,
+  "checks": [
+    {
+      "name": "codex-marketplace-add",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.024
+    },
+    {
+      "name": "codex-plugin-add",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.029
+    },
+    {
+      "name": "codex-plugin-list",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.024
+    },
+    {
+      "name": "codex-mcp-list",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.028
+    },
+    {
+      "name": "codex-plugin-remove",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.027
+    },
+    {
+      "name": "codex-plugin-list-after-remove",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.022
+    },
+    {
+      "name": "claude-marketplace-add",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.719
+    },
+    {
+      "name": "claude-plugin-install",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.55
+    },
+    {
+      "name": "claude-plugin-list",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.234
+    },
+    {
+      "name": "claude-plugin-uninstall",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.642
+    },
+    {
+      "name": "claude-plugin-list-after-remove",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.215
+    }
+  ],
+  "normal_account_file_metadata_unchanged": true,
+  "limitations": [
+    "No signed-in desktop rendering or provider/model turn",
+    "No permission helper, permission records or native approval modified"
+  ],
+  "verified_installation_results": {
+    "codex_installed_version": "0.1.44",
+    "codex_enabled": true,
+    "codex_exactly_one_mcp_server": true,
+    "codex_removed": true,
+    "claude_installed_version": "0.1.44",
+    "claude_enabled": true,
+    "claude_removed": true
+  }
+}

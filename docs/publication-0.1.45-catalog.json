@@ -1,0 +1,151 @@
+{
+  "checked_at_utc": "2026-11-14T16:38:22.084939+00:00",
+  "public_export_commit": "1b5da75b72a38c903deb7ea749eda71996284986",
+  "catalog_files": {
+    ".agents/plugins/marketplace.json": {
+      "name": "tensorviz-standalone",
+      "plugins": [
+        {
+          "name": "tensorviz",
+          "source": {
+            "source": "local",
+            "path": "./plugins/tensorviz"
+          },
+          "policy": {
+            "installation": "AVAILABLE",
+            "authentication": "ON_INSTALL"
+          },
+          "category": "Developer Tools"
+        },
+        {
+          "name": "tensorviz-windows-x64",
+          "source": {
+            "source": "local",
+            "path": "./plugins/tensorviz-windows-x64"
+          },
+          "policy": {
+            "installation": "AVAILABLE",
+            "authentication": "ON_INSTALL"
+          },
+          "category": "Developer Tools"
+        },
+        {
+          "name": "tensorviz-windows-arm64",
+          "source": {
+            "source": "local",
+            "path": "./plugins/tensorviz-windows-arm64"
+          },
+          "policy": {
+            "installation": "AVAILABLE",
+            "authentication": "ON_INSTALL"
+          },
+          "category": "Developer Tools"
+        }
+      ]
+    },
+    ".claude-plugin/marketplace.json": {
+      "name": "tensorviz-standalone",
+      "owner": {
+        "name": "TensorViz"
+      },
+      "plugins": [
+        {
+          "name": "tensorviz",
+          "source": "./plugins/tensorviz"
+        }
+      ]
+    },
+    ".cursor-plugin/marketplace.json": {
+      "name": "tensorviz",
+      "owner": {
+        "name": "TensorViz"
+      },
+      "plugins": [
+        {
+          "name": "tensorviz",
+          "source": "cursor/plugins/tensorviz"
+        }
+      ]
+    },
+    "plugins/tensorviz/runtime-lock.json": {
+      "formatVersion": 2,
+      "version": "0.1.45",
+      "runtimes": {
+        "darwin-arm64": {
+          "formatVersion": 1,
+          "version": "0.1.45",
+          "platform": "darwin-arm64",
+          "pythonABI": "cpython-312-darwin",
+          "sha256": "a8a3849819860bb25ab7d79b3cb0ff136caa6efe14dfb17725a9b98d133364ab",
+          "bytes": 36294912,
+          "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.45/tensorviz-runtime-0.1.45-darwin-arm64.tar.gz"
+        },
+        "darwin-x64": {
+          "formatVersion": 1,
+          "version": "0.1.45",
+          "platform": "darwin-x64",
+          "pythonABI": "cpython-312-darwin",
+          "sha256": "13ed6a786c03d7599ae791e03e9c2708fcd6a052098b2f88cd172378fb0d0bae",
+          "bytes": 38395409,
+          "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.45/tensorviz-runtime-0.1.45-darwin-x64.tar.gz"
+        },
+        "linux-arm64": {
+          "formatVersion": 1,
+          "version": "0.1.45",
+          "platform": "linux-arm64",
+          "pythonABI": "cpython-312-aarch64-linux-gnu",
+          "sha256": "9524c877c3d1ec42fb409794c85875d7edcf801cf5e226b87b87cc47c61d604c",
+          "bytes": 42344378,
+          "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.45/tensorviz-runtime-0.1.45-linux-arm64.tar.gz"
+        },
+        "linux-x64": {
+          "formatVersion": 1,
+          "version": "0.1.45",
+          "platform": "linux-x64",
+          "pythonABI": "cpython-312-x86_64-linux-gnu",
+          "sha256": "d08e37edbe0c9760482fee136cc8b11bd460987acbb7ba3d7a3dd21b1709d430",
+          "bytes": 43523294,
+          "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.45/tensorviz-runtime-0.1.45-linux-x64.tar.gz"
+        },
+        "win32-arm64": {
+          "formatVersion": 1,
+          "version": "0.1.45",
+          "platform": "win32-arm64",
+          "pythonABI": "cp312-win_arm64",
+          "sha256": "9312b7aba4b2a3d905ecd4402f361ed075b3ae07b5eeed8a91a3b64a2ae04345",
+          "bytes": 32780589,
+          "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.45/tensorviz-runtime-0.1.45-win32-arm64.tar.gz"
+        },
+        "win32-x64": {
+          "formatVersion": 1,
+          "version": "0.1.45",
+          "platform": "win32-x64",
+          "pythonABI": "cp312-win_amd64",
+          "sha256": "6e7a3db5db196a291eef69821a3749db7109505a303e120343be5b4d3b14ad4b",
+          "bytes": 35614787,
+          "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.45/tensorviz-runtime-0.1.45-win32-x64.tar.gz"
+        }
+      }
+    },
+    "plugins/tensorviz-windows-arm64/runtime-lock.json": {
+      "formatVersion": 1,
+      "version": "0.1.45",
+      "platform": "win32-arm64",
+      "pythonABI": "cp312-win_arm64",
+      "sha256": "9312b7aba4b2a3d905ecd4402f361ed075b3ae07b5eeed8a91a3b64a2ae04345",
+      "bytes": 32780589,
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.45/tensorviz-runtime-0.1.45-win32-arm64.tar.gz"
+    },
+    "plugins/tensorviz-windows-x64/runtime-lock.json": {
+      "formatVersion": 1,
+      "version": "0.1.45",
+      "platform": "win32-x64",
+      "pythonABI": "cp312-win_amd64",
+      "sha256": "6e7a3db5db196a291eef69821a3749db7109505a303e120343be5b4d3b14ad4b",
+      "bytes": 35614787,
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.45/tensorviz-runtime-0.1.45-win32-x64.tar.gz"
+    },
+    "SUPPORT.md": "# Support and compatibility\n\nThis catalog targets macOS ARM64/x64, Linux x64 (glibc >=2.31) and ARM64\n(glibc >=2.35), plus Windows x64/ARM64 through native Codex entries. It requires\nmatching CPython 3.12 for its compiled backend, but does not require VS Code or\nNode.js. Startup/service compatibility is independent of PyTorch wheel or model\ncompatibility. Explicitly selected incompatible Python versions produce an error;\nTensorViz does not silently replace that environment.\nWindows Claude Code/Cursor, musl, CUDA and other Python ABIs remain outside this\ncatalog's acceptance scope. Runtime selection follows the MCP execution host,\nnot the client desktop. Native CI does not establish every desktop GUI, older\nOS release, hardware configuration, or SSH-network behavior. Existing release\narchives remain unchanged; only a published catalog with the matching native\nasset supplies support.\n\nThe integration works with clients that support its local MCP transport and\nplugin format. Directory publication is distinct from local installation, capture\nand rendering. No official marketplace acceptance is claimed for this candidate.\n\nWhen reporting a problem, include the integration version, OS/client version,\nwhether it failed during download, startup or capture, and a small synthetic\nmodel. Do not share credentials, private viewer links, model secrets or unredacted\nenvironment dumps. Use\n[the integration repository's issues](https://github.com/tensorviz-org/tensorviz-plugins/issues)\nfor public, non-sensitive bug reports.\n\n"
+  },
+  "scope": "Published catalog/platform metadata only; does not establish native acceptance on these targets."
+}

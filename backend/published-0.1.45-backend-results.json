@@ -1,0 +1,229 @@
+{
+  "artifact": "Published TensorViz VSIX bundled backend",
+  "version": "0.1.45",
+  "vsix_sha256": "edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990",
+  "release_source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "test_source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "tested_utc": "2026-11-14T17:11:31.540751+00:00",
+  "scope": "Actual published artifact backend code; local subprocess and loopback HTTP acceptance. No extension activation or graphical acceptance is implied.",
+  "backend_file_sha256": {
+    "server_v2.py": "02193fac0b5a92f08b169ee765db8034533f137abc7329833e0e080daaef92bb",
+    "standalone_server.py": "7a3d843d2fa2db8c03f677f1af7552970d2c33eb8c9a0036c81b02146f78c9a7",
+    "capture_environment.py": "794e0e4a9ad1e0abe06c1d65eb147725f19b97858ba4422b2336122b301c1102",
+    "services/ingest/bootstrap.py": "5d538281ca88e78f07e04a3228b02faefa77cd9f141b34f117f00d3d55c076c1"
+  },
+  "environments": {
+    "no_torch": {
+      "python": "3.12.13",
+      "architecture": "arm64",
+      "macos": "26.4",
+      "torch_package": null,
+      "torch_importable_spec": false,
+      "packages": {
+        "pydantic": "2.14.3",
+        "numpy": "2.5.4",
+        "fastapi": "0.162.7",
+        "uvicorn": "0.54.0"
+      }
+    },
+    "synthetic_broken_torch": {
+      "python": "3.12.13",
+      "architecture": "arm64",
+      "macos": "26.4",
+      "torch_package": "2.14.1",
+      "torch_importable_spec": true,
+      "packages": {
+        "pydantic": "2.14.3",
+        "numpy": "2.5.4",
+        "fastapi": "0.162.7",
+        "uvicorn": "0.54.0"
+      }
+    },
+    "healthy_torch": {
+      "python": "3.12.13",
+      "architecture": "arm64",
+      "macos": "26.4",
+      "torch_package": "2.14.1",
+      "torch_importable_spec": true,
+      "packages": {
+        "pydantic": "2.14.3",
+        "numpy": "2.5.4"
+      }
+    }
+  },
+  "checks": [
+    {
+      "name": "extension_missing",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_seconds": 1.24,
+      "result": {
+        "service": "extension",
+        "framework_failure": "missing",
+        "startup": "passed",
+        "health": "passed",
+        "static_projection": "passed",
+        "static_discovery": "passed",
+        "static_setup": "passed",
+        "model_executed_by_static_routes": false,
+        "additional_checks": [
+          "parse",
+          "workspace classes",
+          "buffer classes",
+          "repo scan",
+          "templates",
+          "structural validation",
+          "code generation",
+          "eight torch-required requests return HTTP503 pytorch_unavailable reason missing",
+          "IDE importer refuses in-process execution"
+        ]
+      },
+      "command": "<NO_TORCH_PYTHON> run_published_vsix_backend.py (published backend; pinned source test harness; extension missing)",
+      "simulation": "Missing/broken framework imports prohibited by test finder; genuinely no Torch installed in interpreter."
+    },
+    {
+      "name": "extension_broken",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_seconds": 1.18,
+      "result": {
+        "service": "extension",
+        "framework_failure": "broken",
+        "startup": "passed",
+        "health": "passed",
+        "static_projection": "passed",
+        "static_discovery": "passed",
+        "static_setup": "passed",
+        "model_executed_by_static_routes": false,
+        "additional_checks": [
+          "parse",
+          "workspace classes",
+          "buffer classes",
+          "repo scan",
+          "templates",
+          "structural validation",
+          "code generation",
+          "eight torch-required requests return HTTP503 pytorch_unavailable reason broken",
+          "IDE importer refuses in-process execution"
+        ]
+      },
+      "command": "<NO_TORCH_PYTHON> run_published_vsix_backend.py (published backend; pinned source test harness; extension broken)",
+      "simulation": "Missing/broken framework imports prohibited by test finder; genuinely no Torch installed in interpreter."
+    },
+    {
+      "name": "standalone_missing",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_seconds": 0.37,
+      "result": {
+        "service": "standalone",
+        "framework_failure": "missing",
+        "startup": "passed",
+        "health": "passed",
+        "static_projection": "passed",
+        "static_discovery": "passed",
+        "static_setup": "passed",
+        "model_executed_by_static_routes": false,
+        "additional_checks": [
+          "unauthorized health request rejected HTTP401"
+        ]
+      },
+      "command": "<NO_TORCH_PYTHON> run_published_vsix_backend.py (published backend; pinned source test harness; standalone missing)",
+      "simulation": "Missing/broken framework imports prohibited by test finder; genuinely no Torch installed in interpreter."
+    },
+    {
+      "name": "standalone_broken",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_seconds": 0.36,
+      "result": {
+        "service": "standalone",
+        "framework_failure": "broken",
+        "startup": "passed",
+        "health": "passed",
+        "static_projection": "passed",
+        "static_discovery": "passed",
+        "static_setup": "passed",
+        "model_executed_by_static_routes": false,
+        "additional_checks": [
+          "unauthorized health request rejected HTTP401"
+        ]
+      },
+      "command": "<NO_TORCH_PYTHON> run_published_vsix_backend.py (published backend; pinned source test harness; standalone broken)",
+      "simulation": "Missing/broken framework imports prohibited by test finder; genuinely no Torch installed in interpreter."
+    },
+    {
+      "name": "capture_probe_missing",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_seconds": 0.07,
+      "result": {
+        "helper_exit_code": 0,
+        "response": {
+          "ok": false,
+          "code": "MISSING_DEPENDENCIES",
+          "message": "Missing capture library: torch."
+        }
+      },
+      "command": "<MISSING_TORCH_PYTHON> -I -B <PUBLISHED_BACKEND>/capture_environment.py probe-capture"
+    },
+    {
+      "name": "capture_probe_broken",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_seconds": 0.08,
+      "result": {
+        "helper_exit_code": 0,
+        "response": {
+          "ok": false,
+          "code": "CAPTURE_RUNTIME_UNSUPPORTED",
+          "message": "The capture worker could not load (OSError). Choose a compatible environment."
+        }
+      },
+      "command": "<BROKEN_TORCH_PYTHON> -I -B <PUBLISHED_BACKEND>/capture_environment.py probe-capture",
+      "fixture": "Separate venv with capture dependencies and synthetic torch2.14.1 metadata whose import raises an incompatible-architecture OSError; not real PyTorch."
+    },
+    {
+      "name": "capture_probe_healthy",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_seconds": 1.1,
+      "result": {
+        "helper_exit_code": 0,
+        "response": {
+          "ok": true,
+          "torch": "2.14.1",
+          "cuda": null
+        }
+      },
+      "command": "<HEALTHY_TORCH_PYTHON> -I -B <PUBLISHED_BACKEND>/capture_environment.py probe-capture"
+    },
+    {
+      "name": "healthy_real_model_capture",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_seconds": 3.02,
+      "result": {
+        "model": "Synthetic Linear(4,8) -> residual Block(8) -> Linear(8,3)",
+        "model_source_sha256": "eddedccec08e8bdbca671046ad1663129c9732715c091bed0bd40c0fea321631",
+        "capture_status": "complete",
+        "input_shape": [
+          2,
+          4
+        ],
+        "output_shape": [
+          2,
+          3
+        ],
+        "parameters": 211,
+        "graph_nodes": 27,
+        "graph_edges": 20,
+        "root_invocation_status": "completed",
+        "graph_inspection": "Programmatic semantic projection and output-shape assertions; no UI inspection."
+      },
+      "command": "<CAPTURE_PYTHON> -I -B <PUBLISHED_BACKEND>/services/validation/host_snapshot.py; <CAPTURE_PYTHON> -I -B <PUBLISHED_BACKEND>/services/ingest/bootstrap.py --file <SYNTHETIC_WORKSPACE>/model.py --cls Net --workspace <SYNTHETIC_WORKSPACE> --resolved-execution --json"
+    }
+  ],
+  "status": "passed",
+  "cleanup": "All owned short-lived service and capture children exited. Synthetic model and raw logs retained only under output/private."
+}

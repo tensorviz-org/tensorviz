@@ -1,0 +1,171 @@
+{
+  "tested_at": "2026-11-14T17:11:25.553829+00:00",
+  "published": true,
+  "source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "artifact_sha256": "edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990",
+  "results": [
+    {
+      "flow": "clean",
+      "step": "install_current",
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--install-extension",
+        "$AUDIT_ROOT/releases/tensorviz-vscode-0.1.45.vsix",
+        "--force"
+      ],
+      "exit_code": 0,
+      "status": "passed",
+      "output": "Installing extensions...\nExtension 'tensorviz-vscode-0.1.45.vsix' was successfully installed.\n(node:<PID>) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n"
+    },
+    {
+      "flow": "clean",
+      "step": "list_current",
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--list-extensions",
+        "--show-versions"
+      ],
+      "exit_code": 0,
+      "status": "passed",
+      "output": "tensorviz.tensorviz-vscode@0.1.45\n"
+    },
+    {
+      "flow": "clean",
+      "step": "uninstall",
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--uninstall-extension",
+        "tensorviz.tensorviz-vscode"
+      ],
+      "exit_code": 0,
+      "status": "passed",
+      "output": "Uninstalling tensorviz.tensorviz-vscode...\nExtension 'tensorviz.tensorviz-vscode' was successfully uninstalled!\n"
+    },
+    {
+      "flow": "clean",
+      "step": "list_after_removal",
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--list-extensions",
+        "--show-versions"
+      ],
+      "exit_code": 0,
+      "status": "passed",
+      "output": ""
+    },
+    {
+      "flow": "upgrade",
+      "step": "install_previous",
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--install-extension",
+        "$AUDIT_ROOT/releases/tensorviz-vscode-0.1.44.vsix",
+        "--force"
+      ],
+      "exit_code": 0,
+      "status": "passed",
+      "output": "Installing extensions...\nExtension 'tensorviz-vscode-0.1.44.vsix' was successfully installed.\n(node:<PID>) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n"
+    },
+    {
+      "flow": "upgrade",
+      "step": "list_previous",
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--list-extensions",
+        "--show-versions"
+      ],
+      "exit_code": 0,
+      "status": "passed",
+      "output": "tensorviz.tensorviz-vscode@0.1.44\n"
+    },
+    {
+      "flow": "upgrade",
+      "step": "install_current",
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--install-extension",
+        "$AUDIT_ROOT/releases/tensorviz-vscode-0.1.45.vsix",
+        "--force"
+      ],
+      "exit_code": 0,
+      "status": "passed",
+      "output": "Installing extensions...\nExtension 'tensorviz-vscode-0.1.45.vsix' was successfully installed.\n(node:<PID>) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n"
+    },
+    {
+      "flow": "upgrade",
+      "step": "list_current",
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--list-extensions",
+        "--show-versions"
+      ],
+      "exit_code": 0,
+      "status": "passed",
+      "output": "tensorviz.tensorviz-vscode@0.1.45\n"
+    },
+    {
+      "flow": "upgrade",
+      "step": "uninstall",
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--uninstall-extension",
+        "tensorviz.tensorviz-vscode"
+      ],
+      "exit_code": 0,
+      "status": "passed",
+      "output": "Uninstalling tensorviz.tensorviz-vscode...\nExtension 'tensorviz.tensorviz-vscode' was successfully uninstalled!\n"
+    },
+    {
+      "flow": "upgrade",
+      "step": "list_after_removal",
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--list-extensions",
+        "--show-versions"
+      ],
+      "exit_code": 0,
+      "status": "passed",
+      "output": ""
+    }
+  ]
+}

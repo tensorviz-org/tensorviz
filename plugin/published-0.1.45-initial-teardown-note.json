@@ -1,0 +1,8 @@
+{
+  "checked_at_utc": "2026-11-14T16:41:29.885545+00:00",
+  "scope": "initial published0.1.45 static bridge harness before managed-thread-close wait",
+  "stale_runtime_directories_observed": 2,
+  "stale_runtime_directories_removed": 2,
+  "isolated_background_plugin_sync_processes_stopped": 2,
+  "interpretation": "Initial harness used a fixed teardown delay; this does not establish a product lifecycle defect. A focused rerun waits for thread/closed."
+}

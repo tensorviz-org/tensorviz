@@ -1,0 +1,28 @@
+{
+  "classification": "local source-development package; not published and not compiled native",
+  "version": "0.1.45",
+  "source_revision": "7dc2004edfbda4218ea683f3219a52d05d02e89a",
+  "source_working_tree_dirty": false,
+  "source_base": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "differences_from_base": [
+    "docs/agent-plugin.md",
+    "plugin/packaging/public/docs/installation.md"
+  ],
+  "artifact": "tensorviz-0.1.45.tar.gz",
+  "artifact_sha256": "055f3e8a614d9fa7f566e49d25f68b9ef8e1fd96ddd77ecba5683b6cf234f2f3",
+  "all_package_manifest_files_verified": true,
+  "package_manifest_file_count": 434,
+  "builds_completed": [
+    "shared TypeScript packages",
+    "plugin host",
+    "plugin browser",
+    "plugin panel",
+    "source-development archive"
+  ],
+  "not_tested": [
+    "native compiled 0.1.45 artifact",
+    "provider/model turn",
+    "permission-granted MCP capture",
+    "client desktop GUI rendering"
+  ]
+}

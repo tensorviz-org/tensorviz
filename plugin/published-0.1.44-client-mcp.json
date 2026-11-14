@@ -1,0 +1,35 @@
+{
+  "label": "published-0.1.44",
+  "runtime_cache": "preverified published archive; warm startup",
+  "runtime_sha256": "78a201724c5ebe2eaaf494826f29799a2c5ac2b4ef3b86bf20d4d75748aef450",
+  "provider_calls": false,
+  "permission_replies": 0,
+  "checks": [
+    {
+      "client": "codex",
+      "skill_advertised": true,
+      "tool_count": 29,
+      "plugin_version": "0.1.44",
+      "model_count": 0,
+      "status": "passed",
+      "uninstall_command_succeeded": true,
+      "seconds": 6.676
+    },
+    {
+      "client": "claude",
+      "skill_advertised": true,
+      "tool_count": 29,
+      "plugin_version": "0.1.44",
+      "model_count": 0,
+      "status": "passed",
+      "uninstall_command_succeeded": true,
+      "seconds": 7.503
+    }
+  ],
+  "permission_record_created": false,
+  "capture": "not_run; static discovery only",
+  "desktop_rendering": "not_run",
+  "runtime_temp_sessions_remaining": 0,
+  "isolated_client_background_fetches_stopped": 0,
+  "isolated_client_background_fetches_remaining": 0
+}

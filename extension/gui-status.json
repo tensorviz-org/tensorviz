@@ -1,0 +1,138 @@
+{
+  "status": "passed",
+  "artifact_version": "0.1.44",
+  "evidence_source": "Root agent observed the actual isolated VS Code UI; user manually trusted only the synthetic fixture.",
+  "checks": [
+    {
+      "name": "clean_empty_window_activation",
+      "status": "passed",
+      "observation": "Extension welcome/Templates visible."
+    },
+    {
+      "name": "workspace_trust",
+      "status": "passed",
+      "observation": "Initial Restricted Mode block was respected; user manually trusted only the synthetic fixture."
+    },
+    {
+      "name": "managed_service_runtime_setup",
+      "status": "passed",
+      "observation": "Actual UI setup completed and installed Torch in disposable service storage; not a no-Torch service startup test.",
+      "python": "3.12.14",
+      "torch": "2.14.1"
+    },
+    {
+      "name": "selected_empty_model_interpreter",
+      "status": "passed",
+      "missing_libraries_shown": [
+        "torch",
+        "pydantic",
+        "packaging",
+        "numpy"
+      ],
+      "observation": "Actual setup UI offered explicit installation approval; nothing was installed into the empty model environment."
+    },
+    {
+      "name": "automatic_inputs_capture",
+      "status": "passed",
+      "input_shape": [
+        1,
+        4
+      ],
+      "output_shape": [
+        1,
+        3
+      ],
+      "observed_capture_label": "Traced",
+      "observed_validation": "Passed"
+    },
+    {
+      "name": "python_input_function_capture",
+      "status": "passed",
+      "input_source": "tiny_model.py::graph_inputs",
+      "input_shape": [
+        2,
+        4
+      ],
+      "output_shape": [
+        2,
+        3
+      ],
+      "graph_nodes": 16,
+      "observed_capture_label": "Traced \u2014 shapes measured",
+      "observed_validation": "Passed"
+    },
+    {
+      "name": "expand_modules",
+      "status": "passed",
+      "expanded": [
+        "Sequential",
+        "Linear internals",
+        "measured addmm/transpose and weight/bias nodes"
+      ],
+      "all_module_kinds_tested": false
+    },
+    {
+      "name": "same_source_refresh_cache",
+      "status": "passed",
+      "observation": "UI explicitly said the model was not run again; this is not counted as a new capture."
+    },
+    {
+      "name": "installed_extension_browser_reload_reconnect",
+      "status": "passed",
+      "client": "Chrome",
+      "graph_nodes": 16,
+      "input_shape": [
+        2,
+        4
+      ],
+      "output_shape": [
+        2,
+        3
+      ],
+      "observation": "Reload/reconnect returned the same measured graph."
+    },
+    {
+      "name": "svg_download",
+      "status": "passed",
+      "artifact": "published-0.1.44-graph.svg",
+      "bytes": 6336,
+      "sha256": "302028327cdbb8021b0444b7661ef63e5b0106740c41023e310afc2fcbaf3901",
+      "snapshot_input_shape": [
+        2,
+        4
+      ],
+      "snapshot_output_shape": [
+        2,
+        3
+      ],
+      "snapshot_note": "Export occurred before the later head edit."
+    },
+    {
+      "name": "source_edit_invalidates_then_recaptures",
+      "status": "passed",
+      "change": "Linear(8,3) to Linear(8,5)",
+      "observation": "UI invalidated validation/status; actual Run model then passed.",
+      "input_shape": [
+        2,
+        4
+      ],
+      "output_shape": [
+        2,
+        5
+      ]
+    },
+    {
+      "name": "graph_diff_against_HEAD_and_refresh",
+      "status": "passed",
+      "observation": "Manual source edit Linear(8,3) to Linear(8,5): one modified out_features, zero added/removed. Refresh retained the same diff. Other three graph-diff paths were not run."
+    }
+  ],
+  "harness_note": "Initial long profile/socket path failed; a shorter temporary profile fixed that harness issue. No product defect claimed for it.",
+  "limits": [
+    "Published extension0.1.44 baseline only. Source package GUI observations are separately attributed in gui-final.json.",
+    "No agent-assisted/ACP diff, full all-module expansion matrix, website upload or pretrained-model matrix acceptance.",
+    "Managed service contains Torch; separate no-Torch service baseline probe failed.",
+    "SVG export is verified; no graphical screenshot is included."
+  ],
+  "scope": "Bounded published extension0.1.44 graphical checks only"
+}

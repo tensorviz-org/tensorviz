@@ -1,0 +1,96 @@
+{
+  "classification": "CLI lifecycle only; no account/provider/desktop test",
+  "checks": [
+    {
+      "name": "codex-marketplace-add-old",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.033
+    },
+    {
+      "name": "codex-install-old",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.039
+    },
+    {
+      "name": "claude-marketplace-add-old",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.713
+    },
+    {
+      "name": "claude-install-old",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.714
+    },
+    {
+      "name": "claude-list-old",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.214
+    },
+    {
+      "name": "codex-install-upgraded",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.031
+    },
+    {
+      "name": "codex-mcp-after-upgrade",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.033
+    },
+    {
+      "name": "claude-plugin-update",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.721
+    },
+    {
+      "name": "claude-list-upgraded",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.172
+    },
+    {
+      "name": "codex-uninstall",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.024
+    },
+    {
+      "name": "claude-uninstall",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.692
+    },
+    {
+      "name": "codex-list-removed",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.017
+    },
+    {
+      "name": "claude-list-removed",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.139
+    }
+  ],
+  "codex_versions": {
+    "before": "0.1.43",
+    "after": "0.1.44"
+  },
+  "claude_versions": {
+    "before": "0.1.43",
+    "after": "0.1.44"
+  },
+  "codex_plugin_replacement_passed": true,
+  "documented_codex_local_catalog_flow": "passed: complete local catalog replacement then plugin add",
+  "claude_upgrade_passed": true,
+  "codex_removed": true,
+  "claude_removed": true
+}

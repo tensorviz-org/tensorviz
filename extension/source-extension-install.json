@@ -1,0 +1,64 @@
+{
+  "source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "artifact_sha256": "a69d94fdc707077cfebeefe47e41e693068460d15576544c5f27b5e9c4adc4dc",
+  "published": false,
+  "results": [
+    {
+      "action": "install",
+      "exit_code": 0,
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--install-extension",
+        "$AUDIT_ROOT/ui-source/extension/tensorviz-vscode-0.1.45.vsix",
+        "--force"
+      ],
+      "output": "Installing extensions...\nExtension 'tensorviz-vscode-0.1.45.vsix' was successfully installed.\n(node:<PID>) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n"
+    },
+    {
+      "action": "list",
+      "exit_code": 0,
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--list-extensions",
+        "--show-versions"
+      ],
+      "output": "tensorviz.tensorviz-vscode@0.1.45\n"
+    },
+    {
+      "action": "uninstall",
+      "exit_code": 0,
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--uninstall-extension",
+        "tensorviz.tensorviz-vscode"
+      ],
+      "output": "Uninstalling tensorviz.tensorviz-vscode...\nExtension 'tensorviz.tensorviz-vscode' was successfully uninstalled!\n"
+    },
+    {
+      "action": "list",
+      "exit_code": 0,
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$TEST_PROFILE/extensions",
+        "--list-extensions",
+        "--show-versions"
+      ],
+      "output": ""
+    }
+  ]
+}

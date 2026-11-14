@@ -1,0 +1,128 @@
+{
+  "checked_at_utc": "2026-11-14T16:58:17.299574+00:00",
+  "repositories": {
+    "tensorviz-org/tensorviz": {
+      "tag_name": "v0.1.45",
+      "published_at": "2026-11-14T16:41:07Z",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+      "html_url": "https://github.com/tensorviz-org/tensorviz/releases/tag/v0.1.45",
+      "body": "- Add native compiled runtime packaging for Intel Mac, Linux ARM64 and Windows x64/ARM64, with architecture-specific verified installers.\n- Separate core service startup from optional PyTorch model capture dependencies and improve unsupported capture-environment diagnostics.\n- Preserve Linux x64 glibc 2.31 support, version alignment and tested upgrade/rollback gates.\n\nPublished on the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=tensorviz.tensorviz-vscode). This download is the exact Marketplace package.\n\nSource: eae4dd5d012c090d31ca1149891287ea01febc6c\n\nSHA-256: `edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990`\n",
+      "assets": [
+        {
+          "name": "tensorviz-vscode-0.1.45.vsix",
+          "size": 5641948,
+          "digest": "sha256:edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990"
+        },
+        {
+          "name": "tensorviz-vscode-0.1.45.vsix.sha256",
+          "size": 95,
+          "digest": "sha256:b1aea211b3334ff9c0378df5d0499069fd50fd303a446c3b8ea41ea3f49ce8c2"
+        }
+      ]
+    },
+    "tensorviz-org/tensorviz-plugins": {
+      "tag_name": "v0.1.45",
+      "published_at": "2026-11-14T16:32:18Z",
+      "draft": false,
+      "prerelease": true,
+      "target_commitish": "1b5da75b72a38c903deb7ea749eda71996284986",
+      "html_url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/tag/v0.1.45",
+      "body": "TensorViz plugin 0.1.45 preview with compiled platform runtimes and CPython 3.12.\n\nInstall from https://github.com/tensorviz-org/tensorviz-plugins. Complete local catalog and standalone client ZIPs are also attached. Core source is excluded; browser JavaScript remains inspectable.\n\nSource repository: tensorviz-org/tensorviz\nSource revision: eae4dd5d012c090d31ca1149891287ea01febc6c\nPublic export commit: 1b5da75b72a38c903deb7ea749eda71996284986\n",
+      "assets": [
+        {
+          "name": "release.json",
+          "size": 2131,
+          "digest": "sha256:cf9af3bd0415d4605ecb68884683315746f673b0fa583c71086e60762c01fd39"
+        },
+        {
+          "name": "tensorviz-0.1.45.zip",
+          "size": 43135,
+          "digest": "sha256:24fb75738cbdc31dc0e82306327f398cd0d6615c54b10edaad89d02a7aaa357a"
+        },
+        {
+          "name": "tensorviz-catalog-0.1.45.zip",
+          "size": 40856040,
+          "digest": "sha256:70ac8455c043f9bca3deb79dd4a809a6b766581de6d29ba655d675826279972a"
+        },
+        {
+          "name": "tensorviz-cursor-0.1.45.zip",
+          "size": 43483,
+          "digest": "sha256:d8874276efb123e7c4756f699052f53ae38d1494b3a4c5cc6bff3b24a44e7f80"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-darwin-arm64.tar.gz",
+          "size": 36294912,
+          "digest": "sha256:a8a3849819860bb25ab7d79b3cb0ff136caa6efe14dfb17725a9b98d133364ab"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-darwin-arm64.tar.gz.json",
+          "size": 350,
+          "digest": "sha256:dd2c72e545305dc01acb184d1c1bff8188bb4d0ce9ba79a5cc6b641689e1a287"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-darwin-x64.tar.gz",
+          "size": 38395409,
+          "digest": "sha256:13ed6a786c03d7599ae791e03e9c2708fcd6a052098b2f88cd172378fb0d0bae"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-darwin-x64.tar.gz.json",
+          "size": 346,
+          "digest": "sha256:84fea4344b9848252d3b2497b31d1e7abf2ed3530151b81a17fbcb0fd3e0655c"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-linux-arm64.tar.gz",
+          "size": 42344378,
+          "digest": "sha256:9524c877c3d1ec42fb409794c85875d7edcf801cf5e226b87b87cc47c61d604c"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-linux-arm64.tar.gz.json",
+          "size": 359,
+          "digest": "sha256:a104edfb0bb0a62efd3f2c22defee4f8bcbb03c54eebc5cd0e949092e4e4a9e4"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-linux-x64.tar.gz",
+          "size": 43523294,
+          "digest": "sha256:d08e37edbe0c9760482fee136cc8b11bd460987acbb7ba3d7a3dd21b1709d430"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-linux-x64.tar.gz.json",
+          "size": 354,
+          "digest": "sha256:12353598d3e3b7748db9ad4302747c551cf441ea837789ec013e05e8c4477347"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-win32-arm64.tar.gz",
+          "size": 32780589,
+          "digest": "sha256:9312b7aba4b2a3d905ecd4402f361ed075b3ae07b5eeed8a91a3b64a2ae04345"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-win32-arm64.tar.gz.json",
+          "size": 345,
+          "digest": "sha256:786b696e7b7439c877bba98c73f2b6cae5ad34ecbdfd9f646217bb0eb91262d0"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-win32-x64.tar.gz",
+          "size": 35614787,
+          "digest": "sha256:6e7a3db5db196a291eef69821a3749db7109505a303e120343be5b4d3b14ad4b"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-win32-x64.tar.gz.json",
+          "size": 341,
+          "digest": "sha256:8ee1bce2c80ffa99ee40750d75b91d794edb92c4c05d9f5ccbf1521bfa167c91"
+        },
+        {
+          "name": "tensorviz-windows-arm64-0.1.45.zip",
+          "size": 19166460,
+          "digest": "sha256:cf8ecc51d5f0bca8e83fd79e220f4afe2c242dbddfc2ad76a3fecc05d445c534"
+        },
+        {
+          "name": "tensorviz-windows-x64-0.1.45.zip",
+          "size": 21578525,
+          "digest": "sha256:39ffdf523a3a9c52fbe424c29b9eed645dc433e9773ee94a6a9dc38c248c140f"
+        }
+      ]
+    }
+  },
+  "note": "Authoritative extension release repository is tensorviz-org/tensorviz. The earlier extension second-pass receipt checked the archived legacy tensorViz-extension repository and does not establish current extension publication status."
+}

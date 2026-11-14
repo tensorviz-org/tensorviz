@@ -1,0 +1,568 @@
+{
+  "generated_at_utc": "2026-11-14T17:16:49.655475+00:00",
+  "scope": "Explicitly reviewed text-file allowlist; no source artifacts, raw profiles, caches, environments, or workflow files",
+  "validation": {
+    "json_and_python_syntax": "passed",
+    "privacy_pattern_scan": "passed",
+    "readme_local_links": "passed",
+    "file_count": 111
+  },
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 167,
+      "sha256": "387d68ae667f78a607854ae63b0b772705cb984d36dfe7874bea2cf57982a817"
+    },
+    {
+      "path": "README.md",
+      "bytes": 26799,
+      "sha256": "ce2cf65b1b63b979380394d62934eb561c03ae781b75e7ad91eb9d537d7a8eac"
+    },
+    {
+      "path": "backend/README.md",
+      "bytes": 11846,
+      "sha256": "2d561196c2e79804a00a767faf021201f2efa9937c650a2fa2068f34b9e6dccf"
+    },
+    {
+      "path": "backend/backend-results.json",
+      "bytes": 4233,
+      "sha256": "5753515b4b64536e447b780461764ffeae67d8fbf684793c7a4bc471efa3c676"
+    },
+    {
+      "path": "backend/capture-probes.json",
+      "bytes": 512,
+      "sha256": "756448618dc1f2625024ddbc4a7cab5225566490295ce7f3880c8470fc6a6e39"
+    },
+    {
+      "path": "backend/capture_gpt2.py",
+      "bytes": 4311,
+      "sha256": "35a90fcb4974ce954f5066f85846f0eb2be94b34a978ae3ed9c4655462cbb1e4"
+    },
+    {
+      "path": "backend/create_broken_torch_fixture.py",
+      "bytes": 2226,
+      "sha256": "0ed97191059d2eac9701119582d897220f560a42972c827ad5ccbd97bfc2442a"
+    },
+    {
+      "path": "backend/environment-status-fix.json",
+      "bytes": 2051,
+      "sha256": "71f5a8cdadfa293ace5d82de9177cb77053565726b709dd6f2954691aadadbf9"
+    },
+    {
+      "path": "backend/gpt2-result.json",
+      "bytes": 1044,
+      "sha256": "d93ac7b0e64a1489bad515db071b4bfabd7fa306ad8a574f15d3650db0bc77c5"
+    },
+    {
+      "path": "backend/installed-vsix-service-results.json",
+      "bytes": 1073,
+      "sha256": "23043516676be4fbb344e08ec88042d3cdc6f94321ec010c74a0a868d8f33f12"
+    },
+    {
+      "path": "backend/library-results.json",
+      "bytes": 4583,
+      "sha256": "dd6e87ba758f8f4e21f60c8e3c05122a114d33677df6db3643794cbcdbcbfe07"
+    },
+    {
+      "path": "backend/logs/capture_and_inputs.txt",
+      "bytes": 311,
+      "sha256": "83379596986e7fc1cd2f51128518ec0254f9e9432a7f9296a03b66f44d34b3ec"
+    },
+    {
+      "path": "backend/logs/capture_without_server_dependencies.txt",
+      "bytes": 257,
+      "sha256": "12e571348b1cc88c78e310db588cffa65494f64523871d0e11d55e4aa1ad7555"
+    },
+    {
+      "path": "backend/logs/conditional_unet.txt",
+      "bytes": 796,
+      "sha256": "330e77a0b3847cb8b7d839853a2736e0a55a2f2609a16ea6457fd42d7fddb48a"
+    },
+    {
+      "path": "backend/logs/environment_diagnostics.txt",
+      "bytes": 442,
+      "sha256": "4b0698929ab0e1132b64a5d2f2a10706094f04189b4474452782dac4e7eccf5c"
+    },
+    {
+      "path": "backend/logs/installed-vsix-no-torch.txt",
+      "bytes": 353,
+      "sha256": "123177686908b973814929e055595a5719e0d3115460507501479b1dc5485703"
+    },
+    {
+      "path": "backend/logs/static_without_torch.txt",
+      "bytes": 244,
+      "sha256": "611f4e2189f8f6085cdd2896956b007e12d9c8372f506e21e2c5acd8d83c4b12"
+    },
+    {
+      "path": "backend/logs/transformer_families.txt",
+      "bytes": 967,
+      "sha256": "33319833d81bbc27346754ea473e32565ef6abf3ac310eed23250ca77f0650c4"
+    },
+    {
+      "path": "backend/probe_installed_backend.py",
+      "bytes": 5883,
+      "sha256": "3de6b0d5695c1949ef4a1ad2c58ce88610d53cb03b9ff5f3804895aeaff4c8ce"
+    },
+    {
+      "path": "backend/published-0.1.45-backend-results.json",
+      "bytes": 8360,
+      "sha256": "1fabe442dde164067a2c1694e98ee6c3164694e6c6ed475ba47ecd1ad5c0ad1b"
+    },
+    {
+      "path": "backend/pure-broken-torch-preflight.json",
+      "bytes": 2009,
+      "sha256": "7e35a47eff4b4a5199336cb540b42aad856dbb6bc8f43c8a0cc4c68b5a8ce1eb"
+    },
+    {
+      "path": "backend/requirements-capture.lock.txt",
+      "bytes": 895,
+      "sha256": "224d34ae52d6b0040c719667eca309c1c7a0ca18c5e7996b6e6c563f06e2c975"
+    },
+    {
+      "path": "backend/requirements-no-torch.lock.txt",
+      "bytes": 526,
+      "sha256": "d20bcf3669651f0f2ea4bf07bee87063bd1cd9c883e4d94fbe60d8886af2b27e"
+    },
+    {
+      "path": "backend/run_backend_checks.py",
+      "bytes": 4585,
+      "sha256": "dad7234e32b313d8c2d5c06a373ae514ba8f543412b988cdc346d80f2b7c14ba"
+    },
+    {
+      "path": "backend/run_library_checks.py",
+      "bytes": 3440,
+      "sha256": "a44a6a9387afbf558f6cbfe4a34aafd66b2fd7776f04285b8e0930cd1e9b9b08"
+    },
+    {
+      "path": "backend/run_published_vsix_backend.py",
+      "bytes": 12408,
+      "sha256": "a8ca68070c6632f4ef0349cbd64e081216c244d1029f2ca85c558119a5ca9234"
+    },
+    {
+      "path": "checklist.json",
+      "bytes": 11075,
+      "sha256": "a837611885a2549bcaf0ba2e83e6f92f945c4d90ffdcec6034383ae5c35a8954"
+    },
+    {
+      "path": "current-source-followup/build-receipts.json",
+      "bytes": 906,
+      "sha256": "26d8dd3227e11813b9c5ddac2c4cc6d10cb6f6c731c155aabe0ab770ac363aa9"
+    },
+    {
+      "path": "current-source-followup/capture-probes.json",
+      "bytes": 876,
+      "sha256": "12ad3a61efc70ba16554f7bc91ed076805a1205381f9b33717598b8ead552cf7"
+    },
+    {
+      "path": "current-source-followup/check_current_source.py",
+      "bytes": 5108,
+      "sha256": "14b06aa4dc2dc6e7518b2ae8f71a73cd25feac5161fad94f351e7b754b3d3429"
+    },
+    {
+      "path": "current-source-followup/check_failure_followups.py",
+      "bytes": 3696,
+      "sha256": "7065fab1ac74b2ef6e7c868fd53ac04475dd6b8b9d6cd8203273971cf93abf0f"
+    },
+    {
+      "path": "current-source-followup/failure-followups.json",
+      "bytes": 1670,
+      "sha256": "1576967b99be67fbcb092aa4a241332af2903fa826dc7e5182d7f5d93b3911c0"
+    },
+    {
+      "path": "current-source-followup/source-followup-report.md",
+      "bytes": 4235,
+      "sha256": "0eaebec477f7e351869813ea1dbb17d9b1b7752573524540414bbeb4dd05d223"
+    },
+    {
+      "path": "current-source-followup/source-review.json",
+      "bytes": 3393,
+      "sha256": "1a8f23f692c6b11c366d165fa991e0e5e8ecf391ac608bc1f86a0fa00cf96cea"
+    },
+    {
+      "path": "current-source-followup/source-test-receipts.json",
+      "bytes": 2880,
+      "sha256": "a365ec0d8ea9c213a50516174dbac3a66628fab195c138f0e2ef03dba25a2bdf"
+    },
+    {
+      "path": "docs/check_urls.py",
+      "bytes": 8255,
+      "sha256": "41e10210f4541df33e15d789660ecf74436c4a3fcbc707d7be7d4ab37833a14d"
+    },
+    {
+      "path": "docs/checklist-coverage.json",
+      "bytes": 5876,
+      "sha256": "24ae68c1fc0ce2a21db7b3234c1d3da00d15307ac9ceee3daf852a957bdd0b23"
+    },
+    {
+      "path": "docs/docs-review.md",
+      "bytes": 8300,
+      "sha256": "514db9f85ac64c912561bb3fc74b416695d3b50430e39909f400a7cf0ff09f9c"
+    },
+    {
+      "path": "docs/extension-0.1.45-artifact-verification.json",
+      "bytes": 450,
+      "sha256": "5a78a668a8899fdde999427fab3c8584d497f4678791147b6e8696910281d031"
+    },
+    {
+      "path": "docs/extension-owning-baseline-release.json",
+      "bytes": 1308,
+      "sha256": "f942faeaeea1ddc941854a43440ac6e7c7ce66fefc42e0e05429b7a0b960fd7f"
+    },
+    {
+      "path": "docs/live-platform-copy-recheck.json",
+      "bytes": 3991,
+      "sha256": "b621e2f24cdcc243a4a42a38ed716704a12fd12827d45c7948ec6bcb79578df5"
+    },
+    {
+      "path": "docs/live-url-check-tls-blocked.json",
+      "bytes": 4879,
+      "sha256": "8f1f31bfab76ec1851979192af4b713ac69a962a8137d33097cf38141e87d3c7"
+    },
+    {
+      "path": "docs/live-url-check.json",
+      "bytes": 26134,
+      "sha256": "b5de1410a6565bd2a11ab0561611b0d4aeb705a7298f0c7995813491af474b24"
+    },
+    {
+      "path": "docs/publication-0.1.45-assets.json",
+      "bytes": 9198,
+      "sha256": "13d0e3de469e5eae6662f9c4a3230ac0112ef4393195b83a7a2f462714e20aab"
+    },
+    {
+      "path": "docs/publication-0.1.45-catalog.json",
+      "bytes": 7098,
+      "sha256": "e8b1d1fa395e47ed0cc19fb707a190607fbcb5724fc23b5b43646f4eda953996"
+    },
+    {
+      "path": "docs/pull-request-status.json",
+      "bytes": 1983,
+      "sha256": "d87058a8d386bb0ae2ae4c52adf8460821998fd7a5d25df1833e6ad54d15c16d"
+    },
+    {
+      "path": "docs/release-0.1.45-publication.json",
+      "bytes": 7592,
+      "sha256": "3c1abfd4d52bfc0675be5d7be60bfe22329a689f8ce14aaa6498d2f183c3cf8e"
+    },
+    {
+      "path": "docs/release-authoritative-recheck.json",
+      "bytes": 6204,
+      "sha256": "ba65c62ca40311e33fbbee96fbf0b43b72d7f668a1f28ffa6fec12eb04474661"
+    },
+    {
+      "path": "docs/release-provenance.json",
+      "bytes": 10240,
+      "sha256": "31b9dd02a34c18226fdb0fdfcd512d4e22eeede310eb727c66369b1db5d7e98a"
+    },
+    {
+      "path": "docs/release-status-recheck.json",
+      "bytes": 1043,
+      "sha256": "41f40b4094a30f1759c20655fd7675747c658d1b3b9993b6eac20f6492ecf006"
+    },
+    {
+      "path": "docs/source-doc-platform-lines.json",
+      "bytes": 3947,
+      "sha256": "b3420753e9155f85be47d8c40352f109c5c7b45c143222555fdff4eb4a876524"
+    },
+    {
+      "path": "extension/before-source-pass-release-check.json",
+      "bytes": 321,
+      "sha256": "18dbccb751d7df52242124632a15e3f135885baa5fd6afcdaed5c81393e68af4"
+    },
+    {
+      "path": "extension/final-test-cleanup.json",
+      "bytes": 1034,
+      "sha256": "a665740ec58b565311ed56a2872db531ae3cd96ea49b5add5d627e86c576dd85"
+    },
+    {
+      "path": "extension/gui-final.json",
+      "bytes": 7447,
+      "sha256": "2b119b97eb3e6af3a9c5330387d3503e4db1462e8791b7febcd6216fdd7fb526"
+    },
+    {
+      "path": "extension/gui-status.json",
+      "bytes": 4244,
+      "sha256": "5481ead8e5c3312d364528b60bdb60d2ac41c5e40b6c6555f0ce0514e4f8c06e"
+    },
+    {
+      "path": "extension/install-lifecycle.json",
+      "bytes": 4598,
+      "sha256": "25e9a64b60d5564f605f3238d44a31762c692b52d0feeaf6694fb36ccff48f83"
+    },
+    {
+      "path": "extension/latest-source-gui-install.json",
+      "bytes": 1320,
+      "sha256": "1d69919f80b48d1689792890c4bca3e3bb70b74a0f3b6bf35cb0abdb94b0616f"
+    },
+    {
+      "path": "extension/latest-source-vsix-build.json",
+      "bytes": 362,
+      "sha256": "c0bb3e5e7b5f4f592d258096f23e1c03e7fa71b67515316f804d5923615ab89c"
+    },
+    {
+      "path": "extension/latest-source-vsix-build.sanitized.log",
+      "bytes": 4327,
+      "sha256": "ae9f48c3327ec8f0dccf8db301165c4be7e12a9a7cd0db82788c82699aef15e7"
+    },
+    {
+      "path": "extension/legacy-release-query-note.json",
+      "bytes": 505,
+      "sha256": "2099b9542f897af4b99bde80942cae89b25490289c72954e0569c6227e220256"
+    },
+    {
+      "path": "extension/published-0.1.44-graph.svg",
+      "bytes": 6336,
+      "sha256": "302028327cdbb8021b0444b7661ef63e5b0106740c41023e310afc2fcbaf3901"
+    },
+    {
+      "path": "extension/published-0.1.45-gui-status.json",
+      "bytes": 1675,
+      "sha256": "ddb8555609ecabdeef21d38add6b76b939cfc1502d96f5764569748877df9b31"
+    },
+    {
+      "path": "extension/published-0.1.45-lifecycle.json",
+      "bytes": 5617,
+      "sha256": "06e04f5d0573c2831bb8af5eba8551e7458fbb7fc50cd595852e64bf5ce53a50"
+    },
+    {
+      "path": "extension/published-0.1.45-provenance.json",
+      "bytes": 939,
+      "sha256": "a71c6964f210d0d80d732e064bf75306ac1ee91ac88d9e8f3266d12b3e81b746"
+    },
+    {
+      "path": "extension/published-source-payload-diff.json",
+      "bytes": 1668,
+      "sha256": "90c4c63c102cf2e50f0e4064d4bb6762a1f98c65896ecca61cc9ace0809ab56f"
+    },
+    {
+      "path": "extension/run_lifecycle.py",
+      "bytes": 9509,
+      "sha256": "24399aad8c82f4b31993c971d31f53f8fd2af412dfd919baa5865f7259f72c65"
+    },
+    {
+      "path": "extension/second-pass-release-check.json",
+      "bytes": 4103,
+      "sha256": "9c3c62d738ea15ec5fdacae6bf1175fc316f3ae4e39ddbcacc10dfd7ac0af7be"
+    },
+    {
+      "path": "extension/settings-preservation-final.json",
+      "bytes": 1400,
+      "sha256": "70eeb296e04fe56450b139e548461165a88ff8b60058f669fc82b0bae3165fdd"
+    },
+    {
+      "path": "extension/settings-preservation-midrun.json",
+      "bytes": 486,
+      "sha256": "e75aba7d3c5bf045f22841fbdccb6e6e591b77321785ec8c55b0e7f8b2995378"
+    },
+    {
+      "path": "extension/source-dependency-install.json",
+      "bytes": 358,
+      "sha256": "f4fd15db03b6693103a2a42fafa702bdc220606c97efe6d2b152f98d2a3c7083"
+    },
+    {
+      "path": "extension/source-extension-install.json",
+      "bytes": 2058,
+      "sha256": "eb5cc391aa1a266fe0f9b3b2d37bca890182ed82bf5927c37efab5a562fec4e4"
+    },
+    {
+      "path": "extension/source-gui-upgrade.json",
+      "bytes": 1371,
+      "sha256": "b0b7df80418121fd5e339d042b68680ee207212197a1a2d8bc9556129446e799"
+    },
+    {
+      "path": "extension/source-package-payload-diff.json",
+      "bytes": 296,
+      "sha256": "ee15c5e1023924bcb7b1582d746e92480a184f3bb89ebbf97580fa8d44831896"
+    },
+    {
+      "path": "extension/source-vsix-build-attempt1.json",
+      "bytes": 194,
+      "sha256": "5c6dfb9083f5cfb72ec285b8b50fd18c6e1355839b947007ec1e6c5692cf1ca5"
+    },
+    {
+      "path": "extension/source-vsix-build.json",
+      "bytes": 471,
+      "sha256": "4610e99a4a1e279cbff742c7c821f7ebb9c3d77c3019c2fc2b02ee7e96da6f88"
+    },
+    {
+      "path": "extension/source-vsix-build.sanitized.log",
+      "bytes": 4124,
+      "sha256": "1cd8b630387d8bbad2c0aa8785b81e74bea74c9a44b47bd0133fc01a39fb1b81"
+    },
+    {
+      "path": "plugin/REPRODUCE.md",
+      "bytes": 2396,
+      "sha256": "40ced2097c7e48634e80996c5ffd6583d481ef0e875c4c5ed207faf745ec4118"
+    },
+    {
+      "path": "plugin/check_capture_probe.py",
+      "bytes": 2153,
+      "sha256": "86d80ca951d45f3f4c6c3a84a87ae75b9ad8eb5f3bcaea35d551896a3be22d83"
+    },
+    {
+      "path": "plugin/check_cli.py",
+      "bytes": 6701,
+      "sha256": "c0d5b0aac2753c24bc73d17fcd3325fb26d02fb54ac94d4d3cb19b65056b075a"
+    },
+    {
+      "path": "plugin/check_client_mcp.py",
+      "bytes": 12259,
+      "sha256": "4b0a168fc698a35d0c7d750df2168aa369bef1be69915f1da74b37055d680fed"
+    },
+    {
+      "path": "plugin/check_native.py",
+      "bytes": 6528,
+      "sha256": "a53916200a0b7df7691079ee0df5661967b79d86ab283920d1f181a38d355847"
+    },
+    {
+      "path": "plugin/check_upgrade.py",
+      "bytes": 4709,
+      "sha256": "cd9aaa864a06331b166882a087f5c0443176f289d0297b98a7f6b75d1124e32a"
+    },
+    {
+      "path": "plugin/cleanup.json",
+      "bytes": 224,
+      "sha256": "42fafcb8ecd201472d98ac9f7d85d2be5657d3a4e2e8e08160f22f3b68a2e9a5"
+    },
+    {
+      "path": "plugin/plugin-0.1.45-publication-check.json",
+      "bytes": 224,
+      "sha256": "9da8edaf02a79fc01bdc055bce5c6024439fd934aa99eb16a44922acc5ec4129"
+    },
+    {
+      "path": "plugin/plugin-0.1.45-publication-confirmed.json",
+      "bytes": 545,
+      "sha256": "7a8ba30dd44da1011d2a90d54513a766a55a479f8f1b7d85cc90d6e0ce2e8660"
+    },
+    {
+      "path": "plugin/plugin-report.md",
+      "bytes": 5742,
+      "sha256": "911a0bef544f881f437c647f6e8b6ee2b806e87135bb6957278bcf23cdb688a8"
+    },
+    {
+      "path": "plugin/published-0.1.44-capture-probe.json",
+      "bytes": 677,
+      "sha256": "fe94c49020ac04c535afc2ad5a94f9874b6f2cc4e5661a323a5bb816f7b5fde2"
+    },
+    {
+      "path": "plugin/published-0.1.44-cli-report.json",
+      "bytes": 2008,
+      "sha256": "f2320c25ad2496b00fe2fed50d2f7d065090ce0c7ed9441636c1ec126fa2e51d"
+    },
+    {
+      "path": "plugin/published-0.1.44-client-mcp.json",
+      "bytes": 1012,
+      "sha256": "1082edacb145c33b9b77978865ee6d6d19621797516843441e7abc2a59260ee3"
+    },
+    {
+      "path": "plugin/published-0.1.44-prefetch.json",
+      "bytes": 197,
+      "sha256": "785280a91df36b056ade6eca7c49e68d65e549bd435f1bbdb81ce9b774a40ffb"
+    },
+    {
+      "path": "plugin/published-0.1.44-provenance.json",
+      "bytes": 1066,
+      "sha256": "06ae46cb65069b56d9ebc361367a70e9ec6515eb6766deb46dac3c93d72f8d42"
+    },
+    {
+      "path": "plugin/published-0.1.44-verified-native-report.json",
+      "bytes": 1895,
+      "sha256": "7d910492d0aa2c158d546ad1fa62d949dc35800711e524d8c2fca11928afc785"
+    },
+    {
+      "path": "plugin/published-0.1.45-capture-probe.json",
+      "bytes": 724,
+      "sha256": "875a8ab4f44df00a3708a1bb27fe6b69fcf66eb7baabc2d9832b45eb30e578ad"
+    },
+    {
+      "path": "plugin/published-0.1.45-cli-report.json",
+      "bytes": 2040,
+      "sha256": "27f1c629894e8caf6e6c14d1d42753ffc713662b9814d14f0a0e9c6f2dd8f8d9"
+    },
+    {
+      "path": "plugin/published-0.1.45-client-mcp.json",
+      "bytes": 868,
+      "sha256": "6bd88350049798ee3b9fae5a38c0f399d41a66d585a0a26b489fe70fe8864f05"
+    },
+    {
+      "path": "plugin/published-0.1.45-initial-teardown-note.json",
+      "bytes": 456,
+      "sha256": "257a281ff38f5d319f9cb0f456ea08f59df0da390244890b616d961bb22c694c"
+    },
+    {
+      "path": "plugin/published-0.1.45-native-report.json",
+      "bytes": 1886,
+      "sha256": "89025039c65e72b1fac3e6f6ce587a2f6739a45ede8705e3880262a741989703"
+    },
+    {
+      "path": "plugin/published-0.1.45-prefetch.json",
+      "bytes": 198,
+      "sha256": "83053646caed07a2d2a83f0503babbb7cbeb03f4935f24b91acebdade851d640"
+    },
+    {
+      "path": "plugin/published-0.1.45-provenance.json",
+      "bytes": 1548,
+      "sha256": "bbcac562779b4bd83e422f53da950b6648b96ad2b0ab825bfd11091096628036"
+    },
+    {
+      "path": "plugin/published-0.1.45-teardown-client-mcp.json",
+      "bytes": 1152,
+      "sha256": "827d3f00bd9a73aaf8ee891aab10a71593fb9241f7856c8259622b498fa536f5"
+    },
+    {
+      "path": "plugin/source-0.1.45-client-mcp.json",
+      "bytes": 1194,
+      "sha256": "c56ea6f98741c2c2f5e092431be5ed68a21abfbd198e0428f7ba90fe6444fb82"
+    },
+    {
+      "path": "plugin/source-0.1.45-provenance.json",
+      "bytes": 932,
+      "sha256": "72995b32dafa63dcbce11b53de6be67455914f5a467ff320adb34deab665486e"
+    },
+    {
+      "path": "plugin/upgrade-0.1.43-to-0.1.44-local-fixed-report.json",
+      "bytes": 2054,
+      "sha256": "fffbf17c508af744905654547dbc713c95ec5b794800ce83da86d48a16749435"
+    },
+    {
+      "path": "plugin/upgrade-0.1.43-to-0.1.44-report.json",
+      "bytes": 2217,
+      "sha256": "fdf4d189a590d0b72a1a9b241f4010093327362ec6666c1a3bb50b45f9638fa9"
+    },
+    {
+      "path": "plugin/upgrade-0.1.44-to-0.1.45-local-fixed-report.json",
+      "bytes": 2053,
+      "sha256": "017b246d237c55a7b3085a42ab09dae672eaea10ee984bec64caa5507f123213"
+    },
+    {
+      "path": "plugin/upgrade-0.1.44-to-0.1.45-report.json",
+      "bytes": 2216,
+      "sha256": "4ea4cfebb779e08b208961c3031588bb718fcb1a7687f32e3f421270fd8481a7"
+    },
+    {
+      "path": "provenance.json",
+      "bytes": 6649,
+      "sha256": "04c7213fe76f110bc8f5950e63e6943b7c4c16efd820ef642d12cb03fc3a5284"
+    },
+    {
+      "path": "refresh_manifest.py",
+      "bytes": 4540,
+      "sha256": "faf09497a7e0d320c3ae1126f1a474ff9acd1f31a084911318d125b8d5d5de39"
+    },
+    {
+      "path": "report-allowlist.json",
+      "bytes": 4932,
+      "sha256": "9fe9dd5c0c7cefa8044f7c67c84e469ee0d809d5c03a5e1a47c48ea9c2b8a2f6"
+    },
+    {
+      "path": "source-package-status.json",
+      "bytes": 2610,
+      "sha256": "5b47c608064968a34e8ae2261b53d1198ed80766cd34d62271e3235e410d10dc"
+    },
+    {
+      "path": "staging-validation.json",
+      "bytes": 928,
+      "sha256": "994cd0effed37f4e4eae5f4d89801d4485dfaa04d97f438b78e2ff846f1431d1"
+    }
+  ],
+  "self_exclusion": "This manifest does not hash itself"
+}

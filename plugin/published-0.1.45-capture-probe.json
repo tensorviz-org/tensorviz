@@ -1,0 +1,30 @@
+{
+  "label": "published-0.1.45",
+  "classification": "compiled dependency probe only; no capture, client or desktop acceptance",
+  "checks": [
+    {
+      "mode": "missing-torch",
+      "status": "passed",
+      "exit_code": 1,
+      "response_ok": false,
+      "response_code": "MISSING_DEPENDENCIES",
+      "stderr_present": false
+    },
+    {
+      "mode": "broken-torch",
+      "status": "passed",
+      "exit_code": 1,
+      "response_ok": false,
+      "response_code": "CAPTURE_RUNTIME_UNSUPPORTED",
+      "stderr_present": false
+    },
+    {
+      "mode": "valid-torch",
+      "status": "passed",
+      "exit_code": 0,
+      "response_ok": true,
+      "response_code": null,
+      "stderr_present": false
+    }
+  ]
+}

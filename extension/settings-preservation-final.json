@@ -1,0 +1,62 @@
+{
+  "checked_at": "2026-11-14T17:15:16.150568+00:00",
+  "files": [
+    {
+      "file": "$HOME/.codex/config.toml",
+      "exists": true,
+      "unchanged": true
+    },
+    {
+      "file": "$HOME/.codex/auth.json",
+      "exists": true,
+      "unchanged": true
+    },
+    {
+      "file": "$HOME/.claude.json",
+      "exists": true,
+      "unchanged": false
+    },
+    {
+      "file": "$HOME/.claude/settings.json",
+      "exists": true,
+      "unchanged": true
+    },
+    {
+      "file": "$HOME/.claude/plugins/installed_plugins.json",
+      "exists": true,
+      "unchanged": true
+    },
+    {
+      "file": "$HOME/.claude/plugins/known_marketplaces.json",
+      "exists": true,
+      "unchanged": true
+    },
+    {
+      "file": "$HOME/.ssh/config",
+      "exists": true,
+      "unchanged": true
+    }
+  ],
+  "normal_extension_directories": [
+    {
+      "host": "VS Code",
+      "version": "0.1.29"
+    },
+    {
+      "host": "Cursor",
+      "version": "0.1.18"
+    },
+    {
+      "host": "Cursor",
+      "version": "0.1.17"
+    },
+    {
+      "host": "Cursor",
+      "version": "0.1.15"
+    }
+  ],
+  "limits": [
+    "Normal macOS VS Code settings were not included in the initial hash inventory. No intentional normal-profile modifications were made.",
+    "These boolean comparisons do not disclose file contents or credential hashes. Concurrent user/application changes are not reverted."
+  ]
+}

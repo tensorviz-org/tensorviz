@@ -1,0 +1,12 @@
+{
+  "source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "command": "npm run vsix --prefix extension",
+  "node": "26.5.0",
+  "exit_code": 0,
+  "seconds": 47.3,
+  "release_build": false,
+  "harness_correction": "Included tests/runtime/plugin/plugins in sparse checkout after initial missing fixture failure.",
+  "artifact_sha256": "a69d94fdc707077cfebeefe47e41e693068460d15576544c5f27b5e9c4adc4dc",
+  "artifact_bytes": 5641079,
+  "renderer_license_checked": false
+}

@@ -1,0 +1,8 @@
+{
+  "source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "command": "npm run vsix --prefix extension",
+  "node": "26.5.0",
+  "exit_code": 1,
+  "seconds": 28.72,
+  "release_build": false
+}

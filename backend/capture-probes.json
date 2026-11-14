@@ -1,0 +1,22 @@
+[
+  {
+    "environment": "no-torch-env",
+    "command": "<PYTHON> -I <SOURCE>/backend/capture_environment.py probe-capture",
+    "exit_code": 0,
+    "result": {
+      "ok": false,
+      "code": "MISSING_DEPENDENCIES",
+      "message": "Missing capture library: torch."
+    }
+  },
+  {
+    "environment": "capture-env",
+    "command": "<PYTHON> -I <SOURCE>/backend/capture_environment.py probe-capture",
+    "exit_code": 0,
+    "result": {
+      "ok": true,
+      "torch": "2.14.1",
+      "cuda": null
+    }
+  }
+]

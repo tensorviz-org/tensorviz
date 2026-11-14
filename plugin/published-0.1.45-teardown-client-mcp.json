@@ -1,0 +1,39 @@
+{
+  "label": "published-0.1.45-teardown",
+  "runtime_cache": "preverified published archive; warm startup",
+  "runtime_sha256": "a8a3849819860bb25ab7d79b3cb0ff136caa6efe14dfb17725a9b98d133364ab",
+  "provider_calls": false,
+  "permission_replies": 0,
+  "checks": [
+    {
+      "client": "codex",
+      "skill_advertised": true,
+      "tool_count": 29,
+      "plugin_version": "0.1.45",
+      "model_count": 0,
+      "managed_thread_closed": true,
+      "status": "passed",
+      "shutdown_mode": "eof",
+      "runtime_temp_directories_remaining": 0,
+      "runtime_cleanup_status": "passed",
+      "uninstall_command_succeeded": true,
+      "seconds": 1.829
+    },
+    {
+      "client": "claude",
+      "skill_advertised": true,
+      "tool_count": 29,
+      "plugin_version": "0.1.45",
+      "model_count": 0,
+      "status": "passed",
+      "shutdown_mode": "eof",
+      "runtime_temp_directories_remaining": 0,
+      "runtime_cleanup_status": "passed",
+      "uninstall_command_succeeded": true,
+      "seconds": 5.183
+    }
+  ],
+  "permission_record_created": false,
+  "capture": "not_run; static discovery only",
+  "desktop_rendering": "not_run"
+}

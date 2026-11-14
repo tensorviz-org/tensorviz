@@ -1,0 +1,7 @@
+Installed VSIX backend: 0.1.44
+Python: 3.12.13 arm64, Torch absent
+server_v2:app: failed before HTTP health
+standalone_server.py (bundled source entry): failed before startup address
+Cause: core/op_registry.py::_build_torch_nn -> import torch.nn
+ModuleNotFoundError: No module named 'torch'
+Static projection/discovery/setup: blocked by startup failure

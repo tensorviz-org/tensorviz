@@ -1,0 +1,25 @@
+{
+  "checked_at_utc": "2026-11-14T16:23:07.359121+00:00",
+  "release": "0.1.44",
+  "release_source_revision": "f285a383f628af23ac4992970eeab3b006b1f0d2",
+  "release_asset_sha256": {
+    "tensorviz-catalog-0.1.44.zip": "c9309b0d02b6e6f5efa7199718e5ba991d3213b88d1741f19718d85291c96057",
+    "tensorviz-runtime-0.1.44-darwin-arm64.tar.gz": "78a201724c5ebe2eaaf494826f29799a2c5ac2b4ef3b86bf20d4d75748aef450",
+    "tensorviz-runtime-0.1.44-darwin-arm64.tar.gz.json": "a5b3fbd6e3297130d6846dfcc955b08f011ad8a72188044bca21ff94aaa57378"
+  },
+  "all_runtime_manifest_files_verified": true,
+  "runtime_manifest_file_count": 281,
+  "versions": {
+    "os": "26.4",
+    "os_build": "25E246",
+    "architecture": "arm64",
+    "node": "26.5.0",
+    "npm": "11.17.0",
+    "codex": "0.165.0",
+    "claude": "2.1.308",
+    "native_python_abi": "cpython-312-darwin",
+    "test_python_note": "Shell python3.12 is 3.12.13 x86_64 under Rosetta; not used for ARM64 native capture acceptance"
+  },
+  "all_catalog_publication_files_verified": true,
+  "catalog_publication_file_count": 41
+}

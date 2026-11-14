@@ -1,0 +1,38 @@
+{
+  "checked_at_utc": "2026-11-14T17:11:32.868356+00:00",
+  "pages": [
+    {
+      "url": "https://tensorviz.dev/",
+      "status": "passed",
+      "http_status": 200,
+      "compatibility_excerpts": [
+        "ensorviz-standalone --scope user Then, in a new chat \u201cOpen my model as a TensorViz graph.\u201d Preview: Apple Silicon macOS \u00b7 CPython 3.12 \u00b7 CPU capture. The first connection downloads a verified runtime, so it needs internet access. NOTE Use one TensorViz host per agent. Don't connect the same a"
+      ]
+    },
+    {
+      "url": "https://docs.tensorviz.dev/install.html",
+      "status": "passed",
+      "http_status": 200,
+      "compatibility_excerpts": [
+        "u need your client\u2019s terminal CLI: Codex CLI or Claude Code . The published plugin is a preview for Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection. You need internet access for that down",
+        "I or Claude Code . The published plugin is a preview for Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection. You need internet access for that download, but no separate Node.js insta",
+        "nection. You need internet access for that download, but no separate Node.js installation. Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin. See Linux SSH runtime for execution-host requirements and the limits of local validation. Published plat",
+        "first connection. You need internet access for that download, but no separate Node.js installation. Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin. See Linux SSH runtime for execution-host requirements and the limits of local validation. Pub",
+        "u need internet access for that download, but no separate Node.js installation. Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin. See Linux SSH runtime for execution-host requirements and the limits of local validation. Published platform availabi"
+      ]
+    },
+    {
+      "url": "https://docs.tensorviz.dev/agent-plugin.html",
+      "status": "passed",
+      "http_status": 200,
+      "compatibility_excerpts": [
+        " is not installed, start with the installation requirements . The published plugin is a preview for Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js ",
+        "ion requirements . The published plugin is a preview for Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js installation. Allow internet access",
+        "g . Start a new chat afterward. Platform limits and source builds are on the Install page. Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin. See Linux SSH runtime for execution-host requirements and the limits of local validation. Published plat",
+        "ic catalog . Start a new chat afterward. Platform limits and source builds are on the Install page. Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin. See Linux SSH runtime for execution-host requirements and the limits of local validation. Pub",
+        " new chat afterward. Platform limits and source builds are on the Install page. Windows, Intel Mac, Linux ARM64, and musl are unsupported by the published standalone plugin. See Linux SSH runtime for execution-host requirements and the limits of local validation. Published platform availabi"
+      ]
+    }
+  ],
+  "scope": "Static selected compatibility copy only; not rendered UI or exhaustive semantic review"
+}

@@ -1,0 +1,43 @@
+{
+  "checked_at_utc": "2026-11-14T16:37:42.452822+00:00",
+  "release": "0.1.45",
+  "release_source_revision": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "release_asset_sha256": {
+    "tensorviz-0.1.45.zip": "24fb75738cbdc31dc0e82306327f398cd0d6615c54b10edaad89d02a7aaa357a",
+    "tensorviz-catalog-0.1.45.zip": "70ac8455c043f9bca3deb79dd4a809a6b766581de6d29ba655d675826279972a",
+    "tensorviz-runtime-0.1.45-darwin-arm64.tar.gz": "a8a3849819860bb25ab7d79b3cb0ff136caa6efe14dfb17725a9b98d133364ab",
+    "tensorviz-runtime-0.1.45-darwin-arm64.tar.gz.json": "dd2c72e545305dc01acb184d1c1bff8188bb4d0ce9ba79a5cc6b641689e1a287"
+  },
+  "all_runtime_manifest_files_verified": true,
+  "runtime_manifest_file_count": 281,
+  "all_catalog_publication_files_verified": true,
+  "catalog_publication_file_count": 57,
+  "common_plugin_zip_matches_catalog": true,
+  "common_plugin_file_count": 15,
+  "declared_targets": [
+    "darwin-arm64",
+    "darwin-x64",
+    "linux-arm64",
+    "linux-x64",
+    "win32-arm64",
+    "win32-x64"
+  ],
+  "target_under_test": "darwin-arm64",
+  "other_target_testing": "not_run",
+  "production_workflow_gate_success": "not independently verified",
+  "native_python_abi": "cpython-312-darwin",
+  "versions": {
+    "os": "26.4",
+    "os_build": "25E246",
+    "architecture": "arm64",
+    "node": "v26.5.0",
+    "npm": "11.17.0",
+    "codex": "codex-cli 0.165.0",
+    "claude": "2.1.308 (Claude Code)",
+    "capture_probe_environment": {
+      "python": "3.12.13",
+      "architecture": "arm64",
+      "torch": "2.14.1"
+    }
+  }
+}

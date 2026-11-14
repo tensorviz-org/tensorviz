@@ -1,0 +1,146 @@
+{
+  "prepared_at_utc": "2026-11-14T16:30:19.153070+00:00",
+  "report_status": "complete_scoped_report_with_explicit_blocked_and_unrun_items",
+  "host": {
+    "os": "macOS",
+    "version": "26.4",
+    "build": "25E246",
+    "architecture": "arm64"
+  },
+  "vs_code": {
+    "version": "1.145.2",
+    "commit": "c4453f8ea430795f941c1b2ff6c9321135a74a02",
+    "architecture": "arm64"
+  },
+  "published_baseline": {
+    "extension_version": "0.1.44",
+    "plugin_version": "0.1.44",
+    "source_revision": "f285a383f628af23ac4992970eeab3b006b1f0d2",
+    "plugin_export_revision": "6fff2d501cbe037e2d90b252ee484a446c37bd61"
+  },
+  "upgrade_baseline": {
+    "version": "0.1.43",
+    "source_revision": "edf5600bada87ed1e7f06aeaa4d81019c6cb531b"
+  },
+  "source_tests": {
+    "revision": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+    "development_version": "0.1.45",
+    "published_package_acceptance": false
+  },
+  "vsix_artifacts": {
+    "0.1.44": {
+      "sha256": "cb56724877d9211d4e000ade2277062b7564589a2f9808065371f4f2e4234aa8",
+      "verified_by_report_assembler": true,
+      "manifest_version": "0.1.44",
+      "extension_id": "tensorviz.tensorviz-vscode"
+    },
+    "0.1.43": {
+      "sha256": "521d0c753e921d29ce820cd4ef3fd0fa5fcb3b58295f297826c0b0c90b3c1139",
+      "verified_by_report_assembler": true,
+      "manifest_version": "0.1.43",
+      "extension_id": "tensorviz.tensorviz-vscode"
+    },
+    "0.1.45": {
+      "sha256": "edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990",
+      "verified_by_report_assembler": true,
+      "manifest_version": "0.1.45",
+      "extension_id": "tensorviz.tensorviz-vscode",
+      "bytes": 5641948,
+      "classification": "Actual owning-repository published release artifact"
+    }
+  },
+  "environment_lock_sha256": {
+    "requirements-no-torch.lock.txt": "d20bcf3669651f0f2ea4bf07bee87063bd1cd9c883e4d94fbe60d8886af2b27e",
+    "requirements-capture.lock.txt": "224d34ae52d6b0040c719667eca309c1c7a0ca18c5e7996b6e6c563f06e2c975"
+  },
+  "environment_notes": [
+    "Both source-test interpreters report Python 3.12.13 arm64.",
+    "Package inventories and CPU/no-Torch role distinctions are in backend JSON receipts.",
+    "Lock hashes cover package/version inventory files, not independently pinned wheel bytes.",
+    "Docs builds used Node 26.5.0/npm 11.17.0/Python 3.14.6; exact Node22 build was not run."
+  ],
+  "normalization": [
+    "Extension lifecycle CLI path replaced with <CODE_CLI>; incidental node process IDs replaced with <PID>.",
+    "Original status/exit codes/version listings retained.",
+    "Only explicit publish allowlists were copied.",
+    "Removed trailing presentation whitespace from the already-sanitized source VSIX build log."
+  ],
+  "publication_recheck": "docs/release-authoritative-recheck.json",
+  "extension_lifecycle_receipt_original_sha256": "c4ac15f9f13309ce86f72224fd991de1b916a8850eec3d50f44eadd407ef9f6f",
+  "new_published_plugin": {
+    "version": "0.1.45",
+    "published_at_utc": "2026-11-14T16:32:18Z",
+    "source_revision": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+    "export_revision": "1b5da75b72a38c903deb7ea749eda71996284986",
+    "native_mac_sha256": "a8a3849819860bb25ab7d79b3cb0ff136caa6efe14dfb17725a9b98d133364ab",
+    "catalog_sha256": "70ac8455c043f9bca3deb79dd4a809a6b766581de6d29ba655d675826279972a",
+    "acceptance_status": "passed_scoped_native_static_cli_upgrade_and_dependency_probes",
+    "capture": "blocked_permission; not accepted",
+    "graphical_rendering": "not_run",
+    "other_target_execution": "not_run"
+  },
+  "extension_0.1.45_release": {
+    "status": "published",
+    "repository": "tensorviz-org/tensorviz",
+    "published_at_utc": "2026-11-14T16:41:07Z",
+    "source_revision": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+    "sha256": "edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990",
+    "bytes": 5641948,
+    "checked_at_utc": "2026-11-14T16:58:17.299574+00:00",
+    "acceptance": "passed CLI clean/upgrade/removal and8 actual-artifact backend checks; graphical acceptance blocked",
+    "marketplace_identity": "Release-body claim; not independently compared to Marketplace download",
+    "receipts": [
+      "extension/published-0.1.45-provenance.json",
+      "extension/published-0.1.45-lifecycle.json",
+      "backend/published-0.1.45-backend-results.json",
+      "extension/published-0.1.45-gui-status.json",
+      "extension/published-source-payload-diff.json"
+    ],
+    "graphical_acceptance": "blocked: native computer-control timeouts; direct browser access correctly requires fresh host session; no bypass",
+    "retained_test_state": "Disposable GUI profile remains running with published0.1.45 for optional user handoff; earlier cleanup receipt predates this attempt"
+  },
+  "svg_export": {
+    "file": "extension/published-0.1.44-graph.svg",
+    "sha256": "302028327cdbb8021b0444b7661ef63e5b0106740c41023e310afc2fcbaf3901",
+    "bytes": 6336,
+    "synthetic_only": true
+  },
+  "updated_at_utc": "2026-11-14T17:16:02.915910+00:00",
+  "fixes": [
+    {
+      "url": "https://github.com/tensorviz-org/tensorviz/pull/72",
+      "head": "3c95274e16114c1289b25c2958a238085037b91f",
+      "scope": "Current-install glibc copy; externally merged. Deployment unverified.",
+      "state": "MERGED",
+      "merged_at_utc": "2026-11-14T16:46:09Z",
+      "merge_commit": "c0d54ea043337bc04ebdcc6c0b4f56a3d54ded59"
+    },
+    {
+      "url": "https://github.com/tensorviz-org/tensorviz/pull/73",
+      "scope": "Correct local ZIP catalog upgrade instructions; draft; not merged or deployed.",
+      "head": "7dc2004edfbda4218ea683f3219a52d05d02e89a",
+      "state": "OPEN_DRAFT"
+    },
+    {
+      "url": "https://github.com/tensorviz-org/tensorviz/pull/76",
+      "head": "b2cb6827ebb90c261d030ab64f3fbd98113edf3e",
+      "scope": "Known-failed capture candidate readiness badge;54 panel tests passed; patched VSIX/GUI not run.",
+      "state": "OPEN_DRAFT"
+    }
+  ],
+  "preservation": {
+    "receipt": "extension/settings-preservation-final.json",
+    "checked_at_utc": "2026-11-14T17:15:16.150568+00:00",
+    "unchanged": 6,
+    "changed": 1,
+    "changed_file": "$HOME/.claude.json",
+    "cause": "unverified; no matching baseline backup found; concurrent state not restored",
+    "normal_editor_settings_in_initial_inventory": false
+  },
+  "later_source_followup": {
+    "revision": "d1c463c37863d89c2ccc8e37ec75858de47d194a",
+    "runtime_change": "f046c32d1188d84564576773d9164af64af0c9f1 (PR74)",
+    "receipt": "current-source-followup/source-followup-report.md",
+    "status": "passed selected58+5+5 cases; broader initial suite109passed/2failed retained; GUI blocked"
+  }
+}

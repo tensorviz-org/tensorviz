@@ -1,0 +1,43 @@
+{
+  "sourceCommit": "d1c463c37863d89c2ccc8e37ec75858de47d194a",
+  "recordedAt": "2026-11-14T17:11:20.451447+00:00",
+  "testFileSha256": "afca6b043af6c708cb6bdb357afe4359ee4d5ea4fdc2e05abad8daae587dab6a",
+  "checks": [
+    {
+      "label": "capture-correct-interpreter",
+      "test": "test_private_capture_worker_executes_without_importing_server_dependencies",
+      "exitCode": 0,
+      "counts": [
+        "1 passed"
+      ],
+      "durationSeconds": 2.97,
+      "rawLogSha256": "c33dd053456ce1ef49a25182446d27165a429f40555c58f20c1a1758bc86a121"
+    },
+    {
+      "label": "traceback-original-path",
+      "test": "test_model_import_diagnostic_bounds_traceback_frames_without_source_or_locals",
+      "exitCode": 1,
+      "counts": [
+        "1 failed"
+      ],
+      "durationSeconds": 0.3,
+      "rawLogSha256": "e629b8ee46db5d4ea583ee64d3ce1dd3acea45c1965bd6a340585c4eaca40e78"
+    },
+    {
+      "label": "traceback-short-path-identical-file",
+      "test": "test_model_import_diagnostic_bounds_traceback_frames_without_source_or_locals",
+      "exitCode": 0,
+      "counts": [
+        "1 passed"
+      ],
+      "durationSeconds": 0.33,
+      "rawLogSha256": "f4c77b58e2280613a49ba18da1c4a02d440e862c49a6c8fe5daaf277333ff99d"
+    }
+  ],
+  "interpretation": [
+    "The full environment suite needs Torch for its real capture test.",
+    "The source traceback test expects exactly 64 frames, while the production function also caps text at 12000 characters.",
+    "The unmodified test fails in the deep checkout and passes from an identical file at a short temporary path.",
+    "This follow-up does not erase or relabel the original failed full-suite run."
+  ]
+}

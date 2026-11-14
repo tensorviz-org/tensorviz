@@ -1,0 +1,4 @@
+Source: eae4dd5d012c090d31ca1149891287ea01febc6c
+Command: <NO_TORCH_PYTHON> -m pytest -q -p no:cacheprovider tests/runtime/test_service_without_torch.py tests/runtime/test_server_v2_without_torch.py
+Status: passed
+7 passed, 1 warning in 11.85s

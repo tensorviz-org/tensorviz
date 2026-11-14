@@ -1,0 +1,21 @@
+{
+  "tag_name": "v0.1.44",
+  "published_at": "2026-11-14T11:05:35Z",
+  "draft": false,
+  "prerelease": false,
+  "target_commitish": "f285a383f628af23ac4992970eeab3b006b1f0d2",
+  "html_url": "https://github.com/tensorviz-org/tensorviz/releases/tag/v0.1.44",
+  "body": "- Build and validate Linux x64 native packages against glibc 2.31, retaining fail-closed checks for older or unsupported systems.\n- Update Python and JavaScript dependencies to address audited advisories and add Node.js 22 JavaScript dependency checks.\n- Document explicit Codex plugin reinstallation after marketplace refresh, with legacy-cache regression coverage.\n\nPublished on the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=tensorviz.tensorviz-vscode). This download is the exact Marketplace package.\n\nSource: f285a383f628af23ac4992970eeab3b006b1f0d2\n\nSHA-256: `cb56724877d9211d4e000ade2277062b7564589a2f9808065371f4f2e4234aa8`\n",
+  "assets": [
+    {
+      "name": "tensorviz-vscode-0.1.44.vsix",
+      "size": 5637169,
+      "digest": "sha256:cb56724877d9211d4e000ade2277062b7564589a2f9808065371f4f2e4234aa8"
+    },
+    {
+      "name": "tensorviz-vscode-0.1.44.vsix.sha256",
+      "size": 95,
+      "digest": "sha256:72ae28431816fccd94f2fd85b5fb074fb7711e392cf2ff3fce6332a4602f5e12"
+    }
+  ]
+}

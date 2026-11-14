@@ -1,0 +1,35 @@
+{
+  "sourceCommit": "d1c463c37863d89c2ccc8e37ec75858de47d194a",
+  "checks": [
+    {
+      "label": "npm-root",
+      "command": "npm ci --no-audit --no-fund",
+      "exitCode": 0,
+      "durationSeconds": 0.7
+    },
+    {
+      "label": "npm-extension",
+      "command": "npm ci --prefix extension --no-audit --no-fund",
+      "exitCode": 0,
+      "durationSeconds": 1.89
+    },
+    {
+      "label": "compile-extension",
+      "command": "npm run compile --prefix extension",
+      "exitCode": 0,
+      "durationSeconds": 4.75
+    }
+  ],
+  "host": {
+    "os": "macOS",
+    "version": "26.4",
+    "build": "25E246",
+    "machine": "arm64",
+    "node": "v26.5.0",
+    "npm": "11.17.0"
+  },
+  "lockfiles": {
+    "package-lock.json": "62a7c073ad149db9f1cbb137f4dce4641e7cb853a80ce6c2d45968ca1bad5743",
+    "extension/package-lock.json": "ada9113d216b9699ee39df9c74902a03d420c7ea7eb9cbf483f3d07725fb4cdc"
+  }
+}

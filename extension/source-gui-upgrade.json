@@ -1,0 +1,34 @@
+{
+  "tested_at": "2026-11-14T16:46:47.412357+00:00",
+  "published": false,
+  "source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "results": [
+    {
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$AUDIT_ROOT/editor-clean/extensions",
+        "--install-extension",
+        "$AUDIT_ROOT/ui-source/extension/tensorviz-vscode-0.1.45.vsix",
+        "--force"
+      ],
+      "exit_code": 0,
+      "output": "Installing extensions...\nExtension 'tensorviz-vscode-0.1.45.vsix' was successfully installed.\n(node:<PID>) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n"
+    },
+    {
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$AUDIT_ROOT/editor-clean/extensions",
+        "--list-extensions",
+        "--show-versions"
+      ],
+      "exit_code": 0,
+      "output": "ms-python.debugpy@2026.6.0\nms-python.python@2026.10.0\nms-python.vscode-pylance@2026.4.1\nms-python.vscode-python-envs@1.42.0\ntensorviz.tensorviz-vscode@0.1.45\n"
+    }
+  ]
+}

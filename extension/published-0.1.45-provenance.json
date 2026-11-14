@@ -1,0 +1,21 @@
+{
+  "checked_at": "2026-11-14T17:11:22.514880+00:00",
+  "repo": "tensorviz-org/tensorviz",
+  "tag": "v0.1.45",
+  "published_at": "2026-11-14T16:41:07Z",
+  "prerelease": false,
+  "draft": false,
+  "source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "tag_object": {
+    "sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+    "type": "commit",
+    "url": "https://api.github.com/repos/tensorviz-org/tensorviz/git/commits/eae4dd5d012c090d31ca1149891287ea01febc6c"
+  },
+  "artifact_sha256": "edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990",
+  "sha256_file_agrees": true,
+  "size": 5641948,
+  "package_id": "tensorviz.tensorviz-vscode",
+  "version": "0.1.45",
+  "url": "https://github.com/tensorviz-org/tensorviz/releases/tag/v0.1.45",
+  "note": "Authoritative owning repo. Earlier tensorViz-extension 404 is not current publication evidence. Marketplace identity is a release-note claim, not independently fetched."
+}

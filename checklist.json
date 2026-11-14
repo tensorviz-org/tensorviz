@@ -1,0 +1,304 @@
+{
+  "issue": "https://github.com/tensorviz-org/tensorViz-extension/issues/179",
+  "scope": "Original 13 release checklist items, with exact passed/failed/blocked/not run status values. Incomplete broad items use not run and partial evidence in scope; subchecks show what ran. Source builds and published artifacts are identified separately.",
+  "items": [
+    {
+      "id": "docs.references",
+      "item": "Docs updated with new references and guides",
+      "status": "failed",
+      "evidence": "56 scoped URLs/assets delivered. PR72 glibc correction was externally merged; deployment was not verified. Broader published-platform copy remains stale.",
+      "receipt": "docs/docs-review.md",
+      "scope": "Partial evidence; known compatibility-copy counterexample",
+      "subchecks": [
+        {
+          "check": "Bounded URL and anchor delivery",
+          "status": "passed"
+        },
+        {
+          "check": "Current platform coverage in all installation copy",
+          "status": "failed"
+        },
+        {
+          "check": "PR72 deployment verification",
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "id": "docs.visual_examples",
+      "item": "Visual examples guide a new user",
+      "status": "not run",
+      "evidence": "Three graph illustrations and two logos are reachable. No rendered new-user walkthrough was performed.",
+      "receipt": "docs/live-url-check.json",
+      "scope": "Partial evidence; asset delivery only",
+      "subchecks": [
+        {
+          "check": "Illustration asset delivery",
+          "status": "passed"
+        },
+        {
+          "check": "Rendered new-user walkthrough",
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "id": "docs.commands",
+      "item": "Manually run source setup and prebuilt installation commands",
+      "status": "failed",
+      "evidence": "Both published plugin versions passed isolated installation/update/removal. Baseline extension/source CLI checks passed. Git refresh rejects local-folder catalogs; corrected complete-catalog replacement passed; PR73 remains draft.",
+      "receipt": "extension/install-lifecycle.json; plugin/upgrade-0.1.43-to-0.1.44-local-fixed-report.json",
+      "scope": "Partial evidence; known local-ZIP update command error",
+      "subchecks": [
+        {
+          "check": "Published plugin lifecycle and corrected updates",
+          "status": "passed"
+        },
+        {
+          "check": "Documented Git refresh for a local ZIP catalog",
+          "status": "failed"
+        },
+        {
+          "check": "Every documented source command",
+          "status": "not run"
+        },
+        {
+          "check": "Actual published extension0.1.45 clean/upgrade/removal CLI",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "id": "core.named_models",
+      "item": "Fresh-environment DINOv2, Stable Diffusion, GPT-2, Karpathy repos, BERT and transformers",
+      "status": "not run",
+      "evidence": "Tiny BERT/DINOv2/ViT/T5/GPT-2 and conditional UNet tested. T5/GPT-2 capture coverage remained partial. Full pretrained/model-repository matrix not run.",
+      "receipt": "backend/README.md",
+      "scope": "Partial evidence; tiny random model subset",
+      "subchecks": [
+        {
+          "check": "Selected tiny-model test cases",
+          "status": "passed"
+        },
+        {
+          "check": "Full named/pretrained model matrix",
+          "status": "not run"
+        },
+        {
+          "check": "Plugin model capture",
+          "status": "blocked"
+        }
+      ]
+    },
+    {
+      "id": "core.existing_envs",
+      "item": "F5-AEC and Nemotron with pre-existing environments",
+      "status": "not run",
+      "evidence": "F5-AEC and Nemotron with pre-existing environments were not run.",
+      "receipt": "backend/README.md",
+      "scope": "No acceptance evidence",
+      "subchecks": [
+        {
+          "check": "F5-AEC",
+          "status": "not run"
+        },
+        {
+          "check": "Nemotron",
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "id": "core.expand_collapse",
+      "item": "Expand and collapse all modules",
+      "status": "not run",
+      "evidence": "Published0.1.44 actual GUI expanded Sequential and Linear to measured operations and parameters. All module types and collapse variants were not covered.",
+      "receipt": "extension/gui-status.json",
+      "scope": "Partial evidence; representative module types",
+      "subchecks": [
+        {
+          "check": "Representative Sequential/Linear expansion",
+          "status": "passed"
+        },
+        {
+          "check": "All module expansion/collapse matrix",
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "id": "core.graph_diff",
+      "item": "MCP, ACP, manual graph edit and manual code edit graph diffs",
+      "status": "not run",
+      "evidence": "Manual source edit in published0.1.44 Graph diff against HEAD showed one out_features modification and zero additions/removals; Refresh retained it. Backend structural-diff tests passed.",
+      "receipt": "extension/gui-final.json",
+      "scope": "Partial evidence; one of four GUI paths",
+      "subchecks": [
+        {
+          "check": "Manual code edit Graph diff against HEAD",
+          "status": "passed"
+        },
+        {
+          "check": "Refresh graph diff",
+          "status": "passed"
+        },
+        {
+          "check": "MCP graph diff",
+          "status": "not run"
+        },
+        {
+          "check": "ACP graph diff",
+          "status": "not run"
+        },
+        {
+          "check": "Manual graphical edit diff",
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "id": "core.new_project",
+      "item": "Start a project from scratch",
+      "status": "passed",
+      "evidence": "User-trusted fixture, managed runtime setup, measured captures, reconnect, export and edit/recapture passed on published0.1.44. This does not claim every project setup.",
+      "receipt": "extension/gui-final.json",
+      "scope": "Scoped to a new synthetic project",
+      "subchecks": [
+        {
+          "check": "Fresh synthetic fixture end-to-end",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "id": "core.input_shapes",
+      "item": "Automatic, agent-assisted and manual input shapes",
+      "status": "not run",
+      "evidence": "Automatic and explicit Python factory input captures passed in actual GUI; backend input tests passed. Agent-assisted input setup not run.",
+      "receipt": "extension/gui-final.json",
+      "scope": "Partial evidence; two of three input paths",
+      "subchecks": [
+        {
+          "check": "Automatic input capture",
+          "status": "passed"
+        },
+        {
+          "check": "Manual Python factory input capture",
+          "status": "passed"
+        },
+        {
+          "check": "Agent-assisted input flow",
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "id": "core.errors",
+      "item": "Error messages point to the correct problem",
+      "status": "failed",
+      "evidence": "Local eae source VSIX correctly diagnosed missing dependencies and synthetic OSError import failure, recovered capture afterward, but the failed interpreter candidate still claimed Ready. Draft PR76 fixes that badge;54 panel tests passed; patched VSIX/GUI not tested. Published0.1.44 service fails withoutTorch; sourceeae fixes startup. Actual published0.1.45 bundled backend now passes no-Torch startup/static routes and structured negative probes; this is separate from local-source GUI acceptance.",
+      "receipt": "extension/gui-final.json; backend/environment-status-fix.json; backend/installed-vsix-service-results.json; plugin/published-0.1.45-capture-probe.json",
+      "scope": "Partial evidence; one known UI contradiction",
+      "subchecks": [
+        {
+          "check": "Missing model dependencies in actual GUI",
+          "status": "passed"
+        },
+        {
+          "check": "Broken import diagnosis in local eae GUI",
+          "status": "passed"
+        },
+        {
+          "check": "Known-failed candidate readiness badge in local eae GUI",
+          "status": "failed"
+        },
+        {
+          "check": "Recovery capture after environment errors and reload",
+          "status": "passed"
+        },
+        {
+          "check": "PR76 panel regression tests",
+          "status": "passed"
+        },
+        {
+          "check": "PR76 patched VSIX GUI",
+          "status": "not run"
+        },
+        {
+          "check": "Plugin user-facing capture errors",
+          "status": "blocked"
+        },
+        {
+          "check": "Actual published0.1.45 no-Torch startup and dependency helper diagnostics",
+          "status": "passed"
+        },
+        {
+          "check": "Actual published0.1.45 graphical diagnostics/capture",
+          "status": "blocked"
+        }
+      ]
+    },
+    {
+      "id": "website.positioning",
+      "item": "Website reflects TensorViz beyond the extension",
+      "status": "failed",
+      "evidence": "Static homepage includes editor/plugin/canvas/review/code-focus content, but the inspected plugin platform copy remains Apple-Silicon-only. Rendered responsive review not run.",
+      "receipt": "docs/docs-review.md",
+      "scope": "Partial evidence; compatibility-copy counterexample",
+      "subchecks": [
+        {
+          "check": "Product entry points in static content",
+          "status": "passed"
+        },
+        {
+          "check": "Published platform compatibility copy",
+          "status": "failed"
+        },
+        {
+          "check": "Rendered responsive review",
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "id": "website.install_links",
+      "item": "All install links and commands work",
+      "status": "failed",
+      "evidence": "56 bounded URLs/assets/anchors passed and scoped real client flows passed. Local ZIP update commands have a reproduced error. Every rendered button and source command not exercised.",
+      "receipt": "docs/live-url-check.json",
+      "scope": "Partial evidence; known linked command counterexample",
+      "subchecks": [
+        {
+          "check": "Bounded URL and anchor delivery",
+          "status": "passed"
+        },
+        {
+          "check": "Linked local ZIP Git-refresh instructions",
+          "status": "failed"
+        },
+        {
+          "check": "Every rendered button/source command",
+          "status": "not run"
+        },
+        {
+          "check": "Actual published extension0.1.45 clean/upgrade/removal CLI",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "id": "website.upload",
+      "item": "Graph upload works",
+      "status": "not run",
+      "evidence": "No sign-in, upload, publish or share operation was performed.",
+      "receipt": "README.md",
+      "scope": "No acceptance evidence",
+      "subchecks": [
+        {
+          "check": "Graph upload round trip",
+          "status": "not run"
+        }
+      ]
+    }
+  ]
+}

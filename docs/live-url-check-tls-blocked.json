@@ -1,0 +1,131 @@
+{
+  "checked_at_utc": "2026-11-14T16:18:33.786285+00:00",
+  "python_version": "3.14.6",
+  "openssl_version": "OpenSSL 3.5.7 9 Jun 2026",
+  "method": "Unauthenticated HTTPS GET; five workers; 25-second request timeout; 3 MiB response cap. No install or UI execution.",
+  "scope": "Seed installation/docs pages, their directly linked documentation pages, and documentation image assets in those seed pages.",
+  "results": [
+    {
+      "url": "https://docs.tensorviz.dev/",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 19,
+      "tls_verify_message": "self-signed certificate in certificate chain"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/agent-plugin.html",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 19,
+      "tls_verify_message": "self-signed certificate in certificate chain"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/graph-diff-review/",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 19,
+      "tls_verify_message": "self-signed certificate in certificate chain"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/install.html",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 19,
+      "tls_verify_message": "self-signed certificate in certificate chain"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/local-setup.html",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 19,
+      "tls_verify_message": "self-signed certificate in certificate chain"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/plugin-build.html",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 19,
+      "tls_verify_message": "self-signed certificate in certificate chain"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/quickstart.html",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 19,
+      "tls_verify_message": "self-signed certificate in certificate chain"
+    },
+    {
+      "url": "https://docs.tensorviz.dev/share-to-website.html",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 19,
+      "tls_verify_message": "self-signed certificate in certificate chain"
+    },
+    {
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 20,
+      "tls_verify_message": "unable to get local issuer certificate"
+    },
+    {
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/release.json",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 20,
+      "tls_verify_message": "unable to get local issuer certificate"
+    },
+    {
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.44/tensorviz-runtime-0.1.44-darwin-arm64.tar.gz.json",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 20,
+      "tls_verify_message": "unable to get local issuer certificate"
+    },
+    {
+      "url": "https://marketplace.visualstudio.com/items?itemName=tensorviz.tensorviz-vscode",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 20,
+      "tls_verify_message": "unable to get local issuer certificate"
+    },
+    {
+      "url": "https://open-vsx.org/api/tensorviz/tensorviz-vscode/latest",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 20,
+      "tls_verify_message": "unable to get local issuer certificate"
+    },
+    {
+      "url": "https://tensorviz.dev/",
+      "status": null,
+      "error": "URLError",
+      "error_cause": "SSLCertVerificationError",
+      "tls_verify_code": 20,
+      "tls_verify_message": "unable to get local issuer certificate"
+    }
+  ],
+  "missing_linked_anchor_ids": [],
+  "documentation_image_urls": [],
+  "static_text_presence": {},
+  "public_metadata": {},
+  "limitations": [
+    "Delivery and static text checks do not prove rendered usability or installed behavior.",
+    "Version metadata is a point-in-time observation.",
+    "Unlinked or deeper pages/assets are outside this bounded check.",
+    "Redirect query strings, response headers, cookies, raw HTML, local paths, and exception messages are omitted."
+  ]
+}

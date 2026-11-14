@@ -1,0 +1,33 @@
+{
+  "test_editor_stop": "stopped owned disposable profile process",
+  "forced_task_only_process_group_stop": true,
+  "extension_removal": [
+    {
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$AUDIT_ROOT/editor-clean/extensions",
+        "--uninstall-extension",
+        "tensorviz.tensorviz-vscode"
+      ],
+      "exit_code": 0,
+      "output": "Uninstalling tensorviz.tensorviz-vscode...\nExtension 'tensorviz.tensorviz-vscode' was successfully uninstalled!\n"
+    },
+    {
+      "command": [
+        "<CODE_CLI>",
+        "--user-data-dir",
+        "$TEST_PROFILE/profile",
+        "--extensions-dir",
+        "$AUDIT_ROOT/editor-clean/extensions",
+        "--list-extensions",
+        "--show-versions"
+      ],
+      "exit_code": 0,
+      "output": "ms-python.debugpy@2026.6.0\nms-python.python@2026.10.0\nms-python.vscode-pylance@2026.4.1\nms-python.vscode-python-envs@1.42.0\n"
+    }
+  ],
+  "additional_owned_processes_signaled": 1
+}

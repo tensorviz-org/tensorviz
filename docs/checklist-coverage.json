@@ -1,0 +1,101 @@
+{
+  "issue": "https://github.com/tensorviz-org/tensorViz-extension/issues/179",
+  "scope": "Historical docs-only subtask coverage before later runtime/GUI work. The aggregate checklist.json supersedes this scope; no other-agent tests are claimed here.",
+  "statuses": [
+    {
+      "id": "docs.references",
+      "item": "Docs website updated with new references and guides",
+      "status": "failed",
+      "evidence": "Bounded static delivery check passed; source/public support text differs on the Linux glibc floor.",
+      "remaining_check": "Review all current guides for semantic accuracy and reconcile platform copy.",
+      "scope": "Partial evidence from historical static docs inspection"
+    },
+    {
+      "id": "docs.visual_examples",
+      "item": "Visual examples guide a new user",
+      "status": "not run",
+      "evidence": "Three graph illustration image assets and two logos returned HTTP 200; no rendered visual or user-journey testing in this subtask.",
+      "remaining_check": "Open install/quickstart/code-focus/review guides and verify screenshots are readable, labeled, and useful.",
+      "scope": "Partial evidence from historical static docs inspection"
+    },
+    {
+      "id": "docs.commands",
+      "item": "Manually run source setup and prebuilt installation commands",
+      "status": "not run",
+      "evidence": "Product source setup and prebuilt client commands were read, not executed by this subtask. Documentation dependencies were installed separately for the docs-only correction and both docs builds passed.",
+      "remaining_check": "Run documented npm/Python source setup and published extension/plugin installs in isolated profiles; record each exact command and version."
+    },
+    {
+      "id": "core.named_models",
+      "item": "Fresh-environment DINOv2, Stable Diffusion, GPT-2, Karpathy repos, BERT and transformer tests",
+      "status": "not run",
+      "evidence": "No named model capture performed by this subtask.",
+      "remaining_check": "Use isolated fresh environments, pinned model/repository revisions, declared inputs and limits; separate full models from small stand-ins; preserve personal environments."
+    },
+    {
+      "id": "core.existing_envs",
+      "item": "F5-AEC and Nemotron with pre-existing environments",
+      "status": "not run",
+      "evidence": "No model environment modified or reused by this subtask.",
+      "remaining_check": "Record exact existing interpreter/dependency versions and model revision; run real imports/capture; distinguish missing assets, unsupported dependencies and platform limits."
+    },
+    {
+      "id": "core.expand_collapse",
+      "item": "Expand and collapse all modules",
+      "status": "not run",
+      "evidence": "Static documentation and image delivery are not UI interaction evidence.",
+      "remaining_check": "Exercise nested and leaf modules in rendered graphs; verify edges, labels, selection and repeated expansion."
+    },
+    {
+      "id": "core.graph_diff",
+      "item": "Graph diff through MCP, ACP, manual graph edit and manual code edit",
+      "status": "not run",
+      "evidence": "No diff flow executed by this subtask.",
+      "remaining_check": "Record each of the four paths separately with before/after source and graph evidence; label unsupported/unavailable ACP explicitly."
+    },
+    {
+      "id": "core.new_project",
+      "item": "Start a project from scratch",
+      "status": "not run",
+      "evidence": "No project creation or graphical setup performed by this subtask.",
+      "remaining_check": "Create a synthetic empty project, choose interpreter/inputs, capture, save and reopen in isolated client data."
+    },
+    {
+      "id": "core.input_shapes",
+      "item": "Resolve input shapes automatically, through an agent and manually",
+      "status": "not run",
+      "evidence": "Documentation expected shapes read only.",
+      "remaining_check": "Test an unambiguous example, an ambiguous multi-input example, agent-assisted setup, and manual override; distinguish proposals from executed capture."
+    },
+    {
+      "id": "core.errors",
+      "item": "Error messages identify the correct problem",
+      "status": "not run",
+      "evidence": "No negative runtime or UI test performed by this subtask.",
+      "remaining_check": "Exercise missing/broken Torch, wrong shapes, missing file/import, invalid interpreter, capture failure and cold-start failure; record specific messages without claiming all errors covered."
+    },
+    {
+      "id": "website.positioning",
+      "item": "Website reflects TensorViz beyond the extension",
+      "status": "failed",
+      "evidence": "Homepage static content includes editor and plugin entry points, shared canvas, graph review and code focus. Plugin compatibility text still says Apple-Silicon-only.",
+      "remaining_check": "Review rendered desktop/mobile flows and update compatibility text against published artifacts.",
+      "scope": "Partial evidence from historical static docs inspection"
+    },
+    {
+      "id": "website.install_links",
+      "item": "All install links and commands work",
+      "status": "not run",
+      "evidence": "56/56 bounded endpoints/assets returned HTTP 200 and checked linked anchors existed. No command-install execution in this subtask.",
+      "remaining_check": "Combine with separate real client install/uninstall checks and rendered copy-button/link behavior.",
+      "scope": "Partial evidence from historical static docs inspection"
+    },
+    {
+      "id": "website.upload",
+      "item": "Graph upload works",
+      "status": "not run",
+      "evidence": "No sign-in, upload, publish, or share operation attempted.",
+      "remaining_check": "Use a synthetic graph, an explicitly authorized test account/session and private visibility; verify round trip and cleanup without publishing personal data."
+    }
+  ]
+}

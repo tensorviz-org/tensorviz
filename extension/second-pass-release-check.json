@@ -1,0 +1,108 @@
+{
+  "checked_at": "2026-11-14T16:46:56.326094+00:00",
+  "repos": {
+    "tensorviz-org/tensorViz-extension": {
+      "published": false,
+      "response": "gh: Not Found (HTTP 404)"
+    },
+    "tensorviz-org/tensorviz-plugins": {
+      "tag_name": "v0.1.45",
+      "published_at": "2026-11-14T16:32:18Z",
+      "prerelease": true,
+      "draft": false,
+      "html_url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/tag/v0.1.45",
+      "assets": [
+        {
+          "name": "release.json",
+          "size": 2131,
+          "digest": "sha256:cf9af3bd0415d4605ecb68884683315746f673b0fa583c71086e60762c01fd39"
+        },
+        {
+          "name": "tensorviz-0.1.45.zip",
+          "size": 43135,
+          "digest": "sha256:24fb75738cbdc31dc0e82306327f398cd0d6615c54b10edaad89d02a7aaa357a"
+        },
+        {
+          "name": "tensorviz-catalog-0.1.45.zip",
+          "size": 40856040,
+          "digest": "sha256:70ac8455c043f9bca3deb79dd4a809a6b766581de6d29ba655d675826279972a"
+        },
+        {
+          "name": "tensorviz-cursor-0.1.45.zip",
+          "size": 43483,
+          "digest": "sha256:d8874276efb123e7c4756f699052f53ae38d1494b3a4c5cc6bff3b24a44e7f80"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-darwin-arm64.tar.gz",
+          "size": 36294912,
+          "digest": "sha256:a8a3849819860bb25ab7d79b3cb0ff136caa6efe14dfb17725a9b98d133364ab"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-darwin-arm64.tar.gz.json",
+          "size": 350,
+          "digest": "sha256:dd2c72e545305dc01acb184d1c1bff8188bb4d0ce9ba79a5cc6b641689e1a287"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-darwin-x64.tar.gz",
+          "size": 38395409,
+          "digest": "sha256:13ed6a786c03d7599ae791e03e9c2708fcd6a052098b2f88cd172378fb0d0bae"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-darwin-x64.tar.gz.json",
+          "size": 346,
+          "digest": "sha256:84fea4344b9848252d3b2497b31d1e7abf2ed3530151b81a17fbcb0fd3e0655c"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-linux-arm64.tar.gz",
+          "size": 42344378,
+          "digest": "sha256:9524c877c3d1ec42fb409794c85875d7edcf801cf5e226b87b87cc47c61d604c"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-linux-arm64.tar.gz.json",
+          "size": 359,
+          "digest": "sha256:a104edfb0bb0a62efd3f2c22defee4f8bcbb03c54eebc5cd0e949092e4e4a9e4"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-linux-x64.tar.gz",
+          "size": 43523294,
+          "digest": "sha256:d08e37edbe0c9760482fee136cc8b11bd460987acbb7ba3d7a3dd21b1709d430"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-linux-x64.tar.gz.json",
+          "size": 354,
+          "digest": "sha256:12353598d3e3b7748db9ad4302747c551cf441ea837789ec013e05e8c4477347"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-win32-arm64.tar.gz",
+          "size": 32780589,
+          "digest": "sha256:9312b7aba4b2a3d905ecd4402f361ed075b3ae07b5eeed8a91a3b64a2ae04345"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-win32-arm64.tar.gz.json",
+          "size": 345,
+          "digest": "sha256:786b696e7b7439c877bba98c73f2b6cae5ad34ecbdfd9f646217bb0eb91262d0"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-win32-x64.tar.gz",
+          "size": 35614787,
+          "digest": "sha256:6e7a3db5db196a291eef69821a3749db7109505a303e120343be5b4d3b14ad4b"
+        },
+        {
+          "name": "tensorviz-runtime-0.1.45-win32-x64.tar.gz.json",
+          "size": 341,
+          "digest": "sha256:8ee1bce2c80ffa99ee40750d75b91d794edb92c4c05d9f5ccbf1521bfa167c91"
+        },
+        {
+          "name": "tensorviz-windows-arm64-0.1.45.zip",
+          "size": 19166460,
+          "digest": "sha256:cf8ecc51d5f0bca8e83fd79e220f4afe2c242dbddfc2ad76a3fecc05d445c534"
+        },
+        {
+          "name": "tensorviz-windows-x64-0.1.45.zip",
+          "size": 21578525,
+          "digest": "sha256:39ffdf523a3a9c52fbe424c29b9eed645dc433e9773ee94a6a9dc38c248c140f"
+        }
+      ]
+    }
+  }
+}

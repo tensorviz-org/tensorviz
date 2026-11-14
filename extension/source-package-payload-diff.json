@@ -1,0 +1,9 @@
+{
+  "from_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "to_sha": "d1c463c37863d89c2ccc8e37ec75858de47d194a",
+  "changed_zip_payload_entries": [
+    "extension/backend/backend-identity.json",
+    "extension/backend/services/ide/environment_setup.py",
+    "extension/out/extension.js"
+  ]
+}

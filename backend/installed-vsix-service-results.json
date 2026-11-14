@@ -1,0 +1,31 @@
+{
+  "artifact": "installed tensorviz.tensorviz-vscode 0.1.44 VSIX backend",
+  "environment": {
+    "python": "3.12.13",
+    "architecture": "arm64",
+    "torch_importable": false
+  },
+  "tested_utc": "2026-11-14T16:27:50.366746+00:00",
+  "backend_files": {
+    "server_v2.py": "359b05dd03b67e19c5e27a2429aa793629a7d7031e5d9b536e9a392549c9147c",
+    "standalone_server.py": "7a3d843d2fa2db8c03f677f1af7552970d2c33eb8c9a0036c81b02146f78c9a7"
+  },
+  "checks": [
+    {
+      "service": "extension_server_v2",
+      "startup": "failed",
+      "static_projection": "blocked",
+      "failure_kind": "RuntimeError",
+      "failure_summary": "Service process exited before HTTP health became available",
+      "import_error": "ModuleNotFoundError: No module named 'torch'"
+    },
+    {
+      "service": "standalone_service",
+      "startup": "failed",
+      "static_projection": "blocked",
+      "failure_kind": "JSONDecodeError",
+      "failure_summary": "Expecting value: line 1 column 1 (char 0)",
+      "import_error": "ModuleNotFoundError: No module named 'torch'"
+    }
+  ]
+}

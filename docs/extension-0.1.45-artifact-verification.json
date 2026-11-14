@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "sha256": "edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990",
+  "bytes": 5641948,
+  "package_id": "tensorviz.tensorviz-vscode",
+  "version": "0.1.45",
+  "source_revision": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "evidence": "Report assembler independently read completed owning-repository release download and verified bytes and embedded manifest. Marketplace identity was not independently tested."
+}

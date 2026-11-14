@@ -1,0 +1,140 @@
+{
+  "host": {
+    "os": "macOS 26.4",
+    "build": "25E246",
+    "architecture": "arm64",
+    "editor": "VS Code 1.145.2"
+  },
+  "isolation": "Disposable HOME, user-data directory and extensions directory. User manually granted Workspace Trust for only the generated fixture folder. Normal accounts were not used.",
+  "fixture": {
+    "model": "tiny_model.py::TinyModel",
+    "input_factory": "tiny_model.py::graph_inputs",
+    "layers_before": "Linear(4,8), ReLU, Linear(8,3)",
+    "layers_after": "Linear(4,8), ReLU, Linear(8,5)",
+    "input": "torch.zeros(2,4)",
+    "weights": "random; no pretrained/private data"
+  },
+  "published_0_1_44": {
+    "source_sha": "f285a383f628af23ac4992970eeab3b006b1f0d2",
+    "vsix_sha256": "cb56724877d9211d4e000ade2277062b7564589a2f9808065371f4f2e4234aa8",
+    "capture_python": "3.12.14",
+    "torch": "2.14.1",
+    "checks": [
+      {
+        "check": "Clean managed runtime setup",
+        "status": "passed",
+        "evidence": "Actual VS Code Install flow completed in disposable storage. This runtime contains Torch; it is not no-Torch service startup acceptance."
+      },
+      {
+        "check": "Missing model dependencies",
+        "status": "passed",
+        "evidence": "Select Python Environment to empty Python 3.12.13, Set up manually: Add the missing libraries; lists torch, pydantic>=2.12,<3, packaging, numpy. No install into this environment was approved or performed."
+      },
+      {
+        "check": "Automatic capture",
+        "status": "passed",
+        "evidence": "Open as Graph used automatic inputs [1,4] and measured output [1,3]."
+      },
+      {
+        "check": "Explicit factory capture",
+        "status": "passed",
+        "evidence": "Change inputs > Set up manually > Python function > tiny_model.py / graph_inputs > Open graph: [2,4] to [2,3], 16 nodes, Traced \u2014 shapes measured, Latest validation: Passed."
+      },
+      {
+        "check": "Representative hierarchy inspection",
+        "status": "passed",
+        "evidence": "Expanded Sequential and Linear through measured addmm/transpose and weight/bias. Not exhaustive module coverage."
+      },
+      {
+        "check": "Cache reuse disclosure",
+        "status": "passed",
+        "evidence": "Same-source refresh disclosed Reused identical result (model not run again); excluded from fresh-capture count."
+      },
+      {
+        "check": "Browser reconnect",
+        "status": "passed",
+        "evidence": "Open Canvas in Browser opened actual Chrome loopback view. Reload returned same 16-node [2,4] to [2,3] graph."
+      },
+      {
+        "check": "SVG export",
+        "status": "passed",
+        "evidence": "More tools > Download SVG produced graph.svg, 6336 bytes, SHA256 302028327cdbb8021b0444b7661ef63e5b0106740c41023e310afc2fcbaf3901. Browser download event waiter timed out, but native Downloads and the actual XML file confirmed success."
+      },
+      {
+        "check": "Edit invalidation and fresh recapture",
+        "status": "passed",
+        "evidence": "Changed Linear(8,3) to Linear(8,5). UI changed to Not run \u2014 shapes read from source and validation Not run for this version. Run model captured [2,4] to [2,5], 16 nodes, validation Passed."
+      },
+      {
+        "check": "Graph diff against HEAD",
+        "status": "passed",
+        "evidence": "Committed only the generated pre-edit model in a nested disposable Git repository. Command tensorViz: Graph diff against HEAD showed one modified Linear out_features, zero added/removed connections; Refresh graph diff preserved it. Other diff entry points untested."
+      }
+    ]
+  },
+  "source_eae4dd5": {
+    "published": false,
+    "source_sha": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+    "vsix_sha256": "a69d94fdc707077cfebeefe47e41e693068460d15576544c5f27b5e9c4adc4dc",
+    "embedded_version": "0.1.45",
+    "release_renderer_license_verified": false,
+    "checks": [
+      {
+        "check": "Upgrade in trusted disposable GUI profile",
+        "status": "passed",
+        "evidence": "Quit test VS Code, installed exact local VSIX via isolated CLI, list returned 0.1.45, reopened generated fixture. Separate clean install/list/uninstall/list also passed."
+      },
+      {
+        "check": "Real capture",
+        "status": "passed",
+        "evidence": "Run model > Run executed saved Python factory [2,4] to [2,5], 16 nodes, Traced \u2014 shapes measured, Latest validation: Passed."
+      },
+      {
+        "check": "Developer Reload Window",
+        "status": "passed",
+        "evidence": "Backend restarted on a new loopback port; view correctly returned to static Not run instead of claiming the previous capture persisted. Later recovery recaptured successfully."
+      },
+      {
+        "check": "Broken Torch import diagnosis",
+        "status": "passed",
+        "evidence": "Selected synthetic broken-import fixture with all capture dependencies and Torch 2.14.1 metadata. UI Project setup needs attention: The capture worker could not load (OSError). Choose a compatible environment. Manual setup retained this clear error."
+      },
+      {
+        "check": "Known-failed candidate readiness badge",
+        "status": "failed",
+        "evidence": "The same failed interpreter still displayed This model Ready for this model inside the candidate list. A separate narrow fix is being validated; not included in this VSIX."
+      },
+      {
+        "check": "Missing Torch diagnosis",
+        "status": "passed",
+        "evidence": "Selected empty interpreter and Use instead. UI Add the missing libraries, listing torch/pydantic/packaging/numpy. No install performed into it."
+      },
+      {
+        "check": "Recovery after missing/broken environment and reload",
+        "status": "passed",
+        "evidence": "Selected ready managed TensorViz Python and Use instead: fresh [2,4] to [2,5] graph, 16 nodes, validation Passed."
+      }
+    ]
+  },
+  "limits": [
+    "These are manual bounded UI observations, not screenshot-pixel assertions or exhaustive acceptance.",
+    "An earlier bare broken-import fixture also lacked dependencies. Its missing-libraries screen is a harness limitation, not a product failure.",
+    "The managed runtime contains Torch. No-Torch service startup evidence is in the independent backend receipts.",
+    "User installed Microsoft Python/Pylance support in this disposable editor during testing; its versions are in the source GUI upgrade receipt.",
+    "No provider conversation, agent-assisted input flow, account sign-in, website upload or publish/share operation was performed.",
+    "No GUI result from the unused mixed-version fallback developer host is claimed."
+  ],
+  "source_d1c463c": {
+    "source_sha": "d1c463c37863d89c2ccc8e37ec75858de47d194a",
+    "published": false,
+    "vsix_sha256": "cfb1812b9105979fd236a40ab342d17476a8967c12f69c4ae4e7ad01a0cf832f",
+    "build": "passed",
+    "install_list_uninstall_list": "passed",
+    "gui": "blocked",
+    "reason": "Native computer control timed out reading VS Code, including after reset and test-process restart. No successful graphical observation of this build was obtained. Earlier eae GUI results remain separate."
+  },
+  "later_baseline_broken_fixture_gui": {
+    "status": "blocked",
+    "reason": "Optional repeated baseline pass after source rollback hit the same native computer-control timeout. Helper-level pure broken probe passed; baseline pure broken GUI is unverified."
+  }
+}

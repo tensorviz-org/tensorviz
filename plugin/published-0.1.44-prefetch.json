@@ -1,0 +1,9 @@
+{
+  "label": "published-0.1.44",
+  "check": "documented-launcher-prefetch-cold",
+  "status": "passed",
+  "exit_code": 0,
+  "seconds": 73.48,
+  "cached_archive_count": 1,
+  "state_created": false
+}

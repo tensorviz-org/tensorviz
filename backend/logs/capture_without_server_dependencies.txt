@@ -1,0 +1,4 @@
+Source: eae4dd5d012c090d31ca1149891287ea01febc6c
+Command: <CAPTURE_PYTHON> -m pytest -q -p no:cacheprovider tests/runtime/test_environment_setup.py::test_private_capture_worker_executes_without_importing_server_dependencies
+Status: passed
+1 passed in 3.37s

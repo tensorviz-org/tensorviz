@@ -1,0 +1,63 @@
+Source: eae4dd5d012c090d31ca1149891287ea01febc6c
+Command: <CAPTURE_PYTHON> -m pytest -q -s -p no:cacheprovider tests/capture/test_graph_library_inputs.py
+Status: passed
+4 passed in 84.43s (0:01:24)
+
+[
+  {
+    "family": "Bert",
+    "inputs": {
+      "input_ids": [
+        3,
+        5
+      ]
+    },
+    "nodes": 108,
+    "capture": "complete"
+  },
+  {
+    "family": "T5",
+    "inputs": {
+      "decoder_input_ids": [
+        3,
+        5
+      ],
+      "input_ids": [
+        3,
+        5
+      ],
+      "decoder_attention_mask": [
+        3,
+        5
+      ]
+    },
+    "nodes": 339,
+    "capture": "partial"
+  },
+  {
+    "family": "ViT",
+    "inputs": {
+      "pixel_values": [
+        1,
+        3,
+        32,
+        32
+      ]
+    },
+    "nodes": 99,
+    "capture": "complete"
+  },
+  {
+    "family": "Dinov2",
+    "inputs": {
+      "pixel_values": [
+        1,
+        3,
+        28,
+        28
+      ]
+    },
+    "nodes": 98,
+    "capture": "complete"
+  }
+]

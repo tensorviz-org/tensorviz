@@ -1,0 +1,5 @@
+Source: eae4dd5d012c090d31ca1149891287ea01febc6c
+Command: <NO_TORCH_PYTHON> -m pytest -q -p no:cacheprovider tests/runtime/test_environment_setup.py
+Status: failed
+1 failed, 110 passed in 150.09s (0:02:30)
+110 environment diagnostic tests passed. One test needs actual PyTorch and was incorrectly selected in the no-Torch environment; this was a harness setup error, not a product defect. That test is rerun in the capture environment below.

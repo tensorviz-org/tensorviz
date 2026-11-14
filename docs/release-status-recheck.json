@@ -1,0 +1,33 @@
+{
+  "checked_at_utc": "2026-11-14T16:25:45.140517+00:00",
+  "repositories": {
+    "tensorviz-org/tensorviz": {
+      "matching_releases": [
+        {
+          "tag_name": "v0.1.44",
+          "name": "tensorViz 0.1.44",
+          "draft": false,
+          "prerelease": false,
+          "published_at": "2026-11-14T11:05:35Z",
+          "target_commitish": "f285a383f628af23ac4992970eeab3b006b1f0d2",
+          "html_url": "https://github.com/tensorviz-org/tensorviz/releases/tag/v0.1.44"
+        }
+      ],
+      "v0.1.45_present": false
+    },
+    "tensorviz-org/tensorviz-plugins": {
+      "matching_releases": [
+        {
+          "tag_name": "v0.1.44",
+          "name": "TensorViz plugin 0.1.44",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-11-14T10:45:55Z",
+          "target_commitish": "6fff2d501cbe037e2d90b252ee484a446c37bd61",
+          "html_url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/tag/v0.1.44"
+        }
+      ],
+      "v0.1.45_present": false
+    }
+  }
+}

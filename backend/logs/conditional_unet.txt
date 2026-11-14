@@ -1,0 +1,43 @@
+Source: eae4dd5d012c090d31ca1149891287ea01febc6c
+Command: <CAPTURE_PYTHON> -m pytest -q -s -p no:cacheprovider tests/capture/test_graph_diffusion_inputs.py -k not full_defaults
+Status: passed
+25 passed, 1 deselected in 31.59s
+
+[
+  {
+    "variant": "projected_text",
+    "status": "complete",
+    "omissions": [],
+    "operations": 467,
+    "invocations": 205
+  },
+  {
+    "variant": "projected_text",
+    "nodes": 885,
+    "coverage": "complete",
+    "output_shape": [
+      1,
+      4,
+      16,
+      16
+    ]
+  },
+  {
+    "variant": "text_time",
+    "status": "complete",
+    "omissions": [],
+    "operations": 488,
+    "invocations": 209
+  },
+  {
+    "variant": "text_time",
+    "nodes": 912,
+    "coverage": "complete",
+    "output_shape": [
+      1,
+      4,
+      16,
+      16
+    ]
+  }
+]

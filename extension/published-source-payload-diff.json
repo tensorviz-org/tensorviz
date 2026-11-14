@@ -1,0 +1,28 @@
+{
+  "comparison": "published0.1.45 versus local source eae VSIX",
+  "published_sha256": "edb17c4d891f9a6ec531c86d8f0771778bedc6f50cfe7ecf19db5789aace1990",
+  "local_sha256": "a69d94fdc707077cfebeefe47e41e693068460d15576544c5f27b5e9c4adc4dc",
+  "changed_payload_entries": [
+    "extension/media/app/asset-manifest.json",
+    "extension/media/app/index.html",
+    "extension/media/app/static/js/438.1064256e.chunk.js",
+    "extension/media/app/static/js/438.1064256e.chunk.js.LICENSE.txt",
+    "extension/media/app/static/js/438.7de48034.chunk.js",
+    "extension/media/app/static/js/438.7de48034.chunk.js.LICENSE.txt",
+    "extension/media/app/static/js/51.100a05de.chunk.js",
+    "extension/media/app/static/js/51.100a05de.chunk.js.LICENSE.txt",
+    "extension/media/app/static/js/51.88c2c79f.chunk.js",
+    "extension/media/app/static/js/51.88c2c79f.chunk.js.LICENSE.txt",
+    "extension/media/app/static/js/main.8015399a.js",
+    "extension/media/app/static/js/main.8015399a.js.LICENSE.txt",
+    "extension/media/app/static/js/main.ec7dd91a.js",
+    "extension/media/app/static/js/main.ec7dd91a.js.LICENSE.txt",
+    "extension/media/app/viewer/asset-manifest.json",
+    "extension/media/app/viewer/index.html",
+    "extension/media/app/viewer/static/js/main.56b5c518.js",
+    "extension/media/app/viewer/static/js/main.56b5c518.js.LICENSE.txt",
+    "extension/media/app/viewer/static/js/main.80031699.js",
+    "extension/media/app/viewer/static/js/main.80031699.js.LICENSE.txt"
+  ],
+  "note": "Comparison records names only; renderer license/config contents are not printed or published. Shared source does not substitute for installed release graphical testing."
+}

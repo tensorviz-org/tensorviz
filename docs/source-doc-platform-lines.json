@@ -1,0 +1,109 @@
+{
+  "checked_at_utc": "2026-11-14T16:19:59.042313+00:00",
+  "source_revision": "eae4dd5d012c090d31ca1149891287ea01febc6c",
+  "files_scanned": 59,
+  "matching_lines": [
+    {
+      "path": "README.md",
+      "matches": [
+        {
+          "line": 12,
+          "text": "**Coding-agent plugin** (preview: Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture):"
+        }
+      ]
+    },
+    {
+      "path": "docs/.vitepress/theme/InstallOptions.vue",
+      "matches": [
+        {
+          "line": 69,
+          "text": "        <p class=\"install-requirements\">Plugin preview \u00b7 Apple Silicon macOS (ARM64) or Linux x64 (glibc &gt;=2.35) \u00b7 CPython 3.12 \u00b7 CPU capture</p>"
+        }
+      ]
+    },
+    {
+      "path": "docs/agent-plugin.md",
+      "matches": [
+        {
+          "line": 13,
+          "text": "The published plugin is a preview for Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js installation. Allow internet access for that first download."
+        },
+        {
+          "line": 59,
+          "text": "Version 0.3.104 was macOS-only. Version 0.1.43 supports glibc Linux x64 despite"
+        }
+      ]
+    },
+    {
+      "path": "docs/environment-recovery.md",
+      "matches": [
+        {
+          "line": 84,
+          "text": "The published plugin preview requires **CPython 3.12 on Apple Silicon macOS (ARM64) or Linux x64 (glibc >=2.35)** and targets CPU capture. See [installation options](install.md) for package requirements; [local setup](local-setup.md#versions) lists source-development versions."
+        }
+      ]
+    },
+    {
+      "path": "docs/install.md",
+      "matches": [
+        {
+          "line": 19,
+          "text": "The published plugin is a **preview** for Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection. You need internet access for that download, but no separate Node.js installation."
+        }
+      ]
+    },
+    {
+      "path": "docs/linux-ssh-runtime.md",
+      "matches": [
+        {
+          "line": 59,
+          "text": "Version 0.1.43 was built for glibc 2.35: changing its cached launcher is not a"
+        }
+      ]
+    },
+    {
+      "path": "docs/platform-compatibility-candidates.md",
+      "matches": [
+        {
+          "line": 29,
+          "text": "- Current PyTorch macOS wheels require Apple Silicon. Intel Mac requires a"
+        }
+      ]
+    },
+    {
+      "path": "docs/quickstart.md",
+      "matches": [
+        {
+          "line": 5,
+          "text": "Before you start, [install TensorViz](install.md) and choose a Python environment with PyTorch installed. The coding-agent plugin preview requires Apple Silicon macOS (ARM64) and Linux x64 (glibc >=2.35), with CPython 3.12 and CPU capture. For JAX and Flax in the editor, see the [framework guide](jax-support.md)."
+        }
+      ]
+    },
+    {
+      "path": "docs/reference/agent-plugin.md",
+      "matches": [
+        {
+          "line": 81,
+          "text": "uses a separate compiled launcher for Apple Silicon macOS (ARM64) and Linux x64"
+        },
+        {
+          "line": 82,
+          "text": "(glibc >=2.35), with CPython 3.12 and CPU capture. Windows, Intel Mac, Linux ARM64,"
+        }
+      ]
+    },
+    {
+      "path": "docs/releasing.md",
+      "matches": [
+        {
+          "line": 20,
+          "text": "| `release-plugin.yml` | Manual dispatch from reviewed main | Apple Silicon macOS and Linux x64 compiled runtimes, client ZIPs, complete catalog ZIP and provenance on `tensorviz-plugins` `vX.Y.Z` releases |"
+        },
+        {
+          "line": 257,
+          "text": "Linux x64 requires glibc 2.31; Linux ARM64 requires glibc 2.35. Musl remains a"
+        }
+      ]
+    }
+  ]
+}

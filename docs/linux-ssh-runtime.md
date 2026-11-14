@@ -3,7 +3,7 @@
 ## Scope
 
 The compiled-plugin infrastructure now supports `darwin-arm64` and `linux-x64`.
-Linux requires glibc >=2.35, `/usr/bin/python3` for metadata, `curl`, `sha256sum`
+Linux requires glibc >=2.31, `/usr/bin/python3` for metadata, `curl`, `sha256sum`
 and `tar`; model/service execution requires CPython 3.12 with ABI
 `cpython-312-x86_64-linux-gnu`. Darwin uses `cpython-312-darwin`. Windows, Linux
 ARM64, Intel Mac and musl remain unsupported. No compiled source fallback exists.
@@ -32,7 +32,7 @@ This source checkout and its local validation do not publish a Linux archive.
 
 Native builders select `node22-macos-arm64` or `node22-linux-x64`. Linux strips
 compiler debug paths with failure propagation. Packaging audits the complete
-readelf version table under an 8 MiB limit and rejects GLIBC symbols above 2.35.
+readelf version table under an 8 MiB limit and rejects GLIBC symbols above 2.31.
 Source/path exclusion, internal hashes, provenance, renderer coverage, exact ZIP
 inventories and the 41-file compiled integration allowlist remain enforced.
 
@@ -50,7 +50,24 @@ four Model graph app transports. Current versions substitute `{{VERSION}}`; the
 dated v0.3.104 public asset audit remains historical. Source instructions are in
 [Plugin build](plugin-build.md).
 
-## Validation and release boundary
+## glibc 2.31 compatibility gate
+
+The next release is built and tested inside an Ubuntu 20.04 container, rather
+than merely lowering the launcher check on an Ubuntu 22.04 binary. The build
+asserts glibc 2.31, audits the complete ELF symbol tables against that floor,
+and exercises the real compiled launcher and CPU capture in that container.
+Version 0.1.43 was built for glibc 2.35: changing its cached launcher is not a
+supported repair. A new, verified release artifact is required.
+
+Native upgrade/rollback tests involving old 2.35-only artifacts run separately
+on a compatible host. Local fixture passes alone do not establish native ABI
+compatibility or signed-in desktop acceptance.
+
+## Historical validation and release boundary
+
+The following records the original port's evidence, not current release approval
+or a substitute for the compatibility CI above.
+
 
 Verified locally on Apple Silicon Mac with Node 22.23.4 and Codex CLI 0.165.0:
 full plugin build/typecheck/panel and 98 units pass; units plus export audit pass

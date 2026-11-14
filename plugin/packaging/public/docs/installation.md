@@ -13,7 +13,7 @@ The [README](../README.md) contains the download links, client installation
 commands, and first-use prompts for the published {{VERSION}} preview. This guide covers
 local repository installation, updates, and common setup problems.
 
-The compiled candidate targets macOS Apple Silicon or Linux x64 with glibc >=2.35
+The compiled candidate targets macOS Apple Silicon or Linux x64 with glibc >=2.31
 and CPython 3.12. Linux needs `/usr/bin/python3` for metadata plus `curl`,
 `sha256sum` and `tar`. Windows, Linux ARM64, Intel Macs and musl are unsupported.
 The execution host must have its own native entry in `runtime-lock.json`; the
@@ -82,7 +82,7 @@ T3 mobile, remote hosts, and non-Codex providers are outside this acceptance sco
 | Problem | What to check |
 | --- | --- |
 | Launcher reports macOS-only support or no linux-x64 runtime | The old v0.3.104 lock is Darwin-only. Use a later catalog only after its Linux asset is published. Changing Python or bypassing checks cannot supply a missing binary. |
-| Unsupported execution host or glibc error | Use macOS Apple Silicon or Linux x64 with glibc >=2.35 and a matching runtime pin. ARM Linux, musl, Windows and Intel Mac are unsupported. |
+| Unsupported execution host or glibc error | Use macOS Apple Silicon or Linux x64 with glibc >=2.31 and a matching runtime pin. ARM Linux, musl, Windows and Intel Mac are unsupported. |
 | `codex` or `claude` is not found | Install the corresponding client CLI using the links in the README, reopen your terminal, and check that its plugin commands are available. |
 | `plugin` is an unknown command | Update your coding client to a version with plugin support, then reopen your terminal. |
 | Marketplace catalog not found after downloading a ZIP | The release plugin ZIP is not a marketplace. Use the complete catalog ZIP above, not a plugin ZIP or source archive. |

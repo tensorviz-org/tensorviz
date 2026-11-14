@@ -117,3 +117,4 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (process.argv.length !== 3) throw new Error('Usage: node plugin/scripts/package-native.mjs HTTPS_RUNTIME_URL');
   await packageNative(process.argv[2]);
 }
+

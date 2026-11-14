@@ -103,7 +103,11 @@ test('repository-secret publishing preserves manual main-only activation and bui
     assert.match(before, /github.event_name == 'workflow_dispatch'/);
     assert.match(before, /RELEASE_PUBLISH: \$\{\{ vars.RELEASES_ENABLED == 'true' && inputs.publish \}\}/);
     assert.match(before, /secrets.TLDRAW_LICENSE_KEY/);
-    assert.match(publish, /if: needs\.(?:build|configuration)\.outputs\.publish == 'true'/);
+    if (name === 'release-plugin') {
+      assert.match(publish, /if: always\(\) && needs\.assemble\.result == 'success' && \(needs\.configuration\.outputs\.version != '0\.1\.44' \|\| needs\.current_migration\.result == 'success'\) && needs\.configuration\.outputs\.publish == 'true'/);
+    } else {
+      assert.match(publish, /if: needs\.(?:build|configuration)\.outputs\.publish == 'true'/);
+    }
     assert.doesNotMatch(publish, /^\s+environment:/m);
   }
   const plugin = readFileSync(new URL('../../.github/workflows/release-plugin.yml', import.meta.url), 'utf8');

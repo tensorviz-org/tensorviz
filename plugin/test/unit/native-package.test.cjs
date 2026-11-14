@@ -40,7 +40,8 @@ test('Linux GLIBC audit handles a pkg version table over 1 MiB and rejects newer
     assert.ok(options.maxBuffer <= 8 * 1024 * 1024, 'The output bound must remain finite');
     return output;
   };
-  verifyLinuxGlibc('/fixture/native host', command(' GLIBC_2.28 GLIBC_2.35'));
-  assert.throws(() => verifyLinuxGlibc('/fixture/native host', command(' GLIBC_2.35 GLIBC_2.38')), /newer than 2.35/);
+  verifyLinuxGlibc('/fixture/native host', command(' GLIBC_2.28 GLIBC_2.31'));
+  assert.throws(() => verifyLinuxGlibc('/fixture/native host', command(' GLIBC_2.31 GLIBC_2.32')), /newer than 2.31/);
+  assert.throws(() => verifyLinuxGlibc('/fixture/native host', command(' GLIBC_2.31 GLIBC_2.38')), /newer than 2.31/);
   assert.throws(() => verifyLinuxGlibc('/fixture/native host', () => { throw new Error('ENOBUFS'); }), /ENOBUFS/);
 });

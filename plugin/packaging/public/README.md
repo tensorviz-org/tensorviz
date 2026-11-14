@@ -22,12 +22,12 @@ refresh the graph after editing your model.
 [Claude Code](#install-in-claude-code) · [Cursor](#install-in-cursor) ·
 [T3 Code](#install-in-t3-code)
 
-This compiled candidate supports **Apple Silicon Macs and Linux x64 with glibc 2.35+**. The plugin runs locally and does
+This compiled candidate supports **Apple Silicon Macs and Linux x64 with glibc 2.31+**. The plugin runs locally and does
 not require the tensorViz VS Code extension or a separate Node.js installation.
 
 ## Requirements
 
-- **macOS on Apple Silicon or Linux x64 with glibc 2.35 or newer**. Linux also
+- **macOS on Apple Silicon or Linux x64 with glibc 2.31 or newer**. Linux also
   needs `/usr/bin/python3` for launcher metadata, `curl`, `sha256sum` and `tar`.
   This compiled preview targets CPU capture. Windows, Linux ARM64, Intel Macs
   and musl are unsupported; CUDA capture remains unverified.

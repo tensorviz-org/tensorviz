@@ -27,7 +27,7 @@ jobs:
       - name: Validate Actions syntax
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 -shellcheck=
       - name: Test release provenance, safety and retries without credentials
-        run: node --test tooling/test/extension-*release*.test.mjs plugin/test/unit/native-publisher*.test.cjs plugin/test/unit/version-alignment.test.cjs plugin/test/unit/cleanup-build-scratch.test.cjs plugin/test/unit/migration-resource-lifecycle.test.cjs plugin/test/unit/native-platforms.test.cjs plugin/test/unit/native-package.test.cjs plugin/test/unit/release-candidate.test.cjs plugin/test/unit/release-workflow.test.cjs
+        run: node --test tooling/test/current-native-transition.test.mjs tooling/test/extension-*release*.test.mjs plugin/test/unit/native-publisher*.test.cjs plugin/test/unit/version-alignment.test.cjs plugin/test/unit/cleanup-build-scratch.test.cjs plugin/test/unit/migration-resource-lifecycle.test.cjs plugin/test/unit/native-platforms.test.cjs plugin/test/unit/native-package.test.cjs plugin/test/unit/release-candidate.test.cjs plugin/test/unit/release-workflow.test.cjs
 
   javascript-dependencies:
     # Exercise the actual checkout, including binary test fixtures omitted by API snapshots.
@@ -62,25 +62,40 @@ jobs:
         include:
           - runner: macos-15
             platform: darwin-arm64
+            container: null
           - runner: ubuntu-22.04
             platform: linux-x64
+            container: ubuntu:20.04
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 40
+    container: ${{ matrix.container }}
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 60
     env:
       TENSORVIZ_RUNTIME_URL: https://example.invalid/tensorviz-local-validation.tar.gz
     steps:
+      - name: Prepare the Linux glibc 2.31 build baseline
+        if: matrix.platform == 'linux-x64'
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates git curl python3 build-essential binutils patchelf pkg-config libssl-dev xz-utils unzip zip openssl
+          test "$(getconf GNU_LIBC_VERSION)" = 'glibc 2.31'
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Align checkout ownership inside the Linux build container
+        if: matrix.platform == 'linux-x64'
+        run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
       - name: Record the tested merge commit and its parents
         run: |
           git log -1 --format='%H %P'
           echo "TENSORVIZ_REVIEWED_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           echo "TENSORVIZ_RELEASE_VERSION=$(node -p 'require("./plugin/package.json").version')" >> "$GITHUB_ENV"
           echo "Tested merge/source commit: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.23.4'
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           version: '0.11.26'
@@ -126,6 +141,9 @@ jobs:
         run: |
           npm run test:release --prefix plugin
           TENSORVIZ_TEST_RUNTIME="$PWD/plugin/out/native-runtime" node --test plugin/test/integration/open-graph.test.cjs
+      - name: Verify real launcher and CPU capture on glibc 2.31
+        if: matrix.platform == 'linux-x64'
+        run: TENSORVIZ_TEST_RUNTIME="$PWD/plugin/out/native-runtime" node --test plugin/test/linux/launcher-capture.cjs
       - name: Reclaim completed build scratch before native migration
         run: node plugin/scripts/cleanup-build-scratch.mjs
       - name: Checkout the immutable previous public plugin export
@@ -219,4 +237,5 @@ jobs:
         if: always()
         run: |
           echo 'Offline random-weight CPU model fixtures only: BERT/T5/ViT/DINOv2, conditional UNet, timm, and the GPT-2 product template. No pretrained downloads, full Stable Diffusion pipeline, external Karpathy/F5-AEC/Nemotron project, signed-in GUI, website upload, release, or deployment.' >> "$GITHUB_STEP_SUMMARY"
+
 

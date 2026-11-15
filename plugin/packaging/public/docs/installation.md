@@ -24,7 +24,12 @@ platform checks do not establish compatibility. Old release snapshots are unchan
 
 For SSH, install and execute on the model's server. The desktop OS does not select
 the runtime. A raw localhost graph URL belongs to that server; forward its port or
-use a compatible embedded panel. Real SSH-network acceptance is separate from
+use a compatible embedded panel. To forward it, use the port from the link on both
+sides, for example `ssh -L 45791:127.0.0.1:45791 user@server`, then open the link
+within 2 minutes or ask the agent for a new browser view. Another local port also
+works if you change the link to match. The port changes on each start unless you set
+`TENSORVIZ_BROWSER_PORT` (1024–65535) on the server; then a `LocalForward` in
+`~/.ssh/config` covers every session. Real SSH-network acceptance is separate from
 local launcher and Codex tests.
 
 ## Install from a local repository

@@ -128,3 +128,100 @@ def test_service_exits_when_the_launchers_pipe_closes():
         if child.poll() is None:
             child.kill()
         child.wait(timeout=5)
+
+
+FORWARD = "http://127.0.0.1:18080"
+
+
+def test_browser_view_accepts_a_forwarded_loopback_port_only_from_its_own_page(monkeypatch):
+    """ssh -L and editor forwards give the page a local port the service cannot know."""
+    import pytest
+    from starlette.websockets import WebSocketDisconnect
+    from services.ide.local_browser_broker import LOCAL_BROWSER_CLOSE_CODES, view_cookie_name
+    monkeypatch.setenv("TENSORVIZ_LOCAL_TOKEN", TOKEN)
+    headers = {"X-tensorViz-Token": TOKEN}
+    launch = "http://127.0.0.1:45791"
+
+    def bootstrap(credential, origin, host):
+        return client.post("/local/bootstrap", headers={"Origin": origin, "Host": host},
+                           json={"workspaceSessionId": session["workspaceSessionId"], "credential": credential})
+
+    def view_link():
+        reply = client.post(f"/local/sessions/{session['workspaceSessionId']}/view-links", headers=headers)
+        assert reply.status_code == 200, reply.text
+        return reply.json()["viewCredential"]
+
+    with TestClient(create_app(TOKEN), base_url=launch) as client:
+        session = client.post("/local/sessions", headers=headers, json={"launchOrigin": launch}).json()
+        assert client.get("/api/health", headers={**headers, "Host": "localhost:18081"}).status_code == 200
+        for origin in (FORWARD, "http://localhost:18081"):
+            accepted = bootstrap(view_link(), origin, origin.removeprefix("http://"))
+            assert accepted.status_code == 200, accepted.text
+            assert accepted.headers["set-cookie"].startswith(view_cookie_name(origin) + "=")
+
+        # Another local page, a rebinding name and a non-http scheme are refused
+        # before the single-use credential is read, so the link stays usable.
+        credential = view_link()
+        for origin, host, status in [("http://127.0.0.1:8888", "127.0.0.1:18080", 403),
+                                     ("http://attacker.example:18080", "127.0.0.1:18080", 403),
+                                     ("http://attacker.example:18080", "attacker.example:18080", 400),
+                                     ("https://127.0.0.1:18080", "127.0.0.1:18080", 403)]:
+            assert bootstrap(credential, origin, host).status_code == status, (origin, host)
+        accepted = bootstrap(credential, FORWARD, "127.0.0.1:18080")
+        assert accepted.status_code == 200, accepted.text
+        key = accepted.headers["set-cookie"].split(";", 1)[0].split("=", 1)[1]
+
+        def socket(origin, host):
+            return client.websocket_connect("/local/ws", headers={
+                "Origin": origin, "Host": host, "Cookie": f"{view_cookie_name(origin)}={key}"})
+
+        with socket(FORWARD, "127.0.0.1:18080") as view:
+            view.send_json({"type": "viewHandshake", "protocolVersion": 1, "role": "view", "messageId": "m-1",
+                            "workspaceSessionId": session["workspaceSessionId"]})
+            assert view.receive_json()["type"] == "connected"
+        # The key belongs to the forward that bootstrapped it, not another forward
+        # or a page on another port reaching the service directly.
+        for origin, host in [(FORWARD, "127.0.0.1:45791"), ("http://127.0.0.1:18082", "127.0.0.1:18082"), (launch, "127.0.0.1:45791")]:
+            with pytest.raises(WebSocketDisconnect) as refused:
+                with socket(origin, host):
+                    pass
+            assert refused.value.code == LOCAL_BROWSER_CLOSE_CODES["INVALID_ORIGIN"], (origin, host)
+
+
+def test_requested_port_is_used_when_free_and_falls_back_when_taken():
+    from standalone_server import listen
+    probe = listen()
+    port = probe.getsockname()[1]
+    probe.close()
+    held = listen(port)
+    try:
+        assert held.getsockname() == ("127.0.0.1", port)
+        # A second session must still open its graph; the host reports the difference.
+        fallback = listen(port)
+        try:
+            assert fallback.getsockname()[1] not in (0, port)
+        finally:
+            fallback.close()
+    finally:
+        held.close()
+
+
+def test_service_reports_the_port_requested_by_the_host():
+    from standalone_server import listen
+    probe = listen()
+    port = probe.getsockname()[1]
+    probe.close()
+    root = Path(__file__).parent.resolve().parents[1]
+    child = subprocess.Popen([sys.executable, "-I", "-B", str(root / "standalone_server.py"), "--parent-pipe", "--port", str(port)],
+                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             env={**os.environ, "TENSORVIZ_LOCAL_TOKEN": TOKEN}, text=True)
+    try:
+        assert json.loads(child.stdout.readline())["port"] == port
+    finally:
+        child.stdin.close()
+        try:
+            child.wait(timeout=5)
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait(timeout=5)

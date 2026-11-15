@@ -153,6 +153,7 @@ export class StandaloneHost {
       },
       post: (route, body, signal) => this.backend.request(route, body, signal),
       connect: signal => this.connectBrowser(signal), view: signal => this.backend.viewLink(signal), views: this.views,
+      withBrowserAccess: result => this.backend.withBrowserAccess(result),
       publish: message => this.backend.transport?.publish(message), target: () => this.model?.target,
       busy: () => this.runs.running || ['resolving', 'saving', 'capturing'].includes(this.opening.state?.phase ?? ''),
       signal: this.lifetime.signal,
@@ -631,6 +632,11 @@ export class StandaloneHost {
       this.authorized = false; signal.removeEventListener('abort', abort);
       if (signal.aborted && !retainedAttempt && generation === this.generation && this.opening.state) this.publishOpening(this.opening.state);
     }
+  }
+
+  /** SSH forwarding guidance and port notices for a result that carries a browser url. */
+  withBrowserAccess<T extends Record<string, unknown>>(result: T): T {
+    return this.backend.withBrowserAccess(result);
   }
 
   async checkFreshness(complete = false): Promise<void> {

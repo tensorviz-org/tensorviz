@@ -76,7 +76,8 @@ in the plugin's data folder: `website/session.json` under
 `~/Library/Application Support/TensorViz/standalone` on macOS, `%LOCALAPPDATA%\TensorViz\standalone`
 on Windows, or `$XDG_DATA_HOME/tensorviz/standalone` (default `~/.local/share/...`)
 on Linux, or `TENSORVIZ_DATA_DIR` when set. Every chat's plugin host shares it. To
-sign out, run `node scripts/launch.cjs --sign-out` from the installed plugin directory.
+sign out, run `sh scripts/launch.sh --sign-out` from the installed plugin directory
+(Windows: `.\scripts\tensorviz-bootstrap.exe --sign-out`).
 
 A graph opened with a capture also includes its portable capture, as in the editor. The
 plugin's local service detaches it from your source names without running the model.

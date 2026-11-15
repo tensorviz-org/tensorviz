@@ -80,7 +80,10 @@ async function start(): Promise<void> {
     description: 'Display the current graph in a browser. Open the returned private URL once, then poll handoffId for the exact display receipt. Does not recapture.',
     inputSchema: { ...modelRefSchema, handoffId: z.string().min(1).max(128).optional() },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, (args, extra) => result(async () => { await host.checkFreshness(); host.review.close(); return host.graphView.invoke(host.id, args, extra.signal); }));
+  }, (args, extra) => result(async () => {
+    await host.checkFreshness(); host.review.close();
+    return host.withBrowserAccess(await host.graphView.invoke(host.id, args, extra.signal));
+  }));
 
   server.registerTool('open_graph_diff', {
     description: 'Prepare and display local Git source changes on the shared graph. Supply exact workspaceRoot and optional base (default HEAD), file/class and connected viewId. Uses an already inspected service environment; neither revision is imported or executed. Saved working files include staged and unstaged edits. Returns a private URL only if a new view is needed. Open it once and poll reviewId; only displayed=true proves the exact browser rendered Diff mode. Retained shapes are context, never measurements of reviewed revisions.',

@@ -175,7 +175,7 @@ async function extract(archive, directory) {
   }
 }
 
-// A spawn error happens before the bundled host starts. Do not mislabel it as
+// Only errors before a successful spawn identify a launch failure. Do not mislabel it as
 // a Python install failure or assert that generic UNKNOWN proves a policy block.
 function nativeLaunchError(error, platform = process.platform) {
   if (platform !== 'win32') return error;
@@ -188,6 +188,17 @@ function nativeLaunchError(error, platform = process.platform) {
   const result = new Error(detail, { cause: error });
   result.code = error.code;
   return result;
+}
+
+function waitForHostExit(child, platform = process.platform) {
+  return new Promise((resolve, reject) => {
+    let started = false;
+    child.once('spawn', () => { started = true; });
+    // ChildProcess also emits error after starting (for example, a failed kill).
+    // Preserve those errors without claiming the host/Python never started.
+    child.once('error', error => reject(started ? error : nativeLaunchError(error, platform)));
+    child.once('exit', (code, signal) => resolve(code ?? (signal === 'SIGINT' ? 130 : 143)));
+  });
 }
 
 async function main(args = process.argv.slice(2)) {
@@ -234,14 +245,13 @@ async function main(args = process.argv.slice(2)) {
       };
       signals.set(signal, handler); process.on(signal, handler);
     }
-    return await new Promise((resolve, reject) => {
-      child.once('error', error => reject(nativeLaunchError(error))); child.once('exit', (code, signal) => resolve(code ?? (signal === 'SIGINT' ? 130 : 143)));
-    });
+    return await waitForHostExit(child);
   } finally {
     for (const [signal, handler] of signals) process.off(signal, handler);
     clearTimeout(forceKill);
     await fs.rm(session, { recursive: true, force: true, maxRetries: 4, retryDelay: 100 });
   }
 }
-module.exports = { selectRuntime, checkHost, httpsURL, download, archiveFiles, extract, readVerified, nativeLaunchError, main };
+module.exports = { selectRuntime, checkHost, httpsURL, download, archiveFiles, extract, readVerified, nativeLaunchError, waitForHostExit, main };
 if (require.main === module) main().then(code => { process.exitCode = code; }, error => { console.error(`TensorViz: ${error.message}`); process.exitCode = 1; });
+

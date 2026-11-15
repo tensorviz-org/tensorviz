@@ -6,6 +6,7 @@ import { REPO, route } from './routes.mjs'
 
 const gen = JSON.parse(fs.readFileSync(path.join(__dirname, 'cache/generated.json'), 'utf8'))
 const base: string = gen.base || '/'
+const siteUrl = `https://docs.tensorviz.dev${base}`
 // `head` is written into the HTML as given. The nav logo goes through
 // VPImage's withBase, which prefixes `base` itself.
 const asset = (p: string) => (base === '/' || p.startsWith(base) ? p : `${base}${p.replace(/^\//, '')}`)
@@ -53,12 +54,33 @@ export default async () => {
     appearance: true,
     // Keep article URLs compatible with existing shared documentation links.
     cleanUrls: false,
+    sitemap: {
+      hostname: siteUrl,
+      // VitePress includes Markdown pages only; downloads and build metadata stay out.
+      transformItems: (items) => items.filter(({ url }) => url !== '404.html'),
+    },
     srcExclude: ['**/node_modules/**', 'public/**'],
     head: [
       ['link', { rel: 'icon', type: 'image/svg+xml', href: asset('/logo.svg') }],
       ['meta', { name: 'theme-color', content: '#ffffff', media: '(prefers-color-scheme: light)' }],
       ['meta', { name: 'theme-color', content: '#0f0f0f', media: '(prefers-color-scheme: dark)' }],
     ],
+    transformPageData(pageData) {
+      const url = new URL(r(pageData.relativePath).slice(1), siteUrl).href
+      const description = pageData.frontmatter.description || gen.tagline
+      pageData.frontmatter.head ??= []
+      pageData.frontmatter.head.push(
+        ['link', { rel: 'canonical', href: url }],
+        ['meta', { property: 'og:title', content: pageData.title }],
+        ['meta', { property: 'og:description', content: description }],
+        ['meta', { property: 'og:url', content: url }],
+        ['meta', { property: 'og:site_name', content: 'TensorViz' }],
+        ['meta', { name: 'twitter:card', content: 'summary' }],
+      )
+      if (pageData.relativePath === '404.md') {
+        pageData.frontmatter.head.push(['meta', { name: 'robots', content: 'noindex' }])
+      }
+    },
     markdown: {
       theme: { light: monoLight as any, dark: monoDark as any },
       lineNumbers: false,

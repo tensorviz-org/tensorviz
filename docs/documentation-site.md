@@ -50,6 +50,19 @@ at the docs host. It exports Markdown for **Copy page**, **View Markdown** and
 downloads and font licenses. `/build-info.json` identifies the source repository,
 commit and prefix. Generated content stays in ignored folders; edit the sources.
 
+VitePress generates `/sitemap.xml` for `https://docs.tensorviz.dev/`, including
+the configured `DOCS_BASE` in prefixed builds. It lists documentation pages and
+excludes the 404 page and static resources. `public/robots.txt` allows all
+crawlers, explicitly includes search and AI crawlers in the same allow group,
+and points to the production sitemap. Both builds verify these resources and
+the quickstart sitemap URL.
+
+Each page includes a canonical URL, Open Graph title, description, URL and site
+name, and a summary Twitter card. Descriptions use page frontmatter when present
+and otherwise use the site tagline. The metadata follows `DOCS_BASE`, including
+directory-style index URLs, and the 404 page has `noindex`. Build verification
+checks these tags in the rendered HTML. No social preview images are generated.
+
 ## Publishing with GitHub Actions and Firebase
 
 GitHub Actions builds the docs from this repository and publishes the checked

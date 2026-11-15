@@ -1,7 +1,11 @@
-> Compiled release archive template. Workflows run in `tensorviz-org/tensorviz`;
-> public releases and the installation catalog stay in `tensorviz-org/tensorviz-plugins`.
+<!-- Compiled release archive template. Workflows run in tensorviz-org/tensorviz;
+public releases and the installation catalog stay in tensorviz-org/tensorviz-plugins. -->
 
 # tensorViz for coding agents
+
+**Open a local PyTorch model as an interactive graph from Claude Code, Codex,
+Cursor or T3 Code: measured tensor shapes, links to source, and agent edits you
+review before they're applied. No torch.export or ONNX conversion needed.**
 
 ## Contents
 

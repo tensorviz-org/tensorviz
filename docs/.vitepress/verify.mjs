@@ -8,6 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(here, 'dist')
 const generated = JSON.parse(await readFile(path.join(here, 'cache/generated.json'), 'utf8'))
 const { base, sources } = generated
+const siteUrl = `https://docs.tensorviz.dev${base}`
 const pages = new Map()
 async function collect(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -39,6 +40,22 @@ let editLinks = 0
 for (const [output, source] of Object.entries(sources)) {
   const html = pages.get(path.join(root, output.replace(/\.md$/, '.html')))
   assert(html, `Missing page for ${source}`)
+  const head = html.slice(0, html.indexOf('</head>'))
+  const tags = [...head.matchAll(/<(?:link|meta)\b[^>]*>/g)].map(match =>
+    Object.fromEntries([...match[0].matchAll(/([\w:-]+)="([^"]*)"/g)].map(([, key, value]) => [key, value])))
+  const tag = (key, value) => {
+    const matches = tags.filter(attrs => attrs[key] === value)
+    assert.equal(matches.length, 1, `Expected one ${value} tag for ${source}`)
+    return matches[0]
+  }
+  const url = siteUrl + output.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '.html')
+  assert.equal(tag('rel', 'canonical').href, url, `Incorrect canonical URL for ${source}`)
+  assert.equal(tag('property', 'og:url').content, url, `Incorrect Open Graph URL for ${source}`)
+  assert(tag('property', 'og:title').content, `Missing Open Graph title for ${source}`)
+  assert.equal(tag('property', 'og:description').content, tag('name', 'description').content, `Incorrect Open Graph description for ${source}`)
+  assert.equal(tag('property', 'og:site_name').content, 'TensorViz')
+  assert.equal(tag('name', 'twitter:card').content, 'summary')
+  if (output === '404.md') assert.equal(tag('name', 'robots').content, 'noindex')
   // VitePress renders its dedicated not-found layout without an edit footer.
   if (output !== '404.md') {
     assert(html.includes(`https://github.com/tensorviz-org/tensorviz/edit/main/${source}`), `Missing edit link for ${source}`)
@@ -49,7 +66,6 @@ for (const [output, source] of Object.entries(sources)) {
 for (const name of ['index.html', 'quickstart.html', 'guides.html', 'install.html', 'agent-plugin.html', 'jax-support.html', 'graph-diff-review/index.html', 'llms.txt', 'robots.txt', 'sitemap.xml', 'licenses/geist-OFL.txt', 'licenses/geist-mono-OFL.txt']) {
   assert((await stat(path.join(root, name))).isFile(), `Missing docs resource: ${name}`)
 }
-const siteUrl = `https://docs.tensorviz.dev${base}`
 const sitemap = await readFile(path.join(root, 'sitemap.xml'), 'utf8')
 const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1])
 const expectedUrls = Object.keys(sources).filter(output => output !== '404.md').map(output =>
@@ -66,4 +82,4 @@ const info = JSON.parse(await readFile(path.join(root, 'build-info.json'), 'utf8
 assert.equal(info.source, 'https://github.com/tensorviz-org/tensorviz')
 assert.equal(info.revision, generated.sha)
 assert.equal(info.base, base)
-console.log(`Verified ${pages.size} pages, ${links} local links/anchors, ${editLinks} source-edit links, ${Object.keys(sources).length} Markdown downloads, robots, sitemap and build provenance at ${base}.`)
+console.log(`Verified ${pages.size} pages, ${links} local links/anchors, ${editLinks} source-edit links, ${Object.keys(sources).length} Markdown downloads, page metadata, robots, sitemap and build provenance at ${base}.`)

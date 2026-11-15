@@ -65,6 +65,22 @@ export default async () => {
       ['meta', { name: 'theme-color', content: '#ffffff', media: '(prefers-color-scheme: light)' }],
       ['meta', { name: 'theme-color', content: '#0f0f0f', media: '(prefers-color-scheme: dark)' }],
     ],
+    transformPageData(pageData) {
+      const url = new URL(r(pageData.relativePath).slice(1), siteUrl).href
+      const description = pageData.frontmatter.description || gen.tagline
+      pageData.frontmatter.head ??= []
+      pageData.frontmatter.head.push(
+        ['link', { rel: 'canonical', href: url }],
+        ['meta', { property: 'og:title', content: pageData.title }],
+        ['meta', { property: 'og:description', content: description }],
+        ['meta', { property: 'og:url', content: url }],
+        ['meta', { property: 'og:site_name', content: 'TensorViz' }],
+        ['meta', { name: 'twitter:card', content: 'summary' }],
+      )
+      if (pageData.relativePath === '404.md') {
+        pageData.frontmatter.head.push(['meta', { name: 'robots', content: 'noindex' }])
+      }
+    },
     markdown: {
       theme: { light: monoLight as any, dark: monoDark as any },
       lineNumbers: false,

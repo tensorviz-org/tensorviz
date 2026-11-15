@@ -1,17 +1,8 @@
 name: Plugin legacy cache refresh
+# Optional diagnostics only; PRs and merges must not start runners.
 on:
-  pull_request:
-    paths:
-      - 'plugin/test/clients/codex-legacy-refresh.cjs'
-      - 'plugin/packaging/public/**'
-      - '.github/workflows/plugin-legacy-refresh.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'plugin/test/clients/codex-legacy-refresh.cjs'
-      - 'plugin/packaging/public/**'
-      - '.github/workflows/plugin-legacy-refresh.yml'
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

@@ -1,18 +1,14 @@
 name: Documentation
 
+# Publish once after a batch of merges; no automatic PR or push builds.
 on:
-  # The link/reference checker also reads product manifests and source files.
-  # Validate every PR, including forks, so those inputs cannot bypass the check.
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: docs-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  group: docs-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -42,7 +38,7 @@ jobs:
         env:
           DOCS_BASE: /
       - uses: actions/upload-artifact@v4
-        if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
         with:
           name: documentation
           path: docs/.vitepress/dist
@@ -51,7 +47,7 @@ jobs:
 
   deploy:
     needs: build
-    if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.DOCS_PUBLISH_ENABLED == 'true'
+    if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && vars.DOCS_PUBLISH_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

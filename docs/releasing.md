@@ -18,7 +18,7 @@ the required org-member merge/review enforcement at public launch.
 | `release-vsix.yml` | Manual dispatch from reviewed main | `tensorviz.tensorviz-vscode` on VS Code Marketplace; exact same VSIX and checksum on this repository's `vX.Y.Z` release; rolling `latest` download |
 | `release-openvsx.yml` | Successful trusted Release VSIX run, or explicit existing version | Identical Marketplace/GitHub bytes on Open VSX |
 | `release-plugin.yml` | Manual dispatch from reviewed main | Apple Silicon macOS and Linux x64 compiled runtimes, client ZIPs, complete catalog ZIP and provenance on `tensorviz-plugins` `vX.Y.Z` releases |
-| `docs.yml` | Existing documentation workflow | Independent documentation publishing, unchanged by this migration |
+| `docs.yml` | Manual dispatch after merging the desired documentation changes | Independent documentation build and publishing |
 
 The old repository contains exactly the first three release workflows above.
 They must not remain publishers after cutover. The public `tensorviz-plugins` repository remains the active download/catalog
@@ -26,10 +26,56 @@ location. Native workflows run here and advance only its audited integration
 catalog after verifying public assets. Historical tags/releases are immutable. The hosted website is not part of this product
 repository and is not copied or deployed here.
 
+## Batch merges and publishing
+
+PRs, pushes, tags and merges do not start Actions. Merge all three or four PRs
+first, validate locally, then explicitly run only the publishing workflows you
+need from reviewed `main`:
+
+```sh
+# Build and publish the documentation once.
+gh workflow run docs.yml --repo tensorviz-org/tensorviz --ref main
+
+# Build and publish the reviewed extension version; Open VSX follows automatically.
+gh workflow run release-vsix.yml --repo tensorviz-org/tensorviz --ref main -f publish=true
+
+# Build and publish the reviewed compiled plugin and catalog.
+gh workflow run release-plugin.yml --repo tensorviz-org/tensorviz --ref main -f publish=true
+```
+
+Omit the release commands until the reviewed version and release prerequisites
+below are ready. Omitting `-f publish=true` builds a release candidate without
+publishing; plugin candidate builds still compile all supported platforms.
+`RELEASES_ENABLED` and `DOCS_PUBLISH_ENABLED` remain the publishing gates. Manual
+runs work even when the selected commit contains `[skip ci]`. Skipping a batch
+requires no label or commit message: leave these workflows unrequested until
+ready. Do not dispatch a release for every intermediate merge.
+
+Only **Documentation**, **Release VSIX**, **Release Open VSX** and
+**Release compiled plugin** need to be enabled in Actions. Open VSX is the only
+chained workflow and only follows **Release VSIX**; its publisher checks the
+originating release result before publishing. No diagnostic or validation run
+can trigger a publisher.
+
+**Release safety checks**, **Plugin legacy cache refresh**, **Alpine musl native
+candidate**, **Cross-platform compatibility candidates**, **Ubuntu 20 Codex
+transport diagnostic**, **Windows bootstrap candidate** and **Windows production
+MCP acceptance** are optional manual diagnostics. Keep them disabled in repository
+Actions settings. Their source also has only `workflow_dispatch`, so re-enabling
+one cannot restore automatic PR or merge builds. If a diagnostic is needed,
+explicitly enable it, run it on the desired ref, then disable it again. Its
+platform matrices and runtime downloads can consume substantial runner time.
+
+The trigger policy is verified locally with:
+
+```sh
+node --test tooling/test/actions-policy.test.mjs
+```
+
 ## Reviewed versions and immutable sources
 
 Version bumps and matching package-lock versions must be committed through a
-reviewed PR. The prepared extension and plugin candidates are both `0.1.45`; publication is a separate verified workflow step.
+reviewed PR. The prepared extension and plugin candidates are both `0.1.46`; publication is a separate verified workflow step.
 This aligns the plugin's old `0.3.110` series without changing extension history.
 It is a one-time version-series migration, not a normal semver upgrade.
 
@@ -212,8 +258,11 @@ until the owner has checked version ordering and excluded concurrent publishers.
 
 ## Validation
 
-`Release safety checks` runs on PRs, including forks, with a read-only token and
-no secrets. It validates workflow syntax and credential-free release regressions.
+`Release safety checks` is an optional manual workflow, kept disabled by default.
+When explicitly enabled and dispatched, it uses a read-only token and no publisher
+credentials to validate workflow syntax, release regressions and native candidates.
+Run focused validation locally for routine PRs; do not dispatch the native matrix
+for every change.
 Publication never runs on `pull_request` or `pull_request_target`. Org-only review
 enforcement is deferred until public launch; workflow conditions do not replace
 the GitHub protections that must be verified then.

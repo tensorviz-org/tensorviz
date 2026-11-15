@@ -1,10 +1,8 @@
 name: Release safety checks
 
+# Optional diagnostics only; PRs and merges must not start runners.
 on:
   workflow_dispatch:
-  pull_request:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -27,7 +25,7 @@ jobs:
       - name: Validate Actions syntax
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 -shellcheck=
       - name: Test release provenance, safety and retries without credentials
-        run: node --test plugin/test/native/unix-mcp-readiness.test.mjs plugin/test/native/unix-fixture-cleanup.test.mjs plugin/test/unit/release-migration.test.mjs plugin/test/unit/production-export.test.mjs plugin/test/unit/windows-bootstrap.test.mjs tooling/test/current-native-transition.test.mjs tooling/test/extension-*release*.test.mjs plugin/test/unit/native-publisher*.test.cjs plugin/test/unit/version-alignment.test.cjs plugin/test/unit/cleanup-build-scratch.test.cjs plugin/test/unit/migration-resource-lifecycle.test.cjs plugin/test/unit/native-platforms.test.cjs plugin/test/unit/native-package.test.cjs plugin/test/unit/release-candidate.test.cjs plugin/test/unit/release-workflow.test.cjs
+        run: node --test tooling/test/actions-policy.test.mjs plugin/test/native/unix-mcp-readiness.test.mjs plugin/test/native/unix-fixture-cleanup.test.mjs plugin/test/unit/release-migration.test.mjs plugin/test/unit/production-export.test.mjs plugin/test/unit/windows-bootstrap.test.mjs tooling/test/current-native-transition.test.mjs tooling/test/extension-*release*.test.mjs plugin/test/unit/native-publisher*.test.cjs plugin/test/unit/version-alignment.test.cjs plugin/test/unit/cleanup-build-scratch.test.cjs plugin/test/unit/migration-resource-lifecycle.test.cjs plugin/test/unit/native-platforms.test.cjs plugin/test/unit/native-package.test.cjs plugin/test/unit/release-candidate.test.cjs plugin/test/unit/release-workflow.test.cjs
 
   javascript-dependencies:
     # Exercise the actual checkout, including binary test fixtures omitted by API snapshots.
@@ -53,9 +51,8 @@ jobs:
           npm run test:ci --prefix canvas
 
   native-candidate:
-    # Test the PR merge result with read-only permissions and no secrets.
+    # Test the manually selected ref with read-only permissions and no secrets.
     # Never use pull_request_target or upload these unlicensed evaluation builds.
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -90,7 +87,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.23.4'
-      - name: Record the tested merge commit and its parents
+      - name: Record the tested source commit and its parents
         run: |
           git log -1 --format='%H %P'
           echo "TENSORVIZ_REVIEWED_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
@@ -189,11 +186,10 @@ jobs:
 
       - name: Summarize validation scope
         run: |
-          echo 'PR merge-result native candidate checks only. No provider turn, signed-in GUI, release upload, catalog promotion or deployment.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Manually requested native candidate checks only. No provider turn, signed-in GUI, release upload, catalog promotion or deployment.' >> "$GITHUB_STEP_SUMMARY"
 
   model-acceptance:
     # Offline CPU model checks complement native CLI tests; not manual GUI acceptance.
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     env:
@@ -207,7 +203,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Record tested merge result
+      - name: Record tested source
         run: git log -1 --format='%H %P'
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:

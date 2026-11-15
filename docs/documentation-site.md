@@ -102,16 +102,28 @@ to provision anything:
    | `DOCS_DEPLOY_SERVICE_ACCOUNT` | Docs service account email in `tensorviz-docs` |
    | `DOCS_PUBLISH_ENABLED` | `true` once setup is complete |
 
-5. Accepted changes on upstream `main` publish automatically when
-   `DOCS_PUBLISH_ENABLED=true`; maintainers can also run **Documentation** manually
-   from upstream `main`. Review and approval before merging remain the
+5. Merge the desired PRs, then run **Documentation** manually from upstream
+   `main`. Nothing runs or publishes on a PR, push or merge. When
+   `DOCS_PUBLISH_ENABLED=true`, the manual run builds, checks and publishes the
+   latest selected source together. When it is `false`, the manual run only
+   builds and checks. Review and approval before merging remain the
    maintainers' responsibility. The workflow does not enforce PR review policy.
 
-Every PR, including a fork PR, runs the source check and both builds with read-only
-repository access. There is no `pull_request_target` execution and no PR deployment.
-GitHub may hold a new contributor's run for maintainer approval. The build job
-cannot request an OIDC token. Only the separate deployment job on upstream `main`
-for `push` or `workflow_dispatch` can request a Google identity. It first checks
+```sh
+gh workflow run docs.yml --repo tensorviz-org/tensorviz --ref main
+```
+
+For a batch of three or four PRs, merge them all before running this command once.
+No skip marker, temporary variable change or workflow toggle is needed. A manual
+run can publish a commit containing `[skip ci]`; that marker suppresses automatic
+push/PR events and does not block an explicitly requested run.
+
+Manual builds run the source check and both builds with read-only repository
+access. There is no `pull_request_target` execution and no PR deployment.
+The build job cannot request an OIDC token. Only the separate deployment job on
+upstream `main` for `workflow_dispatch` can request a Google identity. The existing
+provider's permission for `push` may remain configured, but no push event starts
+this workflow. The deployment job first checks
 the project, service account and artifact provenance, then selects the docs target
 from the configured site ID and deploys only `hosting:docs`. Fork repositories and
 other branches cannot enter that job, even if they enable publishing variables.

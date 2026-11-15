@@ -1,12 +1,8 @@
 name: Ubuntu 20 Codex transport diagnostic (published 0.1.44 only)
+# Optional diagnostics only; PRs and merges must not start runners.
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - '.github/workflows/ubuntu20-codex-diagnostic.yml'
-      - 'plugin/test/native/ubuntu20-published44-diagnostic.mjs'
-      - 'plugin/test/native/unix-production-mcp.mjs'
-      - 'plugin/test/native/unix-mcp-readiness.mjs'
+
 permissions:
   contents: read
 concurrency:

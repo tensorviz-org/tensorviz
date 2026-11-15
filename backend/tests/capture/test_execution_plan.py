@@ -33,6 +33,7 @@ timeout_ms = 1000
 max_events = 40
 max_tensors = 50
 max_record_bytes = 100000
+max_capture_bytes = 100000
 '''
 
 
@@ -84,7 +85,7 @@ def test_profile_preserves_exact_bindings_limits_and_identity(plan_request):
 
 def test_large_graph_budget_is_explicit_and_does_not_enlarge_validation_records(plan_request):
     root = Path(plan_request['root'])
-    (root / 'tensorviz.toml').write_text(CONFIG + 'max_capture_bytes = 16777216\n')
+    (root / 'tensorviz.toml').write_text(CONFIG.replace('max_capture_bytes = 100000', 'max_capture_bytes = 16777216'))
     preflight = {k: v for k, v in plan_request.items() if k != 'execution'} | {'profile': 'small'}
     spec = RunSpec.model_validate(snapshot(preflight)['resolution']['spec'])
     plan_request.update(profile='small', expectedIdentity=spec.identity.model_dump(), execution=profile_execution(spec.profile))
@@ -96,6 +97,17 @@ def test_large_graph_budget_is_explicit_and_does_not_enlarge_validation_records(
         Limits(max_capture_bytes=16777217)
     with pytest.raises(ValueError):
         Limits(max_record_bytes=16777216)
+
+
+def test_omitted_capture_budget_is_independent_of_validation_records(plan_request):
+    assert parsed(plan_request).captureLimits.bytes == 16777216
+    root = Path(plan_request['root'])
+    (root / 'tensorviz.toml').write_text(CONFIG.replace('max_capture_bytes = 100000\n', ''))
+    preflight = {k: v for k, v in plan_request.items() if k != 'execution'} | {'profile': 'small'}
+    spec = RunSpec.model_validate(snapshot(preflight)['resolution']['spec'])
+    plan_request.update(profile='small', expectedIdentity=spec.identity.model_dump(), execution=profile_execution(spec.profile))
+    assert parsed(plan_request).captureLimits.bytes == 16777216
+    assert spec.profile.limits.max_record_bytes == 100000
 
 
 @pytest.mark.parametrize('change', ['config', 'source', 'new_helper', 'recipe', 'mode', 'device', 'grad', 'seed', 'cwd', 'timeout', 'environment'])

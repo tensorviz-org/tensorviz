@@ -73,7 +73,7 @@ def source_snapshot(request, facts, config):
 
 
 def default_capture_limits():
-    return CaptureLimits(operations=8192, invocations=4096, values=10000, bytes=4194304)
+    return CaptureLimits(operations=8192, invocations=4096, values=10000, bytes=v.CAPTURE_MAX_BYTES)
 
 
 def resolve_plan(request: dict, facts, config: bytes | None, resolution) -> ResolvedExecutionPlan:

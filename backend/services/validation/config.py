@@ -117,11 +117,12 @@ _REMEDIES = {
     "values": "Supply at most 4096 compatible literals in flat row-major order, exactly matching the shape product.",
     "cwd": "Use . or an existing workspace-relative directory with / separators and no traversal.",
     "tracked_files": "List distinct existing workspace-relative regular files; do not use globs or aliases.",
-    "limits": "Use timeout_ms, max_events, max_tensors and max_record_bytes within the documented bounds.",
+    "limits": "Use timeout_ms, max_events, max_tensors, max_record_bytes and max_capture_bytes within the documented bounds.",
     "timeout_ms": "Set limits.timeout_ms to an integer between 100 and 86400000 (milliseconds).",
     "max_events": "Set an integer max_events between 1 and 100000.",
     "max_tensors": "Set an integer max_tensors between 1 and 100000.",
-    "max_record_bytes": "Set an integer max_record_bytes between 1024 and 4194304.",
+    "max_record_bytes": "Set an integer max_record_bytes between 1024 and 4194304 for validation records. For graph recording, use limits.max_capture_bytes (1024..16777216; default 16777216).",
+    "max_capture_bytes": "Set an integer max_capture_bytes between 1024 and 16777216 for graph recording; the default is 16777216. This is independent of max_record_bytes for validation records.",
 }
 _VALUE_REMEDY = ("Use a safe integer, boolean, string or a tagged float/none/list/tuple/dict/tensor value. "
                  "Use a script profile for object construction, expressions or factories.")

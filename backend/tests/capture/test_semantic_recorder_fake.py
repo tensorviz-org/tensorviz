@@ -11,6 +11,7 @@ purpose: it runs the canonical recorder with no fake mode of its own, which is t
 recorder path a fake-tier capture uses once construction happens inside the mode.
 """
 import json
+from dataclasses import replace
 
 import pytest
 import torch
@@ -21,6 +22,8 @@ from services.ingest import execution_setup
 from services.ingest.trace import trace_model
 from services.semantic.contracts import CaptureLimits, CaptureSnapshot, CapturePreparation, SourceSnapshot
 from services.semantic.recorder import CaptureContext, automatic_context
+from services.semantic.execution_plan import default_capture_limits
+from tests.capture.fixtures.hundred_billion_decoder import Decoder100B
 
 
 @pytest.fixture
@@ -53,6 +56,31 @@ def both(build, inputs, context):
     assert all(type(p) is FakeTensor for p in fake_model.parameters())
     assert real.semantic_capture is not None and fake.semantic_capture is not None, (real.error, fake.error)
     return real, fake
+
+
+def test_default_budget_retains_all_100b_decoder_operations_and_output(context):
+    context = replace(context, limits=default_capture_limits())
+    model, result = run(Decoder100B, lambda: ((torch.zeros(1, 16, dtype=torch.int64),), {}), context, fake=True)
+    assert all(isinstance(p, FakeTensor) for p in model.parameters())
+    assert sum(p.numel() for p in model.parameters()) == 101939755008
+    assert result.error is None, result.error
+    capture = result.semantic_capture
+    assert capture is not None
+    assert capture['status'] == 'complete', capture['coverage']
+    assert capture['coverage']['omissions'] == []
+    assert len(capture['operations']) == capture['coverage']['operationsSeen']
+    assert len(capture['invocations']) == capture['coverage']['invocationsSeen']
+    assert capture['valuesUnavailable'] == 'fake_tensor'
+    assert len(json.dumps(capture).encode()) > 4 * 1024 * 1024
+    output = capture['output']
+    assert output['kind'] == 'value'
+    value = next(value for value in capture['values'] if value['id'] == output['id'])
+    assert value['shape'] == [1, 16, 32768]
+    called = {call['moduleId'] for call in capture['invocations']}
+    blocks = [module for module in capture['modules'] if any(
+        path.startswith('blocks.') and path.count('.') == 1 for path in module['paths'])]
+    assert len(blocks) == 48
+    assert all(block['id'] in called for block in blocks)
 
 
 def comparable(capture):

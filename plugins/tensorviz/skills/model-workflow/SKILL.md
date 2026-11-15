@@ -24,6 +24,12 @@ omitted modules and `inspect_capture` for oversized call lists. Reading context
 never refreshes execution. New source/setup or missing required measurements need
 an explicit capture through the host's existing permission flow.
 
+Graph recording uses `limits.max_capture_bytes` (16 MiB by default, 1024–16777216
+bytes). `max_record_bytes` is a separate validation-record budget capped at 4 MiB;
+raising it cannot expand a graph. Preserve explicit smaller capture limits. When a
+capture reports `byte_limit`, inspect its resolved capture limits and coverage
+before changing the saved recipe. A passing forward is not a complete recording.
+
 Use `open_graph` when a capture is needed and the tool is advertised. It waits briefly for completion and yields early
 for permission or setup. Poll the same requestId only while it remains pending;
 never start duplicate captures or sleep repeatedly in the agent. Continue its returned next action until a

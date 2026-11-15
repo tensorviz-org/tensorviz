@@ -250,7 +250,7 @@ export interface components {
         Limits: {
             /**
              * Max Capture Bytes
-             * @default null
+             * @default 16777216
              */
             max_capture_bytes?: number | null;
             /**

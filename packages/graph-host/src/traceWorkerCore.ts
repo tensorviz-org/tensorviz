@@ -2,6 +2,7 @@ import { ChildProcess, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { backendPythonArgs, nativeBackend } from './backendPython';
+import { CAPTURE_ENVELOPE_MAX_BYTES } from './captureBudgets';
 import { tensorInputsSchema, type TensorInputs } from './tensorInputs';
 import { executionSpecSchema, executionJobSchema, type ExecutionJob, type ExecutionSpec } from './executionSpec';
 import { resolveExecutionPlan, resolveCapturePreparation, resolveRetainedPlan, executionPlanFile,
@@ -282,7 +283,7 @@ export function runProcess(
     if (options.prestarted) {
       for (const chunk of options.prestarted.stderr) { buffers.stderr.push(chunk); sizes.stderr += chunk.length; }
     }
-    const limits = { stdout: options.stdoutLimit ?? 32 * 1024 * 1024, stderr: options.stderrLimit ?? 1024 * 1024 };
+    const limits = { stdout: options.stdoutLimit ?? CAPTURE_ENVELOPE_MAX_BYTES, stderr: options.stderrLimit ?? 1024 * 1024 };
     let outputLimit: 'stdout' | 'stderr' | undefined;
     let timedOut = false;
     let settled = false;

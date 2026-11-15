@@ -46,11 +46,24 @@ for (const [output, source] of Object.entries(sources)) {
   }
   assert((await stat(path.join(root, 'markdown', output))).isFile(), `Missing Markdown for ${source}`)
 }
-for (const name of ['index.html', 'quickstart.html', 'guides.html', 'install.html', 'agent-plugin.html', 'jax-support.html', 'graph-diff-review/index.html', 'llms.txt', 'licenses/geist-OFL.txt', 'licenses/geist-mono-OFL.txt']) {
+for (const name of ['index.html', 'quickstart.html', 'guides.html', 'install.html', 'agent-plugin.html', 'jax-support.html', 'graph-diff-review/index.html', 'llms.txt', 'robots.txt', 'sitemap.xml', 'licenses/geist-OFL.txt', 'licenses/geist-mono-OFL.txt']) {
   assert((await stat(path.join(root, name))).isFile(), `Missing docs resource: ${name}`)
 }
+const siteUrl = `https://docs.tensorviz.dev${base}`
+const sitemap = await readFile(path.join(root, 'sitemap.xml'), 'utf8')
+const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1])
+const expectedUrls = Object.keys(sources).filter(output => output !== '404.md').map(output =>
+  siteUrl + output.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '.html'))
+assert.deepEqual(sitemapUrls.toSorted(), expectedUrls.toSorted(), 'Sitemap must list each documentation page once, excluding 404 and static resources')
+assert(sitemapUrls.includes(`${siteUrl}quickstart.html`), 'Missing quickstart URL in sitemap')
+const robots = await readFile(path.join(root, 'robots.txt'), 'utf8')
+const [allowGroup, sitemapDirective] = robots.trim().split(/\n\s*\n/)
+const agents = [...allowGroup.matchAll(/^User-agent: (.+)$/gm)].map(match => match[1])
+assert.deepEqual(agents, ['*', 'GPTBot', 'ChatGPT-User', 'OAI-SearchBot', 'ClaudeBot', 'Claude-User', 'Claude-SearchBot', 'anthropic-ai', 'PerplexityBot', 'Perplexity-User', 'Google-Extended', 'Applebot-Extended', 'Bingbot', 'CCBot'])
+assert(allowGroup.endsWith('Allow: /'), 'All crawlers must share the allow group')
+assert.equal(sitemapDirective, 'Sitemap: https://docs.tensorviz.dev/sitemap.xml')
 const info = JSON.parse(await readFile(path.join(root, 'build-info.json'), 'utf8'))
 assert.equal(info.source, 'https://github.com/tensorviz-org/tensorviz')
 assert.equal(info.revision, generated.sha)
 assert.equal(info.base, base)
-console.log(`Verified ${pages.size} pages, ${links} local links/anchors, ${editLinks} source-edit links, ${Object.keys(sources).length} Markdown downloads and build provenance at ${base}.`)
+console.log(`Verified ${pages.size} pages, ${links} local links/anchors, ${editLinks} source-edit links, ${Object.keys(sources).length} Markdown downloads, robots, sitemap and build provenance at ${base}.`)

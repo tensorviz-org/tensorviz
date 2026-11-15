@@ -6,6 +6,7 @@ import { REPO, route } from './routes.mjs'
 
 const gen = JSON.parse(fs.readFileSync(path.join(__dirname, 'cache/generated.json'), 'utf8'))
 const base: string = gen.base || '/'
+const siteUrl = `https://docs.tensorviz.dev${base}`
 // `head` is written into the HTML as given. The nav logo goes through
 // VPImage's withBase, which prefixes `base` itself.
 const asset = (p: string) => (base === '/' || p.startsWith(base) ? p : `${base}${p.replace(/^\//, '')}`)
@@ -53,6 +54,11 @@ export default async () => {
     appearance: true,
     // Keep article URLs compatible with existing shared documentation links.
     cleanUrls: false,
+    sitemap: {
+      hostname: siteUrl,
+      // VitePress includes Markdown pages only; downloads and build metadata stay out.
+      transformItems: (items) => items.filter(({ url }) => url !== '404.html'),
+    },
     srcExclude: ['**/node_modules/**', 'public/**'],
     head: [
       ['link', { rel: 'icon', type: 'image/svg+xml', href: asset('/logo.svg') }],

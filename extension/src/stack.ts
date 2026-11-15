@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 
 import { BackendLaunch, HOST, backendEnv, backendOrigin, backendReload } from './config';
 import { BACKEND_RESTART_LIMIT, planBackendExit } from './backendExit';
+import { MAX_WIRE_BYTES } from '@tensorviz/graph-host/localBrowserWire';
 
 const TAIL_LINES = 40;
 
@@ -159,6 +160,9 @@ export class BackendProcess implements vscode.Disposable {
       HOST,
       '--port',
       String(this.launch.port),
+      // The broker's frame bound; uvicorn's default is 16 MiB.
+      '--ws-max-size',
+      String(MAX_WIRE_BYTES),
     ];
     const cwd = this.backendDir;
     if (backendReload(process.env)) {

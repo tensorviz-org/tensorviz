@@ -3,7 +3,7 @@
  * through tensorviz.dev and uploads it to their account, as private. The view opens the
  * website itself, only when the member clicks: the connect page while signing in, and
  * the graph's Share page afterwards. No token or website credential reaches this page. */
-import { LOCAL_BROWSER_PUBLISH_MAX_BYTES, newLocalBrowserMessageId,
+import { LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH, LOCAL_BROWSER_PUBLISH_MAX_BYTES, newLocalBrowserMessageId,
   type LocalBrowserPublishedGraph, type LocalBrowserTargetIdentity } from './protocol.generated';
 import type { LocalBrowserViewTransport } from './localBrowserViewTransport';
 import { sameValidationTarget } from './localBrowserValidationClient';
@@ -94,11 +94,16 @@ export function createLocalBrowserPublishClient(transport: LocalBrowserViewTrans
       if (disposed || state.phase !== 'preparing') return;
       const target = activeTarget();
       if (!target || !connected()) { set({ phase: 'failed', detail: 'Connect to the tensorViz plugin to publish this graph.' }); return; }
-      if (new Blob([graphFile]).size > LOCAL_BROWSER_PUBLISH_MAX_BYTES) { set({ phase: 'failed', detail: 'tensorViz takes graph files up to 10 MB.' }); return; }
+      // A string longer than the limit is longer still in UTF-8; Blob measures the rest exactly.
+      if (graphFile.length > LOCAL_BROWSER_PUBLISH_MAX_BYTES || new Blob([graphFile]).size > LOCAL_BROWSER_PUBLISH_MAX_BYTES) {
+        set({ phase: 'failed', detail: 'tensorViz takes graph files up to 96 MB.' }); return;
+      }
       const asked = { id: newLocalBrowserMessageId(), target: { ...target } };
       pending = asked;
       void compress(graphFile).then(file => {
         if (pending !== asked) return;
+        // The website also limits the file gzipped, as it travels. Graph files rarely come close.
+        if (file.length > LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH) { finish({ phase: 'failed', detail: 'tensorViz takes graph files up to 23 MB compressed.' }); return; }
         if (!transport.send({ type: 'graphPublishRequest', target: asked.target, requestId: asked.id, file })) finish({ phase: 'failed', detail: UNREACHABLE });
       }).catch(() => { if (pending === asked) finish({ phase: 'failed', detail: 'This graph could not be prepared for publishing.' }); });
     },

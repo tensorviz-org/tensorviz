@@ -13,8 +13,10 @@ needed and the rest of the suite is untouched. Two integration tests at the
 bottom load the real server_v2 to prove the router is actually mounted.
 """
 
+import base64
 import contextlib
 import logging
+import os
 import time
 
 import pytest
@@ -26,6 +28,8 @@ from starlette.websockets import WebSocketDisconnect
 from middleware import LOCAL_TOKEN_HEADER, LoggingMiddleware  # noqa: E402
 from services.ide.local_browser_protocol import (  # noqa: E402
     LOCAL_BROWSER_ERROR_CODES,
+    LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH,
+    LOCAL_BROWSER_PUBLISH_MAX_PACKED_BYTES,
     is_local_browser_message,
 )
 from services.ide.local_browser_broker import (  # noqa: E402
@@ -736,6 +740,22 @@ def test_publish_progress_and_result_reach_only_the_asking_view_and_cancel_when_
         assert (cancel["type"], cancel["requestId"]) == ("graphPublishCancel", "publish-left")
         host.send_json(envelope("focusNode", session["workspaceSessionId"], 1808, hostSequence=1, target=target(), nodeId="n"))
         assert other.receive_json()["type"] == "focusNode", "publish traffic never reaches another view"
+
+
+def test_publish_relays_the_largest_graph_file_the_website_takes(client):
+    from services.ide.local_browser_wire import decode_message
+    session = mint(client)
+    host, _ = connect_host(client, session)
+    asking, _, _ = connect_view(client, cookie_key_of(bootstrap(client, session)), session, n=1810)
+    # Gzipped data does not shrink again, so this is the largest frame Publish sends.
+    file = base64.b64encode(os.urandom(LOCAL_BROWSER_PUBLISH_MAX_PACKED_BYTES)).decode("ascii")
+    with entered(host, asking):
+        asking.send_json(request("graphPublishRequest", session, 1811, "publish-large", file=file))
+        forwarded = decode_message(host.receive_text())
+        assert (forwarded["requestId"], forwarded["file"] == file) == ("publish-large", True)
+        asking.send_json(request("graphPublishRequest", session, 1812, "publish-larger",
+                                 file="A" * (LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH + 4)))
+        assert asking.receive_json()["code"] == "INVALID_MESSAGE"
 
 
 def test_source_request_without_a_host_and_unknown_host_replies_are_handled(client):

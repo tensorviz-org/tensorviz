@@ -1,10 +1,14 @@
 import base64
 import gzip
 import json
+import os
 from pathlib import Path
 
 import pytest
 
+from services.ide.local_browser_protocol import (
+    LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH, LOCAL_BROWSER_PUBLISH_MAX_PACKED_BYTES,
+)
 from services.ide.local_browser_wire import (
     ENCODING, MAX_DECODED_BYTES, MAX_WIRE_BYTES, decode_message, encode_message,
 )
@@ -25,6 +29,17 @@ def test_large_message_is_lossless_and_small_messages_keep_plain_json():
     assert len(encoded.encode()) < MAX_WIRE_BYTES
     assert json.loads(encoded)["encoding"] == ENCODING
     assert decode_message(encoded) == large
+
+
+def test_publish_largest_graph_file_fits_one_frame_though_gzip_cannot_shrink_it():
+    file = base64.b64encode(os.urandom(LOCAL_BROWSER_PUBLISH_MAX_PACKED_BYTES)).decode("ascii")
+    assert len(file) <= LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH
+    request = {"type": "graphPublishRequest", "protocolVersion": 1, "workspaceSessionId": "s" * 36,
+               "messageId": "m" * 36, "requestId": "r" * 36,
+               "target": {"workspaceFolder": "/ws", "file": "net.py"}, "file": file}
+    encoded = encode_message(request)
+    assert len(encoded.encode()) <= MAX_WIRE_BYTES
+    assert decode_message(encoded) == request
 
 
 @pytest.mark.parametrize("text", [

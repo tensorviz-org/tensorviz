@@ -1,5 +1,6 @@
 /** The browser uses its streaming inflater so a small frame cannot allocate an unbounded document. */
-export const MAX_WIRE_BYTES = 16 * 1024 * 1024;
+/** The hosts' and the broker's frame bound, which fits Publish's graph file. */
+export const MAX_WIRE_BYTES = 32 * 1024 * 1024;
 export const MAX_DECODED_BYTES = 96 * 1024 * 1024;
 const ENCODING = 'tensorviz-gzip-json-v1';
 // CRA's pinned TypeScript DOM library predates this native Chromium API.

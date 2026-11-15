@@ -18,10 +18,11 @@ from urllib.parse import urlsplit
 
 LOCAL_BROWSER_PROTOCOL_VERSION: Final[int] = 1
 LOCAL_BROWSER_CAPTURE_EXPORT_MAX_BYTES: Final[int] = 16 * 1024 * 1024
-#: Publish to tensorviz.dev: the website's graph-file limit, and the gzipped file in
-#: base64 with room for gzip framing around an incompressible file.
-LOCAL_BROWSER_PUBLISH_MAX_BYTES: Final[int] = 10 * 1024 * 1024
-LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH: Final[int] = 4 * math.ceil((LOCAL_BROWSER_PUBLISH_MAX_BYTES + 65536) / 3)
+#: Publish to tensorviz.dev: the website's graph-file limit, its limit for the file
+#: gzipped (as it travels), and that gzipped file in base64.
+LOCAL_BROWSER_PUBLISH_MAX_BYTES: Final[int] = 96 * 1024 * 1024
+LOCAL_BROWSER_PUBLISH_MAX_PACKED_BYTES: Final[int] = 23 * 1024 * 1024
+LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH: Final[int] = 4 * math.ceil(LOCAL_BROWSER_PUBLISH_MAX_PACKED_BYTES / 3)
 _BASE64 = re.compile(r"[A-Za-z0-9+/]+={0,2}")
 _GRAPH_ID = re.compile(r"[A-Za-z0-9]+")
 

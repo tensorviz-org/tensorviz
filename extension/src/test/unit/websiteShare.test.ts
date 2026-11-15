@@ -1,4 +1,5 @@
 import * as assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
 import { WEBSITE, WebsiteError } from '../../websiteAccount';
 import { graphUrl, shareGraph, shareableGraph, SHARE_LIMITS, uploadBody } from '../../websiteShare';
@@ -18,6 +19,18 @@ suite('Add to tensorViz', () => {
       Buffer.alloc(SHARE_LIMITS.bytes + 1, 32)]) {
       assert.throws(() => shareableGraph(bytes), (error: WebsiteError) => error.code === 'invalid');
     }
+  });
+
+  test('takes the most blocks the website opens, in files past the former 10 MB limit', () => {
+    const large = shareableGraph(graphFile(SHARE_LIMITS.nodes, 'Large', { notes: 'x'.repeat(11 * 1024 * 1024) }));
+    assert.equal(large.nodes, 20000);
+    assert.ok(large.bytes > 10 * 1024 * 1024 && large.bytes <= SHARE_LIMITS.bytes);
+    assert.equal(gunzipSync(Buffer.from(large.packed, 'base64')).toString('utf8'), large.text);
+    // A file within 96 MB can still be too large to send: the website takes it gzipped, up to 23 MB.
+    const noise = graphFile(1, 'Noise', { notes: randomBytes(26 * 1024 * 1024).toString('base64') });
+    assert.ok(noise.length < SHARE_LIMITS.bytes);
+    assert.throws(() => shareableGraph(noise), (error: WebsiteError) => error.code === 'invalid' && /23 MB compressed/.test(error.message));
+    assert.equal(SHARE_LIMITS.packed, 23 * 1024 * 1024);
   });
 
   test('sends the upload API the file gzipped, titled with the model, private', () => {
@@ -54,9 +67,9 @@ suite('Add to tensorViz', () => {
     assert.equal(world.seen.filter(request => request.url.includes('securetoken')).length, 1, 'renewed after the 401');
 
     const refused = setup(url => isUpload(url)
-      ? Response.json({ error: { code: 'invalid', message: 'tensorViz takes graphs with 1 to 5,000 blocks.' } }, { status: 400 }) : undefined);
+      ? Response.json({ error: { code: 'invalid', message: 'Graph files must be smaller than 96 MB.' } }, { status: 413 }) : undefined);
     await signIn(refused);
     await assert.rejects(shareGraph(refused.account, shareableGraph(graphFile(2)), refused.fetcher),
-      (error: WebsiteError) => error.code === 'invalid' && /5,000 blocks/.test(error.message));
+      (error: WebsiteError) => error.code === 'invalid' && /96 MB/.test(error.message));
   });
 });

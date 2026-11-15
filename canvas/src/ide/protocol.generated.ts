@@ -435,9 +435,11 @@ export type LocalBrowserCaptureExportResultMessage = LocalBrowserEnvelope<'captu
 };
 
 /** Publish to tensorviz.dev: the website's graph-file limit, checked before the file leaves the view. */
-export const LOCAL_BROWSER_PUBLISH_MAX_BYTES = 10 * 1024 * 1024;
-/** The gzipped graph file in base64, with room for gzip framing around an incompressible file. */
-export const LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH = 4 * Math.ceil((LOCAL_BROWSER_PUBLISH_MAX_BYTES + 65536) / 3);
+export const LOCAL_BROWSER_PUBLISH_MAX_BYTES = 96 * 1024 * 1024;
+/** The website's limit for the file gzipped, as it travels; its requests stay under 32 MiB. */
+export const LOCAL_BROWSER_PUBLISH_MAX_PACKED_BYTES = 23 * 1024 * 1024;
+/** The gzipped graph file in base64. */
+export const LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH = 4 * Math.ceil(LOCAL_BROWSER_PUBLISH_MAX_PACKED_BYTES / 3);
 /** A graph the website accepted: its page, and the page that opens its Share dialog. */
 export interface LocalBrowserPublishedGraph { id: string; title: string; url: string; shareUrl: string }
 export type LocalBrowserGraphPublishRequestMessage = LocalBrowserEnvelope<'graphPublishRequest'> & {

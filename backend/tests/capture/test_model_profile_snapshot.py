@@ -83,6 +83,16 @@ def test_selected_signature_and_unsaved_config_fail_with_requirements(project):
     assert any(r["code"] == "unsaved" for r in dirty["resolution"]["requirements"])
 
 
+def test_oversize_validation_record_limit_points_to_graph_budget(project):
+    config = (FIXTURES / 'valid.toml').read_text().replace('timeout_ms = 30000',
+        'timeout_ms = 30000, max_record_bytes = 16777216')
+    (project / 'tensorviz.toml').write_text(config)
+    requirements = prepare(project, 'audit_small')['resolution']['requirements']
+    remedy = next(r['remedy'] for r in requirements if r['field'][-1] == 'max_record_bytes')
+    assert '4194304' in remedy and 'validation records' in remedy
+    assert 'limits.max_capture_bytes' in remedy
+
+
 def test_existing_empty_variadic_profile_returns_to_setup_without_importing(tmp_path):
     (tmp_path / "model.py").write_text('''raise RuntimeError("must not import during preflight")
 from torch import nn

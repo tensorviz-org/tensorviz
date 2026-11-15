@@ -15,6 +15,7 @@ VERSION = 1
 MAX_SAFE_INTEGER = 2**53 - 1
 CONFIG_MAX_BYTES = 262144
 RECORD_MAX_BYTES = 4194304
+CAPTURE_MAX_BYTES = 16777216
 WORKER_FRAME_MAX_BYTES = RECORD_MAX_BYTES + 4096
 WORKER_HELLO_MAX_BYTES = 1024
 WORKER_MAX_RECORDS = 8
@@ -190,7 +191,7 @@ class Limits(Contract):
     max_tensors: Annotated[StrictInt, Field(ge=1, le=100000)] = 10000
     max_record_bytes: Annotated[StrictInt, Field(ge=1024, le=RECORD_MAX_BYTES)] = RECORD_MAX_BYTES
     # Graph capture is independent of the bounded validation-record transport.
-    max_capture_bytes: Annotated[StrictInt, Field(ge=1024, le=16777216)] | None = None
+    max_capture_bytes: Annotated[StrictInt, Field(ge=1024, le=CAPTURE_MAX_BYTES)] | None = CAPTURE_MAX_BYTES
 
 
 class CaptureSelector(Contract):

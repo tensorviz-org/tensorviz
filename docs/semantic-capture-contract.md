@@ -140,7 +140,7 @@ can terminate an attempt without producing a new capture; a projection failure c
 retain a new capture while displaying an earlier one. Legacy evidence is explicitly
 partial, even after a successful forward, because its completeness is not established.
 It cannot fill the complete semantic-capture slot. Captures are immutable JSON copies,
-bounded to 16 MiB each; only complete/partial/displayed slots remain retained. Oversize
+bounded to 64 MiB each; only complete/partial/displayed slots remain retained. Oversize
 captures retain their identity with an explicit retention-limit reason. The latest
 resolved plan or preparation has a separate 16 MiB bound. These are host-session
 records, not disk persistence. Planned and prepared automatic captures populate the complete/partial slots after
@@ -148,6 +148,14 @@ host schema, execution-identity, budget and basic completeness checks. Python re
 the owner of full relational validation. Invalid or duplicate canonical payloads
 cannot replace complete evidence; their legacy result remains explicitly partial
 with a host-private rejection reason.
+
+Graph recording defaults to 16 MiB, independently of the validation-record budget
+of 4 MiB. Explicit smaller `limits.max_capture_bytes` values remain authoritative.
+The worker envelope has a 64 MiB bound because it also includes the legacy graph,
+execution plan and evidence outside recorder accounting. The standalone service
+response has a 128 MiB bound to accommodate its additional projection. These
+transport bounds do not increase recorder, validation-record or browser-document
+limits. An incomplete capture is never promoted to complete after transport.
 
 The browser's bounded `validation.evidence` summary carries attempt origin/outcome,
 source/plan identities, retained slot IDs and displayed-capture attribution. Its

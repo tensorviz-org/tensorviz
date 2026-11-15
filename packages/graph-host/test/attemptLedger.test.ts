@@ -179,6 +179,22 @@ suite('semantic attempt and retained capture ledger', () => {
     assert.equal(ledger.executionPlan(target)!.source.id, 'source:resolved', 'resolved plan survives a stopped attempt with no capture');
   });
 
+  test('a supported capture envelope above 16 MiB remains retained and inspectable', () => {
+    const ledger = new AttemptLedger();
+    const { capture, plan } = canonicalFixture('large');
+    const handle = ledger.begin('large', target, 'manual', null);
+    handle.resolved({ plan, applicabilityDigest: capture.planDigest });
+    const outcome = result();
+    outcome.envelope!.result = { graph: { label: 'x'.repeat(17 * 1024 * 1024) },
+      diagnostics: { semantic_capture: capture } };
+    handle.captured(outcome); handle.finish('passed');
+    const retained = ledger.capture(capture.id)!;
+    assert.equal(ledger.state(target).lastCompleteCaptureId, capture.id);
+    assert.equal(retained.record.unavailable, null);
+    assert.ok(retained.record.retainedBytes > 16 * 1024 * 1024);
+    assert.ok(retained.envelope?.result);
+  });
+
   test('retention is bounded without losing the fact that a capture existed', () => {
     const ledger = new AttemptLedger(512);
     const capture = result(), envelope = capture.envelope as WorkerEnvelope;

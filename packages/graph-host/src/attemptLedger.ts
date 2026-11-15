@@ -4,6 +4,7 @@ import type { ExecutionSnapshot, ResolvedExecutionPlan, PreparationSnapshot, Cap
 import type { LocalBrowserTargetIdentity, LocalBrowserValidationOutcome, LocalBrowserValidationEvidence } from '@tensorviz/contracts/protocol';
 import type { TraceOutcome, WorkerEnvelope } from './traceWorkerCore';
 import { semanticCapture } from './semanticCapture';
+import { CAPTURE_ENVELOPE_MAX_BYTES } from './captureBudgets';
 
 type RunAttempt = components['schemas']['RunAttempt'];
 type CaptureState = components['schemas']['CaptureState'];
@@ -55,7 +56,7 @@ export class AttemptLedger {
   private readonly captures = new Map<string, { token: symbol; record: CaptureRecord; body?: string }>();
   private readonly envelopes = new WeakMap<WorkerEnvelope, string>();
 
-  constructor(private readonly maxCaptureBytes = 16 * 1024 * 1024) {}
+  constructor(private readonly maxCaptureBytes = CAPTURE_ENVELOPE_MAX_BYTES) {}
 
   begin(id: string, target: LocalBrowserTargetIdentity, origin: RunAttempt['origin'], request: unknown): AttemptHandle {
     const key = modelKey(target);
@@ -86,7 +87,7 @@ export class AttemptLedger {
         attempt.sourceId = plan.source.id;
         attempt.planDigest = snapshot.applicabilityDigest;
         const body = JSON.stringify(plan);
-        if (this.latest === handle && Buffer.byteLength(body) <= this.maxCaptureBytes) this.planBody = body;
+        if (this.latest === handle && Buffer.byteLength(body) <= Math.min(this.maxCaptureBytes, 16 * 1024 * 1024)) this.planBody = body;
         if (this.latest === handle && (plan.execution?.mode === 'eval' || plan.execution?.mode === 'train' || plan.execution?.mode === 'preserve')
           && typeof plan.execution.device === 'string') {
           this.planLabels = { origin: plan.origin, profileName: plan.profileName,
@@ -99,7 +100,7 @@ export class AttemptLedger {
         preparationDigest = snapshot.applicabilityDigest;
         attempt.sourceId = preparation.source.id;
         const body = JSON.stringify(preparation);
-        if (this.latest === handle && Buffer.byteLength(body) <= this.maxCaptureBytes) this.preparationBody = body;
+        if (this.latest === handle && Buffer.byteLength(body) <= Math.min(this.maxCaptureBytes, 16 * 1024 * 1024)) this.preparationBody = body;
       },
       captured: result => {
         if (!open() || outcome) return;

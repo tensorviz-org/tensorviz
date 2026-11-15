@@ -264,8 +264,14 @@ repeated tensor references; it does not guess model inputs.
 
 ## Large graph capture budgets
 
-Model profiles may set `limits.max_capture_bytes` from 1 KiB through 16 MiB for
-canonical graph captures. Omit it to retain `max_record_bytes` as the capture
-budget. The independent validation-record limit stays at 4 MiB; a larger graph
-budget never enlarges that transport. This explicit opt-in is useful for full-size
-JAX transformers.
+Canonical graph captures default to a 16 MiB recording budget, independently of
+the 4 MiB validation-record limit. Model profiles may set
+`limits.max_capture_bytes` from 1 KiB through 16 MiB to choose a smaller recording
+budget. Explicit limits remain authoritative. `limits.max_record_bytes` bounds
+validation records; raising it does not expand the graph recording budget.
+
+Recording limits apply to captured evidence, not parameter storage: a FakeTensor
+model can have billions of parameter elements without allocating their values.
+A successful forward still needs its coverage checked. A `byte_limit` omission
+means the recording is partial even when the forward passed; inspect the resolved
+`captureLimits.bytes` before changing the recipe.

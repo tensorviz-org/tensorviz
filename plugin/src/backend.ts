@@ -8,6 +8,7 @@ import { createLocalBrowserHostTransport, mintLocalBrowserSession, mintLocalBrow
 import { preparePortableCapture, PortableExportError, type PortableCapture } from '@tensorviz/graph-host/portableCapture';
 import type { CaptureSnapshot } from '@tensorviz/graph-host/semanticCapture';
 import { HostError } from './workspace';
+import { CAPTURE_SERVICE_MAX_BYTES } from '@tensorviz/graph-host/captureBudgets';
 
 /** One owned service process; it receives source snapshots, never execution authority. */
 export class Backend {
@@ -87,7 +88,7 @@ export class Backend {
       const { value, done } = await reader.read();
       if (done) break;
       size += value.length;
-      if (size > 32 * 1024 * 1024) { await reader.cancel(); throw new HostError('RESULT_LIMIT', 'The local-service result exceeds its limit.'); }
+      if (size > CAPTURE_SERVICE_MAX_BYTES) { await reader.cancel(); throw new HostError('RESULT_LIMIT', 'The local-service result exceeds its limit.'); }
       chunks.push(value);
     }
     const result = JSON.parse(Buffer.concat(chunks).toString());

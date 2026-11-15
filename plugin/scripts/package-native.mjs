@@ -3,9 +3,9 @@ import { execFileSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeBundleNotices } from '../../tooling/packaging/bundle-notices.mjs';
 import { nativePlatform, nativePlatforms, runtimeArchive, nativeArchiveTool } from './native-platforms.mjs';
 import { validateRuntimeLock } from './export-public.mjs';
+import { rendererLicenseKey, writeNativeDependencyNotices } from './renderer-artifact.mjs';
 
 const repository = fileURLToPath(new URL('../..', import.meta.url));
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -41,20 +41,10 @@ export async function auditNativeRuntime(directory, platform = nativePlatform().
 }
 
 async function notices(directory, target = nativePlatform()) {
-  const host = await json(path.join(repository, 'plugin/out/host-inputs.json'));
-  const inputs = Object.keys(host.inputs).map(file => path.resolve(repository, 'plugin', file));
-  const visit = modules => { for (const item of modules ?? []) {
-    if (item.nameForCondition) inputs.push(item.nameForCondition);
-    visit(item.modules); visit(item.children);
-  } };
-  for (const file of ['browser-modules.json', 'panel-modules.json']) visit((await json(path.join(repository, 'plugin/out', file))).modules);
-  inputs.push(path.join(repository, 'canvas/node_modules/@tldraw/assets/package.json'));
-  const missing = {};
-  for (const item of await json(path.join(repository, 'plugin/licenses/sources.json'))) {
-    const text = await fs.readFile(path.join(repository, 'plugin/licenses', item.file), 'utf8');
-    for (const name of item.packages) missing[name] = { text, source: item.source, license: item.license };
-  }
-  writeBundleNotices(repository, inputs, path.join(directory, 'DEPENDENCY_NOTICES.md'), { missing });
+  const artifact = process.env.TENSORVIZ_RENDERER_ARTIFACT && path.resolve(process.env.TENSORVIZ_RENDERER_ARTIFACT);
+  await writeNativeDependencyNotices(repository, path.join(directory, 'DEPENDENCY_NOTICES.md'), { artifact,
+    ...(artifact ? { version: (await json(path.join(directory, 'plugin.json'))).version,
+      sourceRevision: process.env.TENSORVIZ_REVIEWED_SOURCE_SHA, key: rendererLicenseKey(process.env) } : {}) });
   await fs.copyFile(path.join(repository, 'LICENSE'), path.join(directory, 'LICENSE'));
   await fs.copyFile(path.join(repository, 'plugin/node_modules/@yao-pkg/pkg/LICENSE'), path.join(directory, 'licenses/pkg.txt'));
   const python = process.env.TENSORVIZ_COMPILER_PYTHON;

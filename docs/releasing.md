@@ -17,7 +17,7 @@ the required org-member merge/review enforcement at public launch.
 | --- | --- | --- |
 | `release-vsix.yml` | Manual dispatch from reviewed main | `tensorviz.tensorviz-vscode` on VS Code Marketplace; exact same VSIX and checksum on this repository's `vX.Y.Z` release; rolling `latest` download |
 | `release-openvsx.yml` | Successful trusted Release VSIX run, or explicit existing version | Identical Marketplace/GitHub bytes on Open VSX |
-| `release-plugin.yml` | Manual dispatch from reviewed main | Apple Silicon macOS and Linux x64 compiled runtimes, client ZIPs, complete catalog ZIP and provenance on `tensorviz-plugins` `vX.Y.Z` releases |
+| `release-plugin.yml` | Manual dispatch from reviewed main | macOS, Linux and Windows x64/ARM64 compiled runtimes, client ZIPs, complete catalog ZIP and provenance on `tensorviz-plugins` `vX.Y.Z` releases |
 | `docs.yml` | Manual dispatch after merging the desired documentation changes | Independent documentation build and publishing |
 
 The old repository contains exactly the first three release workflows above.
@@ -71,6 +71,31 @@ The trigger policy is verified locally with:
 ```sh
 node --test tooling/test/actions-policy.test.mjs
 ```
+
+### Native build reuse
+
+A plugin release builds the licensed browser and MCP panel once. Every native
+job verifies the shared artifact's exact source SHA, version, complete file
+inventory, checksums and embedded production renderer key before packaging it.
+The artifact includes the renderer dependency notices, so native jobs do not
+install Canvas dependencies or rebuild its bundles. Local native builds without
+`TENSORVIZ_RENDERER_ARTIFACT` continue to build the browser and panel themselves.
+
+The six native jobs retain all platform acceptance checks and use at most three
+concurrent runners. Windows ARM64, Windows x64 and Linux x64 start first to reduce
+waiting for the slowest targets. Compiler and pkg download caches have explicit
+cross-platform locations and toolchain-specific restore prefixes; version-only
+manifest changes do not discard them. Source compilation and native acceptance
+still run after a cache restore. Linux jobs install `ccache` when needed so the
+restored object cache is actually used. Update the cache prefix when changing the
+pinned compiler Python, Node, pkg or runner baseline.
+
+Candidate assembly and publication hash each ZIP and gzip/tar member in one
+streaming pass, using Python's standard library without extracting archive paths.
+Exact inventories, internal and outer checksums, source/version provenance,
+regular-file restrictions and publication gates remain required. The audit also
+rejects duplicate or aliased paths and corrupt gzip trailers. Assembly and
+publication runners need Python 3; they do not need project Python dependencies.
 
 ## Reviewed versions and immutable sources
 
@@ -132,7 +157,7 @@ its exact notice is missing.
 Native platform jobs audit their archives and run existing installation/capture
 checks. Assembly accepts integration and archive paths relative to the caller's
 working directory or absolute paths, and returns an absolute candidate path
-beside the first archive. Final catalog assembly requires both targets.
+beside the first archive. Final catalog assembly requires all six targets.
 Publication audits the complete catalog,
 ZIP contents, runtime manifests and checksums, rejects dirty source provenance,
 and checks the exact source is on main. It publishes native assets and the audited catalog only to `tensorviz-plugins`,

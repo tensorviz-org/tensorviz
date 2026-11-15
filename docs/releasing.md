@@ -86,7 +86,8 @@ concurrent runners. Windows ARM64, Windows x64 and Linux x64 start first to redu
 waiting for the slowest targets. Compiler and pkg download caches have explicit
 cross-platform locations and toolchain-specific restore prefixes; version-only
 manifest changes do not discard them. Source compilation and native acceptance
-still run after a cache restore. Update the cache prefix when changing the
+still run after a cache restore. Linux jobs install `ccache` when needed so the
+restored object cache is actually used. Update the cache prefix when changing the
 pinned compiler Python, Node, pkg or runner baseline.
 
 Candidate assembly and publication hash each ZIP and gzip/tar member in one

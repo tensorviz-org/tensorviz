@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.47
+
+- Improve capture-environment readiness checks and show request-specific runtime setup progress.
+- Support larger graph publishing.
+- Fix Windows UTF-8 dependency reports, child-process lifetime handling and native launch diagnostics.
+- Clean up snapshot helpers and pinned assets when standalone hosts shut down.
+- Publish extension and plugin updates manually after a batch of merges.
+
 ## 0.1.46
 
 - Keep fresh extension service setup and additive runtime repair independent of PyTorch and torchvision. Model frameworks remain in the separately reviewed capture environment.
@@ -15,6 +23,7 @@
 ## Contents
 
 - [Unreleased](#unreleased)
+- [0.1.47](#0147)
 - [0.1.46](#0146)
 - [0.1.45](#0145)
 - [0.1.44](#0144)

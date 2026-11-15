@@ -75,8 +75,12 @@ node --test tooling/test/actions-policy.test.mjs
 ## Reviewed versions and immutable sources
 
 Version bumps and matching package-lock versions must be committed through a
-reviewed PR. The prepared extension and plugin candidates are both `0.1.46`; publication is a separate verified workflow step.
-This aligns the plugin's old `0.3.110` series without changing extension history.
+reviewed PR. The prepared extension and plugin candidates are both `0.1.47`; publication is a separate verified workflow step.
+The 0.1.47 plugin requires native-client upgrade and rollback receipts against
+0.1.46 catalog `3d311272047e649a9ba9829c6e1b21ca95fc0655` on Apple Silicon and
+Linux x64. All six runtime targets must pass their existing native acceptance gates.
+
+The initial 0.1.43 release aligned the plugin's old `0.3.110` series without changing extension history.
 It is a one-time version-series migration, not a normal semver upgrade.
 
 Publication permits this transition only from public export

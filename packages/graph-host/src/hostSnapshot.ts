@@ -112,6 +112,10 @@ class SnapshotHelper {
   stop(): void {
     this.broken = true;
     if (this.idle) clearTimeout(this.idle);
+    // A Windows venv launcher can exit before its interpreter. EOF also stops
+    // that interpreter; keep its pipes referenced until they have closed.
+    setReferenced(this.child, true);
+    this.child.stdin?.end();
     this.child.kill('SIGKILL');
   }
 

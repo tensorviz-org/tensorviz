@@ -126,6 +126,8 @@ export class Backend {
     this.transport?.dispose(); this.transport = undefined;
     const child = this.child;
     this.child = undefined; this.origin = undefined; this.session = undefined; this.token = undefined;
+    // Release the service's parent pipe even if platform termination is denied.
+    child?.stdin?.end();
     if (child?.pid) {
       try {
         if (process.platform === 'win32') spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true }).unref();
@@ -134,3 +136,4 @@ export class Backend {
     }
   }
 }
+

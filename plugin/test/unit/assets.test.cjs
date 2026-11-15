@@ -15,13 +15,13 @@ test('session resources survive deletion of the installed plugin and are removed
     await fs.writeFile(path.join(plugin, 'browser/index.html'), '<p>old version</p>');
     await fs.writeFile(path.join(plugin, 'runtime-manifest.json'), '{}');
     session = await pinAssets(plugin, '1.0.0');
-    assert.equal((await fs.stat(session.directory)).mode & 0o777, 0o700);
+    if (process.platform !== 'win32') assert.equal((await fs.stat(session.directory)).mode & 0o777, 0o700);
     await fs.rm(plugin, { recursive: true });
     assert.equal(await fs.readFile(path.join(session.directory, 'browser/index.html'), 'utf8'), '<p>old version</p>');
     assert.equal(await fs.readFile(path.join(session.directory, 'backend/server.py'), 'utf8'), 'print("fixture")');
-    session.dispose(); session.dispose();
+    await session.dispose(); await session.dispose();
     assert.equal(await fs.stat(session.directory).catch(() => null), null);
-  } finally { session?.dispose(); await fs.rm(plugin, { recursive: true, force: true }); }
+  } finally { await session?.dispose(); await fs.rm(plugin, { recursive: true, force: true }); }
 });
 
 test('version mismatches and symbolic links cannot become session resources', async () => {
@@ -29,7 +29,7 @@ test('version mismatches and symbolic links cannot become session resources', as
   try {
     await fs.writeFile(path.join(plugin, 'plugin.json'), JSON.stringify({ version: '1.0.0' }));
     await assert.rejects(pinAssets(plugin, '2.0.0'), /No model was run/);
-    await fs.symlink(plugin, path.join(plugin, 'backend'));
+    await fs.symlink(plugin, path.join(plugin, 'backend'), process.platform === 'win32' ? 'junction' : 'dir');
     await assert.rejects(pinAssets(plugin, '1.0.0'), /No model was run/);
   } finally { await fs.rm(plugin, { recursive: true, force: true }); }
 });

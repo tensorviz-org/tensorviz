@@ -328,6 +328,8 @@ export function runProcess(
 const terminations = new WeakMap<ChildProcess, Promise<boolean>>();
 class CandidateCleanupError extends Error {}
 function killTree(child: ChildProcess): Promise<boolean> {
+  // Release the parent-death pipe even when platform termination fails.
+  child.stdin?.end();
   const previous = terminations.get(child);
   if (previous) return previous;
   const pid = child.pid;

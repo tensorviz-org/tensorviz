@@ -1,12 +1,13 @@
-import { promises as fs, rmSync } from 'node:fs';
+import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { createHash } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { ownedTemporaryDirectory } from '@tensorviz/graph-host/ownedTemporary';
 
 /** Client updates can delete their cache while this host still serves a graph.
  * Pin only shipped resources, never a project, environment, or user setting. */
-export async function pinAssets(plugin: string, version: string): Promise<{ directory: string; dispose(): void }> {
+export async function pinAssets(plugin: string, version: string): Promise<{ directory: string; dispose(): Promise<void> }> {
   const owned = await ownedTemporaryDirectory(await fs.realpath(os.tmpdir()), 'tensorviz-release-session-');
   try {
     if (JSON.parse(await fs.readFile(path.join(plugin, 'plugin.json'), 'utf8')).version !== version) {
@@ -30,9 +31,31 @@ export async function pinAssets(plugin: string, version: string): Promise<{ dire
       const contents = await fs.readFile(path.join(plugin, entry.file));
       if (createHash('sha256').update(contents).digest('hex') !== entry.hash) throw new Error('The installed release changed during startup.');
     }
-    return { directory: owned.directory, dispose: () => rmSync(owned.directory, { recursive: true, force: true }) };
+    let cleanup: Promise<void> | undefined;
+    return { directory: owned.directory, dispose: () => cleanup ??= (async () => {
+      // Retry the whole operation with one budget, rather than multiplying
+      // fs.rm's per-directory retry delays across a deeply nested asset tree.
+      for (let attempt = 0; ; attempt++) {
+        try { await fs.rm(owned.directory, { recursive: true, force: true }); return; }
+        catch (error) {
+          if (attempt >= 10 || !['EBUSY', 'EPERM', 'ENOTEMPTY'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error;
+          await delay(100);
+        }
+      }
+    })() };
   } catch {
     await owned.dispose();
     throw new Error('TensorViz could not preserve this session’s installed resources. Finish installation and start a new chat. No model was run.');
   }
+}
+
+/** Child handles drain before beforeExit. Keep the event loop alive while Windows
+ * releases file/directory locks; an exit listener cannot await asynchronous work. */
+export function disposeAssetsBeforeExit(assets: { dispose(): Promise<void> }): void {
+  process.once('beforeExit', () => {
+    void assets.dispose().catch(() => {
+      process.stderr.write('TensorViz could not remove its private session resources.\n');
+      process.exitCode = 1;
+    });
+  });
 }

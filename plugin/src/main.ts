@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { ApprovalGate, nativePermissionDecision } from './approval';
 import { PluginPermissions } from './permissions';
 import { applicationData } from './environment';
-import { pinAssets } from './assets';
+import { pinAssets, disposeAssetsBeforeExit } from './assets';
 import { StandaloneHost } from './host';
 import { HostError } from './workspace';
 import { registerGraphPanel } from './graphPanel';
@@ -37,7 +37,7 @@ async function start(): Promise<void> {
   }
   const installedRoot = 'pkg' in process ? path.dirname(process.execPath) : path.resolve(__dirname, '..');
   const assets = await pinAssets(installedRoot, version);
-  process.once('exit', () => assets.dispose());
+  disposeAssetsBeforeExit(assets);
   const server = new McpServer({ name: 'tensorviz', title: 'tensorViz', version }, {
     instructions: 'tensorViz is a local model host. Discover its capabilities before use. Tool discovery never starts Python or executes a model. Explicit user instructions and read-only requests take priority.',
   });

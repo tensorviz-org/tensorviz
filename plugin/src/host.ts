@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { GraphOpeningController, TraceWorkerCore, lookupProfile, multifileProjectionBody, readHostSnapshot } from '@tensorviz/graph-host';
+import { GraphOpeningController, TraceWorkerCore, lookupProfile, multifileProjectionBody, readHostSnapshot, disposeSnapshotHelpers } from '@tensorviz/graph-host';
 import { GraphOpeningError, type EnvironmentRecoveryAction } from '@tensorviz/graph-host/graphOpening';
 import { inspectModelEnvironment } from '@tensorviz/graph-host/modelEnvironment';
 import { executionFailure } from '@tensorviz/graph-host/executionFailure';
@@ -868,6 +868,7 @@ export class StandaloneHost {
     this.runs.clear();
     this.review.close();
     this.opening.clear(); this.worker.dispose(); this.approvals.dispose(); this.backend.dispose();
+    disposeSnapshotHelpers();
   }
 }
 

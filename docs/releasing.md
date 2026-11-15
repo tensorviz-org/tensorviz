@@ -100,9 +100,9 @@ publication runners need Python 3; they do not need project Python dependencies.
 ## Reviewed versions and immutable sources
 
 Version bumps and matching package-lock versions must be committed through a
-reviewed PR. The prepared extension and plugin candidates are both `0.1.47`; publication is a separate verified workflow step.
-The 0.1.47 plugin requires native-client upgrade and rollback receipts against
-0.1.46 catalog `3d311272047e649a9ba9829c6e1b21ca95fc0655` on Apple Silicon and
+reviewed PR. The prepared extension and plugin candidates are both `0.1.48`; publication is a separate verified workflow step.
+The 0.1.48 plugin requires native-client upgrade and rollback receipts against
+0.1.47 catalog `9c20428f515dda38b25d1b9436b7681969e41472` on Apple Silicon and
 Linux x64. All six runtime targets must pass their existing native acceptance gates.
 
 The initial 0.1.43 release aligned the plugin's old `0.3.110` series without changing extension history.

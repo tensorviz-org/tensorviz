@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.48
+
+- Default graph recording to 16 MiB independently of the 4 MiB validation-record limit, retaining large FakeTensor model outputs.
+- Increase bounded worker transport and capture retention capacity for larger graphs.
+- Point graph-budget setup errors to `max_capture_bytes` and preserve explicit smaller limits.
+
 ## 0.1.47
 
 - Improve capture-environment readiness checks and show request-specific runtime setup progress.
@@ -23,6 +29,7 @@
 ## Contents
 
 - [Unreleased](#unreleased)
+- [0.1.48](#0148)
 - [0.1.47](#0147)
 - [0.1.46](#0146)
 - [0.1.45](#0145)

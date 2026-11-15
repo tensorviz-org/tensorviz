@@ -382,7 +382,7 @@ def plan(directory: Path, requirements: Path = REQUIREMENTS, *, allow_source: bo
     report_path = directory / "pip-report.json"
     pip_run(["install", "--dry-run", *([] if allow_source else ["--only-binary=:all:"]), "--report", str(report_path),
              "--constraint", str(constraints), "-r", str(requirements)])
-    report = json.loads(report_path.read_text())
+    report = json.loads(report_path.read_text(encoding="utf-8"))
     built_sources = build_source_wheels(report, directory, baseline["packages"]) if allow_source else []
     wheels = validate_wheels(report, preserved)
     if identity() != baseline:
@@ -651,7 +651,7 @@ def plan_replacement(directory: Path, requested: object, project: Path) -> dict:
                                  f"{', '.join(sorted({canonical(Requirement(item).name) for item in request} - names)) or 'libraries'}. "
                                  "Choose another environment, or try the installed versions.") from None
             raise
-        report = json.loads(report_path.read_text())
+        report = json.loads(report_path.read_text(encoding="utf-8"))
         after = {**installed, **{canonical(item["metadata"]["name"]): item["metadata"]["version"] for item in report.get("install", [])}}
         broken = broken_dependents(requires, installed, after)
         if not broken:

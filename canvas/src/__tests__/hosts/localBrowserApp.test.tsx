@@ -28,8 +28,11 @@ import type { NodeExplanationContextValue } from '../../canvas/NodeExplanationCo
 import { nodeExplanationRevision } from '../../ide/nodeExplanationRevision';
 
 jest.mock('../../ide/nodeExplanationRevision', () => ({ nodeExplanationRevision: jest.fn(async () => 'current-graph-revision') }));
+jest.mock('../../ide/reloadOnNewLink', () => ({ reloadOnNewLink: jest.fn(() => () => undefined) }));
 
 import LocalBrowserApp from '../../ide/LocalBrowserApp';
+import { reloadOnNewLink } from '../../ide/reloadOnNewLink';
+import * as viewTransport from '../../ide/localBrowserViewTransport';
 import { EXPLANATION_ACK_TIMEOUT_MS, NODE_EXPLANATION_IDLE_TIMEOUT_MS, MODEL_EXPLANATION_IDLE_TIMEOUT_MS } from '../../ide/explanationWatchdog';
 import * as bridge from '../../ide/bridge';
 import { currentProjection, reportNodeClick, reportProjectExpand } from '../../ide/projection';
@@ -2180,6 +2183,24 @@ describe('LocalBrowserApp', () => {
     expect(screen.queryByTestId('canvas-app')).toBeNull();
     expect(screen.getByText(text)).toBeInTheDocument();
     expect(screen.queryByText(/VS Code/)).toBeNull();
+  });
+
+  it('a page that reads its link from the URL reloads for a new link opened in the same tab', () => {
+    const watch = reloadOnNewLink as jest.Mock;
+    const stop = jest.fn();
+    watch.mockClear().mockReturnValueOnce(stop);
+    const fromUrl = jest.spyOn(viewTransport, 'createLocalBrowserViewTransport').mockReturnValue(makeTransport().transport);
+    try {
+      const { unmount } = render(<LocalBrowserApp hostKind="standalone" />);
+      expect(fromUrl).toHaveBeenCalledTimes(1);
+      expect(watch).toHaveBeenCalledTimes(1);
+      unmount();
+      expect(stop).toHaveBeenCalledTimes(1);
+      // A panel or native view has no link in its URL.
+      watch.mockClear();
+      render(<LocalBrowserApp hostKind="standalone" createTransport={() => makeTransport().transport} />);
+      expect(watch).not.toHaveBeenCalled();
+    } finally { fromUrl.mockRestore(); }
   });
 
   it('unmounting disposes the transport: nothing leaks a broker connection', () => {

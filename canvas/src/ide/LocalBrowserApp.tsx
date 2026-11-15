@@ -73,6 +73,7 @@ import PublishGraphButton from './PublishGraphButton';
 import { useCompactHeader } from './useCompactHeader';
 import { createLocalBrowserPortableClient, type LocalBrowserPortableClient } from './localBrowserPortableClient';
 import { createLocalBrowserPublishClient, type LocalBrowserPublishClient } from './localBrowserPublishClient';
+import { reloadOnNewLink } from './reloadOnNewLink';
 
 export interface LocalBrowserAppProps {
   hostKind?: 'extension' | 'standalone';
@@ -390,6 +391,10 @@ export default function LocalBrowserApp({
   const [captures, setCaptures] = React.useState<LocalBrowserCaptureClient | null>(null);
   const [portableExports, setPortableExports] = React.useState<LocalBrowserPortableClient | null>(null);
   const [publishing, setPublishing] = React.useState<LocalBrowserPublishClient | null>(null);
+
+  // The default transport reads its link from this page's URL once. A new link
+  // opened in the same tab changes only the fragment, so reload to read it.
+  React.useEffect(() => (createTransport ? undefined : reloadOnNewLink()), [createTransport]);
 
   React.useEffect(() => {
     const transport = (createTransport ?? createLocalBrowserViewTransport)();

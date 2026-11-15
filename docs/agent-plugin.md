@@ -109,7 +109,8 @@ ssh -L 45791:127.0.0.1:45791 user@server
   you change the port in the link to match, and `localhost` works as well as `127.0.0.1`,
   so editor port forwarding, such as VS Code's, works too.
 - A link opens once, within 2 minutes of being created. An expired or already used link
-  says so; ask the agent for a new browser view.
+  says so; ask the agent for a new browser view. You can open the new link in the same
+  tab.
 - The port changes each time the plugin starts. To keep it fixed, set
   `TENSORVIZ_BROWSER_PORT` (1024–65535) in the environment that starts your coding agent
   on the server, for example in its shell profile, and forward it once in your

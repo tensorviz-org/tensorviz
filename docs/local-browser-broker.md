@@ -33,6 +33,11 @@ carries its own session-scoped credential model.
 - The page posts the fragment credential once, same-origin, to `POST /local/bootstrap`. Refusal
   order is session lookup, origin, expiry, then credential digest. The successful response sets the
   session cookie and returns session info only — never a credential.
+- The page reads the fragment once, at load. A new link opened in a tab that already shows the
+  page differs only after `#`, so the browser does not load it. The page therefore reloads on a
+  `hashchange` that carries a session and credential, and trades the new credential the same way
+  (`canvas/src/ide/reloadOnNewLink.ts`). Pages whose host supplies its own transport, such as the
+  chat panel, do not watch the fragment.
 - The bootstrap `Origin` must equal the launch origin. The extension mints its session for the
   forwarded origin it opens, so the editor backend stays exact. The plugin's standalone service
   cannot know which local port an SSH `-L` forward or an editor's port forwarding will use, so

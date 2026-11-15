@@ -42,13 +42,19 @@ Windows support is through native Codex entries; Windows Claude Code/Cursor and 
 
 ## Update an existing Codex installation
 
-Run both commands in the **same execution environment and Codex profile** as the
-chat that will use TensorViz:
+For the Git marketplace, run both commands in the **same execution environment
+and Codex profile** as the chat that will use TensorViz:
 
 ```sh
 codex plugin marketplace upgrade tensorviz-standalone
 codex plugin add tensorviz@tensorviz-standalone --json
 ```
+
+For a marketplace registered from an extracted catalog ZIP, replace the complete
+catalog folder at its registered path with the new export, retaining the previous
+folder elsewhere for rollback. Then run only the `plugin add` command above.
+`marketplace upgrade` rejects local-folder marketplaces because it only refreshes
+Git sources. Do not merge files from different catalog releases.
 
 Check the install result's `version` and `installedPath`, then start a new chat
 (or restart the client). Refreshing the marketplace alone does not reinstall the

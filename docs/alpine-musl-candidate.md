@@ -19,37 +19,6 @@ version, or public runtime catalog is changed. It stacks on the multi-platform w
   remains GNU-only; musl candidate integrations must use the portable Node launcher.
 - Prevent existing source bytecode caches from leaking into compiled output.
 
-## Actual local evidence (2026-11-14)
-
-The following ran inside an Alpine 3.24.4 x86_64 root filesystem, not simulated OS flags:
-
-1. Official rootfs SHA256
-   `cdaa38cb8de3537967ee5b6c9b6cd00cc962da2b018e6eea48696bb274923012`.
-2. Official musl Python archive SHA256
-   `1f37044c8cdbd74d5ee112a753c65ef209fedd169c98f3e4e748a93e27eb27a4`.
-3. All standalone service dependencies installed from wheels, no Torch installed.
-4. Full backend compiled with pinned Nuitka 2.8.10. Both source and compiled service
-   health/authentication/discovery/projection/setup tests passed without importing
-   Torch, TensorFlow or JAX.
-5. Native Node22 Alpine executable built from main `f285a383` host source initialized
-   MCP, listed 29 tools and handled `list_models`. A second native build using the
-   distinct musl manifest selector passed the same test.
-6. Empty-cache bootstrap used verified local HTTPS, exact size and SHA256 checks,
-   fresh extraction and the native MCP test. Both actual native binaries passed
-   the strict musl ELF dependency audit.
-7. A fresh managed-service directory then downloaded and verified Python, installed
-   wheels without source fallback, and passed the compiled service test with Torch
-   absent. This used the PR64 inspect-service fix and the musl selector in a bundled
-   source harness under Alpine Node24, not a desktop-client interaction.
-
-Limitations: the local host prototype used a minimal renderer fixture, **not UI
-acceptance**. Full production renderer/package CI in this PR remains required.
-The managed-service test is distinct from the native host archive test; it does not
-prove desktop-client provisioning or browser UI behavior.
-No actual model capture, ChatGPT/Claude desktop installation, Alpine ARM64,
-older Alpine version or glibc below 2.31 is claimed. Capability advertisement is
-not evidence that the user's framework is installed or that model capture works.
-
 ## Release gates
 
 Before advertising musl: require candidate CI success on the exact revision, the

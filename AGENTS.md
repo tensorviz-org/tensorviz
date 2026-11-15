@@ -15,6 +15,7 @@ Python service. `packages/contracts` and `packages/graph-host` are shared.
 ## Working agreement
 
 - Change only what the task needs. Match the surrounding style.
+- Keep one-off audit reports, test-run summaries, and their generated evidence out of Git. Use local output or PR attachments.
 - Do not add analytics, telemetry, latency profiling, or training-step capture.
 - The default backend host is `127.0.0.1`. A non-loopback bind requires `TENSORVIZ_LOCAL_TOKEN`. `AUTH_DISABLED` does not permit a public bind. The plugin standalone service also binds `127.0.0.1` with a launch token.
 - Do not commit secrets. `REACT_APP_TLDRAW_LICENSE_KEY` is environment-only. Release packaging fails when that key is unset and does not print it.

@@ -57,7 +57,6 @@ Start with installation, then follow the task you want to do.
 - [Configure merge and release protections](merge-protection.md)
 - [Contributing](../CONTRIBUTING.md)
 - [Licensing](licensing.md) and [security](../SECURITY.md)
-- [Dependency maintenance](dependency-maintenance.md)
 - [Local agent QA recording](local-agent-recording.md)
 - [Extension changelog](../extension/CHANGELOG.md)
 

@@ -100,10 +100,5 @@ model with one saved test permission, inspects its measured shapes, and uninstal
 No model turn or provider key is used. This test does not establish compiled
 runtime download, other client, rendering or GPU acceptance.
 
-Verified locally on 3 November 2026 with Claude Code 2.1.308, Node.js 26.5.0,
-CPython 3.12.13 and Torch 2.14.1 on macOS arm64: all 72 plugin unit tests and
-the Claude acceptance test passed without skips. The host, browser and panel
-built successfully, and links resolved across all 83 documentation files.
-
 The Claude acceptance check also reads `get_model_context` after capture and
 checks the synthetic Linear layer’s 15 parameters and [2,4] → [2,3] shapes.

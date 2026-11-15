@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const workflow = readFileSync(new URL('../../.github/workflows/release-plugin.yml', import.meta.url), 'utf8');
-test('0.1.45 requires pinned 0.1.44 upgrade and rollback without a version bypass', () => {
+test('0.1.46 requires pinned 0.1.45 upgrade and rollback without a version bypass', () => {
   const migration = workflow.split('\n  current_migration:\n')[1]?.split('\n  publish:\n')[0];
   assert.ok(migration);
   assert.match(migration, /needs: \[configuration, assemble\]/);
   assert.match(migration, /runner: ubuntu-22\.04/);
   assert.match(migration, /runner: macos-15/);
-  assert.match(migration, /ref: 6fff2d501cbe037e2d90b252ee484a446c37bd61/);
-  assert.match(migration, /TENSORVIZ_MIGRATION_TARGET_VERSION: '0\.1\.45'/);
+  assert.match(migration, /ref: 1b5da75b72a38c903deb7ea749eda71996284986/);
+  assert.match(migration, /TENSORVIZ_MIGRATION_TARGET_VERSION: '0\.1\.46'/);
   assert.match(migration, /node --test plugin\/test\/migration\/native-version-transition\.cjs/);
   assert.doesNotMatch(migration, /continue-on-error|PLUGIN_PUBLISH_TOKEN|outputs\.version ==/);
   const publish = workflow.split('\n  publish:\n')[1];
@@ -34,3 +34,4 @@ test('all six actual native archives and accepted Windows bootstrap provenance a
   assert.doesNotMatch(build, /continue-on-error|PLUGIN_PUBLISH_TOKEN/);
   assert.match(workflow, /version !== '0\.1\.45'/);
 });
+

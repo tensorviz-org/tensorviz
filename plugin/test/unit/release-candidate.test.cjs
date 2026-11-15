@@ -18,7 +18,8 @@ async function candidateFixture(t, { dirty = false, urlTag = 'v', relative = fal
   if (dirty === 'missing') delete manifest.workingTreeChanged;
   await fs.writeFile(path.join(native, 'release-manifest.json'), JSON.stringify(manifest));
   const archive = path.join(root, archiveName);
-  execFileSync('tar', ['-czf', archive, '-C', native, 'tensorviz-host', 'release-manifest.json']);
+  execFileSync('tar', ['-czf', archive, '-C', native, 'tensorviz-host', 'release-manifest.json'],
+    { env: { ...process.env, COPYFILE_DISABLE: '1' } });
   const bytes = await fs.readFile(archive);
   const runtime = { formatVersion: 1, version, platform: manifest.platform, pythonABI: manifest.pythonABI, bytes: bytes.length, sha256: sha256(bytes),
     url: `https://github.com/tensorviz-org/tensorviz-plugins/releases/download/${urlTag}${version}/${archiveName}` };

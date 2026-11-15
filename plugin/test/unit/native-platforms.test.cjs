@@ -36,7 +36,7 @@ test('native targets, workflow Node versions and exact upstream notices stay ali
   assert.equal(versions.size, 1);
   const workflow = await fs.readFile(path.join(root, '.github/workflows/release-plugin.yml'), 'utf8');
   const setup = [...workflow.matchAll(/node-version:\s*'([^']+)'/g)].map(match => match[1]);
-  assert.equal(setup.length, 5, 'configuration, build, assembly, migration and publication all pin Node');
+  assert.equal(setup.length, 6, 'configuration, renderer, build, assembly, migration and publication all pin Node');
   assert.deepEqual(new Set(setup), versions);
 });
 
@@ -120,7 +120,7 @@ for (const { entries, relative } of [
         platform: original.platform, pythonABI: original.pythonABI, coreSourceIncluded: false,
         rendererDistributionCoverage: 'pending-owner-confirmation', files: { 'tensorviz-host': sha256(Buffer.from('synthetic native host')) } }));
       const archive = path.join(assets, runtimeArchive({ ...original, version })); archives.push(archive);
-      await run('tar', ['-czf', archive, '-C', runtime, 'tensorviz-host', 'release-manifest.json']);
+      await run('tar', ['-czf', archive, '-C', runtime, 'tensorviz-host', 'release-manifest.json'], { env: { ...process.env, COPYFILE_DISABLE: '1' } });
       const bytes = await fs.readFile(archive), lock = { ...original, version, bytes: bytes.length, sha256: sha256(bytes) };
       await fs.writeFile(`${archive}.json`, JSON.stringify(lock));
     }

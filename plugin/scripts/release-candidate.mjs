@@ -6,6 +6,7 @@ import { publicFiles, integrationFiles, validateRuntimeLock } from './export-pub
 import { validateWindowsPE, windowsMcp } from './windows-bootstrap.mjs';
 import { runtimeEntries, runtimeArchive } from './native-platforms.mjs';
 import { distributionRepository } from './release-version.mjs';
+import { auditArchive } from './archive-audit.mjs';
 
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const readJson = async file => JSON.parse(await fs.readFile(file, 'utf8'));
@@ -115,30 +116,30 @@ export async function verifyReleaseCandidate(directory, { publishing = false } =
   for (const [client, prefix] of pluginClients(publication.runtime)) {
     const zip = path.join(directory, `${prefix}-${version}.zip`);
     const names = filesAllowed.filter(file => file.startsWith(`${client}/`)).map(file => file.slice(client.length + 1)).sort();
-    const actual = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' }).trim().split('\n').sort();
+    const { files: contents } = auditArchive(zip, 'zip');
+    const actual = Object.keys(contents).sort();
     if (JSON.stringify(actual) !== JSON.stringify(names)) throw new Error('Submitted plugin ZIP differs from the public file allowlist.');
     for (const name of names) {
-      if (sha256(execFileSync('unzip', ['-p', zip, name], { maxBuffer: 128 * 1024 * 1024 })) !== publication.files[`${client}/${name}`]) {
+      if (contents[name] !== publication.files[`${client}/${name}`]) {
         throw new Error(`Submitted plugin ZIP checksum mismatch: ${name}`);
       }
     }
   }
   const catalog = path.join(directory, `tensorviz-catalog-${version}.zip`);
   const catalogNames = [...filesAllowed, 'PUBLICATION.json'].sort();
-  const catalogActual = execFileSync('unzip', ['-Z1', catalog], { encoding: 'utf8' }).trim().split('\n').sort();
+  const { files: catalogContents } = auditArchive(catalog, 'zip');
+  const catalogActual = Object.keys(catalogContents).sort();
   if (JSON.stringify(catalogActual) !== JSON.stringify(catalogNames)) throw new Error('Submitted catalog ZIP differs from the public file allowlist.');
   for (const name of catalogNames) {
-    if (sha256(execFileSync('unzip', ['-p', catalog, name], { maxBuffer: 128 * 1024 * 1024 }))
+    if (catalogContents[name]
       !== sha256(await fs.readFile(path.join(directory, 'integration', name)))) throw new Error(`Submitted catalog ZIP checksum mismatch: ${name}`);
   }
   for (const entry of runtimes) {
     const archive = runtimeArchive(entry);
     if (release.files[archive] !== entry.sha256 || (await fs.stat(path.join(directory, archive))).size !== entry.bytes
       || JSON.stringify(await readJson(path.join(directory, `${archive}.json`))) !== JSON.stringify(entry)) throw new Error('Runtime lock mismatch.');
-    const listed = execFileSync('tar', ['-tzf', path.join(directory, archive)], { encoding: 'utf8', maxBuffer: 1024 * 1024 }).trim().split('\n');
-    if (listed.some(file => !/^[A-Za-z0-9_./-]+$/.test(file) || file.startsWith('/') || file.split('/').includes('..')
-      || /\.(?:py|pyc|pyo|cjs|ts|tsx|map|c|h|o)$/.test(file))) throw new Error('Unsafe or source file in runtime archive.');
-    const manifest = JSON.parse(execFileSync('tar', ['-xOf', path.join(directory, archive), 'release-manifest.json'], { encoding: 'utf8', maxBuffer: 1024 * 1024 }));
+    const { files: contents, manifest } = auditArchive(path.join(directory, archive), 'runtime');
+    const listed = Object.keys(contents);
     if (manifest.platform !== entry.platform || manifest.pythonABI !== entry.pythonABI || manifest.version !== version || manifest.sourceRevision !== release.sourceRevision || manifest.coreSourceIncluded !== false
       || manifest.rendererDistributionCoverage !== release.rendererDistributionCoverage
       || JSON.stringify(listed.slice().sort()) !== JSON.stringify([...Object.keys(manifest.files), 'release-manifest.json'].sort())) {
@@ -149,10 +150,8 @@ export async function verifyReleaseCandidate(directory, { publishing = false } =
       || entry.url !== `https://github.com/${distributionRepository}/releases/download/v${version}/${archive}`)) {
       throw new Error('Publication requires confirmed renderer coverage and the exact distribution release URL.');
     }
-    const detail = execFileSync('tar', ['-tvzf', path.join(directory, archive)], { encoding: 'utf8', maxBuffer: 1024 * 1024 });
-    if (detail.trim().split('\n').some(line => !line.startsWith('-'))) throw new Error('Runtime archive contains a link or special file.');
     for (const [file, digest] of Object.entries(manifest.files)) {
-      if (!/^[a-f0-9]{64}$/.test(digest) || sha256(execFileSync('tar', ['-xOf', path.join(directory, archive), file], { maxBuffer: 256 * 1024 * 1024 })) !== digest) throw new Error(`Runtime internal checksum mismatch: ${file}`);
+      if (!/^[a-f0-9]{64}$/.test(digest) || contents[file] !== digest) throw new Error(`Runtime internal checksum mismatch: ${file}`);
     }
   }
   return { ...release, publication, archive: archives[0], archives };

@@ -55,19 +55,55 @@ jobs:
           appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\npublish=${publish}\n`);
           JS
 
-  build:
+  renderer:
     needs: configuration
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
+      TENSORVIZ_RELEASE_VERSION: ${{ needs.configuration.outputs.version }}
+      TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            canvas/package-lock.json
+      - name: Build the licensed browser and panel once for every native target
+        env:
+          TLDRAW_LICENSE_KEY: ${{ secrets.TLDRAW_LICENSE_KEY }}
+        run: |
+          npm ci
+          npm ci --prefix canvas
+          npm run build:shared
+          node plugin/scripts/renderer-artifact.mjs plugin/out/release-renderer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-renderer-${{ needs.configuration.outputs.version }}
+          path: plugin/out/release-renderer/
+          if-no-files-found: error
+          retention-days: 3
+
+  build:
+    needs: [configuration, renderer]
     strategy:
       fail-fast: false
       max-parallel: 3
       matrix:
         include:
-          - {runner: macos-15, platform: darwin-arm64, arch: arm64, container: null, capture: true}
-          - {runner: macos-15-intel, platform: darwin-x64, arch: x64, container: null, capture: false}
-          - {runner: ubuntu-22.04, platform: linux-x64, arch: x64, container: 'ubuntu:20.04', capture: true}
-          - {runner: ubuntu-22.04-arm, platform: linux-arm64, arch: arm64, container: null, capture: false}
-          - {runner: windows-2022, platform: win32-x64, arch: x64, container: null, capture: false}
+          # Start the slowest targets first without increasing concurrent runners.
           - {runner: windows-11-arm, platform: win32-arm64, arch: arm64, container: null, capture: false}
+          - {runner: windows-2022, platform: win32-x64, arch: x64, container: null, capture: false}
+          - {runner: ubuntu-22.04, platform: linux-x64, arch: x64, container: 'ubuntu:20.04', capture: true}
+          - {runner: macos-15-intel, platform: darwin-x64, arch: x64, container: null, capture: false}
+          - {runner: macos-15, platform: darwin-arm64, arch: arm64, container: null, capture: true}
+          - {runner: ubuntu-22.04-arm, platform: linux-arm64, arch: arm64, container: null, capture: false}
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container }}
     defaults:
@@ -79,6 +115,10 @@ jobs:
       TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
       TENSORVIZ_RELEASE_PLATFORM: ${{ matrix.platform }}
       TENSORVIZ_RELEASE_VERSION: ${{ needs.configuration.outputs.version }}
+      TENSORVIZ_RENDERER_ARTIFACT: ${{ github.workspace }}/plugin/out/release-renderer
+      NUITKA_CACHE_DIR: ${{ github.workspace }}/.native-toolchain-cache/nuitka
+      CCACHE_DIR: ${{ github.workspace }}/.native-toolchain-cache/ccache
+      PKG_CACHE_PATH: ${{ github.workspace }}/.native-toolchain-cache/pkg
       TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
       TENSORVIZ_RUNTIME_URL: https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v${{ needs.configuration.outputs.version }}/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz
     steps:
@@ -103,7 +143,6 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             plugin/package-lock.json
-            canvas/package-lock.json
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
         with:
           version: '0.11.26'
@@ -116,18 +155,19 @@ jobs:
         run: node plugin/scripts/release-native-setup.mjs preflight
       - uses: actions/cache@v4
         with:
-          path: |
-            ~/.pkg-cache
-            ~/Library/Caches/Nuitka
-            ~/Library/Caches/ccache
-            ~/.cache/Nuitka
-            ~/.cache/ccache
-          key: native-plugin-${{ matrix.platform }}-${{ hashFiles('plugin/package-lock.json', 'plugin/compiler-requirements.txt') }}
+          path: .native-toolchain-cache
+          # Version-only package bumps must preserve compiler/download cache reuse.
+          key: native-toolchain-v2-${{ matrix.platform }}-${{ matrix.runner }}-py3.12.13-node22.23.4-pkg6.24.0-${{ hashFiles('plugin/compiler-requirements.txt') }}-${{ github.sha }}
+          restore-keys: |
+            native-toolchain-v2-${{ matrix.platform }}-${{ matrix.runner }}-py3.12.13-node22.23.4-pkg6.24.0-${{ hashFiles('plugin/compiler-requirements.txt') }}-
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugin-renderer-${{ needs.configuration.outputs.version }}
+          path: plugin/out/release-renderer
       - name: Install locked build tools and official native Codex
         run: |
           npm ci
           npm ci --prefix plugin
-          npm ci --prefix canvas
           npm install --prefix .bootstrap-codex --ignore-scripts --no-audit --no-fund @openai/codex@0.169.0
           node plugin/scripts/release-native-setup.mjs clients
       - name: Install locked Windows bootstrap compiler
@@ -193,6 +233,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: native-plugin-${{ matrix.platform }}-${{ needs.configuration.outputs.version }}
+          compression-level: 0
           path: |
             plugin/dist/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz
             plugin/dist/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz.json
@@ -246,6 +287,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: compiled-plugin-${{ needs.configuration.outputs.version }}
+          compression-level: 0
           path: plugin/out/native-assets/candidate-${{ needs.configuration.outputs.version }}/
           include-hidden-files: true
           if-no-files-found: error

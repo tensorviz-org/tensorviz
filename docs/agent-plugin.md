@@ -125,7 +125,7 @@ ssh -L 45791:127.0.0.1:45791 user@server
 - In an SSH session, `open_graph_view` and `open_graph_diff` add these steps, with the
   link's port, as `browserAccess` for the agent to pass on.
 
-Published 0.1.46 and earlier accept only the exact port in the link and ignore
+Published 0.1.48 and earlier accept only the exact port in the link and ignore
 `TENSORVIZ_BROWSER_PORT`.
 
 ## Publish to tensorviz.dev

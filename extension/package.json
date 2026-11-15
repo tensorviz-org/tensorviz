@@ -2,7 +2,7 @@
   "name": "tensorviz-vscode",
   "displayName": "tensorViz \u2014 PyTorch & JAX Model Visualizer",
   "description": "Explore PyTorch and JAX/Flax model graphs, inspect tensor shapes, jump to Python source, and review PyTorch architecture changes in VS Code.",
-  "version": "0.1.47",
+  "version": "0.1.48",
   "publisher": "tensorviz",
   "license": "MIT",
   "homepage": "https://tensorviz.dev/",

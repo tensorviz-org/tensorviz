@@ -44,7 +44,7 @@ jobs:
           const publish = process.env.RELEASE_PUBLISH === 'true';
           if (publish && process.env.TLDRAW_DISTRIBUTION_CONFIRMED !== 'true') throw new Error('Owner confirmation of renderer distribution coverage is required.');
           const version = releaseVersion(JSON.parse(readFileSync('plugin/package.json', 'utf8')).version);
-          if (version !== '0.1.47') throw new Error('Review and pin the migration transition before changing release version.');
+          if (version !== '0.1.48') throw new Error('Review and pin the migration transition before changing release version.');
           for (const file of ['extension/package.json', 'canvas/package.json', 'plugins/tensorviz/plugin.json', 'plugins/tensorviz/.codex-plugin/plugin.json', 'plugins/tensorviz/.claude-plugin/plugin.json']) {
             if (JSON.parse(readFileSync(file, 'utf8')).version !== version) throw new Error(`Release version differs: ${file}`);
           }
@@ -316,7 +316,7 @@ jobs:
     timeout-minutes: 35
     env:
       TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
-      TENSORVIZ_MIGRATION_TARGET_VERSION: '0.1.47'
+      TENSORVIZ_MIGRATION_TARGET_VERSION: '0.1.48'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -336,7 +336,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: tensorviz-org/tensorviz-plugins
-          ref: 3d311272047e649a9ba9829c6e1b21ca95fc0655
+          ref: 9c20428f515dda38b25d1b9436b7681969e41472
           path: plugin/out/migration-old-catalog
           persist-credentials: false
       - name: Install locked clients and CPU capture dependencies
@@ -362,8 +362,8 @@ jobs:
           import {execFileSync} from 'node:child_process';
           const publication = JSON.parse(readFileSync('plugin/out/migration-old-catalog/PUBLICATION.json','utf8'));
           const runtime = publication.runtime.runtimes[process.env.MIGRATION_PLATFORM];
-          const expected = `https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.46/tensorviz-runtime-0.1.46-${process.env.MIGRATION_PLATFORM}.tar.gz`;
-          if(publication.version !== '0.1.46' || runtime.url !== expected || runtime.version !== '0.1.46' || runtime.platform !== process.env.MIGRATION_PLATFORM) throw new Error('Previous runtime provenance mismatch');
+          const expected = `https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.47/tensorviz-runtime-0.1.47-${process.env.MIGRATION_PLATFORM}.tar.gz`;
+          if(publication.version !== '0.1.47' || runtime.url !== expected || runtime.version !== '0.1.47' || runtime.platform !== process.env.MIGRATION_PLATFORM) throw new Error('Previous runtime provenance mismatch');
           execFileSync('curl',['--fail','--silent','--show-error','--location','--proto','=https','--proto-redir','=https','--max-time','300','--output','plugin/out/migration-old-runtime.tar.gz',runtime.url],{stdio:'inherit'});
           JS
       - name: Verify real native client upgrade and rollback
@@ -371,7 +371,7 @@ jobs:
           TENSORVIZ_MIGRATION_OLD_CATALOG: ${{ github.workspace }}/plugin/out/migration-old-catalog
           TENSORVIZ_MIGRATION_NEW_CATALOG: ${{ github.workspace }}/plugin/out/release-candidate/integration
           TENSORVIZ_MIGRATION_OLD_ARCHIVE: ${{ github.workspace }}/plugin/out/migration-old-runtime.tar.gz
-          TENSORVIZ_MIGRATION_NEW_ARCHIVE: ${{ github.workspace }}/plugin/out/release-candidate/tensorviz-runtime-0.1.47-${{ matrix.platform }}.tar.gz
+          TENSORVIZ_MIGRATION_NEW_ARCHIVE: ${{ github.workspace }}/plugin/out/release-candidate/tensorviz-runtime-0.1.48-${{ matrix.platform }}.tar.gz
           TENSORVIZ_MIGRATION_RECEIPT: ${{ github.workspace }}/plugin/out/migration-receipts/${{ matrix.platform }}.json
         run: node --test plugin/test/migration/native-version-transition.cjs
       - name: Retain verified migration receipt

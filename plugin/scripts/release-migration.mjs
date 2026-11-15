@@ -2,7 +2,8 @@
 export const migration45 = Object.freeze({from:'0.1.44',to:'0.1.45',previousExport:'6fff2d501cbe037e2d90b252ee484a446c37bd61'});
 export const migration46 = Object.freeze({from:'0.1.45',to:'0.1.46',previousExport:'1b5da75b72a38c903deb7ea749eda71996284986'});
 export const migration47 = Object.freeze({from:'0.1.46',to:'0.1.47',previousExport:'3d311272047e649a9ba9829c6e1b21ca95fc0655'});
-export const releaseMigrations = Object.freeze({[migration45.to]:migration45,[migration46.to]:migration46,[migration47.to]:migration47});
+export const migration48 = Object.freeze({from:'0.1.47',to:'0.1.48',previousExport:'9c20428f515dda38b25d1b9436b7681969e41472'});
+export const releaseMigrations = Object.freeze({[migration45.to]:migration45,[migration46.to]:migration46,[migration47.to]:migration47,[migration48.to]:migration48});
 export function verifyReleaseMigration({previous,initialMain,release,receipts}) {
   const migration=releaseMigrations[release.version];
   if(!migration) return;

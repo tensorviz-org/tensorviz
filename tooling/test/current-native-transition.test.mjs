@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const workflow = readFileSync(new URL('../../.github/workflows/release-plugin.yml', import.meta.url), 'utf8');
-test('0.1.47 requires pinned 0.1.46 upgrade and rollback without a version bypass', () => {
+test('0.1.48 requires pinned 0.1.47 upgrade and rollback without a version bypass', () => {
   const migration = workflow.split('\n  current_migration:\n')[1]?.split('\n  publish:\n')[0];
   assert.ok(migration);
   assert.match(migration, /needs: \[configuration, assemble\]/);
   assert.match(migration, /runner: ubuntu-22\.04/);
   assert.match(migration, /runner: macos-15/);
-  assert.match(migration, /ref: 3d311272047e649a9ba9829c6e1b21ca95fc0655/);
-  assert.match(migration, /TENSORVIZ_MIGRATION_TARGET_VERSION: '0\.1\.47'/);
+  assert.match(migration, /ref: 9c20428f515dda38b25d1b9436b7681969e41472/);
+  assert.match(migration, /TENSORVIZ_MIGRATION_TARGET_VERSION: '0\.1\.48'/);
   assert.match(migration, /node --test plugin\/test\/migration\/native-version-transition\.cjs/);
   assert.doesNotMatch(migration, /continue-on-error|PLUGIN_PUBLISH_TOKEN|outputs\.version ==/);
   const publish = workflow.split('\n  publish:\n')[1];
@@ -32,6 +32,6 @@ test('all six actual native archives and accepted Windows bootstrap provenance a
   assert.match(build, /tensorviz-bootstrap-\*\.exe\.json/);
   assert.match(build, /tensorviz-bootstrap-\*\.NOTICES\.md/);
   assert.doesNotMatch(build, /continue-on-error|PLUGIN_PUBLISH_TOKEN/);
-  assert.match(workflow, /version !== '0\.1\.46'/);
+  assert.match(workflow, /version !== '0\.1\.47'/);
 });
 

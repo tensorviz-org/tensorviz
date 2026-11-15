@@ -1,20 +1,8 @@
 name: Cross-platform compatibility candidates
+# Optional diagnostics only; PRs and merges must not start runners.
 on:
-  pull_request:
-    paths:
-      - 'backend/**'
-      - 'packages/graph-host/**'
-      - 'plugin/src/**'
-      - 'plugin/integration/launch.cjs'
-      - 'plugin/integration/launch.sh'
-      - '.github/workflows/release-plugin.yml'
-      - 'plugin/scripts/**'
-      - 'plugin/test/**'
-      - 'runtime/python/**'
-      - 'extension/src/**'
-      - 'tooling/packaging/**'
-      - '.github/workflows/platform-compatibility.yml'
   workflow_dispatch:
+
 permissions:
   contents: read
 concurrency:

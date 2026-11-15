@@ -1,17 +1,8 @@
 name: Windows production MCP acceptance
+# Optional diagnostics only; PRs and merges must not start runners.
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - 'backend/**'
-      - 'packages/graph-host/**'
-      - 'plugin/src/**'
-      - 'plugin/integration/**'
-      - 'plugin/scripts/**'
-      - 'plugin/test/native/**'
-      - 'runtime/python/**'
-      - 'extension/src/**'
-      - '.github/workflows/windows-production-mcp.yml'
+
 permissions:
   contents: read
 concurrency:

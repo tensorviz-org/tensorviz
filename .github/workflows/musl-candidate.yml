@@ -1,13 +1,8 @@
 name: Alpine musl native candidate
+# Optional diagnostics only; PRs and merges must not start runners.
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/musl-candidate.yml'
-      - 'plugin/**'
-      - 'packages/graph-host/**'
-      - 'runtime/python/**'
-      - 'backend/**'
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

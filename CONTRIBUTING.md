@@ -48,12 +48,12 @@ links and downloads. Preview and output details are in
 [Build the documentation](docs/documentation-site.md).
 
 Commit your source changes, push the branch to your fork and open a PR against
-`tensorviz-org/tensorviz:main`. Include the checks you ran. Documentation CI runs
-on every PR, including fork PRs, with read-only repository access and no deployment
-credentials. GitHub may require a maintainer to approve a new contributor's
-workflow run; wait for that approval rather than supplying credentials. Only
-accepted changes on trusted upstream `main` (or a maintainer's manual run there)
-can publish. Fork builds never publish to the upstream docs project.
+`tensorviz-org/tensorviz:main`. Include the local checks you ran. PRs, pushes and
+merges do not start Actions. A maintainer runs **Documentation** manually from
+upstream `main` after the desired changes have merged. Forks and other branches
+cannot publish to the upstream docs project. See
+[batch merges and publishing](docs/releasing.md#batch-merges-and-publishing)
+for the publishing commands and optional diagnostics.
 
 The repository is currently private; outside contributors need access until the
 owner makes it public. Public visibility is an owner decision. The existing

@@ -7,6 +7,7 @@ const os = require('node:os');
 const zlib = require('node:zlib');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
+const { EventEmitter } = require('node:events');
 const launcher = require('../../integration/launch.cjs');
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 function tar(entries) {
@@ -138,3 +139,58 @@ test('real POSIX process preserves MCP stdin and cleans private extracted sessio
     assert.equal(await fs.stat(session).catch(() => null), null);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
+
+test('Windows native spawn errors identify the failing stage without inventing a policy diagnosis', () => {
+  for (const code of ['UNKNOWN', 'EACCES', 'ENOENT']) {
+    const cause = Object.assign(new Error('spawn ' + code), { code });
+    const error = launcher.nativeLaunchError(cause, 'win32');
+    assert.equal(error.cause, cause);
+    assert.equal(error.code, code);
+    assert.match(error.message, /host did not start; Python setup was not reached/);
+    assert.match(error.message, /If Application Control blocked/);
+    assert.match(error.message, /Do not disable security protections/);
+    assert.equal(launcher.nativeLaunchError(cause, 'linux'), cause);
+    assert.equal(launcher.nativeLaunchError(cause, 'darwin'), cause);
+  }
+  assert.match(launcher.nativeLaunchError(new Error('private path'), 'win32').message, /\(UNKNOWN\)/);
+  assert.doesNotMatch(launcher.nativeLaunchError(new Error('private path'), 'win32').message, /private path/);
+});
+
+test('asynchronous Windows launch failures are diagnosed before the spawn event', async () => {
+  const child = new EventEmitter();
+  const result = launcher.waitForHostExit(child, 'win32');
+  const cause = Object.assign(new Error('spawn EACCES'), { code: 'EACCES' });
+  child.emit('error', cause);
+  await assert.rejects(result, error => {
+    assert.equal(error.cause, cause);
+    assert.equal(error.code, cause.code);
+    assert.match(error.message, /host did not start; Python setup was not reached/);
+    return true;
+  });
+});
+
+test('post-spawn errors retain their original identity and do not become launch failures', async () => {
+  for (const platform of ['win32', 'linux', 'darwin']) {
+    const child = new EventEmitter();
+    const result = launcher.waitForHostExit(child, platform);
+    const cause = Object.assign(new Error('kill EPERM'), { code: 'EPERM' });
+    child.emit('spawn');
+    child.emit('error', cause);
+    await assert.rejects(result, error => {
+      assert.equal(error, cause);
+      assert.doesNotMatch(error.message, /host did not start|Python setup was not reached/);
+      return true;
+    });
+  }
+});
+
+test('host exit code and signal mappings are unchanged after successful spawn', async () => {
+  for (const [code, signal, expected] of [[0, null, 0], [7, null, 7], [null, 'SIGINT', 130], [null, 'SIGTERM', 143]]) {
+    const child = new EventEmitter();
+    const result = launcher.waitForHostExit(child, 'win32');
+    child.emit('spawn');
+    child.emit('exit', code, signal);
+    assert.equal(await result, expected);
+  }
+});
+

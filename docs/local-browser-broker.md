@@ -7,7 +7,7 @@ binds `0.0.0.0`. `start.sh` and `server_v2.py` use the same loopback default and
 `backend/services/ide/local_browser_broker.py` (relay) and
 `backend/api/routers/local_browser.py` (HTTP routes). `backend/server_v2.py` mounts the
 router outside the `get_current_user` group. `backend/standalone_server.py` mounts the same
-router for the plugin, with `source_proposals=False`. The browser cannot hold the launch token, so the router
+router for the plugin, with `source_proposals=False` and `forwarded_loopback=True`. The browser cannot hold the launch token, so the router
 carries its own session-scoped credential model.
 
 ## Endpoints
@@ -16,7 +16,7 @@ carries its own session-scoped credential model.
 | ----- | ------ | ---- | ------- |
 | `POST /local/sessions` | extension | per-launch token (see below) | mint a workspace session, TTL, credentials |
 | `POST /local/bootstrap` | browser page | URL-fragment credential in the JSON body, once | trade the fragment for the session cookie |
-| `WS /local/ws` | both roles | the session cookie plus exact launch `Origin` | relay typed protocol messages |
+| `WS /local/ws` | both roles | the session cookie plus the exact `Origin` it was issued to | relay typed protocol messages |
 
 ## Authentication and bootstrap
 
@@ -33,12 +33,21 @@ carries its own session-scoped credential model.
 - The page posts the fragment credential once, same-origin, to `POST /local/bootstrap`. Refusal
   order is session lookup, origin, expiry, then credential digest. The successful response sets the
   session cookie and returns session info only — never a credential.
+- The bootstrap `Origin` must equal the launch origin. The extension mints its session for the
+  forwarded origin it opens, so the editor backend stays exact. The plugin's standalone service
+  cannot know which local port an SSH `-L` forward or an editor's port forwarding will use, so
+  its broker (`forwarded_loopback=True`) also accepts an `http` origin on `127.0.0.1` or
+  `localhost` at any port, but only when that `Origin` names exactly the `Host` the request was
+  sent to. Another local page presents its own origin, which never matches that `Host`, and a
+  DNS-rebinding page's `Host` is not a loopback name; the service's trusted-host check also
+  refuses it. The view's cookie key, cookie name and socket `Origin` are then bound to that
+  forwarded origin, and its socket must arrive through the same forward.
 - Browser view cookies use `tensorviz_local_browser_<origin-hash>` so loopback windows with
   different forwarded ports do not overwrite one another. The hash is the first 16 hexadecimal
-  characters of SHA-256 of the exact launch origin. Host sockets keep the fixed
+  characters of SHA-256 of the exact origin the view bootstrapped from. Host sockets keep the fixed
   `tensorviz_local_browser` name in their explicit cookie header. Both use
   `HttpOnly; SameSite=Strict; Path=/local`, session-scoped, and
-  `Secure` only when the launch origin is HTTPS. Its value is an opaque per-role cookie key, not the
+  `Secure` only when that origin is HTTPS. Its value is an opaque per-role cookie key, not the
   fragment credential, so after bootstrap the fragment secret exists nowhere the browser can reach.
 - Capabilities are fixed to read-only: `readOnly`, `canNavigateSource` true; `canWriteSource`,
   `canRunAgent`, `canEditGraph` false. The optional `canProposeSourceEdits: true` enables typed proposals for native host review;

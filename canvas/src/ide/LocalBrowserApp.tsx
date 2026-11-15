@@ -112,9 +112,19 @@ function connectionLabel(status: LocalBrowserViewStatus | null, standalone = fal
   return null;
 }
 
+/** Plugin links fail for different reasons with different fixes, often over SSH
+ *  where the link had to wait for a port forward. Single-use links expire after
+ *  120 seconds (create_view_link in the backend broker). */
+function standaloneEndedText(error: LocalBrowserViewStatus['error']): string {
+  if (error === 'CREDENTIAL_EXPIRED') return 'This TensorViz link has expired. Links open once, within 2 minutes of being created. Ask your coding agent for a new browser view.';
+  if (error === 'INVALID_CREDENTIALS') return 'This TensorViz link was already used, or its session has ended. Ask your coding agent for a new browser view.';
+  if (error === 'INVALID_ORIGIN') return 'TensorViz does not accept this address. Open the link at 127.0.0.1 or localhost, through an SSH port forward if TensorViz runs on another computer, and ask your coding agent for a new browser view.';
+  return 'This TensorViz session ended. Reconnect the plugin in your coding agent, open the model, and request a fresh browser view.';
+}
+
 /** The whole answer when the session is over: no graph pretending to be live. */
 function endedText(error: LocalBrowserViewStatus['error'], hostLink: LocalBrowserViewStatus['hostLink'], standalone = false): string {
-  if (standalone) return 'This TensorViz session ended. Reconnect the plugin in your coding agent, open the model, and request a fresh browser view.';
+  if (standalone) return standaloneEndedText(error);
   if (nativeCanvasMode()) return 'Canvas lost its host connection. Run “tensorViz: Show Canvas” in VS Code to reconnect.';
   if (hostLink === 'disconnected' && error === null) {
     return 'This page’s VS Code window closed or detached. Select the model, then run “tensorViz: Open Canvas in Browser” in the window that owns this model to view it again.';

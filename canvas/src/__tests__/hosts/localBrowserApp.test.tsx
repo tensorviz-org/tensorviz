@@ -2164,6 +2164,24 @@ describe('LocalBrowserApp', () => {
     expect(screen.getByText(/Open Canvas in Browser/, { exact: false })).toBeInTheDocument();
   });
 
+  it.each([
+    ['CREDENTIAL_EXPIRED', /link has expired.*within 2 minutes.*new browser view/],
+    ['INVALID_CREDENTIALS', /link was already used.*new browser view/],
+    ['INVALID_ORIGIN', /127\.0\.0\.1 or localhost.*SSH port forward/],
+    [null, /session ended\. Reconnect the plugin/],
+  ] as const)('a plugin page names why it ended (%s) and the fix', (error, text) => {
+    const rig = makeTransport();
+    render(<LocalBrowserApp hostKind="standalone" createTransport={() => rig.transport} />);
+
+    act(() => {
+      rig.setStatus({ phase: 'ended', hostLink: 'unknown', error });
+    });
+
+    expect(screen.queryByTestId('canvas-app')).toBeNull();
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.queryByText(/VS Code/)).toBeNull();
+  });
+
   it('unmounting disposes the transport: nothing leaks a broker connection', () => {
     const rig = makeTransport();
     const { unmount } = render(<LocalBrowserApp createTransport={() => rig.transport} />);

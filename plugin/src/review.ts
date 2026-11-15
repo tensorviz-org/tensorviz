@@ -27,6 +27,7 @@ export class StandaloneReview {
     post<T>(route: string, body: unknown, signal: AbortSignal): Promise<T>;
     connect(signal: AbortSignal): Promise<void>;
     view(signal: AbortSignal): Promise<LocalBrowserViewLink>;
+    withBrowserAccess?<T extends Record<string, unknown>>(result: T): T;
     views: McpViewRegistry;
     publish(message: LocalBrowserHostPublish): unknown;
     target(): LocalBrowserTargetIdentity | undefined;
@@ -133,6 +134,11 @@ export class StandaloneReview {
     try { await this.checking; } finally { this.checking = undefined; }
   }
 
+  private linkFields(link: LocalBrowserViewLink): Record<string, unknown> {
+    const fields = { url: link.pageUrl, linkExpiresAt: link.expiresAt };
+    return this.host.withBrowserAccess?.(fields) ?? fields;
+  }
+
   private result(includeLink: boolean): Record<string, unknown> {
     const session = this.session!, state = session.state;
     const viewId = session.viewId ?? (session.link && this.host.views.viewForHandoff(session.link.handoffId));
@@ -149,7 +155,7 @@ export class StandaloneReview {
       coverage: { notes: state.notes, repositoryNotes: state.repositoryNotes, incomplete: state.modelStatus === 'unresolved'
         || !!state.before.truncated || !!state.after.truncated || !!state.notes?.length },
       ...(viewId ? { viewId } : {}),
-      ...(includeLink && session.link ? { url: session.link.pageUrl, linkExpiresAt: session.link.expiresAt } : {}),
+      ...(includeLink && session.link ? this.linkFields(session.link) : {}),
       nextAction: { kind: state.stale ? 'refresh' : empty ? 'inspect_source' : expired ? 'refresh' : displayed ? 'inspect' : otherMode ? 'show_diff' : includeLink && session.link ? 'open_browser' : 'poll',
         instruction: state.stale ? 'Saved files changed. Refresh this comparison before describing it as current.'
           : empty ? 'No comparable model graph is available. Inspect the returned coverage notes and saved source; polling cannot produce a graph.'

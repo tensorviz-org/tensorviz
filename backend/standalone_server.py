@@ -1,7 +1,8 @@
 """Standalone local service: static graph preparation and authenticated browser relay.
 
-Started by the stdio host, with an inherited launch secret and an OS-assigned
-loopback socket. This entry never loads hosted authentication or a project store.
+Started by the stdio host, with an inherited launch secret and a loopback socket
+on an OS-assigned port, or on the port the host asks for (``TENSORVIZ_BROWSER_PORT``)
+when it is free. This entry never loads hosted authentication or a project store.
 Model execution remains in the separately authorized trace worker.
 """
 from __future__ import annotations
@@ -29,6 +30,7 @@ from middleware import LocalTokenMiddleware
 from services.ide import multifile, review
 from services.ide.graph_setup import discover
 from services.ide.graph_setup_profiles import prepare_profile, restore_config_profile
+from services.ide.local_browser_broker import LOOPBACK_BROWSER_HOSTS
 from services.ide.local_browser_protocol import LOCAL_BROWSER_CAPTURE_EXPORT_MAX_BYTES
 from services.ide.local_browser_wire import MAX_WIRE_BYTES
 from services.ide.workspace_projection import ProjectionError, project_workspace
@@ -85,10 +87,12 @@ def create_app(token: str, assets: Path | None = None) -> FastAPI:
     if len(token) < 32:
         raise ValueError("A private launch token is required.")
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-    app.state.local_browser_broker = local_browser.LocalBrowserBroker(source_proposals=False)
+    # The page may arrive through an SSH or editor port forward on another local
+    # port, often as localhost; the broker binds each view to that exact origin.
+    app.state.local_browser_broker = local_browser.LocalBrowserBroker(source_proposals=False, forwarded_loopback=True)
     app.add_middleware(LimitedBody)
     app.add_middleware(LocalTokenMiddleware, token=token)
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1"])
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=sorted(LOOPBACK_BROWSER_HOSTS))
     app.include_router(local_browser.router)
 
     @app.exception_handler(RequestValidationError)
@@ -154,6 +158,31 @@ def create_app(token: str, assets: Path | None = None) -> FastAPI:
     return app
 
 
+def listen(port: int = 0) -> socket.socket:
+    """A loopback listener on ``port``, else on an OS-assigned port.
+
+    A fixed port lets an SSH ``LocalForward`` be set up once. When it is taken
+    (another session holds it) or not permitted, the graph must still open, so
+    the service falls back and the host tells the user which port it got.
+    """
+    for candidate in ([port] if port else []) + [0]:
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if candidate and os.name != "nt":
+            # Rebind at once after a restart (TIME_WAIT) but never beside a live
+            # listener. Windows' SO_REUSEADDR would also allow the latter.
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            listener.bind(("127.0.0.1", candidate))
+            listener.listen(128)
+        except OSError:
+            listener.close()
+            if candidate:
+                continue
+            raise
+        return listener
+    raise OSError("No loopback port is available.")
+
+
 def main():
     import uvicorn
     token = os.environ.get("TENSORVIZ_LOCAL_TOKEN", "")
@@ -167,11 +196,14 @@ def main():
                 pass
             os._exit(0)
         threading.Thread(target=watch_parent, daemon=True).start()
+    port = 0
+    if arguments[:1] == ["--port"] and len(arguments) > 1:
+        # The host validates TENSORVIZ_BROWSER_PORT; anything else is ignored.
+        port = int(arguments[1]) if arguments[1].isdecimal() and 0 < int(arguments[1]) < 65536 else 0
+        arguments = arguments[2:]
     assets = Path(arguments[0]).resolve() if arguments else None
     app = create_app(token, assets)
-    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    listener.bind(("127.0.0.1", 0))
-    listener.listen(128)
+    listener = listen(port)
     # Private parent-child pipe, never the MCP connection or a log.
     print(json.dumps({"port": listener.getsockname()[1]}), flush=True)
     # The broker's own frame bound, which Publish's graph file needs.

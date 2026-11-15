@@ -50,6 +50,7 @@ await build({
 
 await build({ absWorkingDir: root, entryPoints: {
   snapshotCleanup: 'test/fixtures/snapshot-cleanup.ts', approval: 'src/approval.ts', assets: 'src/assets.ts', workspace: 'src/workspace.ts', environment: 'src/environment.ts',
+  permissions: 'src/permissions.ts',
   host: 'src/host.ts', graphPanel: 'src/graphPanel.ts', review: 'src/review.ts', ownedTemporary: '../packages/graph-host/src/ownedTemporary.ts', protocol: '../packages/contracts/src/protocol.ts',
   setupFiles: 'src/setupFiles.ts', locks: 'src/locks.ts', profileChoices: 'src/profileChoices.ts', dependencies: 'src/dependencies.ts', runtime: 'src/runtime.ts',
   traceWorkerCore: '../packages/graph-host/src/traceWorkerCore.ts', backend: 'src/backend.ts', backendPython: '../packages/graph-host/src/backendPython.ts', website: 'src/website.ts',

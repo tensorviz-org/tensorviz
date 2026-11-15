@@ -95,14 +95,48 @@ A replaced panel frame cannot reclaim the same opener with its old client ID. Af
 
 Closing the panel does not cancel a capture or edit source. Reopen **Model graph** if it disconnects; the capture is kept.
 
+## Use over SSH
+
+When your coding agent runs on a server you reach over SSH, TensorViz runs there too, and
+its browser link (`http://127.0.0.1:<port>/#…`) points at a port on the server. Forward that
+port to your computer, then open the link:
+
+```sh
+ssh -L 45791:127.0.0.1:45791 user@server
+```
+
+- Use the port number from the link on both sides. A different local port also works if
+  you change the port in the link to match, and `localhost` works as well as `127.0.0.1`,
+  so editor port forwarding, such as VS Code's, works too.
+- A link opens once, within 2 minutes of being created. An expired or already used link
+  says so; ask the agent for a new browser view.
+- The port changes each time the plugin starts. To keep it fixed, set
+  `TENSORVIZ_BROWSER_PORT` (1024–65535) in the environment that starts your coding agent
+  on the server, for example in its shell profile, and forward it once in your
+  `~/.ssh/config`:
+
+  ```text
+  Host my-server
+    LocalForward 45791 127.0.0.1:45791
+  ```
+
+  If that port is in use, for example by another session, TensorViz picks a free port and
+  says which in its result.
+- In an SSH session, `open_graph_view` and `open_graph_diff` add these steps, with the
+  link's port, as `browserAccess` for the agent to pass on.
+
+Published 0.1.46 and earlier accept only the exact port in the link and ignore
+`TENSORVIZ_BROWSER_PORT`.
+
 ## Publish to tensorviz.dev
 
 **Publish**, in the panel and browser graph toolbars, adds the open graph to your
 [tensorviz.dev](https://tensorviz.dev/explore/) account as private, as the editor
 extension does. The first time, choose **Continue in browser** to sign in with Google.
 Then open the graph's Share dialog to choose who can see it. Publish is a button in
-the graph, not an agent tool. To sign out, run `node scripts/launch.cjs --sign-out`
-from the installed plugin directory. Details: [Add graphs to tensorViz](share-to-website.md#publish-from-the-coding-agent-plugin).
+the graph, not an agent tool. To sign out, run `sh scripts/launch.sh --sign-out`
+from the installed plugin directory (Windows: `.\scripts\tensorviz-bootstrap.exe --sign-out`).
+Details: [Add graphs to tensorViz](share-to-website.md#publish-from-the-coding-agent-plugin).
 
 ## Permissions
 

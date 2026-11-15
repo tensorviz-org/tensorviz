@@ -35,6 +35,7 @@ from services.ide.local_browser_protocol import (  # noqa: E402
 from services.ide.local_browser_broker import (  # noqa: E402
     LOCAL_BROWSER_CLOSE_CODES,
     LOCAL_BROWSER_COOKIE,
+    forwarded_loopback_origin,
     normalize_launch_origin,
     view_cookie_name,
 )
@@ -226,6 +227,33 @@ def test_launch_origin_normalization():
     assert normalize_launch_origin("HTTP://127.0.0.1:8001/") == "http://127.0.0.1:8001"
     with pytest.raises(ValueError):
         normalize_launch_origin("not-a-url")
+
+
+def test_forwarded_loopback_origin_is_only_a_page_naming_its_own_loopback_host():
+    assert forwarded_loopback_origin("http://127.0.0.1:18080", "127.0.0.1:18080") == "http://127.0.0.1:18080"
+    assert forwarded_loopback_origin("http://localhost:18080", "LOCALHOST:18080") == "http://localhost:18080"
+    for origin, host in [
+        ("http://127.0.0.1:8888", "127.0.0.1:18080"),  # another local page
+        ("http://attacker.example:18080", "attacker.example:18080"),  # DNS rebinding
+        ("https://127.0.0.1:18080", "127.0.0.1:18080"),
+        ("http://127.0.0.1:18080/", "127.0.0.1:18080"),  # not the header a browser sends
+        ("http://[::1]:18080", "[::1]:18080"),
+        ("null", "127.0.0.1:18080"),
+        (None, "127.0.0.1:18080"),
+        ("http://127.0.0.1:18080", None),
+    ]:
+        assert forwarded_loopback_origin(origin, host) is None, (origin, host)
+
+
+def test_the_extension_broker_never_accepts_a_forwarded_origin_it_did_not_mint(client):
+    session = mint(client)
+    forwarded = client.post(
+        "/local/bootstrap",
+        json={"workspaceSessionId": session["workspaceSessionId"], "credential": session["viewCredential"]},
+        headers={"Origin": "http://127.0.0.1:18080", "Host": "127.0.0.1:18080"},
+    )
+    assert forwarded.status_code == 403
+    assert forwarded.json()["detail"]["code"] == "INVALID_ORIGIN"
 
 
 # --- bootstrap: fragment credential -> HttpOnly cookie ----------------------

@@ -25,7 +25,12 @@ Credential model (docs/extension-local-webpage-protocol.md "Security Boundary"):
   nowhere the browser can still reach. The host cookie key never enters a
   browser flow at all, so a stolen view credential cannot claim the host role.
 * The WebSocket route authenticates only on that cookie plus an exact ``Origin``
-  match against the launch origin: a browser socket can present nothing else.
+  match against the origin the cookie was issued to: a browser socket can
+  present nothing else. That origin is the launch origin, except on a broker
+  built with ``forwarded_loopback`` (the plugin's standalone service), which
+  also issues view cookies to a same-origin page on another ``127.0.0.1`` or
+  ``localhost`` port — an SSH or editor port forward the service cannot name in
+  advance. See ``forwarded_loopback_origin``.
 * Sessions expire. The TTL timer closes every socket with CREDENTIAL_EXPIRED
   and revokes every credential, so a browser tab left open overnight does not
   keep a live line into the workspace after the extension's window is gone. The
@@ -179,6 +184,35 @@ def normalize_launch_origin(value: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc.lower()}"
 
 
+#: Host names a forwarded page may use on a ``forwarded_loopback`` broker. DNS
+#: rebinding needs a name the attacker controls, so neither can be one.
+LOOPBACK_BROWSER_HOSTS = frozenset({"127.0.0.1", "localhost"})
+
+
+def forwarded_loopback_origin(origin: str | None, host: str | None) -> str | None:
+    """The origin of a same-origin page that reached this service through a
+    forwarded loopback port, or None.
+
+    An SSH ``-L`` forward or an editor's automatic forwarding can give the page
+    any local port, and VS Code opens its forwards as ``localhost``. The page is
+    still same-origin with the address it loaded from, so its ``Origin`` names
+    exactly the ``Host`` it sent. Another local page aiming at this service
+    presents its own origin, which never equals this ``Host``, and a rebinding
+    page's ``Host`` is not a loopback name.
+    """
+
+    if not origin or not host:
+        return None
+    try:
+        canonical = normalize_launch_origin(origin)
+    except ValueError:
+        return None
+    parsed = urlsplit(canonical)
+    if canonical != origin or parsed.scheme != "http" or parsed.hostname not in LOOPBACK_BROWSER_HOSTS:
+        return None
+    return origin if host.lower() == parsed.netloc else None
+
+
 class BootstrapRefusal(RuntimeError):
     """A bootstrap rejection. ``code`` is the frozen protocol error code so the
     page and the contract speak one vocabulary; the message is static text that
@@ -230,15 +264,18 @@ class _Session:
 class LocalBrowserBroker:
     """One in-memory registry of workspace sessions and their live sockets."""
 
-    def __init__(self, *, source_proposals: bool = True) -> None:
+    def __init__(self, *, source_proposals: bool = True, forwarded_loopback: bool = False) -> None:
         self._capabilities = dict(_READ_ONLY_CAPABILITIES)
         if not source_proposals:
             self._capabilities.pop("canProposeSourceEdits", None)
+        # The extension names its forwarded origin when it mints a session; the
+        # standalone service cannot, so it accepts the page's own loopback origin.
+        self._forwarded_loopback = forwarded_loopback
         self._sessions: dict[str, _Session] = {}
-        # Opaque cookie value -> (session id, role). Keeping the map here rather
-        # than re-minting the cookie from the credential is what lets expiry
-        # revoke every outstanding key in one sweep.
-        self._cookie_keys: dict[str, tuple[str, str]] = {}
+        # Opaque cookie value -> (session id, role, origin it was issued to).
+        # Keeping the map here rather than re-minting the cookie from the
+        # credential is what lets expiry revoke every outstanding key in one sweep.
+        self._cookie_keys: dict[str, tuple[str, str, str]] = {}
         self._connection_counter = 0
         self._message_counter = 0
 
@@ -290,9 +327,13 @@ class LocalBrowserBroker:
                 "handoffId": handoff_id, "viewCredential": credential, "expiresAt": _iso_utc(expires)}
 
     def bootstrap_view(
-        self, workspace_session_id: str, credential: str, origin: str | None
-    ) -> tuple[_Session, str, str | None]:
+        self, workspace_session_id: str, credential: str, origin: str | None, host: str | None = None
+    ) -> tuple[_Session, str, str | None, str]:
         """Trade the fragment credential for a view cookie key.
+
+        Returns the session, the key, the handoff id of a single-use link, and
+        the origin the key is bound to (the cookie's name and the socket's
+        ``Origin`` both follow it).
 
         The refusal order is origin before credential on purpose: the origin
         check is the cheap fence that keeps unrelated local pages from ever
@@ -302,7 +343,8 @@ class LocalBrowserBroker:
         session = self._sessions.get(workspace_session_id)
         if session is None:
             raise BootstrapRefusal(401, "INVALID_CREDENTIALS", "Unknown session credential.")
-        if origin != session.launch_origin:
+        view_origin = self._view_origin(session, origin, host)
+        if view_origin is None:
             raise BootstrapRefusal(403, "INVALID_ORIGIN", "The request origin is not the launch origin.")
         if self._is_expired(session):
             raise BootstrapRefusal(410, "CREDENTIAL_EXPIRED", "The session has expired. Reopen the graph from VS Code.")
@@ -315,7 +357,20 @@ class LocalBrowserBroker:
             if expires <= _utcnow():
                 raise BootstrapRefusal(410, "CREDENTIAL_EXPIRED", "Request a new browser view link.")
             session.handoffs.add(handoff_id)
-        return session, self._new_cookie_key(session, "view"), handoff_id
+        return session, self._new_cookie_key(session, "view", view_origin), handoff_id, view_origin
+
+    def _view_origin(self, session: _Session, origin: str | None, host: str | None) -> str | None:
+        """The origin a browser view of this session may use: the launch origin,
+        or on a forwarded-loopback broker, a forward of a loopback launch origin."""
+
+        if origin is not None and origin == session.launch_origin:
+            return origin
+        if not self._forwarded_loopback:
+            return None
+        launch = urlsplit(session.launch_origin)
+        if launch.scheme != "http" or launch.hostname not in LOOPBACK_BROWSER_HOSTS:
+            return None
+        return forwarded_loopback_origin(origin, host)
 
     def session_info(self, session: _Session, role: str) -> dict[str, Any]:
         return {
@@ -356,13 +411,14 @@ class LocalBrowserBroker:
 
         origin = websocket.headers.get("origin", "")
         # Host transports send the fixed cookie explicitly. Browser views use a
-        # name scoped to their exact launch origin, including the forwarded port.
+        # name scoped to the exact origin their key was issued to, including the
+        # forwarded port.
         cookie_key = websocket.cookies.get(view_cookie_name(origin), "") or websocket.cookies.get(LOCAL_BROWSER_COOKIE, "")
         key_entry = self._cookie_keys.get(cookie_key) if cookie_key else None
         if key_entry is None:
             await self._deny(websocket, "INVALID_CREDENTIALS")
             return None, "", None
-        session_id, role = key_entry
+        session_id, role, key_origin = key_entry
         session = self._sessions.get(session_id)
         if session is None:
             await self._deny(websocket, "INVALID_CREDENTIALS")
@@ -370,7 +426,10 @@ class LocalBrowserBroker:
         if self._is_expired(session):
             await self._deny(websocket, "CREDENTIAL_EXPIRED")
             return None, "", None
-        if websocket.headers.get("origin") != session.launch_origin:
+        if websocket.headers.get("origin") != key_origin or (
+            key_origin != session.launch_origin
+            and forwarded_loopback_origin(key_origin, websocket.headers.get("host")) != key_origin
+        ):
             await self._deny(websocket, "INVALID_ORIGIN")
             return None, "", None
         self._connection_counter += 1
@@ -738,7 +797,7 @@ class LocalBrowserBroker:
         session = self._sessions.get(session_id)
         if session is None:
             return
-        for key, (key_session_id, _role) in list(self._cookie_keys.items()):
+        for key, (key_session_id, _role, _origin) in list(self._cookie_keys.items()):
             if key_session_id == session_id:
                 self._cookie_keys.pop(key, None)
         close_code = LOCAL_BROWSER_CLOSE_CODES["CREDENTIAL_EXPIRED"]
@@ -906,9 +965,9 @@ class LocalBrowserBroker:
             return False
         return True
 
-    def _new_cookie_key(self, session: _Session, role: str) -> str:
+    def _new_cookie_key(self, session: _Session, role: str, origin: str | None = None) -> str:
         key = secrets.token_urlsafe(32)
-        self._cookie_keys[key] = (session.workspace_session_id, role)
+        self._cookie_keys[key] = (session.workspace_session_id, role, origin or session.launch_origin)
         return key
 
     @staticmethod

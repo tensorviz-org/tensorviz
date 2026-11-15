@@ -14,7 +14,8 @@ Three endpoints, three different callers:
   default property middleware.py's IDE mode keeps.
 * ``POST /local/bootstrap`` — the browser page, once, trading the URL-fragment
   credential for the HttpOnly session cookie. Origin-checked against the launch
-  origin so an unrelated local page can never pass.
+  origin (or, on the plugin's standalone service, a same-origin forward of it to
+  another loopback port) so an unrelated local page can never pass.
 * ``WS /local/ws`` — the broker socket, authenticating on that cookie alone.
 
 The router is deliberately NOT in the ``Depends(get_current_user)`` group: the
@@ -112,8 +113,8 @@ async def create_local_browser_view_link(workspace_session_id: str, request: Req
 @router.post("/bootstrap")
 def bootstrap_local_browser(request: Request, body: BootstrapRequest):
     try:
-        session, cookie_key, handoff_id = _broker(request).bootstrap_view(
-            body.workspaceSessionId, body.credential, request.headers.get("origin")
+        session, cookie_key, handoff_id, view_origin = _broker(request).bootstrap_view(
+            body.workspaceSessionId, body.credential, request.headers.get("origin"), request.headers.get("host")
         )
     except BootstrapRefusal as refusal:
         return _refusal(refusal.status_code, refusal.code, refusal.message)
@@ -122,12 +123,12 @@ def bootstrap_local_browser(request: Request, body: BootstrapRequest):
         info["handoffId"] = handoff_id
     response = JSONResponse(info, headers={"Cache-Control": "no-store"})
     response.set_cookie(
-        view_cookie_name(session.launch_origin),
+        view_cookie_name(view_origin),
         cookie_key,
         path="/local",
         httponly=True,
         samesite="strict",
-        secure=session.launch_origin.startswith("https://"),
+        secure=view_origin.startswith("https://"),
     )
     return response
 

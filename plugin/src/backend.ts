@@ -10,12 +10,32 @@ import type { CaptureSnapshot } from '@tensorviz/graph-host/semanticCapture';
 import { HostError } from './workspace';
 import { CAPTURE_SERVICE_MAX_BYTES } from '@tensorviz/graph-host/captureBudgets';
 
+/** TENSORVIZ_BROWSER_PORT: a fixed browser port, so an SSH LocalForward can be set up once. */
+export function requestedBrowserPort(env: NodeJS.ProcessEnv = process.env): number | 'invalid' | undefined {
+  const value = env.TENSORVIZ_BROWSER_PORT?.trim();
+  if (!value) return undefined;
+  const port = /^\d{1,5}$/.test(value) ? Number(value) : NaN;
+  return port >= 1024 && port <= 65535 ? port : 'invalid';
+}
+
+/** What the user needs before opening a browser link from another computer, if anything. */
+export function browserAccess(url: string, notice?: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const notes = notice ? [notice] : [];
+  const port = new URL(url).port;
+  // Set by sshd in the login session; the coding client and this host inherit it.
+  if ((env.SSH_CONNECTION || env.SSH_CLIENT) && port) {
+    notes.push(`TensorViz is running over SSH, so this port is on the server. If the user's browser is on another computer, they must forward it first: ssh -L ${port}:127.0.0.1:${port} <server> (or forward any free local port and change the port in url to match). Open url within 2 minutes or request a new view. Setting TENSORVIZ_BROWSER_PORT on the server keeps the port fixed.`);
+  }
+  return notes.length ? notes.join(' ') : undefined;
+}
+
 /** One owned service process; it receives source snapshots, never execution authority. */
 export class Backend {
   private child?: ChildProcess;
   private token?: string;
   private origin?: string;
   private session?: LocalBrowserSessionMaterial;
+  private portNotice?: string;
   transport?: LocalBrowserHostTransport;
   constructor(readonly directory: string, readonly browser: string) {}
   get ready(): boolean { return !!this.child && !!this.origin; }
@@ -24,7 +44,9 @@ export class Backend {
     if (this.child) return;
     signal.throwIfAborted();
     this.token = randomBytes(32).toString('hex');
+    const requested = requestedBrowserPort();
     const child = spawn(interpreter, backendPythonArgs(this.directory, 'standalone_server.py', ['--parent-pipe',
+      ...(typeof requested === 'number' ? ['--port', String(requested)] : []),
       ...(existsSync(path.join(this.browser, 'index.html')) ? [this.browser] : [])]), {
       cwd: this.directory, detached: process.platform !== 'win32', windowsHide: true,
       env: { ...process.env, TENSORVIZ_LOCAL_TOKEN: this.token, PYTHONDONTWRITEBYTECODE: '1' },
@@ -62,6 +84,11 @@ export class Backend {
         });
       });
       this.origin = `http://127.0.0.1:${port}`;
+      this.portNotice = requested === 'invalid'
+        ? `TENSORVIZ_BROWSER_PORT must be a whole number from 1024 to 65535, so this view uses port ${port}.`
+        : requested !== undefined && requested !== port
+          ? `TENSORVIZ_BROWSER_PORT ${requested} is in use or not permitted (another TensorViz session may hold it), so this view uses port ${port}.`
+          : undefined;
       // The service reports its bound port before the event loop has started.
       for (let attempt = 0; ; attempt++) {
         try { await this.request('/api/health', undefined, signal); break; }
@@ -119,6 +146,12 @@ export class Backend {
     if (!existsSync(path.join(this.browser, 'index.html'))) throw new HostError('BROWSER_ASSETS_MISSING', 'This installation is missing its browser assets. Rebuild or reinstall the complete plugin; capture evidence remains inspectable.');
     if (!this.session || !this.origin || !this.token) throw new HostError('BACKEND_UNAVAILABLE', 'The browser session is unavailable.');
     return mintLocalBrowserViewLink({ backendBaseUrl: this.origin, launchToken: this.token, session: this.session, signal });
+  }
+
+  /** Adds browserAccess to a tool result that hands the agent a browser url. */
+  withBrowserAccess<T extends Record<string, unknown>>(result: T): T {
+    const access = typeof result.url === 'string' ? browserAccess(result.url, this.portNotice) : undefined;
+    return access ? { ...result, browserAccess: access } : result;
   }
 
   sessionCurrent(id: string): boolean { return !!this.child && this.transport?.status.phase !== 'ended' && this.session?.workspaceSessionId === id; }

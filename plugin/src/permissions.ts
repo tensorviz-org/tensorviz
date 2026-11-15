@@ -3,13 +3,21 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { applicationData } from './environment';
 
+/** A launcher command this installation actually has. Published Unix plugins ship
+ *  only scripts/launch.sh (a source install's launch.sh runs launch.cjs), and
+ *  published Windows plugins start through the native bootstrap, without Node.js. */
+export function launcherCommand(argument: string, platform: NodeJS.Platform = process.platform, native = 'pkg' in process): string {
+  if (platform !== 'win32') return `sh scripts/launch.sh ${argument}`;
+  return native ? `.\\scripts\\tensorviz-bootstrap.exe ${argument}` : `node scripts\\launch.cjs ${argument}`;
+}
+
 // Increment when the capabilities described to the user expand, not on every release.
 export const permissionVersion = 1;
 export const permissionSummary = `Allow TensorViz to work with local models without asking again?
 
 When you request a model workflow, TensorViz can read your selected projects, inspect Python environments, run model/setup code, save TensorViz recipes and generated setup helpers, download verified Python runtimes, and build/install required dependencies in the selected environment. Project and package code runs with your user account's access; it is not sandboxed by TensorViz. Graph evidence is returned to your coding client.
 
-This permission applies to TensorViz across projects, chats, compatible updates and coding clients on this computer. Your explicit read-only instructions and client/organization permissions still apply. Revoke it by running node scripts/launch.cjs --revoke-permission from the installed plugin directory.`;
+This permission applies to TensorViz across projects, chats, compatible updates and coding clients on this computer. Your explicit read-only instructions and client/organization permissions still apply. Revoke it by running ${launcherCommand('--revoke-permission')} from the installed plugin directory.`;
 
 /** User-level consent lives outside project files and the replaceable plugin cache. */
 export class PluginPermissions {

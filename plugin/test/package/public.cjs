@@ -7,6 +7,7 @@ const { createHash } = require('node:crypto');
 
 test('public integration export contains no core source, build tree or runtime payload', async () => {
   const { exportPublic } = await import('../../scripts/export-public.mjs');
+  const { renderPublicDocument } = await import('../../scripts/canonical-public-documents.mjs');
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-public-check-'));
   const output = path.join(temporary, 'integration');
   const version = (await import('../../scripts/release-version.mjs')).pluginVersion();
@@ -34,7 +35,7 @@ test('public integration export contains no core source, build tree or runtime p
       assert.ok(guide.includes('## T3 Code and large graphs'));
       for (const [name, text] of [['README.md', readme], ['BUILD.md', build], ['docs/installation.md', guide]]) {
         const template = await fs.readFile(path.resolve(__dirname, '../../packaging/public', name), 'utf8');
-        assert.equal(text, template.replaceAll('{{VERSION}}', version), `${prefix}${name} must preserve the complete guide`);
+        assert.equal(text, renderPublicDocument(template, version), `${prefix}${name} must preserve the complete guide`);
         assert.ok(!text.includes('{{VERSION}}'), `${prefix}${name} must substitute the release version`);
       }
       assert.match(readme, /\*\*29\s+tools\*\*: 25 agent tools and four tools reserved for the Model graph app/);

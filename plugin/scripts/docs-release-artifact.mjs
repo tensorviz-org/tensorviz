@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
 import {contentHash,inventoryHash} from './source-release-admission.mjs';
-const safe=name=>typeof name==='string'&&/^[A-Za-z0-9_.\/-]+$/.test(name)&&!name.split('/').some(p=>!p||p==='.'||p==='..'||p.startsWith('.')||p.startsWith('-'));
+const safe=name=>typeof name==='string'&&/^[A-Za-z0-9_.@\/-]+$/.test(name)&&!name.split('/').some(p=>!p||p==='.'||p==='..'||p.startsWith('.')||p.startsWith('-'));
 export async function verifyDocsArtifact(bytes,{version,sourceRevision,sha256}) {
   if(!Buffer.isBuffer(bytes)||contentHash(bytes)!==sha256||!/^\d+\.\d+\.\d+$/.test(version)||!/^[a-f0-9]{40}$/.test(sourceRevision))throw Error('Documentation artifact checksum/provenance required');
   const temporary=await fs.mkdtemp(path.join(os.tmpdir(),'tensorviz-docs-audit-'));

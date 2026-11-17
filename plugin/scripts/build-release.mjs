@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyRendererLicense } from './renderer-license.mjs';
-import { distributionRepository } from './release-version.mjs';
+import { distributionRepositoryForVersion } from './release-version.mjs';
 import { nativePlatform, runtimeArchive } from './native-platforms.mjs';
 import { packageNative } from './package-native.mjs';
 import { rendererLicenseKey, assertRendererKey, installRendererArtifact } from './renderer-artifact.mjs';
@@ -17,7 +17,7 @@ export function releaseBuildConfig(environment, version, platform = nativePlatfo
   if (!path.isAbsolute(environment.TENSORVIZ_COMPILER_PYTHON ?? '')) throw new Error('Set TENSORVIZ_COMPILER_PYTHON to a dedicated compiler environment.');
   if (environment.TLDRAW_DISTRIBUTION_CONFIRMED !== 'true') throw new Error('Renderer distribution coverage needs owner confirmation.');
   const key = rendererLicenseKey(environment);
-  return { key, url: `https://github.com/${distributionRepository}/releases/download/v${version}/${runtimeArchive({ version, platform })}`,
+  return { key, url: `https://github.com/${distributionRepositoryForVersion(version)}/releases/download/v${version}/${runtimeArchive({ version, platform })}`,
     env: { ...environment, TENSORVIZ_RELEASE_VERSION: version, TLDRAW_LICENSE_KEY: key, REACT_APP_TLDRAW_LICENSE_KEY: key } };
 }
 

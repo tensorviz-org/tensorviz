@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { createHash } = require('node:crypto');
-const sha = 'a'.repeat(40), other = 'b'.repeat(40), tag = 'v1.2.3', exportSHA = 'c'.repeat(40), previousSHA = 'd'.repeat(40);
+const sha = 'a'.repeat(40), other = 'b'.repeat(40), tag = 'v0.2.3', exportSHA = 'c'.repeat(40), previousSHA = 'd'.repeat(40);
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 
 // Isolate publisher orchestration from archive fixtures. The production verifier
@@ -36,15 +36,15 @@ async function fixture(t, options = {}) {
       return release;
     }
   `);
-  const publication = { version: '1.2.3', sourceRevision: options.source ?? sha, files: {}, runtime: {} };
+  const publication = { version: '0.2.3', sourceRevision: options.source ?? sha, files: {}, runtime: {} };
   await fs.mkdir(path.join(root, 'integration'));
   await fs.writeFile(path.join(root, 'integration/PUBLICATION.json'), JSON.stringify(publication));
   const payload = Buffer.from('audited plugin ZIP');
-  const release = { version: '1.2.3', sourceRevision: options.source ?? sha, files: { 'tensorviz-1.2.3.zip': digest(payload) }, publication, rejectAudit: options.rejectAudit };
+  const release = { version: '0.2.3', sourceRevision: options.source ?? sha, files: { 'tensorviz-0.2.3.zip': digest(payload) }, publication, rejectAudit: options.rejectAudit };
   const manifest = Buffer.from(JSON.stringify(release));
   await fs.writeFile(path.join(root, 'release.json'), manifest);
-  await fs.writeFile(path.join(root, 'tensorviz-1.2.3.zip'), payload);
-  const contents = { 'tensorviz-1.2.3.zip': payload, 'release.json': manifest };
+  await fs.writeFile(path.join(root, 'tensorviz-0.2.3.zip'), payload);
+  const contents = { 'tensorviz-0.2.3.zip': payload, 'release.json': manifest };
   let ref = (options.existing || options.orphanTag) ? { object: { type: options.tagType ?? 'commit', sha: options.tagSHA ?? exportSHA } } : null;
   let hosted = options.existing ? { id: 7, tag_name: tag, target_commitish: options.target ?? exportSHA, draft: options.draft !== false } : null;
   const assets = options.assets ?? (options.existing ? Object.keys(contents).map((name, i) => ({ name, id: i + 1 })) : []);
@@ -57,12 +57,12 @@ async function fixture(t, options = {}) {
     if (tool === 'git') {
       assert.equal(settings.env.GH_TOKEN, 'distribution-test');
       if (args[0] === 'rev-parse') return options.head ?? sha;
-      if (args[0] === 'show') return JSON.stringify({ version: options.version ?? '1.2.3' });
+      if (args[0] === 'show') return JSON.stringify({ version: options.version ?? '0.2.3' });
       const command = args[2];
       if (command === 'clone') {
         checkout = args.at(-1); mkdirSync(checkout);
         mkdirSync(path.join(checkout, '.git'));
-        writeFileSync(path.join(checkout, 'PUBLICATION.json'), JSON.stringify({ ...publication, version: options.newer ? '2.0.0' : options.promoted ? '1.2.3' : '1.2.2' }));
+        writeFileSync(path.join(checkout, 'PUBLICATION.json'), JSON.stringify({ ...publication, version: options.newer ? '2.0.0' : options.promoted ? '0.2.3' : '0.2.2' }));
         return '';
       }
       if (command === 'rev-parse') return detached || committed || options.promoted ? exportSHA : previousSHA;
@@ -133,7 +133,7 @@ test('uses the canonical repository metadata endpoint without a trailing slash',
 
 test('publishes only public export and advances catalog after all downloads', async t => {
   const f = await fixture(t); const result = await f.run();
-  assert.equal(result.commit, exportSHA); assert.match(result.release, /\/v1.2.3$/);
+  assert.equal(result.commit, exportSHA); assert.match(result.release, /\/v0.2.3$/);
   assert.equal(f.calls.filter(c => c[1] === 'release' && c[2] === 'upload').length, 2);
   assert.equal(f.downloads.length, 2);
   assert.ok(f.calls.some(c => c.includes(`${exportSHA}:refs/heads/main`)));
@@ -146,7 +146,7 @@ for (const [name, options, error] of [
   ['audits before any write', { rejectAudit: true }, /audit failed/],
   ['rejects different candidate source', { source: other }, /Candidate/],
   ['rejects different checkout', { head: other }, /Checkout/],
-  ['rejects unreviewed version override', { version: '1.2.2' }, /checked-in/],
+  ['rejects unreviewed version override', { version: '0.2.2' }, /checked-in/],
   ['rejects non-main source', { status: 'diverged' }, /main history/],
   ['checks main merge base', { mergeBase: other }, /main history/],
   ['rejects moved tag', { existing: true, tagSHA: other }, /Existing release tag/],
@@ -174,7 +174,7 @@ test('public verification failures are actionable and never push source main', a
 });
 
 test('resumes a partial draft by uploading only missing assets', async t => {
-  const f = await fixture(t, { existing: true, assets: [{ name: 'tensorviz-1.2.3.zip', id: 1 }] });
+  const f = await fixture(t, { existing: true, assets: [{ name: 'tensorviz-0.2.3.zip', id: 1 }] });
   await f.run();
   const uploads = f.calls.filter(c => c[1] === 'release' && c[2] === 'upload');
   assert.equal(uploads.length, 1); assert.equal(path.basename(uploads[0][4]), 'release.json');

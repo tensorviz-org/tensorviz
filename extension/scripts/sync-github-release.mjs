@@ -18,6 +18,7 @@ const compareVersions = (a, b) => {
 /** Keep the rolling download monotonic when an older run is retried later. */
 export function shouldUpdateRollingRelease({ repository, version, command = execFileSync }) {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository ?? '') || !stableVersion(version ?? '')) throw new Error('Expected a repository and stable extension version.');
+  if (Number(version.split('.')[0]) >= 1) throw new Error('Public 1.x releases require the unified source publisher.');
   const pages = JSON.parse(command('gh', ['api', '--paginate', '--slurp', `repos/${repository}/releases?per_page=100`],
     { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }));
   const versions = pages.flat().filter(item => !item.draft && !item.prerelease
@@ -45,6 +46,7 @@ export function syncGithubRelease({ repository, source, vsix, command = execFile
   if (!stableVersion(version) || !/^[\w-]+$/.test(name) || !/^[\w-]+$/.test(publisher)) {
     throw new Error('Expected a stable Marketplace extension identity.');
   }
+  if (Number(version.split('.')[0]) >= 1) throw new Error('Public 1.x releases require the unified source publisher.');
   const tag = `v${version}`, asset = `${name}-${version}.vsix`;
   const directory = mkdtempSync(join(tmpdir(), 'tensorviz-release-sync-'));
   try {
@@ -147,3 +149,4 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     vsix: resolve(process.argv.slice(2).find(argument => !argument.startsWith('--')) || `extension/${manifest.name}-${manifest.version}.vsix`) });
   console.log(`GitHub and Marketplace match: ${result.version}, SHA-256 ${result.sha256}\n${result.url}`);
 }
+

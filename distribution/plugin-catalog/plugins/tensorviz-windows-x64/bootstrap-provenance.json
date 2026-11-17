@@ -1,0 +1,9 @@
+{
+  "formatVersion": 1,
+  "arch": "x64",
+  "version": "0.1.48",
+  "sourceRevision": "eeff6f57ea34797b08552000b5658b6fd363be25",
+  "sha256": "c1a32ac9ff26d8cdec85e0a113307d61202d11921708daf301393834f979a91a",
+  "bytes": 57601086,
+  "noticesSha256": "f8cd00561e4e8dc39c3e10a770f037708ebc23be03621c2a80e35df5de3bf8f6"
+}

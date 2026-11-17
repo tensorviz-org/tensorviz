@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0
+
+- Prepare the first public source release with aligned extension, Canvas and coding-agent plugin versions.
+- Build extension, native plugin and documentation candidates from one reviewed source revision.
+- Route new plugin runtimes to tensorviz-org/tensorviz while preserving historical 0.x downloads.
+- Require signed installation and migration evidence before unified publication.
+
 ## 0.1.48
 
 - Default graph recording to 16 MiB independently of the 4 MiB validation-record limit, retaining large FakeTensor model outputs.
@@ -29,6 +36,7 @@
 ## Contents
 
 - [Unreleased](#unreleased)
+- [1.0.0](#100)
 - [0.1.48](#0148)
 - [0.1.47](#0147)
 - [0.1.46](#0146)
@@ -76,7 +84,7 @@
 - [0.0.2](#002)
 - [0.0.1](#001)
 
-Extension **0.1.44**. The plugin host in this repository is **0.1.44**.
+Source candidate: extension **1.0.0** and plugin host **1.0.0**. Publication is a separate, evidence-gated step.
 
 This tree is the visualization product: Open as Graph, graph diff, execution
 cache (`off`, `shadow`, and `on`), code focus, graph export, MCP, Hugging Face open, source

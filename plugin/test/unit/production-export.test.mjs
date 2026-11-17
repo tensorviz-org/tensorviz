@@ -8,7 +8,7 @@ import {createHash} from 'node:crypto';
 import {exportPublic,integrationFiles} from '../../scripts/export-public.mjs';
 import {auditIntegration} from '../../scripts/release-candidate.mjs';
 import {verifyBootstrap} from '../../scripts/bootstrap-provenance.mjs';
-import {pluginVersion} from '../../scripts/release-version.mjs';
+import {pluginVersion,distributionRepositoryForVersion} from '../../scripts/release-version.mjs';
 import {nativePlatforms} from '../../scripts/native-platforms.mjs';
 const hash=x=>createHash('sha256').update(x).digest('hex');
 const version=pluginVersion();
@@ -46,7 +46,7 @@ test('six-platform assembly produces and verifies Windows standalone and combine
    const manifest={version,sourceRevision,platform,pythonABI:nativePlatforms[platform].abi,coreSourceIncluded:false,rendererDistributionCoverage:'owner-confirmed',workingTreeChanged:false,files:{[host]:hash(await fs.readFile(path.join(native,host)))}};
    await fs.writeFile(path.join(native,'release-manifest.json'),JSON.stringify(manifest));
    const archive=path.join(tmp,`tensorviz-runtime-${version}-${platform}.tar.gz`);execFileSync('tar',['-czf',archive,'-C',native,host,'release-manifest.json'],{env:{...process.env,COPYFILE_DISABLE:'1'}});const bytes=await fs.readFile(archive);
-   await fs.writeFile(`${archive}.json`,JSON.stringify({...entry(platform),bytes:bytes.length,sha256:hash(bytes),url:`https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v${version}/${path.basename(archive)}`}));archives.push(archive);
+   await fs.writeFile(`${archive}.json`,JSON.stringify({...entry(platform),bytes:bytes.length,sha256:hash(bytes),url:`https://github.com/${distributionRepositoryForVersion(version)}/releases/download/v${version}/${path.basename(archive)}`}));archives.push(archive);
    if(platform.startsWith('win32-')){const arch=platform.slice(6),binary=path.join(tmp,`tensorviz-bootstrap-${arch}.exe`),bootstrap=pe(arch);await fs.writeFile(binary,bootstrap);await fs.writeFile(path.join(tmp,`tensorviz-bootstrap-${arch}.NOTICES.md`),'notices');await fs.writeFile(`${binary}.json`,JSON.stringify({formatVersion:1,arch,version,sourceRevision,sha256:hash(bootstrap),bytes:bootstrap.length,noticesSha256:hash('notices')}));}
   }
   const directory=await assembleNativeRelease(path.join(tmp,'integration'),archives);const checked=await verifyReleaseCandidate(directory,{publishing:true});assert.equal(checked.archives.length,6);assert.ok(checked.files[`tensorviz-windows-x64-${version}.zip`]);assert.ok(checked.files[`tensorviz-windows-arm64-${version}.zip`]);

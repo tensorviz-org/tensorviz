@@ -5,6 +5,14 @@ import path from 'node:path';
 import os from 'node:os';
 import {prepareDocsArtifact,verifyDocsArtifact} from '../../scripts/docs-release-artifact.mjs';
 const identity={version:'1.0.0',sourceRevision:'a'.repeat(40)};
+test('published Markdown downloads remain part of the exact signed docs inventory',async()=>{
+ const f=await fixture();try{
+  await fs.mkdir(path.join(f.dir,'markdown'));await fs.writeFile(path.join(f.dir,'markdown','install.md'),'# Install\n');
+  const info=await prepareDocsArtifact(f.dir,f.out,identity);
+  const result=await verifyDocsArtifact(await fs.readFile(f.out),info);
+  assert.equal(result.files['markdown/install.md'].toString(),'# Install\n');
+ }finally{await fs.rm(f.tmp,{recursive:true,force:true});}
+});
 async function fixture(){const tmp=await fs.mkdtemp(path.join(os.tmpdir(),'docs-artifact-test-'));const dir=path.join(tmp,'site');await fs.mkdir(dir);await fs.writeFile(path.join(dir,'index.html'),'docs');await fs.writeFile(path.join(dir,'build-info.json'),JSON.stringify({source:'https://github.com/tensorviz-org/tensorviz',revision:identity.sourceRevision,base:'/'}));return {tmp,dir,out:path.join(tmp,'docs.zip')};}
 test('exact source docs archive stamps version and closed file hashes, then verifies without extraction',async()=>{const f=await fixture();try{const info=await prepareDocsArtifact(f.dir,f.out,identity);const result=await verifyDocsArtifact(await fs.readFile(f.out),info);assert.equal(result.sha256,info.sha256);assert.equal(JSON.parse(result.files['release-info.json']).version,'1.0.0');assert.equal(result.files['index.html'].toString(),'docs');}finally{await fs.rm(f.tmp,{recursive:true,force:true});}});
 for(const name of ['.env','private/.credentials','source.ts'])test(`docs rejects unapproved ${name}`,async()=>{const f=await fixture();try{await fs.mkdir(path.dirname(path.join(f.dir,name)),{recursive:true});await fs.writeFile(path.join(f.dir,name),'secret');await assert.rejects(prepareDocsArtifact(f.dir,f.out,identity));await assert.rejects(fs.stat(f.out));}finally{await fs.rm(f.tmp,{recursive:true,force:true});}});

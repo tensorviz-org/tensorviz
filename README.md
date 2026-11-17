@@ -16,19 +16,20 @@ Windows support is through native Codex entries; Windows Claude Code/Cursor and 
 Codex:
 
 ```sh
-codex plugin marketplace add tensorviz-org/tensorviz-plugins
+codex plugin marketplace add tensorviz-org/tensorviz
 codex plugin add tensorviz@tensorviz-standalone
-
 ```
 
 Claude Code:
 
 ```sh
-claude plugin marketplace add tensorviz-org/tensorviz-plugins
+claude plugin marketplace add tensorviz-org/tensorviz
 claude plugin install tensorviz@tensorviz-standalone --scope user
 ```
 
-Cursor: follow [Install in Cursor](https://github.com/tensorviz-org/tensorviz-plugins#install-in-cursor).
+<a id="install-in-cursor"></a>
+
+Cursor: download the **Cursor ZIP** from [this repository’s releases](https://github.com/tensorviz-org/tensorviz/releases/latest) and follow [Install in Cursor](docs/install.md#cursor).
 
 **Editor extension** for VS Code, Cursor, or VSCodium ([Marketplace](https://marketplace.visualstudio.com/items?itemName=tensorviz.tensorviz-vscode), [Open VSX](https://open-vsx.org/extension/tensorviz/tensorviz-vscode)):
 
@@ -36,9 +37,9 @@ Cursor: follow [Install in Cursor](https://github.com/tensorviz-org/tensorviz-pl
 code --install-extension tensorviz.tensorviz-vscode
 ```
 
-All options, VSIX files, and platform limits are on the [Install](docs/install.md) page. Then open your first graph with the [quickstart](docs/quickstart.md).
+Already using the old plugin catalog? [Move your existing installation](docs/catalog-migration.md) before updating. All options, VSIX files, and platform limits are on the [Install](docs/install.md) page. Then open your first graph with the [quickstart](docs/quickstart.md).
 
-Release automation lives in this repository. The installation links above serve the published packages; see [release operations](docs/releasing.md) for maintainer instructions. To build from source, see [local setup](docs/local-setup.md) and [plugin build](docs/plugin-build.md). This repository is currently private, so GitHub links to it (source files, issues, releases) need read access until it is made public.
+Release automation and the installation catalog live in this public repository. The links above serve published packages; historical 0.x downloads retain their original locations. The source manifests declare the 1.0.0 release candidate; the installed version changes after publication. See [release operations](docs/releasing.md), [local setup](docs/local-setup.md), and [plugin build](docs/plugin-build.md).
 
 ## Docs
 
@@ -54,7 +55,7 @@ Only this repository and the docs dependencies are needed.
 
 ## Support and contributing
 
-- [Plugin support and compatibility](https://github.com/tensorviz-org/tensorviz-plugins/blob/main/SUPPORT.md)
+- [Plugin support and compatibility](https://github.com/tensorviz-org/tensorviz/blob/main/SUPPORT.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 - [Code of conduct](CODE_OF_CONDUCT.md)

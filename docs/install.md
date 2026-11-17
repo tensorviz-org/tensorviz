@@ -16,40 +16,44 @@ Use one TensorViz host per agent. Do not connect the same agent to both the plug
 
 You need your client’s terminal CLI: [Codex CLI](https://developers.openai.com/codex/cli/) or [Claude Code](https://code.claude.com/docs/en/setup).
 
-The published 0.1.45 plugin is a **preview** for macOS ARM64/x64, Linux x64 (glibc >=2.31), Linux ARM64 (glibc >=2.35), and Windows x64/ARM64, with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection. You need internet access for that download, but no separate Node.js installation.
+The compiled plugin is a **preview** for macOS ARM64/x64, Linux x64 (glibc >=2.31), Linux ARM64 (glibc >=2.35), and Windows x64/ARM64, with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection. You need internet access for that download, but no separate Node.js installation.
 
 Windows support is through native Codex entries; Windows Claude Code/Cursor and musl are outside the published acceptance scope. Runtime availability does not guarantee every client GUI, OS version, or model dependency works. See [Linux SSH runtime](linux-ssh-runtime.md) for execution-host requirements and the limits of local validation. Published platform availability does not establish real SSH-network or installed-client acceptance.
 
-Native CI verifies the six release targets and release migration checks. This is
+Release publication requires native CI verification of the six release targets
+and release migration checks. This is
 not a claim that every desktop GUI, older OS, or SSH setup has been tested.
 TensorViz startup/service compatibility is separate from PyTorch wheel and model
 compatibility: a working runtime does not imply a compatible PyTorch installation.
 For the exact published assets and limitations, see the
-[0.1.45 support statement](https://github.com/tensorviz-org/tensorviz-plugins/blob/v0.1.45/plugins/tensorviz/SUPPORT.md).
+[support statement](https://github.com/tensorviz-org/tensorviz/blob/main/SUPPORT.md).
 
-It is distributed from the public catalog [tensorviz-org/tensorviz-plugins](https://github.com/tensorviz-org/tensorviz-plugins). The catalog name is `tensorviz-standalone`.
+It is distributed from the public catalog [tensorviz-org/tensorviz](https://github.com/tensorviz-org/tensorviz). The catalog name is `tensorviz-standalone`.
+
+Already installed from the old repository? Follow
+[Move an existing plugin to the public catalog](catalog-migration.md) first.
 
 ### Codex
 
 ```sh
-codex plugin marketplace add tensorviz-org/tensorviz-plugins
+codex plugin marketplace add tensorviz-org/tensorviz
 codex plugin add tensorviz@tensorviz-standalone
 ```
 
 ### Claude Code
 
 ```sh
-claude plugin marketplace add tensorviz-org/tensorviz-plugins
+claude plugin marketplace add tensorviz-org/tensorviz
 claude plugin install tensorviz@tensorviz-standalone --scope user
 ```
 
 ### Cursor
 
-Follow [Install in Cursor](https://github.com/tensorviz-org/tensorviz-plugins#install-in-cursor). The catalog provides the current Cursor ZIP and setup steps.
+Download the **Cursor ZIP** from [this repository’s releases](https://github.com/tensorviz-org/tensorviz/releases/latest). For a fresh installation, extract it into `~/.cursor/plugins/local/tensorviz` so that folder directly contains `plugin.json`, `.cursor-plugin/plugin.json`, `scripts/`, and `skills/`. Restart Cursor and check **Customize** for the TensorViz skill and MCP server. Keep the previous installation separately for rollback; do not merge files from different versions. Local plugin imports must be allowed by your account or organization.
 
 ### T3 Code
 
-T3 Code uses your Codex profile. Install with the Codex commands above, in the same profile T3 uses. Details are in the [public catalog](https://github.com/tensorviz-org/tensorviz-plugins).
+T3 Code uses your Codex profile. Install with the Codex commands above, in the same profile T3 uses. Details are in the [public catalog](https://github.com/tensorviz-org/tensorviz).
 
 After installing, start a new chat. An existing chat keeps the tools it already loaded. Next: [coding-agent plugin](agent-plugin.md).
 
@@ -109,9 +113,13 @@ Published packages are released separately and may differ from this source check
 
 | | Published | This source tree |
 | --- | --- | --- |
-| Extension ID | `tensorviz.tensorviz-vscode` | `tensorviz.tensorviz` |
+| Extension ID | `tensorviz.tensorviz-vscode` | Same ID: `tensorviz.tensorviz-vscode` |
 | Plugin ID | `tensorviz@tensorviz-standalone` | Same ID, built locally |
 | Versions | Shown in the marketplace or catalog | [Versions table](local-setup.md#versions) |
 
-A source build and a published install use different extension IDs, so installing both gives you two copies. Keep one.
+A source-built VSIX uses the same extension ID as the published package, so installing it replaces that package in the same editor profile. Use a separate editor profile to keep published and development builds apart.
+
+The source manifests declare the 1.0.0 release candidate. The catalog may serve
+verified 0.1.48 packages until 1.0.0 publication completes; check the version in
+the install result. Historical 0.x downloads keep their original locations.
 

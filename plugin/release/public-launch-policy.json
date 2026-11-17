@@ -1,19 +1,26 @@
 {
   "schemaVersion": 1,
-  "enabled": false,
+  "enabled": true,
   "repository": "tensorviz-org/tensorviz",
   "version": "1.0.0",
-  "previousVersion": null,
-  "previousCatalogCommit": null,
-  "extensionName": null,
-  "extensionPublisher": null,
-  "clientVersions": {},
+  "previousVersion": "0.1.48",
+  "previousCatalogCommit": "8b0b539953c5abe693803c15854d953a00bcd5fe",
+  "extensionName": "tensorviz-vscode",
+  "extensionPublisher": "tensorviz",
+  "clientVersions": {
+    "codex": "0.165.0",
+    "claude": "2.1.308"
+  },
   "reviewers": {},
   "channels": {
-    "enabled": false,
-    "publisher": null,
-    "extension": null,
-    "allowedDownloadHosts": [],
+    "enabled": true,
+    "publisher": "tensorviz",
+    "extension": "tensorviz-vscode",
+    "allowedDownloadHosts": [
+      "tensorviz.gallery.vsassets.io",
+      "tensorviz.gallerycdn.vsassets.io",
+      "openvsx.eclipsecontent.org"
+    ],
     "tools": {
       "vscode-marketplace": {
         "root": "tooling/release-tools",
@@ -30,10 +37,15 @@
     },
     "docs": {
       "project": "tensorviz-docs",
-      "site": null,
-      "serviceAccount": null,
-      "workloadIdentityAudience": null,
-      "oidcAudience": null
+      "site": "tensorviz-docs",
+      "serviceAccount": "docs-deploy@tensorviz-docs.iam.gserviceaccount.com",
+      "workloadIdentityAudience": "//iam.googleapis.com/projects/747032414130/locations/global/workloadIdentityPools/docs-github/providers/github",
+      "oidcAudience": "https://iam.googleapis.com/projects/747032414130/locations/global/workloadIdentityPools/docs-github/providers/github"
     }
+  },
+  "evidence": {
+    "method": "github-actions",
+    "workflow": ".github/workflows/release-unified.yml",
+    "scope": "Six native runtime targets; Codex/Claude migration on darwin-arm64 and linux-x64; packaged extension and docs. GUI acceptance is not implied."
   }
 }

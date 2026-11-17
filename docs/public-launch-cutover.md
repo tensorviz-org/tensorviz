@@ -1,4 +1,6 @@
-# Public 1.0.0 cutover (DRAFT: do not merge or execute yet)
+# Public 1.0.0 cutover
+
+The source repository is public and the source candidate is 1.0.0. The current [launch operations](public-launch/launch-operations.md) use GitHub artifact provenance, six native target jobs and actual pinned 0.1.48 migration checks instead of maintainer-managed signing keys. The retained preparation notes below describe the original staged design and historical offline evidence; current execution follows the linked operations guide. Publication still requires a reviewed main commit and a successful exact-source candidate run.
 
 1.0.0 is the public-launch milestone, not the next 0.1.x release. This preparation
 must not change the current release, repository visibility, branch rules or old

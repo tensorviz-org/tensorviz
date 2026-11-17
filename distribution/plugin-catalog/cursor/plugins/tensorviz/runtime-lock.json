@@ -1,0 +1,60 @@
+{
+  "formatVersion": 2,
+  "version": "0.1.48",
+  "runtimes": {
+    "darwin-arm64": {
+      "formatVersion": 1,
+      "version": "0.1.48",
+      "platform": "darwin-arm64",
+      "pythonABI": "cpython-312-darwin",
+      "sha256": "1d66369979effcc4265df6a13b304189fc959bb420e58bc152c02352bdddecac",
+      "bytes": 36305516,
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.48/tensorviz-runtime-0.1.48-darwin-arm64.tar.gz"
+    },
+    "darwin-x64": {
+      "formatVersion": 1,
+      "version": "0.1.48",
+      "platform": "darwin-x64",
+      "pythonABI": "cpython-312-darwin",
+      "sha256": "5b78b474fca130cded580027a97e0f8cfc13e76cf4e79bd12316169f637a5ced",
+      "bytes": 38406826,
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.48/tensorviz-runtime-0.1.48-darwin-x64.tar.gz"
+    },
+    "linux-arm64": {
+      "formatVersion": 1,
+      "version": "0.1.48",
+      "platform": "linux-arm64",
+      "pythonABI": "cpython-312-aarch64-linux-gnu",
+      "sha256": "ff430156b060b326906312376c6d511234dbf04393d4604e806c04c6a56fb2f9",
+      "bytes": 42351285,
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.48/tensorviz-runtime-0.1.48-linux-arm64.tar.gz"
+    },
+    "linux-x64": {
+      "formatVersion": 1,
+      "version": "0.1.48",
+      "platform": "linux-x64",
+      "pythonABI": "cpython-312-x86_64-linux-gnu",
+      "sha256": "ec8460e19f21285d77e5e3bafee6573b6214e99975823b22d3757bee2a53673e",
+      "bytes": 43537388,
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.48/tensorviz-runtime-0.1.48-linux-x64.tar.gz"
+    },
+    "win32-arm64": {
+      "formatVersion": 1,
+      "version": "0.1.48",
+      "platform": "win32-arm64",
+      "pythonABI": "cp312-win_arm64",
+      "sha256": "62bebf200dae767958899170895b986fce6a4a1175f23f3ce98b465a6d1652c0",
+      "bytes": 32790277,
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.48/tensorviz-runtime-0.1.48-win32-arm64.tar.gz"
+    },
+    "win32-x64": {
+      "formatVersion": 1,
+      "version": "0.1.48",
+      "platform": "win32-x64",
+      "pythonABI": "cp312-win_amd64",
+      "sha256": "faf1d4df75a150fe920245a8479130ed7496405f942e8dd12dd36d7e93e948df",
+      "bytes": 35616845,
+      "url": "https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.48/tensorviz-runtime-0.1.48-win32-x64.tar.gz"
+    }
+  }
+}

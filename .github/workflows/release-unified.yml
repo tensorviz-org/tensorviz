@@ -1,0 +1,489 @@
+name: Build TensorViz 1.0 candidate
+
+# Explicit release runs only. Build once, then publish the same attested bytes.
+on:
+  workflow_dispatch:
+    inputs:
+      publish_after_checks:
+        description: Publish this exact candidate after all release checks pass
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: canonical-source-release
+  cancel-in-progress: false
+jobs:
+  configuration:
+    if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      source: ${{ steps.release.outputs.source }}
+      publish: ${{ steps.release.outputs.publish }}
+      candidate_run_id: ${{ steps.release.outputs.candidate_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - name: Validate reviewed source and trusted candidate origin
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PUBLISH: 'false'
+        run: node plugin/scripts/unified-release-preflight.mjs
+
+  renderer:
+    needs: configuration
+    if: needs.configuration.outputs.publish != 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
+      TENSORVIZ_RELEASE_VERSION: ${{ needs.configuration.outputs.version }}
+      TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            canvas/package-lock.json
+      - name: Build the licensed browser and panel once for every native target
+        env:
+          TLDRAW_LICENSE_KEY: ${{ secrets.TLDRAW_LICENSE_KEY }}
+        run: |
+          npm ci
+          npm ci --prefix canvas
+          npm run build:shared
+          node plugin/scripts/renderer-artifact.mjs plugin/out/release-renderer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-renderer-${{ needs.configuration.outputs.version }}
+          path: plugin/out/release-renderer/
+          if-no-files-found: error
+          retention-days: 3
+
+  build:
+    name: native-${{ matrix.platform }}
+    needs: [configuration, renderer]
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          # Start the slowest targets first without increasing concurrent runners.
+          - {runner: windows-11-arm, platform: win32-arm64, arch: arm64, container: null, capture: false}
+          - {runner: windows-2022, platform: win32-x64, arch: x64, container: null, capture: false}
+          - {runner: ubuntu-22.04, platform: linux-x64, arch: x64, container: 'ubuntu:20.04', capture: true}
+          - {runner: macos-15-intel, platform: darwin-x64, arch: x64, container: null, capture: false}
+          - {runner: macos-15, platform: darwin-arm64, arch: arm64, container: null, capture: true}
+          - {runner: ubuntu-22.04-arm, platform: linux-arm64, arch: arm64, container: null, capture: false}
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 90
+    env:
+      PYTHONUTF8: '1'
+      TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
+      TENSORVIZ_RELEASE_PLATFORM: ${{ matrix.platform }}
+      TENSORVIZ_RELEASE_VERSION: ${{ needs.configuration.outputs.version }}
+      TENSORVIZ_RENDERER_ARTIFACT: ${{ github.workspace }}/plugin/out/release-renderer
+      NUITKA_CACHE_DIR: ${{ github.workspace }}/.native-toolchain-cache/nuitka
+      CCACHE_DIR: ${{ github.workspace }}/.native-toolchain-cache/ccache
+      PKG_CACHE_PATH: ${{ github.workspace }}/.native-toolchain-cache/pkg
+      TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
+      TENSORVIZ_RUNTIME_URL: https://github.com/tensorviz-org/tensorviz/releases/download/v${{ needs.configuration.outputs.version }}/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz
+    steps:
+      - name: Prepare the Linux x64 glibc 2.31 baseline
+        if: matrix.platform == 'linux-x64'
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates git curl python3 build-essential binutils patchelf pkg-config libssl-dev xz-utils unzip zip openssl ccache
+          test "$(getconf GNU_LIBC_VERSION)" = 'glibc 2.31'
+      - name: Ensure Linux ARM64 uses the compiler object cache
+        if: matrix.platform == 'linux-arm64'
+        run: |
+          if ! command -v ccache >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends ccache
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Align checkout ownership inside the Linux build container
+        if: matrix.platform == 'linux-x64'
+        run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+          architecture: ${{ matrix.arch }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            plugin/package-lock.json
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
+        with:
+          version: '0.11.26'
+          enable-cache: true
+          cache-python: true
+          cache-dependency-glob: |
+            plugin/compiler-requirements.txt
+            backend/requirements-standalone.txt
+      - name: Preflight native compiler ABI and no-Torch service wheels before npm
+        run: node plugin/scripts/release-native-setup.mjs preflight
+      - uses: actions/cache@v4
+        with:
+          path: .native-toolchain-cache
+          # Version-only package bumps must preserve compiler/download cache reuse.
+          key: native-toolchain-v2-${{ matrix.platform }}-${{ matrix.runner }}-py3.12.13-node22.23.4-pkg6.24.0-${{ hashFiles('plugin/compiler-requirements.txt') }}-${{ github.sha }}
+          restore-keys: |
+            native-toolchain-v2-${{ matrix.platform }}-${{ matrix.runner }}-py3.12.13-node22.23.4-pkg6.24.0-${{ hashFiles('plugin/compiler-requirements.txt') }}-
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugin-renderer-${{ needs.configuration.outputs.version }}
+          path: plugin/out/release-renderer
+      - name: Install locked build tools and official native Codex
+        run: |
+          npm ci
+          npm ci --prefix plugin
+          npm install --prefix .bootstrap-codex --ignore-scripts --no-audit --no-fund @openai/codex@0.169.0
+          node plugin/scripts/release-native-setup.mjs clients
+      - name: Install locked Windows bootstrap compiler
+        if: startsWith(matrix.platform, 'win32-')
+        run: npm install --prefix .bootstrap-build --ignore-scripts --no-audit --no-fund @yao-pkg/pkg@6.24.0
+      - name: Install capture acceptance clients on established capture targets
+        if: matrix.capture
+        run: |
+          npm install --prefix plugin/out/audit-clients --no-audit --no-fund @openai/codex@0.165.0 @anthropic-ai/claude-code@2.1.308
+          echo "$PWD/plugin/out/audit-clients/node_modules/.bin" >> "$GITHUB_PATH"
+          if [ "${{ runner.os }}" = macOS ]; then echo "$(brew --prefix openssl@3)/bin" >> "$GITHUB_PATH"; fi
+      - name: Check portable units before compilation
+        run: node --test plugin/test/unit/portable-launcher.test.cjs plugin/test/unit/native-platform-shape.test.cjs
+      - name: Build and audit the real licensed native runtime
+        env:
+          TLDRAW_LICENSE_KEY: ${{ secrets.TLDRAW_LICENSE_KEY }}
+        run: node plugin/scripts/build-release.mjs --native-archive
+      - name: Verify native startup and compiled service without PyTorch
+        run: |
+          node --test plugin/test/native/host.cjs plugin/test/native/no-torch.cjs
+          node --input-type=module <<'JS'
+          import {execFileSync} from 'node:child_process';
+          execFileSync(process.env.TENSORVIZ_SERVICE_TEST_PYTHON, ['-I', '-c', 'import importlib.util; assert importlib.util.find_spec("torch") is None'], {stdio:'inherit'});
+          execFileSync(process.env.TENSORVIZ_SERVICE_TEST_PYTHON, ['backend/tests/runtime/test_service_without_torch.py'], {stdio:'inherit', env:process.env});
+          JS
+      - name: Select the actual package lock and build native Windows bootstrap
+        run: node plugin/scripts/release-native-setup.mjs bootstrap
+      - name: Create ephemeral local HTTPS acceptance certificate
+        run: |
+          mkdir -p plugin/out/test-tls
+          # Avoid host openssl.cnf defaults duplicating explicit test extensions.
+          printf '[req]\ndistinguished_name=req_dn\n[req_dn]\n' > plugin/out/test-tls/openssl.cnf
+          openssl_bin=openssl
+          if [ "${{ runner.os }}" = macOS ]; then openssl_bin="$(brew --prefix openssl@3)/bin/openssl"; fi
+          MSYS_NO_PATHCONV=1 "$openssl_bin" req -x509 -newkey rsa:2048 -nodes -days 1 -config plugin/out/test-tls/openssl.cnf -keyout plugin/out/test-tls/key.pem -out plugin/out/test-tls/cert.pem -subj '/CN=localhost' -addext 'subjectAltName=IP:127.0.0.1' -addext 'basicConstraints=critical,CA:TRUE'
+          "$openssl_bin" verify -CAfile plugin/out/test-tls/cert.pem plugin/out/test-tls/cert.pem
+          node --input-type=module <<'JS'
+          import fs from 'node:fs'; import path from 'node:path';
+          fs.appendFileSync(process.env.GITHUB_ENV, `TENSORVIZ_TEST_TLS_CERT=${path.resolve('plugin/out/test-tls/cert.pem')}\nTENSORVIZ_TEST_TLS_KEY=${path.resolve('plugin/out/test-tls/key.pem')}\n`);
+          JS
+      - name: Actual Windows installed catalog and cold HTTPS native MCP acceptance
+        if: startsWith(matrix.platform, 'win32-')
+        run: node plugin/test/native/windows-production-mcp.mjs
+      - name: Attest the exact Windows bootstrap after successful acceptance
+        if: startsWith(matrix.platform, 'win32-')
+        run: node plugin/scripts/release-native-setup.mjs attest-windows
+      - name: Actual Unix installed catalog and cold HTTPS native MCP acceptance
+        if: ${{ !startsWith(matrix.platform, 'win32-') }}
+        run: node plugin/test/native/unix-production-mcp.mjs
+      - name: Verify installed-client capture on established capture targets
+        if: matrix.capture
+        run: |
+          node plugin/scripts/assemble-native-release.mjs plugin/out/integration "plugin/dist/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-${{ matrix.platform }}.tar.gz"
+          npm run test:release --prefix plugin
+          node --test plugin/test/integration/open-graph.test.cjs
+          claude --bare plugin validate --strict "plugin/dist/candidate-$TENSORVIZ_RELEASE_VERSION/integration/plugins/tensorviz"
+      - name: Verify real Linux x64 launcher CPU capture and cache reuse
+        if: matrix.platform == 'linux-x64'
+        run: node --test plugin/test/linux/launcher-capture.cjs
+      - name: Reclaim completed build scratch after native acceptance
+        run: node plugin/scripts/cleanup-build-scratch.mjs
+      - name: Retain only tested native archives and bootstrap provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-plugin-${{ matrix.platform }}-${{ needs.configuration.outputs.version }}
+          compression-level: 0
+          path: |
+            plugin/dist/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz
+            plugin/dist/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz.json
+            plugin/dist/tensorviz-bootstrap-*.exe
+            plugin/dist/tensorviz-bootstrap-*.exe.json
+            plugin/dist/tensorviz-bootstrap-*.NOTICES.md
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain failed native release evidence for private diagnosis only
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-unverified-release-${{ matrix.platform }}-${{ needs.configuration.outputs.version }}
+          path: |
+            plugin/out/unix-production-mcp/
+            plugin/out/windows-production-mcp/
+            plugin/dist/tensorviz-runtime-*.tar.gz*
+            plugin/out/native-runtime/release-manifest.json
+          if-no-files-found: warn
+          retention-days: 3
+
+  assemble:
+    needs: [configuration, build]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
+      TENSORVIZ_RELEASE_VERSION: ${{ needs.configuration.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-plugin-*-${{ needs.configuration.outputs.version }}
+          merge-multiple: true
+          path: plugin/out/native-assets
+      - name: Require all six verified native jobs before creating one catalog
+        run: |
+          node plugin/scripts/assemble-native-release.mjs plugin/out/integration \
+            "plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-darwin-arm64.tar.gz" \
+            "plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-darwin-x64.tar.gz" \
+            "plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-linux-x64.tar.gz" \
+            "plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-linux-arm64.tar.gz" \
+            "plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-win32-x64.tar.gz" \
+            "plugin/out/native-assets/tensorviz-runtime-$TENSORVIZ_RELEASE_VERSION-win32-arm64.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compiled-plugin-${{ needs.configuration.outputs.version }}
+          compression-level: 0
+          path: plugin/out/native-assets/candidate-${{ needs.configuration.outputs.version }}/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+  current_migration:
+    name: migration-${{ matrix.platform }}
+    # Upgrade and rollback existing supported installations; new targets
+    # must independently pass their native first-install acceptance above.
+    needs: [configuration, assemble]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            platform: linux-x64
+          - runner: macos-15
+            platform: darwin-arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    env:
+      TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
+      TENSORVIZ_MIGRATION_TARGET_VERSION: '1.0.0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
+        with:
+          version: '0.11.26'
+          python-version: '3.12.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: compiled-plugin-${{ needs.configuration.outputs.version }}
+          path: plugin/out/release-candidate
+      - uses: actions/checkout@v4
+        with:
+          repository: tensorviz-org/tensorviz-plugins
+          ref: 8b0b539953c5abe693803c15854d953a00bcd5fe
+          path: plugin/out/migration-old-catalog
+          persist-credentials: false
+      - name: Install locked clients and CPU capture dependencies
+        run: |
+          npm ci
+          npm ci --prefix plugin
+          npm install --prefix plugin/out/audit-clients --no-audit --no-fund @openai/codex@0.165.0 @anthropic-ai/claude-code@2.1.308
+          echo "$PWD/plugin/out/audit-clients/node_modules/.bin" >> "$GITHUB_PATH"
+          uv venv --python 3.12.13 plugin/out/test-venv
+          if [ "${{ matrix.platform }}" = linux-x64 ]; then
+            uv pip install --python plugin/out/test-venv/bin/python torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+          else
+            uv pip install --python plugin/out/test-venv/bin/python torch==2.14.1
+          fi
+          uv pip install --python plugin/out/test-venv/bin/python -r backend/requirements-standalone.txt
+          echo "TENSORVIZ_TEST_PYTHON=$PWD/plugin/out/test-venv/bin/python" >> "$GITHUB_ENV"
+      - name: Download pinned previous release
+        env:
+          MIGRATION_PLATFORM: ${{ matrix.platform }}
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          import {execFileSync} from 'node:child_process';
+          const publication = JSON.parse(readFileSync('plugin/out/migration-old-catalog/PUBLICATION.json','utf8'));
+          const runtime = publication.runtime.runtimes[process.env.MIGRATION_PLATFORM];
+          const expected = `https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.48/tensorviz-runtime-0.1.48-${process.env.MIGRATION_PLATFORM}.tar.gz`;
+          if(publication.version !== '0.1.48' || runtime.url !== expected || runtime.version !== '0.1.48' || runtime.platform !== process.env.MIGRATION_PLATFORM) throw new Error('Previous runtime provenance mismatch');
+          execFileSync('curl',['--fail','--silent','--show-error','--location','--proto','=https','--proto-redir','=https','--max-time','300','--output','plugin/out/migration-old-runtime.tar.gz',runtime.url],{stdio:'inherit'});
+          JS
+      - name: Verify real native client upgrade and rollback
+        env:
+          TENSORVIZ_MIGRATION_OLD_CATALOG: ${{ github.workspace }}/plugin/out/migration-old-catalog
+          TENSORVIZ_MIGRATION_NEW_CATALOG: ${{ github.workspace }}/plugin/out/release-candidate/integration
+          TENSORVIZ_MIGRATION_OLD_ARCHIVE: ${{ github.workspace }}/plugin/out/migration-old-runtime.tar.gz
+          TENSORVIZ_MIGRATION_NEW_ARCHIVE: ${{ github.workspace }}/plugin/out/release-candidate/tensorviz-runtime-1.0.0-${{ matrix.platform }}.tar.gz
+          TENSORVIZ_MIGRATION_RECEIPT: ${{ github.workspace }}/plugin/out/migration-receipts/${{ matrix.platform }}.json
+        run: node --test plugin/test/migration/native-version-transition.cjs
+      - name: Retain verified migration receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: unified-migration-${{ matrix.platform }}
+          path: plugin/out/migration-receipts/${{ matrix.platform }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+
+  extension_docs:
+    name: extension-and-docs
+    needs: configuration
+    if: needs.configuration.outputs.publish != 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install locked extension, Canvas and docs dependencies
+        run: npm ci && npm ci --prefix extension && npm ci --prefix canvas && npm ci --prefix docs
+      - name: Check release policy, compile and run extension units
+        run: |
+          node --test tooling/test/*.test.mjs
+          npm run build:shared
+          npm run protocol:check
+          npm run compile --prefix extension
+          npm run test:unit --prefix extension
+      - name: Build and verify the licensed VSIX
+        env:
+          REACT_APP_TLDRAW_LICENSE_KEY: ${{ secrets.TLDRAW_LICENSE_KEY }}
+        run: npm run vsix --prefix extension
+      - name: Build checked documentation at preview and production bases
+        run: |
+          python3 tooling/docs/check_links.py
+          DOCS_BASE=/tensorviz/ npm run build --prefix docs
+          npm run build --prefix docs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unified-extension-docs
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            extension/tensorviz-vscode-${{ needs.configuration.outputs.version }}.vsix
+            docs/.vitepress/dist/
+
+  bundle:
+    needs: [configuration, assemble, current_migration, extension_docs]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: actions/download-artifact@v4
+        with:
+          name: compiled-plugin-${{ needs.configuration.outputs.version }}
+          path: plugin/out/unified-plugin
+      - uses: actions/download-artifact@v4
+        with:
+          name: unified-extension-docs
+          path: plugin/out/unified-extension-docs
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: unified-migration-*
+          merge-multiple: true
+          path: plugin/out/unified-migrations
+      - name: Bind exact plugin, extension, docs and migration bytes
+        env:
+          TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
+          TENSORVIZ_RELEASE_VERSION: ${{ needs.configuration.outputs.version }}
+        run: >-
+          node plugin/scripts/prepare-unified-candidate.mjs
+          plugin/out/unified-plugin
+          plugin/out/unified-extension-docs/extension/tensorviz-vscode-${{ needs.configuration.outputs.version }}.vsix
+          plugin/out/unified-extension-docs/docs/.vitepress/dist
+          plugin/out/unified-migrations
+          plugin/out/unified-release
+      - name: Attest the complete release inventory with GitHub OIDC
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: plugin/out/unified-release/unified-release.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unified-release-candidate
+          path: plugin/out/unified-release/
+          include-hidden-files: true
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  dispatch_publication:
+    needs: [configuration, bundle]
+    if: inputs.publish_after_checks && github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Continue with the existing trusted publisher workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SOURCE: ${{ github.sha }}
+          CANDIDATE_RUN_ID: ${{ github.run_id }}
+        run: >-
+          gh workflow run docs.yml --repo tensorviz-org/tensorviz --ref main
+          -f release_source_sha="$RELEASE_SOURCE"
+          -f candidate_run_id="$CANDIDATE_RUN_ID"

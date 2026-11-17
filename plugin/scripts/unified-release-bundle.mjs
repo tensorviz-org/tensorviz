@@ -53,7 +53,9 @@ export async function verifyUnifiedBundle(directory,policy,{verifyCandidate}={})
   if(pkg.version!==manifest.version || pkg.name!==policy.extensionName || pkg.publisher!==policy.extensionPublisher || !policy.extensionName || !policy.extensionPublisher) throw Error('VSIX identity/version mismatch');
   const {verifyDocsArtifact}=await import('./docs-release-artifact.mjs');
   const docs=await verifyDocsArtifact(assets[docsName].bytes,{version:manifest.version,sourceRevision:manifest.sourceRevision,sha256:manifest.files[docsName]});
-  const admission=verifySourceAdmission(manifest,envelopes,policy);
+  const admission=policy.evidence?.method==='github-actions'
+    ? await (await import('./actions-release-admission.mjs')).verifyActionsReleaseAdmission(manifest,manifestBytes,envelopes,policy,release)
+    : verifySourceAdmission(manifest,envelopes,policy);
   assets['unified-release.json']={bytes:manifestBytes,sha256:contentHash(manifestBytes)};
   assets['admission.json']={bytes:admissionBytes,sha256:contentHash(admissionBytes)};
   return {...manifest,assets,admission,docs};

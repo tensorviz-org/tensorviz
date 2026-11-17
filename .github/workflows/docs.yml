@@ -3,6 +3,13 @@ name: Documentation
 # Publish once after a batch of merges; no automatic PR or push builds.
 on:
   workflow_dispatch:
+    inputs:
+      release_source_sha:
+        description: Exact reviewed 1.0 candidate source SHA (blank for normal docs)
+        type: string
+      candidate_run_id:
+        description: Successful attested 1.0 candidate run (blank for normal docs)
+        type: string
 
 permissions:
   contents: read
@@ -13,6 +20,7 @@ concurrency:
 
 jobs:
   build:
+    if: inputs.release_source_sha == '' && inputs.candidate_run_id == ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -104,3 +112,79 @@ jobs:
       - name: Deploy documentation to Firebase Hosting
         working-directory: docs
         run: npx --yes firebase-tools@15 deploy --only hosting:docs --project "$DOCS_FIREBASE_PROJECT_ID" --non-interactive
+
+  # Keep publication here: Google Cloud already trusts this main-only workflow.
+  publish_unified:
+    if: github.repository == 'tensorviz-org/tensorviz' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && (inputs.release_source_sha != '' || inputs.candidate_run_id != '')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      actions: read
+      attestations: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - name: Require the owner-enabled release gates
+        env:
+          RELEASES_ENABLED: ${{ vars.RELEASES_ENABLED }}
+          DOCS_PUBLISH_ENABLED: ${{ vars.DOCS_PUBLISH_ENABLED }}
+          TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
+        run: |
+          test "$RELEASES_ENABLED" = true
+          test "$DOCS_PUBLISH_ENABLED" = true
+          test "$TLDRAW_DISTRIBUTION_CONFIRMED" = true
+      - name: Validate trusted candidate source before selecting it
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PUBLISH: 'true'
+          RELEASE_SOURCE: ${{ inputs.release_source_sha }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+        run: |
+          [[ "$CANDIDATE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          gh run watch "$CANDIDATE_RUN_ID" --repo tensorviz-org/tensorviz --exit-status --interval 10
+          node plugin/scripts/unified-release-preflight.mjs
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.source }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: unified-release-candidate
+          run-id: ${{ steps.release.outputs.candidate_run_id }}
+          github-token: ${{ github.token }}
+          path: plugin/out/unified-release
+      - name: Verify candidate, native results, migrations and signed provenance before publisher credentials
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ steps.release.outputs.source }}
+          TENSORVIZ_PUBLIC_CUTOVER: 'true'
+          TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
+        run: |
+          node --input-type=module <<'JS'
+          import {admitUnifiedBundle} from './plugin/scripts/publish-source-release.mjs';
+          await admitUnifiedBundle('plugin/out/unified-release', '.', process.env.TENSORVIZ_REVIEWED_SOURCE_SHA);
+          JS
+      - name: Authenticate only to the isolated docs project
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.DOCS_FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.DOCS_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.DOCS_DEPLOY_SERVICE_ACCOUNT }}
+      - name: Publish verified source assets, Marketplace, Open VSX and documentation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+          TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ steps.release.outputs.source }}
+          TENSORVIZ_PUBLIC_CUTOVER: 'true'
+          TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
+        run: node plugin/scripts/publish-unified-channels.mjs plugin/out/unified-release . github-draft

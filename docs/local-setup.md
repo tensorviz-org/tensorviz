@@ -71,19 +71,28 @@ Point **tensorViz: Select Python Environment** at `venv/bin/python` when the pic
 
 `make gate` runs the wider local set (shared checks, docs links, backend, frontend, extension, plugin). `make gate-quick` is the smaller set. Say what you ran.
 
-Canvas hot reload is the dev server (`npm start --prefix canvas`) with `REACT_APP_IDE=true`. The packaged sidebar uses `npm run build:webview --prefix extension`, which builds `canvas/` and stages it into the extension.
+For Canvas hot reload, start the dev server from the repository root:
+
+```sh
+REACT_APP_IDE=true npm start --prefix canvas
+```
+
+Set `tensorviz.devServerUrl` to the URL printed by the dev server (usually
+`http://localhost:3000`) so the extension loads it. The packaged sidebar uses
+`npm run build:webview --prefix extension`, which builds `canvas/` and stages it
+into the extension.
 
 Graph projection keeps node and edge creation in the same tldraw batches. When the page is focused and every existing shape uses tldraw's default child-rejection behavior, the bridge supplies the page parent directly instead of searching the whole page for every new shape. Custom containers and focused groups keep tldraw's normal parent discovery. The real-Editor canvas regression test checks this against the installed tldraw version.
 
 ## Documentation website
 
 Run `npm ci --prefix docs` and `npm run dev --prefix docs` for a local
-preview. The documentation workflow builds on matching pull requests and main
-updates. Deployment uses the isolated Firebase Hosting documentation project
-and requires `DOCS_PUBLISH_ENABLED=true` plus the configured repository Actions
-variables for the project, site, workload identity provider, and deploy service
-account. Only trusted upstream `main` push or manual runs can deploy; fork PRs
-only validate the docs. See the [documentation guide](documentation-site.md).
+preview. The documentation workflow runs only when dispatched manually; PRs,
+pushes and merges do not start it. Deployment uses the isolated Firebase Hosting
+documentation project and requires `DOCS_PUBLISH_ENABLED=true` plus the configured
+repository Actions variables for the project, site, workload identity provider,
+and deploy service account. Only manual runs from upstream `main` can deploy.
+See the [documentation guide](documentation-site.md).
 
 The docs header and favicon use the original mark from
 [`canvas/public/favicon.svg`](../canvas/public/favicon.svg). Keep the three logo

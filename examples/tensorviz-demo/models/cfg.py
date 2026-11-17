@@ -16,10 +16,7 @@ class Cfg:
     hidden: int = 16
 
 
-# How to build a model whose `__init__` takes a config OBJECT. No literal says
-# "a default Cfg", so the declaration names the class and the worker builds it
-# out of this module — the same module it is about to build Configured from.
-# tensorviz: init=Configured(cfg=Cfg())
+# The configured profile in tensorviz.toml uses make_model below.
 class Configured(nn.Module):
     def __init__(self, cfg: Cfg):
         super().__init__()
@@ -32,3 +29,7 @@ class Configured(nn.Module):
 cfg = Cfg()
 conf = Configured(cfg)
 
+
+def make_model():
+    """Construct the model for the saved TensorViz profile."""
+    return Configured(Cfg())

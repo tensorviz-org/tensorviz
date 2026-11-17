@@ -176,6 +176,12 @@ args = [
 kwargs = {}
 ```
 
+The `configured` profiles in
+[`examples/tensorviz-demo/tensorviz.toml`](../examples/tensorviz-demo/tensorviz.toml)
+and [`examples/tensorviz-sweep/tensorviz.toml`](../examples/tensorviz-sweep/tensorviz.toml)
+use this mechanism for local config dataclasses. Open each example folder as the
+workspace root; its factory paths are relative to that folder.
+
 Choose exactly one of `init` or `factory`, including when `init` would be empty.
 Factory `file` is workspace-root-relative (independent of profile `cwd`); `callable`
 names a top-level callable and `kwargs` contains bounded JSON literals. The factory

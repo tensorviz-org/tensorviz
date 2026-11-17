@@ -2,10 +2,11 @@
 
 A small copy-task transformer and a smaller CNN, with a local `tensorviz.toml`.
 
-From this directory:
+Use a Python environment with PyTorch installed. From this directory:
 
 ```bash
-pip install -e sdk
+python -m pip install torch
+python -m pip install -e sdk
 python train.py
 ```
 

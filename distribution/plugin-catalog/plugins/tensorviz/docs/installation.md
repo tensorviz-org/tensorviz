@@ -10,7 +10,7 @@
 - [Release export preservation — October 13, 2026](#release-export-preservation-october-13-2026)
 
 The [README](../README.md) contains the download links, client installation
-commands, and first-use prompts for the published 0.1.48 preview. This guide covers
+commands, and first-use prompts for the published 1.0.0 preview. This guide covers
 local repository installation, updates, and common setup problems.
 
 The release catalog pins macOS ARM64/x64, Linux x64 (glibc >=2.31), Linux ARM64
@@ -24,31 +24,37 @@ platform checks do not establish compatibility. Old release snapshots are unchan
 
 For SSH, install and execute on the model's server. The desktop OS does not select
 the runtime. A raw localhost graph URL belongs to that server; forward its port or
-use a compatible embedded panel. Real SSH-network acceptance is separate from
+use a compatible embedded panel. To forward it, use the port from the link on both
+sides, for example `ssh -L 45791:127.0.0.1:45791 user@server`, then open the link
+within 2 minutes or ask the agent for a new browser view. Another local port also
+works if you change the link to match. The port changes on each start unless you set
+`TENSORVIZ_BROWSER_PORT` (1024–65535) on the server; then a `LocalForward` in
+`~/.ssh/config` covers every session. Real SSH-network acceptance is separate from
 local launcher and Codex tests.
 
 ## Install from a local repository
 
-Download and extract [the 0.1.48 catalog ZIP](https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.48/tensorviz-catalog-0.1.48.zip)
-into a persistent folder, for example `~/tensorviz-catalog-0.1.48`.
+Download and extract [the 1.0.0 catalog ZIP](https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.0/tensorviz-catalog-1.0.0.zip)
+into a persistent folder, for example `~/tensorviz-catalog-1.0.0`.
 It contains `.agents/plugins/marketplace.json`, `.claude-plugin/marketplace.json`,
 and the plugin directories with pinned runtime locks. The separate per-client
 plugin ZIPs do not contain the marketplace catalogs.
 
-The public distribution repository and its version tags contain the audited
-integration catalog. The private `tensorviz` source repository is not an
-installation catalog. The catalog ZIP provides the same complete export.
+The canonical repository exposes root client indexes pointing to the audited
+`distribution/plugin-catalog/` tree. Its release tags identify reviewed source,
+not a distribution-only export. Use the complete catalog ZIP for the local
+installation commands below, not a GitHub source archive.
 
 Then choose your client, replacing the example path with the absolute path to
 the extracted catalog:
 
 ```sh
-codex plugin marketplace add /absolute/path/to/tensorviz-catalog-0.1.48
+codex plugin marketplace add /absolute/path/to/tensorviz-catalog-1.0.0
 codex plugin add tensorviz@tensorviz-standalone
 ```
 
 ```sh
-claude plugin marketplace add /absolute/path/to/tensorviz-catalog-0.1.48
+claude plugin marketplace add /absolute/path/to/tensorviz-catalog-1.0.0
 claude plugin install tensorviz@tensorviz-standalone --scope user
 ```
 
@@ -64,7 +70,7 @@ Use the complete catalog ZIP above, extract it to a persistent directory, then
 run these commands in PowerShell with the matching native Codex installation:
 
 ```powershell
-codex plugin marketplace add C:\path\to\tensorviz-catalog-0.1.48
+codex plugin marketplace add C:\path\to\tensorviz-catalog-1.0.0
 codex plugin add tensorviz-windows-x64@tensorviz-standalone
 ```
 

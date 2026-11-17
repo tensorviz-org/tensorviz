@@ -2,8 +2,8 @@
 
 This page is the compiled plugin archive's install guide. That archive cannot
 rebuild the runtime; the launcher downloads the pinned artifact, and users do
-not need a source checkout or build tools to use it. The public distribution repository contains only the audited integration,
-not the private source history.
+not need a source checkout or build tools to use it. The canonical repository contains TensorViz source and an audited integration catalog under
+`distribution/plugin-catalog/`. The catalog ZIP contains only the integration export.
 `runtime-lock.json` pins the exact platform, CPython ABI, URL and SHA-256 digest.
 The candidate's download URL must be published before installation works outside
 the release test environment.
@@ -11,20 +11,19 @@ the release test environment.
 Claude Code supports the existing public catalog:
 
 ```sh
-claude plugin marketplace add tensorviz-org/tensorviz-plugins
+claude plugin marketplace add tensorviz-org/tensorviz
 claude plugin install tensorviz@tensorviz-standalone --scope user
 ```
 
 For Codex:
 
 ```sh
-codex plugin marketplace add tensorviz-org/tensorviz-plugins
+codex plugin marketplace add tensorviz-org/tensorviz
 codex plugin add tensorviz@tensorviz-standalone
 ```
 
-For a local catalog, extract `tensorviz-catalog-0.1.48.zip` into a persistent
-directory and use that absolute path instead. Never register the private source
-repository as a marketplace. The compiled runtime downloads on the first
+For a local catalog, extract `tensorviz-catalog-1.0.0.zip` into a persistent
+directory and use that absolute path instead. Do not substitute GitHub's source ZIP for the complete catalog ZIP. The compiled runtime downloads on the first
 connection. Updating the plugin selects its new pinned runtime; an existing chat
 keeps its session's resources. Start a new chat to use the new version.
 
@@ -45,7 +44,7 @@ these instructions do not claim marketplace acceptance.
 
 ## Tools and integration boundaries
 
-The 0.1.48 host registers **29 MCP tools**. Clients that hide app-only tools
+The 1.0.0 host registers **29 MCP tools**. Clients that hide app-only tools
 expose **25** to the agent. Discover the installed server's tools and
 `list_models` capabilities before use.
 
@@ -82,7 +81,7 @@ listing.
 
 ### Compiled platform matrix
 
-The 0.1.48 production pipeline assembles six independently validated native
+The 1.0.0 production pipeline assembles six independently validated native
 archives: `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `win32-x64`,
 and `win32-arm64`. Linux x64 targets glibc >=2.31; Linux ARM64 targets >=2.35.
 The CPython 3.12 ABI must match the target's pinned runtime lock. A working host
@@ -105,10 +104,11 @@ The local exporter reads `plugin/packaging/public/` and preserves version
 placeholders in these source templates. `PUBLICATION.json` records the exact
 integration inventory, hashes and runtime provenance. Both client locks must
 match the publication lock. The source repository native release workflow publishes
-runtime archives, client ZIPs, and the catalog ZIP under `v0.1.48`,
-in the public distribution repository. Tags identify audited export commits;
-PUBLICATION.json binds each export to its reviewed private source SHA. It never
-replaces source main or copies private Git history.
+runtime archives, client ZIPs, and the catalog ZIP under `v1.0.0`,
+in the canonical source repository. Release tags identify the reviewed source commit;
+PUBLICATION.json binds the generated integration to that build source. A subsequent
+catalog commit may reference it without changing the immutable source release tag.
+The catalog is a non-destructive overlay, never a replacement of source main.
 Local export alone does not publish an asset.
 
 ## T3 Code

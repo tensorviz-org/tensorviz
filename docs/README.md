@@ -27,6 +27,7 @@ Start with installation, then follow the task you want to do.
 - [Python environments](environment-recovery.md)
 - [Model inputs](graph-setup.md)
 - [Coding-agent plugin](agent-plugin.md)
+- [Move an existing plugin to the public catalog](catalog-migration.md)
 - [Connect your editor to an agent](mcp.md)
 - [Reuse compact model context](model-context.md)
 - [JAX and Flax](jax-support.md)

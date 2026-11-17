@@ -15,8 +15,8 @@ For the short walkthrough, see [the user guide](../agent-plugin.md). This page c
 
 The plugin lets Claude Code, Codex, or Cursor open a local PyTorch model, capture
 one forward pass, and read the graph. It is the same product as the VS Code
-extension, in a different host. Current versions: extension **0.1.36**, plugin
-host **0.3.61**.
+extension, in a different host. Source release: extension **1.0.0**, plugin
+host **1.0.0**.
 
 | Package | Source | What you install |
 | --- | --- | --- |
@@ -77,9 +77,9 @@ Source-package MCP manifests invoke `node scripts/launch.cjs` directly, without
 a Unix shell. On Windows, run the installer with
 `node "C:\path to\tensorviz\plugins\tensorviz\scripts\install.cjs" --apply --host plugin`.
 Node.js 22+ must be on the coding client's PATH for source packages. The
-published compiled 0.1.45 plugin does not require a separate Node.js installation.
+published compiled plugin does not require a separate Node.js installation.
 It supplies native launchers for macOS ARM64/x64, Linux x64 (glibc >=2.31),
-Linux ARM64 (glibc >=2.35), and Windows x64/ARM64, with matching CPython 3.12.
+Linux ARM64 (glibc >=2.35), and Windows x64/ARM64, with matching CPython 3.12 and CPU capture.
 Windows support is through native Codex entries; Windows Claude Code/Cursor
 and musl remain outside the published acceptance scope. See
 [Install](../install.md#plugin) for requirements and validation limits.

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "tensorviz": {
+      "type": "stdio",
+      "command": "cmd.exe",
+      "args": [
+        "/d",
+        "/c",
+        ".\\scripts\\tensorviz-bootstrap.exe"
+      ],
+      "cwd": "."
+    }
+  }
+}

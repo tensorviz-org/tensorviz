@@ -127,11 +127,11 @@ For Cursor, move the old complete plugin directory outside the discovery tree,
 install the new complete directory, reload and start a new chat. Never merge
 files. Disable duplicate/manual TensorViz MCP entries so only one host runs.
 
-Keep old source removal commands out of this guide until validated against the
-pinned clients: CLI syntax and cached-source behavior vary. The direct canonical
-repository install route also remains withheld until the new nested catalog
-paths pass real client testing. The complete ZIP route avoids assuming that a
-source checkout is equivalent to a generated distribution catalog.
+For locally verified source replacement syntax, scopes, and retained settings,
+see [Move an existing plugin to the public catalog](../catalog-migration.md).
+The public repository carries a generated catalog overlay; the source checkout
+alone is not equivalent to that distribution. Actual installed-client migration
+acceptance remains a separate release check.
 
 Test a real capture, graph refresh/export and reconnection after upgrading.
 Rollback restores the complete old catalog and reinstalls its actual version;

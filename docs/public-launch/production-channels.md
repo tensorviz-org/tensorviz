@@ -1,5 +1,8 @@
 # Staged production release adapters
 
+Current 1.0.0 activation uses [launch operations](launch-operations.md): GitHub-signed artifact provenance, live trusted-run checks and pinned installed-client migration receipts, with durable intents retained in a separate GitHub draft release. No reviewer-managed signing key is needed. The original manual-signature path and preparation notes below remain for reference; they are not the active admission method in the reviewed launch policy.
+
+
 This is preparation code only. Both launch policy and channel policy remain
 **disabled**. No Marketplace, OpenVSX, Firebase or GitHub publication was performed
 to test these adapters. Unit tests use local fixtures and mocked registry/CLI calls.

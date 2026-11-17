@@ -30,6 +30,10 @@ test('upload corruption never exposes draft',async()=>{const f=fixture();f.api.u
 test('concurrent moved tag blocks publishing',async()=>{const f=fixture();const upload=f.api.upload;f.api.upload=async(...a)=>{await upload(...a);f.state.tag='b'.repeat(40);};await assert.rejects(publishSourceAssets(f.input,f.api));assert.equal(f.state.published,0);});
 
 import {githubTransport} from '../../scripts/publish-source-release.mjs';
+test('repository metadata transport uses the canonical endpoint without a trailing slash',()=>{
+ const command=(tool,args)=>{assert.equal(tool,'gh');assert.equal(args[3],'repos/tensorviz-org/tensorviz');return '{"full_name":"tensorviz-org/tensorviz"}';};
+ assert.equal(githubTransport('/tmp',{command}).repository().full_name,'tensorviz-org/tensorviz');
+});
 test('transport discovers existing draft on tags API404 and pins GitHub hostname',()=>{
  const calls=[];const command=(tool,args)=>{calls.push(args);if(args.some(a=>a==='releases/tags/v1.0.0'||a.endsWith('/releases/tags/v1.0.0'))){const e=Error('404');e.stderr='HTTP 404';throw e;}return JSON.stringify([[{id:7,tag_name:'v1.0.0',draft:true}]]);};
  const found=githubTransport('/tmp',{command}).release('v1.0.0');assert.equal(found.id,7);assert.equal(calls.length,2);assert.ok(calls.every(a=>a[1]==='--hostname'&&a[2]==='github.com'));

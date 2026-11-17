@@ -10,23 +10,23 @@ Use one TensorViz host per agent. Do not connect the same agent to both the plug
 
 Use your client’s terminal CLI. If it is not installed, start with the [installation requirements](install.md#plugin).
 
-The published 0.1.45 plugin is a preview for macOS ARM64/x64, Linux x64 (glibc >=2.31), Linux ARM64 (glibc >=2.35), and Windows x64/ARM64, with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js installation. Allow internet access for that first download.
+The compiled plugin is a preview for macOS ARM64/x64, Linux x64 (glibc >=2.31), Linux ARM64 (glibc >=2.35), and Windows x64/ARM64, with CPython 3.12 and CPU capture. It downloads a verified compiled runtime on first connection, so you do not need a separate Node.js installation. Allow internet access for that first download.
 
 Codex:
 
 ```sh
-codex plugin marketplace add tensorviz-org/tensorviz-plugins
+codex plugin marketplace add tensorviz-org/tensorviz
 codex plugin add tensorviz@tensorviz-standalone
 ```
 
 Claude Code:
 
 ```sh
-claude plugin marketplace add tensorviz-org/tensorviz-plugins
+claude plugin marketplace add tensorviz-org/tensorviz
 claude plugin install tensorviz@tensorviz-standalone --scope user
 ```
 
-Cursor: follow [Install in Cursor](https://github.com/tensorviz-org/tensorviz-plugins#install-in-cursor).
+Cursor: follow [Install in Cursor](https://github.com/tensorviz-org/tensorviz#install-in-cursor).
 
 For a local source archive, see [Codex and Cursor local installation](reference/agent-plugin.md#install).
 Non-interactive Codex installation needs
@@ -34,13 +34,17 @@ Non-interactive Codex installation needs
 To keep a current connection, use `--apply --host existing --connection NAME`
 with a name from the installer preflight.
 
-T3 Code uses your Codex profile. See the [public catalog](https://github.com/tensorviz-org/tensorviz-plugins).
+T3 Code uses your Codex profile. See the [public catalog](https://github.com/tensorviz-org/tensorviz).
 
 Start a new chat afterward. Platform limits and source builds are on the [Install](install.md) page.
 
 Windows support is through native Codex entries; Windows Claude Code/Cursor and musl are outside the published acceptance scope. Runtime availability does not guarantee every client GUI, OS version, or model dependency works. See [Linux SSH runtime](linux-ssh-runtime.md) for execution-host requirements and the limits of local validation. Published platform availability does not establish real SSH-network or installed-client acceptance.
 
 ## Update an existing Codex installation
+
+If your marketplace still points to the old repository, first follow the
+[catalog migration steps](catalog-migration.md). The marketplace name stays the
+same, so refreshing its old registration continues to use the old source.
 
 For the Git marketplace, run both commands in the **same execution environment
 and Codex profile** as the chat that will use TensorViz:
@@ -159,7 +163,7 @@ Disable the plugin in your client to stop that client from using its tools. Sour
 | Python environment rejected | Select CPython 3.12 for this preview |
 | Capture succeeds but no graph appears | Ask the agent to show the Model graph panel or open the browser graph |
 
-More: [environment recovery](environment-recovery.md), [setup and inputs](graph-setup.md), [support and compatibility](https://github.com/tensorviz-org/tensorviz-plugins/blob/main/SUPPORT.md).
+More: [environment recovery](environment-recovery.md), [setup and inputs](graph-setup.md), [support and compatibility](https://github.com/tensorviz-org/tensorviz/blob/main/SUPPORT.md).
 
 ## Develop the plugin
 

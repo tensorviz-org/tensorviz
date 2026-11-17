@@ -1,10 +1,11 @@
 # TensorViz merge protection design
 
-Proposed public-launch policy, deferred until the repository is made public.
-No GitHub settings or permissions changed. Moving the release workflows now does
-not depend on this future enforcement or on adding a deployment environment.
+The repository is public. Main now requires a pull request and one approval,
+and release-tag immutability rules are active. The approval can come from any
+eligible writer; the organization-only review and merge policy proposed below
+remains to be configured. See [current launch settings](public-launch/launch-operations.md#public-repository-settings).
 
-## Verified state
+## Historical private-repository audit
 
 - At the initial migration audit, `tensorviz-org/tensorviz` was private (ID 1435323397), default branch `main`; main reported `protected: false` at SHA `c7ae9e2b4c91e5098ea24bc8617463fa151c2624`. Recheck effective settings at public launch.
 - Connected-user metadata reports admin, but the integration cannot read classic branch protection: HTTP 403, `Resource not accessible by integration`.

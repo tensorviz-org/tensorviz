@@ -12,6 +12,7 @@ const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio
 const { ElicitRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
 // Only reviewed immutable transitions are accepted; callers cannot substitute arbitrary old binaries.
 const transitions = {
+  '1.0.0': { fromVersion: '0.1.48', previousExport: '8b0b539953c5abe693803c15854d953a00bcd5fe' },
   '0.1.48': { fromVersion: '0.1.47', previousExport: '9c20428f515dda38b25d1b9436b7681969e41472' },
   '0.1.47': { fromVersion: '0.1.46', previousExport: '3d311272047e649a9ba9829c6e1b21ca95fc0655' },
   '0.1.46': { fromVersion: '0.1.45', previousExport: '1b5da75b72a38c903deb7ea749eda71996284986' },

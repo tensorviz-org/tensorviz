@@ -1,5 +1,9 @@
 # Releasing TensorViz
 
+The reviewed source candidate is **1.0.0**. Use the [public 1.0.0 operations](public-launch/launch-operations.md) for the candidate build and exact-byte unified publisher. The sections below preserve the historical 0.x release train; its extension and plugin publishers reject 1.x. New canonical plugin assets publish in this repository, using its job-scoped GitHub token.
+
+## Historical 0.x release operations
+
 All new release automation belongs to `tensorviz-org/tensorviz`. The migration is
 not active merely because these files exist. `RELEASES_ENABLED` must remain unset
 or `false` until the owner completes and verifies the cutover below. The initial cutover is manual-only: merging this code cannot start publication,

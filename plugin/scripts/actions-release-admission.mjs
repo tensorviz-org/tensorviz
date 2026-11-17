@@ -1,0 +1,63 @@
+// GitHub's signed artifact provenance replaces reviewer-managed signing keys.
+// Execution evidence is read live from the pinned trusted workflow, never inferred
+// from caller-supplied success booleans. GUI acceptance is outside this scope.
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import {execFileSync} from 'node:child_process';
+import {contentHash} from './source-release-admission.mjs';
+import {verifyReleaseMigration} from './release-migration.mjs';
+
+export const unifiedWorkflow = '.github/workflows/release-unified.yml';
+export const requiredReleaseJobs = Object.freeze(['configuration', 'renderer', 'extension-and-docs', 'assemble', 'bundle',
+  ...['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64', 'win32-arm64', 'win32-x64'].map(p => `native-${p}`),
+  'migration-darwin-arm64', 'migration-linux-x64']);
+
+export function validateActionsReleaseRun(manifest, admission, policy, run, jobs) {
+  if (policy.schemaVersion !== 1 || policy.enabled !== true || policy.repository !== 'tensorviz-org/tensorviz'
+      || policy.evidence?.method !== 'github-actions' || policy.evidence.workflow !== unifiedWorkflow
+      || policy.version !== '1.0.0' || policy.version !== manifest.version || manifest.repository !== policy.repository
+      || policy.previousVersion !== '0.1.48'
+      || policy.previousCatalogCommit !== '8b0b539953c5abe693803c15854d953a00bcd5fe') throw Error('Reviewed Actions release policy required');
+  if (admission?.schemaVersion !== 2 || admission.method !== 'github-actions' || !Number.isSafeInteger(admission.runId)
+      || admission.runId < 1 || !Number.isSafeInteger(admission.runAttempt) || admission.runAttempt < 1
+      || manifest.build?.runId !== admission.runId || manifest.build?.runAttempt !== admission.runAttempt
+      || manifest.build?.workflow !== unifiedWorkflow) throw Error('Actions evidence identity mismatch');
+  if (run.id !== admission.runId || run.run_attempt !== admission.runAttempt || run.head_sha !== manifest.sourceRevision
+      || run.repository?.full_name !== policy.repository || run.head_repository?.full_name !== policy.repository
+      || run.path !== unifiedWorkflow || run.event !== 'workflow_dispatch' || run.head_branch !== 'main'
+      || run.status !== 'completed' || run.conclusion !== 'success') throw Error('Candidate was not produced by a successful trusted main workflow');
+  for (const name of requiredReleaseJobs) {
+    const matching = jobs.filter(job => job.name === name);
+    if (matching.length !== 1 || matching[0].conclusion !== 'success') throw Error(`Required release job did not succeed: ${name}`);
+  }
+}
+
+export async function verifyActionsReleaseAdmission(manifest, manifestBytes, admission, policy, release, {command = execFileSync} = {}) {
+  const api = endpoint => JSON.parse(command('gh', ['api', '--hostname', 'github.com', `repos/tensorviz-org/tensorviz/${endpoint}`], {encoding: 'utf8', maxBuffer: 4 * 1024 * 1024}));
+  if (!Number.isSafeInteger(admission?.runId) || admission.runId < 1 || !Number.isSafeInteger(admission.runAttempt) || admission.runAttempt < 1) throw Error('Invalid candidate run identity');
+  const run = api(`actions/runs/${admission.runId}`);
+  const jobs = api(`actions/runs/${admission.runId}/attempts/${admission.runAttempt}/jobs?per_page=100`);
+  if (jobs.total_count > 100) throw Error('Unexpected release job inventory');
+  validateActionsReleaseRun(manifest, admission, policy, run, jobs.jobs);
+  if (release.version !== manifest.version || release.sourceRevision !== manifest.sourceRevision) throw Error('Migration release identity mismatch');
+  verifyReleaseMigration({previous: {version: policy.previousVersion}, initialMain: policy.previousCatalogCommit,
+    release, receipts: admission.migrationReceipts});
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'tensorviz-provenance-'));
+  try {
+    const file = path.join(temporary, 'unified-release.json');
+    await fs.writeFile(file, manifestBytes, {flag: 'wx', mode: 0o600});
+    const proofs = JSON.parse(command('gh', ['attestation', 'verify', file, '--repo', policy.repository,
+      '--signer-workflow', `${policy.repository}/${unifiedWorkflow}`, '--signer-digest', manifest.sourceRevision,
+      '--source-ref', 'refs/heads/main', '--source-digest', manifest.sourceRevision, '--deny-self-hosted-runners', '--format', 'json'],
+    {encoding: 'utf8', maxBuffer: 8 * 1024 * 1024}));
+    const invocation = `https://github.com/${policy.repository}/actions/runs/${admission.runId}/attempts/${admission.runAttempt}`;
+    if (!Array.isArray(proofs) || !proofs.some(proof => {
+      const statement = proof.verificationResult?.statement;
+      return statement?.predicate?.runDetails?.metadata?.invocationId === invocation
+        && statement.subject?.some(subject => subject.digest?.sha256 === contentHash(manifestBytes));
+    })) throw Error('Signed provenance does not identify this exact candidate run and manifest');
+    return {method: 'github-actions', runId: run.id, runAttempt: run.run_attempt, jobs: requiredReleaseJobs.length,
+      scope: 'six native targets; Codex/Claude upgrade and rollback on darwin-arm64 and linux-x64; packaged extension and docs'};
+  } finally { await fs.rm(temporary, {recursive: true, force: true}); }
+}

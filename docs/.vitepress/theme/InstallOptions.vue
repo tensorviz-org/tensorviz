@@ -14,8 +14,8 @@ const client = ref('Codex')
 const editor = ref('VS Code')
 const copyStatus = ref('')
 const pluginCommands: Record<string, string> = {
-  Codex: 'codex plugin marketplace add tensorviz-org/tensorviz-plugins\ncodex plugin add tensorviz@tensorviz-standalone',
-  'Claude Code': 'claude plugin marketplace add tensorviz-org/tensorviz-plugins\nclaude plugin install tensorviz@tensorviz-standalone --scope user',
+  Codex: 'codex plugin marketplace add tensorviz-org/tensorviz\ncodex plugin add tensorviz@tensorviz-standalone',
+  'Claude Code': 'claude plugin marketplace add tensorviz-org/tensorviz\nclaude plugin install tensorviz@tensorviz-standalone --scope user',
 }
 const editorCommands: Record<string, string> = {
   'VS Code': 'code --install-extension tensorviz.tensorviz-vscode',
@@ -91,10 +91,11 @@ function moveTab(event: KeyboardEvent, index: number) {
 
       <template v-if="active === 'plugin'">
         <template v-if="client === 'Cursor'">
-          <a class="install-primary" href="https://github.com/tensorviz-org/tensorviz-plugins#install-in-cursor">Get current Cursor plugin</a>
-          <p>Import the Cursor ZIP using the <a href="https://github.com/tensorviz-org/tensorviz-plugins#install-in-cursor">Cursor setup steps</a>.</p>
+          <a class="install-primary" :href="withBase('/install.html#cursor')">Get current Cursor plugin</a>
+          <p>Import the Cursor ZIP using the <a :href="withBase('/install.html#cursor')">Cursor setup steps</a>.</p>
         </template>
         <p v-else class="install-next">Run both commands in a terminal with {{ client }} installed. Open your model project and start a <strong>new chat</strong>.</p>
+        <p>Already installed? <a :href="withBase('/catalog-migration.html')">Move your plugin to the public catalog</a>.</p>
         <a :href="withBase('/agent-plugin.html')">Plugin setup, permissions &amp; other clients →</a>
       </template>
       <template v-else-if="active === 'extension'">

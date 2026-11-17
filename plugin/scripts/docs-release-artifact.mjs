@@ -20,7 +20,7 @@ export async function verifyDocsArtifact(bytes,{version,sourceRevision,sha256}) 
     if(inventoryHash(proof.files)!==proof.contentSha256)throw Error('Documentation inventory checksum differs');
     const files={'release-info.json':proofBytes};let total=proofBytes.length;
     for(const [name,hash] of Object.entries(proof.files)) {
-      if(!/\.(?:html|css|js|json|txt|svg|png|jpg|jpeg|webp|ico|woff|woff2|ttf|webmanifest|xml)$/.test(name)||!/^[a-f0-9]{64}$/.test(hash))throw Error('Unapproved documentation file type/hash');
+      if(!/\.(?:html|css|js|json|md|txt|svg|png|jpg|jpeg|webp|ico|woff|woff2|ttf|webmanifest|xml)$/.test(name)||!/^[a-f0-9]{64}$/.test(hash))throw Error('Unapproved documentation file type/hash');
       const content=read(name);total+=content.length;
       if(total>256*1024*1024||contentHash(content)!==hash)throw Error('Documentation content checksum/size differs');
       files[name]=content;

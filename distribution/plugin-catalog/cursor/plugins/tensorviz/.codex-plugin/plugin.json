@@ -1,0 +1,33 @@
+{
+  "name": "tensorviz",
+  "version": "0.1.48",
+  "description": "Explore local PyTorch models with tensorViz.",
+  "author": {
+    "name": "TensorViz",
+    "url": "https://tensorviz.dev"
+  },
+  "homepage": "https://tensorviz.dev",
+  "repository": "https://github.com/tensorviz-org/tensorviz-plugins",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "tensorViz",
+    "logo": "./assets/logo.png",
+    "composerIcon": "./assets/logo.png",
+    "shortDescription": "Explore local PyTorch models",
+    "longDescription": "A local TensorViz host for PyTorch architecture, tensor shapes and model changes. Downloads a verified compiled runtime automatically. Native runtime availability follows the pinned platform table; model execution requires matching CPython 3.12. VS Code and Node.js are not required.",
+    "developerName": "TensorViz",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Explain this PyTorch model and show its TensorViz graph."
+    ],
+    "websiteURL": "https://tensorviz.dev",
+    "supportURL": "https://github.com/tensorviz-org/tensorviz-plugins/blob/main/SUPPORT.md",
+    "privacyPolicyURL": "https://github.com/tensorviz-org/tensorviz-plugins/blob/main/PRIVACY.md",
+    "termsOfServiceURL": "https://github.com/tensorviz-org/tensorviz-plugins/blob/main/TERMS.md"
+  },
+  "mcpServers": "./.mcp.json"
+}

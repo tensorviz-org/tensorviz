@@ -57,7 +57,7 @@ export async function publishSourceAssets({version, sourceRevision, assets}, tra
 // Transport performs only additive release operations; never source/catalog mutations.
 export function githubTransport(directory, {command=execFileSync} = {}) {
   const run = args => command('gh',args,{encoding:'utf8',maxBuffer:1024*1024*8});
-  const api = (suffix,args=[]) => JSON.parse(run(['api','--hostname','github.com',`repos/${repository}/${suffix}`,...args]));
+  const api = (suffix,args=[]) => JSON.parse(run(['api','--hostname','github.com',`repos/${repository}${suffix ? `/${suffix}` : ''}`,...args]));
   return {
     repository:()=>api(''), tag:tag=>api(`git/ref/tags/${tag}`),
     release:tag=> {

@@ -1,5 +1,8 @@
 # Unified source release: implementation and activation gates
 
+Current 1.0.0 activation uses [launch operations](launch-operations.md): GitHub-signed artifact provenance, live trusted-run checks and pinned installed-client migration receipts, with durable intents retained in a separate GitHub draft release. No reviewer-managed signing key is needed. The original manual-signature path and preparation notes below remain for reference; they are not the active admission method in the reviewed launch policy.
+
+
 The new additive `plugin/scripts/publish-source-release.mjs` never clones,
 clears, commits or pushes source, creates/moves refs, replaces assets or changes
 legacy workflows. It publishes one exact combined inventory to an existing

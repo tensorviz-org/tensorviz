@@ -18,7 +18,7 @@ for the standard-library link/reference check. You do not need product packages,
 PyTorch, a Python virtualenv, model weights, Firebase credentials or a Canvas key.
 The marketing website stays private and is not needed to contribute or build docs.
 
-Once you have repository access, fork `tensorviz-org/tensorviz` on GitHub, clone
+Fork `tensorviz-org/tensorviz` on GitHub, clone
 your fork and create a branch from current upstream `main`:
 
 ```sh
@@ -55,8 +55,7 @@ cannot publish to the upstream docs project. See
 [batch merges and publishing](docs/releasing.md#batch-merges-and-publishing)
 for the publishing commands and optional diagnostics.
 
-The repository is currently private; outside contributors need access until the
-owner makes it public. Public visibility is an owner decision. The existing
+The source repository is public and accepts fork pull requests. The existing
 [MIT license](LICENSE) remains in effect; any licensing change requires an owner
 decision before publication. Dependencies retain their own terms in
 [Licensing](docs/licensing.md).

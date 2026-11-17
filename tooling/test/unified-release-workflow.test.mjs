@@ -11,7 +11,7 @@ test('canonical candidates retain all native and pinned installed migration gate
  assert.match(workflow,/native-version-transition\.cjs/);
  assert.match(workflow,/needs: \[configuration, assemble, current_migration, extension_docs\]/);
  assert.match(workflow,/actions\/attest-build-provenance@[a-f0-9]{40}/);
- assert.doesNotMatch(workflow,/VSCE_PAT|OVSX_PAT|PLUGIN_PUBLISH_TOKEN|contents: write|continue-on-error/);
+ assert.doesNotMatch(workflow.split('\n  dispatch_publication:\n')[0],/VSCE_PAT|OVSX_PAT|PLUGIN_PUBLISH_TOKEN|contents: write|continue-on-error/);
 });
 test('publication reuses the already trusted docs OIDC workflow and verifies before secrets',()=>{
  const docs=read('.github/workflows/docs.yml'),publish=docs.split('\n  publish_unified:\n')[1];assert.ok(publish);
@@ -34,6 +34,9 @@ test('publication continuation is opt-in and dispatches only after the complete 
  assert.match(dispatch,/gh workflow run docs.yml --repo tensorviz-org\/tensorviz --ref main/);
  assert.match(dispatch,/-f release_source_sha="\$RELEASE_SOURCE"/);
  assert.match(dispatch,/-f candidate_run_id="\$CANDIDATE_RUN_ID"/);
- assert.doesNotMatch(dispatch,/secrets\.|contents: write|id-token: write/);
+ assert.match(dispatch,/contents: write/);
+ assert.match(dispatch,/ensure-unified-release-tag\.mjs/);
+ assert.ok(dispatch.indexOf('ensure-unified-release-tag.mjs')<dispatch.indexOf('gh workflow run docs.yml'));
+ assert.doesNotMatch(dispatch,/secrets\.|id-token: write/);
  assert.doesNotMatch(workflow,/workflow_run:|pull_request:|push:/);
 });

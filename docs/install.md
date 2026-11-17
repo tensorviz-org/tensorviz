@@ -92,6 +92,9 @@ code --install-extension ./tensorviz.tensorviz-vscode-VERSION.vsix
 
 Replace `VERSION` with the downloaded package version. Or run **Extensions: Install from VSIX…** in the editor and choose the file.
 
+The unified VSIX in [this repository's releases](https://github.com/tensorviz-org/tensorviz/releases/latest)
+uses `tensorviz-VERSION.vsix`; use that filename when installing the GitHub download.
+
 The editor extension supports macOS, Windows, and Linux with compatible Python and model dependencies; the standalone plugin's platform restrictions above do not define extension support. The extension needs VS Code 1.106 or newer. Your model's Python must be 3.10 or newer. TensorViz runs its own service with a separate Python 3.11 or newer.
 
 Next: [quickstart](quickstart.md).

@@ -475,9 +475,22 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     permissions:
-      contents: read
+      contents: write
       actions: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - name: Create or verify the immutable lightweight release tag after all checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TENSORVIZ_RELEASE_VERSION: ${{ needs.configuration.outputs.version }}
+          RELEASE_SOURCE: ${{ github.sha }}
+        run: node plugin/scripts/ensure-unified-release-tag.mjs
       - name: Continue with the existing trusted publisher workflow
         env:
           GH_TOKEN: ${{ github.token }}

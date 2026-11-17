@@ -9,9 +9,8 @@ new assets and canonical catalog are verified.
 ## Build and publish once
 
 After the release change has passed review and merged into `main`, record its
-exact commit S. Before publication can succeed, the immutable lightweight
-`v1.0.0` tag must identify S; prepare that tag for the reviewed source and never
-move an existing tag. Run the candidate workflow manually:
+exact commit S. Run the candidate workflow manually; the standard launch does
+not require a tag prepared in advance:
 
 ```sh
 gh workflow run release-unified.yml --repo tensorviz-org/tensorviz --ref main \
@@ -32,8 +31,11 @@ published package. No maintainer signing key or additional repository secret is
 needed. This workflow uses hosted runners only.
 
 After the complete candidate bundle succeeds, its `dispatch_publication` job
-starts `docs.yml` with source S and this candidate's run ID R. A standard launch
-needs no second manual publisher dispatch. Check the downstream **Documentation**
+creates the lightweight `v1.0.0` tag at exact source S if absent, or verifies that
+an existing lightweight tag identifies S. It never moves or overwrites a tag.
+This job runs only with `publish_after_checks=true` after all candidate checks
+succeed, then starts `docs.yml` with S and this candidate's run ID R. A standard
+launch needs no second manual publisher dispatch. Check the downstream **Documentation**
 run as well: a successful dispatch is not successful publication. For a build-only
 run, omit `publish_after_checks` or set it to `false`.
 
@@ -52,7 +54,9 @@ does not receive Firebase access or registry credentials.
 
 For a build-only run, failed dispatch, or recovery after verifying a partial
 publication, retain the successful candidate run ID R and source S. Ensure the
-lightweight `v1.0.0` tag identifies S, then dispatch the same publisher manually:
+lightweight `v1.0.0` tag identifies S; if the build-only path did not create it,
+create it only after the candidate passes and source review is verified. Never
+move an existing tag. Then dispatch the same publisher manually:
 
 ```sh
 gh workflow run docs.yml --repo tensorviz-org/tensorviz --ref main \

@@ -51,12 +51,16 @@ test('previous catalogs retain exact source exclusion and checksums during docum
     const manifest = JSON.parse(await fs.readFile(path.join(output, 'plugins/tensorviz/.codex-plugin/plugin.json'), 'utf8'));
     const ui = manifest.interface ?? manifest.extensions?.['com.openai']?.interface;
     assert.ok(ui, 'exported Codex interface is present');
+    // 1.x catalogs are served from the canonical repository under distribution/plugin-catalog/.
+    const canonical = Number(pluginVersion().split('.')[0]) >= 1;
+    const repository = canonical ? 'tensorviz-org/tensorviz' : 'tensorviz-org/tensorviz-plugins';
+    const docs = canonical ? 'distribution/plugin-catalog/' : '';
     for (const [key, file] of [['supportURL', 'SUPPORT.md'], ['privacyPolicyURL', 'PRIVACY.md'], ['termsOfServiceURL', 'TERMS.md']]) {
-      assert.equal(ui[key], `https://github.com/tensorviz-org/tensorviz-plugins/blob/main/${file}`);
+      assert.equal(ui[key], `https://github.com/${repository}/blob/main/${docs}${file}`);
     }
     const readme = await fs.readFile(path.join(output, 'README.md'), 'utf8');
-    assert.match(readme, /codex plugin marketplace add tensorviz-org\/tensorviz-plugins/);
-    assert.match(readme, /claude plugin marketplace add tensorviz-org\/tensorviz-plugins/);
+    assert.match(readme, new RegExp(`codex plugin marketplace add ${repository}$`, 'm'));
+    assert.match(readme, new RegExp(`claude plugin marketplace add ${repository}$`, 'm'));
     const publicationFile = path.join(output, 'PUBLICATION.json');
     const publication = JSON.parse(await fs.readFile(publicationFile, 'utf8'));
     for (const file of ['plugins/tensorviz/docs/installation.md', 'cursor/plugins/tensorviz/docs/installation.md', 'docs/installation.md']) {

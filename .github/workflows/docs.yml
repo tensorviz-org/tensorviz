@@ -124,7 +124,8 @@ jobs:
       attestations: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out trusted current main publisher scripts
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
@@ -152,9 +153,11 @@ jobs:
           [[ "$CANDIDATE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           gh run watch "$CANDIDATE_RUN_ID" --repo tensorviz-org/tensorviz --exit-status --interval 10
           node plugin/scripts/unified-release-preflight.mjs
-      - uses: actions/checkout@v4
+      - name: Check out the admitted candidate source separately
+        uses: actions/checkout@v4
         with:
           ref: ${{ steps.release.outputs.source }}
+          path: release-source
           persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
@@ -171,7 +174,7 @@ jobs:
         run: |
           node --input-type=module <<'JS'
           import {admitUnifiedBundle} from './plugin/scripts/publish-source-release.mjs';
-          await admitUnifiedBundle('plugin/out/unified-release', '.', process.env.TENSORVIZ_REVIEWED_SOURCE_SHA);
+          await admitUnifiedBundle('plugin/out/unified-release', 'release-source', process.env.TENSORVIZ_REVIEWED_SOURCE_SHA);
           JS
       - name: Authenticate only to the isolated docs project
         uses: google-github-actions/auth@v3
@@ -187,4 +190,4 @@ jobs:
           TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ steps.release.outputs.source }}
           TENSORVIZ_PUBLIC_CUTOVER: 'true'
           TLDRAW_DISTRIBUTION_CONFIRMED: ${{ vars.TLDRAW_DISTRIBUTION_CONFIRMED }}
-        run: node plugin/scripts/publish-unified-channels.mjs plugin/out/unified-release . github-draft
+        run: node plugin/scripts/publish-unified-channels.mjs plugin/out/unified-release release-source github-draft

@@ -23,7 +23,10 @@ export async function lockedCLI(root,packageName,expectedVersion) {
   const manifest=JSON.parse(await fs.readFile(path.join(directory,'package.json'),'utf8'));
   if(manifest.name!==packageName||manifest.version!==expectedVersion) throw Error('Installed release CLI version mismatch');
   const name=packageName==='@vscode/vsce'?'vsce':packageName==='firebase-tools'?'firebase':'ovsx';
-  const relative=typeof manifest.bin==='string'?manifest.bin:manifest.bin?.[name];
+  // npm permits package-relative bin paths prefixed by "./". Its lockfile
+  // normalizes these, while the installed firebase-tools manifest retains it.
+  const declared=typeof manifest.bin==='string'?manifest.bin:manifest.bin?.[name];
+  const relative=typeof declared==='string'&&declared.startsWith('./')?declared.slice(2):declared;
   if(!safeFile(relative)) throw Error('Invalid release CLI entrypoint');
   const file=await fs.realpath(path.join(directory,relative));
   if(!file.startsWith(`${directory}${path.sep}`)||!(await fs.stat(file)).isFile()) throw Error('CLI entrypoint escaped package');

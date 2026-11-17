@@ -5,6 +5,8 @@
 
 Explore your PyTorch or JAX/Flax model as an interactive graph. Follow tensor shapes, find the matching Python, and review changes alongside your code.
 
+TensorViz is a PyTorch model visualizer for your editor and coding agent. It opens an `nn.Module` from Python source as an interactive graph, with tensor shapes measured from one ordinary forward call. It needs no `torch.export` or ONNX conversion.
+
 <a id="try-it"></a>
 
 ## Install
@@ -52,6 +54,15 @@ Only this repository and the docs dependencies are needed.
 - [Coding-agent plugin](docs/agent-plugin.md)
 - [Concepts](docs/concepts.md)
 - [Documentation index](docs/README.md)
+
+## Guides
+
+Comparisons and how-tos on [tensorviz.dev](https://tensorviz.dev/):
+
+- [How to visualize a PyTorch model architecture](https://tensorviz.dev/guides/visualize-pytorch-model-architecture/): `print(model)`, torchinfo, torchview, TorchVista, TensorBoard, Netron, Google Model Explorer and TensorViz on one small CNN.
+- [PyTorch model visualization tools compared](https://tensorviz.dev/guides/pytorch-model-visualization-tools/): TensorViz, Netron, torchview, Model Explorer, TensorBoard, torchinfo and torchviz.
+- [Netron alternative for PyTorch](https://tensorviz.dev/guides/netron-alternative-for-pytorch/): when to keep Netron for saved files and when to use a forward-pass tool.
+- [See what changed in a PyTorch model between two commits](https://tensorviz.dev/guides/diff-pytorch-model-between-git-commits/): architecture, checkpoint and metric changes.
 
 ## Support and contributing
 

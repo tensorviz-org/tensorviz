@@ -153,9 +153,9 @@ Site targeting is described in
 Fetch <https://docs.tensorviz.dev/build-info.json> and compare `revision` with the
 successful upstream **Documentation** run's commit, `source` with
 `https://github.com/tensorviz-org/tensorviz`, and `base` with `/`. A local build or
-a successful PR build does not prove which revision is live. Check the overview,
-quickstart, local search, GitHub edit links and Markdown downloads at the custom
-domain as well.
+a successful manual build without deployment does not prove which revision is
+live. Check the overview, quickstart, local search, GitHub edit links and Markdown
+downloads at the custom domain as well.
 
 The website's legacy redirects use Firebase regex rules: `^/docs/?$` to
 `https://docs.tensorviz.dev/`, and `^/docs/(?P<path>.+)$` to

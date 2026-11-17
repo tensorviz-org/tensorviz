@@ -1,9 +1,8 @@
 """tensorviz — declare what the indexer cannot infer honestly.
 
-Phase 3 V1 SDK surface (``docs/phase-3/README.md``, lane 3). Three calls, all
-static-first: the tensorViz indexer reads them from your source without running
-it, so they work in a file that is never executed under the IDE. At runtime they
-record the declarations in-process and otherwise do nothing — no network, no
+Local example SDK (see the SDK README). Three calls, all static-first: the
+tensorViz indexer reads them from your source without running it, so they work
+in a file that is never executed under the IDE. At runtime they record the declarations in-process and otherwise do nothing — no network, no
 files, no torch import.
 
     import tensorviz

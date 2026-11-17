@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 
-# tensorviz: init=BasicBlock(cin=3, cout=8)
+# The basic_block profile in tensorviz.toml supplies cin=3 and cout=8.
 class BasicBlock(nn.Module):
     def __init__(self, cin, cout, stride=1):
         super().__init__()

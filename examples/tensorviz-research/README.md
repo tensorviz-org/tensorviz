@@ -9,11 +9,12 @@ correctly, so it is deliberately not flattened into one file.
 
 ## Run it
 
-`train.py` and `finetune_lora.py` import the local `tensorviz` package that lives in `examples/tensorviz-test/sdk`. Install that package into the interpreter you use here, then run from this directory:
+`train.py` and `finetune_lora.py` import the local `tensorviz` package that lives in `examples/tensorviz-test/sdk`. Install PyTorch and that package into the interpreter you use here, then run from this directory:
 
 ```bash
-pip install -e ../tensorviz-test/sdk
-python train.py          # baseline, CPU, well under a minute
+python -m pip install torch
+python -m pip install -e ../tensorviz-test/sdk
+python train.py          # baseline, CPU
 python sweep.py          # depth sweep, plain top-to-bottom script
 python finetune_lora.py  # also needs transformers, datasets, peft, trl
 ```

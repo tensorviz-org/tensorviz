@@ -46,7 +46,10 @@ init = { args = [], kwargs = {} }
 inputs = { args = [{ kind = "tensor", shape = [2, 16], dtype = "float32", requires_grad = false, generator = { kind = "full", value = -1.0 } }], kwargs = {} }
 
 [profiles.configured]
-kind = "script"
-script = "validate_configured.py"
-args = []
-capture = { model = "models.cfg:Configured", call = 1 }
+kind = "model"
+model = "models.cfg:Configured"
+mode = "eval"
+device = "cpu"
+grad_enabled = false
+factory = { file = "models/cfg.py", callable = "make_model", kwargs = {} }
+inputs = { args = [{ kind = "tensor", shape = [2, 8], dtype = "float32", requires_grad = false, generator = { kind = "normal", mean = 0.0, std = 1.0, seed = 0 } }], kwargs = {} }

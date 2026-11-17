@@ -11,6 +11,6 @@ tensorviz.node("transform", "tokenise")
 tensorviz.edge("raw-logs", "tokenise", "feeds")
 ```
 
-Install in the interpreter your project uses: `pip install -e sdk/` from `examples/tensorviz-test/`.
+Install in the interpreter your project uses: `python -m pip install -e sdk/` from `examples/tensorviz-test/`.
 The calls are no-ops at runtime beyond recording in-process. Contract and rationale:
 [example project](../README.md).

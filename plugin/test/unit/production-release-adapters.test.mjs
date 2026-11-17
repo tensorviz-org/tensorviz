@@ -7,9 +7,9 @@ import os from 'node:os';
 import {productionReleaseAdapters,publicationJournal,lockedCLI} from '../../scripts/production-release-adapters.mjs';
 import {contentHash,inventoryHash} from '../../scripts/source-release-admission.mjs';
 import {releaseChannels} from '../../scripts/release-channels.mjs';
-function fixture(){
+function fixture(extra={}){
  const vsixBytes=Buffer.from('admitted vsix'),identity={version:'1.0.0',sourceRevision:'a'.repeat(40),vsixSha256:contentHash(vsixBytes),docsSha256:'b'.repeat(64)};
- const files={'index.html':Buffer.from('<h1>TensorViz1.0</h1>')};const hashes=Object.fromEntries(Object.entries(files).map(([name,b])=>[name,contentHash(b)]));
+ const files={'index.html':Buffer.from('<h1>TensorViz1.0</h1>'),...extra};const hashes=Object.fromEntries(Object.entries(files).map(([name,b])=>[name,contentHash(b)]));
  files['release-info.json']=Buffer.from(JSON.stringify({schemaVersion:1,source:'https://github.com/tensorviz-org/tensorviz',sourceRevision:identity.sourceRevision,version:identity.version,base:'/',files:hashes,contentSha256:inventoryHash(hashes)}));
  const config={enabled:true,publisher:'tensorviz',extension:'tensorviz',docs:{project:'tensorviz-docs',site:'tensorviz-docs',serviceAccount:'publisher@tensorviz-docs.iam.gserviceaccount.com',workloadIdentityAudience:'//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/docs/providers/github',oidcAudience:'https://iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/docs/providers/github'}};
  const state={marketplace:null,openvsx:null,docs:null,calls:[],intents:new Set()};
@@ -17,7 +17,7 @@ function fixture(){
   if(url.includes('marketplace.visualstudio.com/'))return new Response(state.marketplace,{status:state.marketplace?200:404});
   if(url==='https://open-vsx.org/api/tensorviz/tensorviz/1.0.0')return state.openvsx?Response.json({namespace:'tensorviz',name:'tensorviz',version:'1.0.0',files:{download:'https://open-vsx.org/package.vsix'}}):new Response(null,{status:404});
   if(url==='https://open-vsx.org/package.vsix')return new Response(state.openvsx);
-  if(url.startsWith('https://tensorviz-docs.web.app/')){const b=state.docs?.[url.slice('https://tensorviz-docs.web.app/'.length)];return new Response(b??null,{status:b?200:404});}
+  if(url.startsWith('https://tensorviz-docs.web.app/')){const b=state.docs?.[decodeURIComponent(url.slice('https://tensorviz-docs.web.app/'.length))];return new Response(b??null,{status:b?200:404});}
   throw Error(`unexpected URL ${url}`);
  };
  const command=(tool,args,options)=>{state.calls.push({tool,args,options});if(args.includes('--packagePath'))state.marketplace=readFileSync(args[args.indexOf('--packagePath')+1]);else if(args.includes('--registryUrl'))state.openvsx=readFileSync(args[2]);else if(args.includes('deploy'))state.docs=files;};
@@ -31,6 +31,7 @@ test('registry403 is not treated as missing',async()=>{const f=fixture();f.optio
 test('pending timeout never blindly republishes and command errors omit token/stderr',async()=>{const f=fixture();let count=0;f.options.command=()=>{count++;throw Error('vsce-secret leaked in raw stderr');};const a=f.adapters();await assert.rejects(a['vscode-marketplace'].publish(),e=>!e.message.includes('vsce-secret')&&e.message.includes('inspect'));await assert.rejects(a['vscode-marketplace'].publish(),/pending/);assert.equal(count,1);});
 test('factory copies admitted VSIX buffers before caller mutation',async()=>{const f=fixture(),a=f.adapters();f.options.vsixBytes.fill(0);await a['vscode-marketplace'].publish();assert.equal(contentHash(f.state.marketplace),f.options.identity.vsixSha256);});
 test('docs exact verified existing content is reused',async()=>{const f=fixture();f.state.docs=f.files;const r=await f.adapters().docs.inspect();assert.equal(r.docsSha256,f.options.identity.docsSha256);await f.adapters().docs.publish();assert.equal(f.state.calls.length,0);});
+test('docs accepts VitePress local search chunk names containing @',async()=>{const f=fixture({'assets/chunks/@localSearchIndexroot.BRqRbR81.js':Buffer.from('export default {}\n')});f.state.docs=f.files;const r=await f.adapters().docs.inspect();assert.equal(r.docsSha256,f.options.identity.docsSha256);});
 test('docs serving modified HTML cannot return verified',async()=>{const f=fixture();f.state.docs={...f.files,'index.html':Buffer.from('wrong')};await assert.rejects(f.adapters().docs.inspect(),/docs differ/);});
 test('docs cannot target website project',async()=>{const f=fixture();f.options.config.docs.project='tensorviz-website';await assert.rejects(f.adapters().docs.publish(),/isolated/);assert.equal(f.state.calls.length,0);});
 test('docs identity must be bound to admitted inventory',async()=>{const f=fixture();f.options.docs.sha256='c'.repeat(64);await assert.rejects(f.adapters().docs.publish(),/bound/);});

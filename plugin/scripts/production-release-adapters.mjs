@@ -9,7 +9,7 @@ import {contentHash,inventoryHash} from './source-release-admission.mjs';
 const segment=value=>typeof value==='string'&&/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(value);
 const versionOK=value=>/^[1-9]\d*\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(value??'');
 const source='https://github.com/tensorviz-org/tensorviz';
-const safeFile=value=>typeof value==='string'&&/^[A-Za-z0-9_.\/-]+$/.test(value)&&!value.split('/').some(p=>!p||p==='.'||p==='..'||p.toLowerCase()==='.git');
+const safeFile=value=>typeof value==='string'&&/^[A-Za-z0-9_.@\/-]+$/.test(value)&&!value.split('/').some(p=>!p||p==='.'||p==='..'||p.toLowerCase()==='.git');
 
 /** Only installed CLI versions exactly pinned by the reviewed npm lock are used. */
 export async function lockedCLI(root,packageName,expectedVersion) {

@@ -21,8 +21,23 @@ test('publication reuses the already trusted docs OIDC workflow and verifies bef
  assert.ok(publish.indexOf('admitUnifiedBundle')<publish.indexOf('uses: google-github-actions/auth@v3'));
  assert.ok(publish.indexOf('admitUnifiedBundle')<publish.indexOf('VSCE_PAT:'));
  assert.match(publish,/run-id: \$\{\{ steps.release.outputs.candidate_run_id \}\}/);
- assert.match(publish,/publish-unified-channels\.mjs plugin\/out\/unified-release \. github-draft/);
+ assert.match(publish,/publish-unified-channels\.mjs plugin\/out\/unified-release release-source github-draft/);
  assert.doesNotMatch(publish,/PLUGIN_PUBLISH_TOKEN|publish-native-release|sync-github-release|--clobber|continue-on-error/);
+});
+test('publisher fixes on current main operate on a separate unchanged attested source checkout',()=>{
+ const publish=read('.github/workflows/docs.yml').split('\n  publish_unified:\n')[1];
+ const checkouts=[...publish.matchAll(/uses: actions\/checkout@v4\n        with:\n((?:          [^\n]+\n)+)/g)].map(match=>match[1]);
+ assert.equal(checkouts.length,2);
+ assert.match(checkouts[0],/ref: \$\{\{ github.sha \}\}/);
+ assert.match(checkouts[0],/fetch-depth: 0/);
+ assert.doesNotMatch(checkouts[0],/path:/);
+ assert.match(checkouts[1],/ref: \$\{\{ steps.release.outputs.source \}\}/);
+ assert.match(checkouts[1],/path: release-source\n/);
+ for(const checkout of checkouts)assert.match(checkout,/persist-credentials: false/);
+ assert.match(publish,/import \{admitUnifiedBundle\} from '\.\/plugin\/scripts\/publish-source-release\.mjs'/);
+ assert.match(publish,/admitUnifiedBundle\('plugin\/out\/unified-release', 'release-source', process.env.TENSORVIZ_REVIEWED_SOURCE_SHA\)/);
+ assert.match(publish,/run: node plugin\/scripts\/publish-unified-channels\.mjs plugin\/out\/unified-release release-source github-draft/);
+ assert.doesNotMatch(publish,/working-directory: release-source|node release-source\/|sourceRoot.*['"]\.['"]|promote_catalog|PLUGIN_PUBLISH_TOKEN/);
 });
 test('publication continuation is opt-in and dispatches only after the complete bundle succeeds',()=>{
  const workflow=read('.github/workflows/release-unified.yml');

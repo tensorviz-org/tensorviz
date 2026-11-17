@@ -20,16 +20,18 @@ plugin signs you in with Google through tensorviz.dev and uploads that graph fil
 including its detached capture, to your account as private. The website records your
 Google account's name and photo as its author; tensorviz.dev's own privacy policy applies
 to it. The plugin keeps only a refresh token, in a private `website/session.json` in its
-data folder. Run `scripts/launch.sh --sign-out` to delete it.
+data folder. Run `sh scripts/launch.sh --sign-out` from the installed plugin directory
+(Windows: `.\scripts\tensorviz-bootstrap.exe --sign-out`) to delete it.
 The tldraw renderer has separate license-validation behavior; trial licenses can
 send license-usage information to tldraw. See
 [tldraw's licensing and data collection documentation](https://tldraw.dev/community/license).
 
 Model recipes and captures, local session resources, runtime installations and
 permission records can remain on disk. Removing the plugin does not delete model
-source, recipes or Python environments. Run the installed plugin's
-`scripts/launch.sh --revoke-permission` to revoke TensorViz permission, or disable
-the plugin in your coding client. See [installation and removal](BUILD.md).
+source, recipes or Python environments. Run `sh scripts/launch.sh --revoke-permission`
+from the installed plugin directory (Windows: `.\scripts\tensorviz-bootstrap.exe --revoke-permission`)
+to revoke TensorViz permission, or disable the plugin in your coding client. See
+[installation and removal](BUILD.md).
 
 Do not post private model code, credentials, full environment dumps or private
 viewer URLs in public issues. See [SUPPORT.md](SUPPORT.md) for reporting problems.

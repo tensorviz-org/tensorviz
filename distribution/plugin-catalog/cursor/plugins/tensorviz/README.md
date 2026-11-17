@@ -1,5 +1,5 @@
 <!-- Compiled release archive template. Workflows run in tensorviz-org/tensorviz;
-public releases and the installation catalog stay in tensorviz-org/tensorviz-plugins. -->
+public releases and the installation catalog stay in tensorviz-org/tensorviz. -->
 
 # tensorViz for coding agents
 
@@ -57,19 +57,19 @@ from that host; SSH environment variables do not select a desktop runtime.
 A complete catalog ZIP is also available for local marketplace installation.
 
 For a manual download, open the
-[Releases page](https://github.com/tensorviz-org/tensorviz-plugins/releases),
+[Releases page](https://github.com/tensorviz-org/tensorviz/releases),
 choose a version, expand **Assets**, and download the ZIP for your app.
-The links below are for **[preview 0.1.48](https://github.com/tensorviz-org/tensorviz-plugins/releases/tag/v0.1.48)**:
+The links below are for **[preview 1.0.0](https://github.com/tensorviz-org/tensorviz/releases/tag/v1.0.0)**:
 
 | Client | Plugin download | Installation |
 | --- | --- | --- |
-| Codex | [tensorviz-catalog-0.1.48.zip](https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.48/tensorviz-catalog-0.1.48.zip) | [Codex instructions](#install-in-codex) |
-| Claude Code | [tensorviz-catalog-0.1.48.zip](https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.48/tensorviz-catalog-0.1.48.zip) | [Claude Code instructions](#install-in-claude-code) |
-| Cursor | [tensorviz-cursor-0.1.48.zip](https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.48/tensorviz-cursor-0.1.48.zip) | [Cursor instructions](#install-in-cursor) |
+| Codex | [tensorviz-catalog-1.0.0.zip](https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.0/tensorviz-catalog-1.0.0.zip) | [Codex instructions](#install-in-codex) |
+| Claude Code | [tensorviz-catalog-1.0.0.zip](https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.0/tensorviz-catalog-1.0.0.zip) | [Claude Code instructions](#install-in-claude-code) |
+| Cursor | [tensorviz-cursor-1.0.0.zip](https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.0/tensorviz-cursor-1.0.0.zip) | [Cursor instructions](#install-in-cursor) |
 
 The catalog ZIP contains the local marketplaces and both client directories.
-Extract it into a persistent directory, for example `~/tensorviz-catalog-0.1.48`.
-The separate `tensorviz-0.1.48.zip` and Cursor ZIP contain single plugins,
+Extract it into a persistent directory, for example `~/tensorviz-catalog-1.0.0`.
+The separate `tensorviz-1.0.0.zip` and Cursor ZIP contain single plugins,
 not catalogs; do not pass those to `plugin marketplace add`. See
 [local installation](docs/installation.md#install-from-a-local-repository).
 
@@ -92,7 +92,7 @@ client marketplace listing.
    server for an SSH session. Run these commands one at a time:
 
    ```sh
-   codex plugin marketplace add tensorviz-org/tensorviz-plugins
+   codex plugin marketplace add tensorviz-org/tensorviz
    codex plugin add tensorviz@tensorviz-standalone
    ```
 
@@ -122,7 +122,7 @@ Install or update [Claude Code](https://code.claude.com/docs/en/setup) first.
 Open a terminal on the MCP execution host, then run:
 
 ```sh
-claude plugin marketplace add tensorviz-org/tensorviz-plugins
+claude plugin marketplace add tensorviz-org/tensorviz
 claude plugin install tensorviz@tensorviz-standalone --scope user
 ```
 
@@ -132,7 +132,7 @@ your user account, so it is available across projects.
 Alternatively, inside an interactive Claude Code session, run:
 
 ```text
-/plugin marketplace add tensorviz-org/tensorviz-plugins
+/plugin marketplace add tensorviz-org/tensorviz
 /plugin install tensorviz@tensorviz-standalone
 ```
 
@@ -150,13 +150,13 @@ Use the **Cursor ZIP** linked above. Its launcher configuration is different
 from the Codex/Claude package. Install or update [Cursor](https://cursor.com/downloads)
 first.
 
-1. Download `tensorviz-cursor-0.1.48.zip` to your Downloads folder.
+1. Download `tensorviz-cursor-1.0.0.zip` to your Downloads folder.
 2. Keep the ZIP file in Downloads. Open the macOS **Terminal** app and, for a
    fresh installation, run:
 
    ```sh
    mkdir -p "$HOME/.cursor/plugins/local/tensorviz"
-   unzip "$HOME/Downloads/tensorviz-cursor-0.1.48.zip" \
+   unzip "$HOME/Downloads/tensorviz-cursor-1.0.0.zip" \
      -d "$HOME/.cursor/plugins/local/tensorviz"
    ```
 
@@ -165,7 +165,7 @@ first.
    tensorViz installed, follow the [update instructions](docs/installation.md#update-or-remove)
    instead of extracting over its existing files.
    These commands create Cursor's local plugin folder and unpack tensorViz into
-   it. If you downloaded a different version, replace `0.1.48` in the command
+   it. If you downloaded a different version, replace `1.0.0` in the command
    with that version.
 3. Restart Cursor or press **Command + Shift + P** and run
    **Developer: Reload Window** from the Command Palette.

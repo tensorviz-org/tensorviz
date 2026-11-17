@@ -1,9 +1,9 @@
 {
   "formatVersion": 1,
   "arch": "arm64",
-  "version": "0.1.48",
-  "sourceRevision": "eeff6f57ea34797b08552000b5658b6fd363be25",
-  "sha256": "f2396401bd0c64c23df2fb6b630663e87ae69d65c8800521a28f6e513dc937fa",
+  "version": "1.0.0",
+  "sourceRevision": "1829a49698c0020eddc5e31a3eb5002fb0efb962",
+  "sha256": "1862fba26a585004ca32b6b6d5a1f51e25954975decb3133baf7d31323e7f9e4",
   "bytes": 52857918,
   "noticesSha256": "f8cd00561e4e8dc39c3e10a770f037708ebc23be03621c2a80e35df5de3bf8f6"
 }

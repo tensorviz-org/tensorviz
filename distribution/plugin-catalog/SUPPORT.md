@@ -21,6 +21,6 @@ When reporting a problem, include the integration version, OS/client version,
 whether it failed during download, startup or capture, and a small synthetic
 model. Do not share credentials, private viewer links, model secrets or unredacted
 environment dumps. Use
-[the integration repository's issues](https://github.com/tensorviz-org/tensorviz-plugins/issues)
+[the integration repository's issues](https://github.com/tensorviz-org/tensorviz/issues)
 for public, non-sensitive bug reports.
 

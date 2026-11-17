@@ -1,6 +1,6 @@
 {
   "name": "tensorviz-windows-x64",
-  "version": "0.1.48",
+  "version": "1.0.0",
   "description": "TensorViz local MCP for native Windows x64. No separate Node.js installation.",
   "mcpServers": "./mcp.json",
   "requires_local_executor": true

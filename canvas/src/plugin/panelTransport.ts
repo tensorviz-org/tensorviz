@@ -7,6 +7,7 @@ import type { LocalBrowserViewMessage, LocalBrowserViewStatus, LocalBrowserViewT
 // Publishing sends the graph to tensorviz.dev, so it uses the exchange tool, never the read tool.
 const READ_ONLY_MESSAGES = new Set(['viewSelection', 'viewFocusResult', 'captureInspectRequest', 'captureInspectCancel',
   'captureExportRequest', 'captureExportCancel']);
+const READ_RETRY_DELAYS_MS = [500, 1000, 2000, 5000];
 
 /** Canvas's existing protocol over the host-owned MCP Apps channel. */
 export function createPanelTransport(app: Pick<App, 'callServerTool' | 'updateModelContext'>, panelId: string,
@@ -15,6 +16,7 @@ export function createPanelTransport(app: Pick<App, 'callServerTool' | 'updateMo
   let session: LocalBrowserSessionInfo | null = null;
   let status: LocalBrowserViewStatus = { phase: 'idle', hostLink: 'unknown', error: null };
   let sequence = 0, violations = 0, disposed = false, running = false, released = false;
+  let readFailures = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let connected: Promise<void> | undefined;
   let resolveConnect: (() => void) | undefined;
@@ -44,10 +46,26 @@ export function createPanelTransport(app: Pick<App, 'callServerTool' | 'updateMo
     if (disposed || running || ended()) return;
     clearTimeout(timer); running = true;
     const outgoing = pending.splice(0, 32);
+    let retryDelay = 350;
     try {
       const name = outgoing.every(message => READ_ONLY_MESSAGES.has(String(message.type))) ? 'graph_panel_read' : 'graph_panel_exchange';
-      const result = await app.callServerTool({ name, arguments: { panelId, clientId, after: sequence, messages: outgoing } });
+      let result;
+      try {
+        result = await app.callServerTool({ name, arguments: { panelId, clientId, after: sequence, messages: outgoing } });
+      } catch (error) {
+        // Backgrounded chats can temporarily lose their app bridge. Retry only
+        // empty reads: an uncertain model/setup action must never be replayed.
+        const declined = error instanceof Error && 'code' in error && error.code === -32000
+          && error.message === 'MCP error -32000: Declined by the user.';
+        if (!disposed && !outgoing.length && !declined) {
+          retryDelay = READ_RETRY_DELAYS_MS[Math.min(readFailures++, READ_RETRY_DELAYS_MS.length - 1)];
+          setStatus({ phase: 'reconnecting', hostLink: 'unknown', error: null });
+          return;
+        }
+        throw error;
+      }
       if (disposed) return;
+      readFailures = 0;
       if (result.isError) throw new Error('Graph panel request failed.');
       const packet = result._meta?.panel as { session: LocalBrowserSessionInfo | null; status: LocalBrowserViewStatus;
         events: { sequence: number; wire: string }[]; waitingForModel: boolean } | undefined;
@@ -85,7 +103,7 @@ export function createPanelTransport(app: Pick<App, 'callServerTool' | 'updateMo
       if (!disposed) stop();
     } finally {
       running = false;
-      if (!disposed && !ended()) timer = setTimeout(() => { void exchange(); }, pending.length ? 0 : 350);
+      if (!disposed && !ended()) timer = setTimeout(() => { void exchange(); }, pending.length ? 0 : retryDelay);
     }
   }
   const dispose = () => {

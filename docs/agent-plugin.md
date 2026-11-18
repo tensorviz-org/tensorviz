@@ -92,12 +92,22 @@ with the current model reference, open its returned private URL, and check its
 display receipt instead of repeatedly calling `open_graph_panel`. At the eight-panel limit, another open expires the oldest opener that has never
 connected, rather than asking you to close an invisible panel. Connected and
 previously connected frames are protected from this capacity eviction; the
-existing idle timeout still applies. Each opener retains a separate identity,
+idle timeout still applies. Each opener retains a separate identity,
 so clients that attach their app bridge later can still connect normally.
+
+A panel stays available for **one hour without panel traffic**, including while
+you visit another chat. Connected panels renew that hour with each successful
+exchange, so an active panel has no fixed one-hour lifetime. Returning within the
+idle hour reattaches to the retained capture without rerunning the model. Temporary
+failures of idle read requests retry automatically with backoff. An uncertain
+model-run or setup request is never replayed automatically.
 
 A replaced panel frame cannot reclaim the same opener with its old client ID. After 64 replacements, reopen **Model graph** to get a fresh opener; the current frame continues working.
 
-Closing the panel does not cancel a capture or edit source. Reopen **Model graph** if it disconnects; the capture is kept.
+Closing the panel releases its connection without cancelling a capture or editing
+source. After an idle hour, reopen **Model graph**; the capture is kept while the
+plugin host is running. If the coding agent stops or restarts the plugin host,
+open the model again to restore the graph and execution connection.
 
 ## Use over SSH
 

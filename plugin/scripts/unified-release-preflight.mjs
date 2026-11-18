@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {unifiedVersionFiles, validateUnifiedSourceVersions} from './unified-source-versions.mjs';
 import {unifiedWorkflow} from './actions-release-admission.mjs';
+import {canonicalReleaseMigration} from './release-migration.mjs';
 
 export function unifiedReleasePreflight({source, head, publish, candidateRunId, repository, ref, event}, {command = execFileSync} = {}) {
   if (repository !== 'tensorviz-org/tensorviz' || ref !== 'refs/heads/main' || event !== 'workflow_dispatch'
@@ -14,8 +15,10 @@ export function unifiedReleasePreflight({source, head, publish, candidateRunId, 
   const git = args => command('git', args, {encoding: 'utf8', maxBuffer: 4 * 1024 * 1024}).trim();
   command('git', ['merge-base', '--is-ancestor', source, head], {stdio: 'pipe'});
   const policy = JSON.parse(git(['show', `${source}:plugin/release/public-launch-policy.json`]));
-  validateUnifiedSourceVersions(Object.fromEntries(unifiedVersionFiles.map(file => [file, JSON.parse(git(['show', `${source}:${file}`]))])), '1.0.0');
-  if (policy.version !== '1.0.0' || policy.repository !== repository) throw Error('Canonical 1.0 policy mismatch');
+  const migration = canonicalReleaseMigration(policy.version);
+  validateUnifiedSourceVersions(Object.fromEntries(unifiedVersionFiles.map(file => [file, JSON.parse(git(['show', `${source}:${file}`]))])), policy.version);
+  if (policy.schemaVersion !== 1 || policy.repository !== repository || policy.previousVersion !== migration.from
+      || policy.previousCatalogCommit !== migration.previousExport) throw Error('Canonical release policy mismatch');
   if (publish) {
     if (!policy.enabled || !policy.channels?.enabled || policy.evidence?.method !== 'github-actions'
         || policy.evidence.workflow !== unifiedWorkflow) throw Error('Reviewed automated publication policy not enabled');

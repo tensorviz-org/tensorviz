@@ -6,7 +6,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
 import {contentHash} from './source-release-admission.mjs';
-import {verifyReleaseMigration} from './release-migration.mjs';
+import {canonicalReleaseMigration, verifyReleaseMigration} from './release-migration.mjs';
 
 export const unifiedWorkflow = '.github/workflows/release-unified.yml';
 export const requiredReleaseJobs = Object.freeze(['configuration', 'renderer', 'extension-and-docs', 'assemble', 'bundle',
@@ -14,11 +14,12 @@ export const requiredReleaseJobs = Object.freeze(['configuration', 'renderer', '
   'migration-darwin-arm64', 'migration-linux-x64']);
 
 export function validateActionsReleaseRun(manifest, admission, policy, run, jobs) {
+  const migration = canonicalReleaseMigration(policy.version);
   if (policy.schemaVersion !== 1 || policy.enabled !== true || policy.repository !== 'tensorviz-org/tensorviz'
       || policy.evidence?.method !== 'github-actions' || policy.evidence.workflow !== unifiedWorkflow
-      || policy.version !== '1.0.0' || policy.version !== manifest.version || manifest.repository !== policy.repository
-      || policy.previousVersion !== '0.1.48'
-      || policy.previousCatalogCommit !== '8b0b539953c5abe693803c15854d953a00bcd5fe') throw Error('Reviewed Actions release policy required');
+      || policy.version !== manifest.version || manifest.repository !== policy.repository
+      || policy.previousVersion !== migration.from
+      || policy.previousCatalogCommit !== migration.previousExport) throw Error('Reviewed Actions release policy required');
   if (admission?.schemaVersion !== 2 || admission.method !== 'github-actions' || !Number.isSafeInteger(admission.runId)
       || admission.runId < 1 || !Number.isSafeInteger(admission.runAttempt) || admission.runAttempt < 1
       || manifest.build?.runId !== admission.runId || manifest.build?.runAttempt !== admission.runAttempt

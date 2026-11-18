@@ -6,6 +6,40 @@ const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { InMemoryTransport } = require('@modelcontextprotocol/sdk/inMemory.js');
 const { GraphPanels, registerGraphPanel } = require('../../out/host/graphPanel.cjs');
 
+test('a panel remounts after five idle minutes and expires after an idle hour', async t => {
+  t.mock.timers.enable({ apis: ['Date', 'setInterval'], now: 1_000_000 });
+  const host = { graph: { list: () => ({ models: [] }) }, graphView: { cancelOwner() {} } };
+  const panels = new GraphPanels(host), signal = new AbortController().signal;
+  try {
+    const id = panels.open();
+    await panels.exchange(id, 0, [], signal, 'original-frame');
+    await panels.disconnect(id, 'original-frame');
+    t.mock.timers.tick(6 * 60_000);
+    assert.equal((await panels.exchange(id, 0, [], signal, 'returned-frame')).waitingForModel, true);
+    await panels.disconnect(id, 'returned-frame');
+    t.mock.timers.tick(59 * 60_000);
+    assert.ok(panels.panels.has(id), 'navigation retains the opener for an hour');
+    t.mock.timers.tick(75_000);
+    await assert.rejects(panels.exchange(id, 0, [], signal, 'late-frame'), { code: 'PANEL_CLOSED' });
+  } finally { panels.dispose(); }
+});
+
+test('panel traffic renews the idle hour, and explicit closure releases it immediately', async t => {
+  t.mock.timers.enable({ apis: ['Date', 'setInterval'], now: 1_000_000 });
+  const host = { graph: { list: () => ({ models: [] }) }, graphView: { cancelOwner() {} } };
+  const panels = new GraphPanels(host), signal = new AbortController().signal;
+  try {
+    const id = panels.open();
+    for (let i = 0; i < 3; i++) {
+      await panels.exchange(id, 0, [], signal, 'frame');
+      t.mock.timers.tick(59 * 60_000);
+    }
+    assert.equal((await panels.exchange(id, 0, [], signal, 'frame')).waitingForModel, true);
+    panels.close(id, 'frame');
+    await assert.rejects(panels.exchange(id, 0, [], signal, 'frame'), { code: 'PANEL_CLOSED' });
+  } finally { panels.dispose(); }
+});
+
 test('empty panels have bounded lifetimes and cannot access another connection', async () => {
   const cancelled = [];
   const host = { graph: { list: () => ({ models: [] }) }, graphView: { cancelOwner: id => cancelled.push(id) } };

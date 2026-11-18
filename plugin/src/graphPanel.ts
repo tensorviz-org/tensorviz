@@ -39,11 +39,12 @@ const READ_ONLY_MESSAGES = new Set(['viewSelection', 'viewFocusResult', 'capture
   'captureExportRequest', 'captureExportCancel']);
 const MAX_RETIRED_CLIENT_IDS = 64;
 const REQUEST_BYTES = 128 * 1024;
+const PANEL_IDLE_TIMEOUT_MS = 60 * 60 * 1000;
 
 export class GraphPanels {
   private readonly panels = new Map<string, Panel>();
   private readonly cleanup = setInterval(() => {
-    for (const panel of this.panels.values()) if (Date.now() - panel.touched > 300_000) this.close(panel.id);
+    for (const panel of this.panels.values()) if (Date.now() - panel.touched > PANEL_IDLE_TIMEOUT_MS) this.close(panel.id);
   }, 15_000).unref();
 
   constructor(private readonly host: StandaloneHost) {}

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+- Keep coding-agent graph panels available for one hour of inactivity, renewing the session when used.
+- Recover temporary panel read failures automatically without replaying model actions.
+- Require native upgrade and rollback checks from 1.0.0 for the aligned extension, Canvas and plugin release.
+
 ## 1.0.0
 
 - Prepare the first public source release with aligned extension, Canvas and coding-agent plugin versions.

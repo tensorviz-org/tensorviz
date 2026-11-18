@@ -12,6 +12,7 @@ const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio
 const { ElicitRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
 // Only reviewed immutable transitions are accepted; callers cannot substitute arbitrary old binaries.
 const transitions = {
+  '1.0.1': { fromVersion: '1.0.0', previousExport: '664d5615d71c10b5d9f84695c4c40011dddbdc7f' },
   '1.0.0': { fromVersion: '0.1.48', previousExport: '8b0b539953c5abe693803c15854d953a00bcd5fe' },
   '0.1.48': { fromVersion: '0.1.47', previousExport: '9c20428f515dda38b25d1b9436b7681969e41472' },
   '0.1.47': { fromVersion: '0.1.46', previousExport: '3d311272047e649a9ba9829c6e1b21ca95fc0655' },
@@ -68,7 +69,19 @@ test('released native plugin upgrades to aligned version and rolls back in both 
   const diagnostics = [];
   try {
     const cleanOld = path.join(root, 'audited-old');
-    await fs.cp(oldCatalog, cleanOld, {recursive:true,filter:source=>path.basename(source)!=='.git'});
+    if (fromVersion === '1.0.0') {
+      // Canonical catalogs preserve the original export under a namespace.
+      // Verify the complete overlay before removing its added metadata from the test copy.
+      const {canonicalCatalog,catalogPrefix} = await import('../../scripts/canonical-catalog.mjs');
+      const checkout = execFileSync('git',['rev-parse','--show-toplevel'],{cwd:oldCatalog,encoding:'utf8'}).trim();
+      assert.equal(oldCatalog,path.join(checkout,catalogPrefix));
+      const publication = await json(path.join(oldCatalog,'PUBLICATION.json'));
+      const entries = Object.fromEntries(await Promise.all(Object.keys(publication.files).map(async name=>[name,await fs.readFile(path.join(oldCatalog,name))])));
+      for (const [name,value] of Object.entries(canonicalCatalog(publication,entries)))
+        assert.deepEqual(await fs.readFile(path.join(checkout,name)),value.bytes,`Canonical catalog differs: ${name}`);
+    }
+    await fs.cp(oldCatalog, cleanOld, {recursive:true,filter:source=>path.basename(source)!=='.git'
+      && !(fromVersion==='1.0.0'&&source===path.join(oldCatalog,'CANONICAL.json'))});
     const oldPublication = await auditIntegration(cleanOld,{allowPrevious:true});
     const newPublication = await auditIntegration(newCatalog);
     assert.equal(oldPublication.version,fromVersion); assert.equal(newPublication.version,toVersion);

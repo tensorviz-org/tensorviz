@@ -47,6 +47,64 @@ test('uncertain setup writes stop with visible recovery and are never replayed',
   expect(app.callServerTool).toHaveBeenCalledTimes(3); // failed views cannot leave a current display receipt behind
 });
 
+test('a temporary idle read failure reconnects without closing or rerunning the model', async () => {
+  const event = { sequence: 1, wire: JSON.stringify({ type: 'snapshot', protocolVersion: 1, workspaceSessionId: 'test-session',
+    messageId: 'snapshot-1', role: 'host', hostSequence: 1, state: { activeTarget: null, projection: null, traced: false,
+      greyed: false, connectionState: 'connected', syncState: null } }) };
+  const app = { callServerTool: jest.fn().mockResolvedValue(packet([event])), updateModelContext: jest.fn() };
+  const transport = createPanelTransport(app, 'panel', jest.fn(), jest.fn()), listener = jest.fn();
+  transport.onMessage(listener);
+  await transport.connect(); await tick();
+  app.callServerTool.mockRejectedValueOnce(new Error('chat bridge temporarily unavailable'));
+  jest.advanceTimersByTime(350); await tick();
+  expect(transport.status.phase).toBe('reconnecting');
+  expect(transport.send({ type: 'graphSetupRequest', target, openingId: 'opening', requestId: 'request', action: { kind: 'retry' } })).toBeNull();
+  jest.advanceTimersByTime(500); await tick();
+  expect(transport.status.phase).toBe('connected');
+  expect(listener).toHaveBeenCalledTimes(1);
+  expect(app.callServerTool.mock.calls.map(([args]) => args.name)).toEqual(['graph_panel_read', 'graph_panel_read', 'graph_panel_read']);
+  expect(app.callServerTool.mock.calls[2][0].arguments.after).toBe(1);
+  transport.dispose();
+});
+
+test('idle read retries back off, stop on disposal, and release the frame once', async () => {
+  const app = { callServerTool: jest.fn().mockResolvedValue(packet()), updateModelContext: jest.fn() };
+  const transport = createPanelTransport(app, 'panel', jest.fn(), jest.fn());
+  await transport.connect(); await tick();
+  app.callServerTool.mockRejectedValue(new Error('temporarily offline'));
+  jest.advanceTimersByTime(350); await tick();
+  for (const delay of [500, 1000, 2000, 5000, 5000]) {
+    const calls = app.callServerTool.mock.calls.length;
+    jest.advanceTimersByTime(delay - 1); await tick();
+    expect(app.callServerTool).toHaveBeenCalledTimes(calls);
+    jest.advanceTimersByTime(1); await tick();
+    expect(app.callServerTool).toHaveBeenCalledTimes(calls + 1);
+  }
+  transport.dispose();
+  const calls = app.callServerTool.mock.calls.length;
+  jest.advanceTimersByTime(60_000); await tick();
+  expect(app.callServerTool).toHaveBeenCalledTimes(calls);
+  expect(app.callServerTool.mock.calls.filter(([args]) => args.name === 'detach_graph_panel')).toHaveLength(1);
+});
+
+test('an explicitly expired panel and a declined idle read end without retrying', async () => {
+  for (const failure of [
+    () => Promise.resolve({ isError: true, content: [], structuredContent: { error: { code: 'PANEL_CLOSED' } } }),
+    () => Promise.reject(Object.assign(new Error('MCP error -32000: Declined by the user.'), { code: -32000 })),
+  ]) {
+    const app = { callServerTool: jest.fn().mockResolvedValue(packet()), updateModelContext: jest.fn() };
+    const transport = createPanelTransport(app, 'panel', jest.fn(), jest.fn());
+    await transport.connect(); await tick();
+    app.callServerTool.mockImplementationOnce(failure);
+    jest.advanceTimersByTime(350); await tick();
+    expect(transport.status.phase).toBe('ended');
+    const calls = app.callServerTool.mock.calls.length;
+    jest.advanceTimersByTime(60_000); await tick();
+    expect(app.callServerTool).toHaveBeenCalledTimes(calls);
+    transport.dispose();
+  }
+});
+
 test('host teardown waits for detachment and each new mount owns a distinct connection', async () => {
   const app = { callServerTool: jest.fn().mockResolvedValue(packet()), updateModelContext: jest.fn() };
   const first = createPanelTransport(app, 'panel', jest.fn(), jest.fn());

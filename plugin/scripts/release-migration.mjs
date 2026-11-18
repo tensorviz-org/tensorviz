@@ -4,7 +4,13 @@ export const migration46 = Object.freeze({from:'0.1.45',to:'0.1.46',previousExpo
 export const migration47 = Object.freeze({from:'0.1.46',to:'0.1.47',previousExport:'3d311272047e649a9ba9829c6e1b21ca95fc0655'});
 export const migration48 = Object.freeze({from:'0.1.47',to:'0.1.48',previousExport:'9c20428f515dda38b25d1b9436b7681969e41472'});
 export const migration100 = Object.freeze({from:'0.1.48',to:'1.0.0',previousExport:'8b0b539953c5abe693803c15854d953a00bcd5fe'});
-export const releaseMigrations = Object.freeze({[migration45.to]:migration45,[migration46.to]:migration46,[migration47.to]:migration47,[migration48.to]:migration48,[migration100.to]:migration100});
+export const migration101 = Object.freeze({from:'1.0.0',to:'1.0.1',previousExport:'664d5615d71c10b5d9f84695c4c40011dddbdc7f'});
+export const releaseMigrations = Object.freeze({[migration45.to]:migration45,[migration46.to]:migration46,[migration47.to]:migration47,[migration48.to]:migration48,[migration100.to]:migration100,[migration101.to]:migration101});
+export function canonicalReleaseMigration(version) {
+  if (!/^[1-9]\d*\.\d+\.\d+$/.test(version ?? '') || !Object.hasOwn(releaseMigrations, version))
+    throw new Error('A reviewed canonical release migration is required.');
+  return releaseMigrations[version];
+}
 export function verifyReleaseMigration({previous,initialMain,release,receipts}) {
   const migration=releaseMigrations[release.version];
   if(!migration) return;

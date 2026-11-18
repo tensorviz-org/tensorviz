@@ -304,7 +304,7 @@ jobs:
     timeout-minutes: 35
     env:
       TENSORVIZ_REVIEWED_SOURCE_SHA: ${{ github.sha }}
-      TENSORVIZ_MIGRATION_TARGET_VERSION: '1.0.0'
+      TENSORVIZ_MIGRATION_TARGET_VERSION: ${{ needs.configuration.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -323,8 +323,8 @@ jobs:
           path: plugin/out/release-candidate
       - uses: actions/checkout@v4
         with:
-          repository: tensorviz-org/tensorviz-plugins
-          ref: 8b0b539953c5abe693803c15854d953a00bcd5fe
+          repository: tensorviz-org/tensorviz
+          ref: 664d5615d71c10b5d9f84695c4c40011dddbdc7f
           path: plugin/out/migration-old-catalog
           persist-credentials: false
       - name: Install locked clients and CPU capture dependencies
@@ -348,18 +348,21 @@ jobs:
           node --input-type=module <<'JS'
           import {readFileSync} from 'node:fs';
           import {execFileSync} from 'node:child_process';
-          const publication = JSON.parse(readFileSync('plugin/out/migration-old-catalog/PUBLICATION.json','utf8'));
+          import {canonicalReleaseMigration} from './plugin/scripts/release-migration.mjs';
+          import {runtimeReleaseURL} from './plugin/scripts/release-version.mjs';
+          const previous = canonicalReleaseMigration(process.env.TENSORVIZ_MIGRATION_TARGET_VERSION);
+          const publication = JSON.parse(readFileSync('plugin/out/migration-old-catalog/distribution/plugin-catalog/PUBLICATION.json','utf8'));
           const runtime = publication.runtime.runtimes[process.env.MIGRATION_PLATFORM];
-          const expected = `https://github.com/tensorviz-org/tensorviz-plugins/releases/download/v0.1.48/tensorviz-runtime-0.1.48-${process.env.MIGRATION_PLATFORM}.tar.gz`;
-          if(publication.version !== '0.1.48' || runtime.url !== expected || runtime.version !== '0.1.48' || runtime.platform !== process.env.MIGRATION_PLATFORM) throw new Error('Previous runtime provenance mismatch');
+          const expected = runtimeReleaseURL(previous.from, process.env.MIGRATION_PLATFORM);
+          if(publication.version !== previous.from || runtime.url !== expected || runtime.version !== previous.from || runtime.platform !== process.env.MIGRATION_PLATFORM) throw new Error('Previous runtime provenance mismatch');
           execFileSync('curl',['--fail','--silent','--show-error','--location','--proto','=https','--proto-redir','=https','--max-time','300','--output','plugin/out/migration-old-runtime.tar.gz',runtime.url],{stdio:'inherit'});
           JS
       - name: Verify real native client upgrade and rollback
         env:
-          TENSORVIZ_MIGRATION_OLD_CATALOG: ${{ github.workspace }}/plugin/out/migration-old-catalog
+          TENSORVIZ_MIGRATION_OLD_CATALOG: ${{ github.workspace }}/plugin/out/migration-old-catalog/distribution/plugin-catalog
           TENSORVIZ_MIGRATION_NEW_CATALOG: ${{ github.workspace }}/plugin/out/release-candidate/integration
           TENSORVIZ_MIGRATION_OLD_ARCHIVE: ${{ github.workspace }}/plugin/out/migration-old-runtime.tar.gz
-          TENSORVIZ_MIGRATION_NEW_ARCHIVE: ${{ github.workspace }}/plugin/out/release-candidate/tensorviz-runtime-1.0.0-${{ matrix.platform }}.tar.gz
+          TENSORVIZ_MIGRATION_NEW_ARCHIVE: ${{ github.workspace }}/plugin/out/release-candidate/tensorviz-runtime-${{ needs.configuration.outputs.version }}-${{ matrix.platform }}.tar.gz
           TENSORVIZ_MIGRATION_RECEIPT: ${{ github.workspace }}/plugin/out/migration-receipts/${{ matrix.platform }}.json
         run: node --test plugin/test/migration/native-version-transition.cjs
       - name: Retain verified migration receipt

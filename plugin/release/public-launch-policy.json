@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "enabled": true,
   "repository": "tensorviz-org/tensorviz",
-  "version": "1.0.0",
-  "previousVersion": "0.1.48",
-  "previousCatalogCommit": "8b0b539953c5abe693803c15854d953a00bcd5fe",
+  "version": "1.0.1",
+  "previousVersion": "1.0.0",
+  "previousCatalogCommit": "664d5615d71c10b5d9f84695c4c40011dddbdc7f",
   "extensionName": "tensorviz-vscode",
   "extensionPublisher": "tensorviz",
   "clientVersions": {

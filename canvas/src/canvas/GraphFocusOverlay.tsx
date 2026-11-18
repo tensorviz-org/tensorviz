@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ModelNode } from '../types';
+import type { ModelNode, ModelNodeData } from '../types';
 import { track, useEditor } from 'tldraw';
 import { graphFocus, setTraceDirection } from './graphFocus';
 import { selectedEdgeId } from './edgeSelection';
@@ -36,8 +36,16 @@ export const GraphFocusOverlay = track(function GraphFocusOverlay() {
     const node = nodesById.get(id);
     const explanation = explanations?.annotations?.[id] ?? explanations?.states[id];
     if (explanation?.status === 'ready' && explanation.explanation?.title) return explanation.explanation.title;
-    return node ? customCardModel(node.data.layerType.id, node.data.parameters)?.title
-      ?? operationDisplayName(node.data) ?? node.data.captureLabel ?? id : id;
+    const data = node?.data ?? focusBoundaryCard(id);
+    return data ? customCardModel(data.layerType.id, data.parameters)?.title
+      ?? operationDisplayName(data) ?? data.captureLabel ?? id : id;
+  };
+  // Module focus draws presentation-only boundary cards ("From …", "To …") that are
+  // not nodes of the graph, so graphNodes cannot name them. Read the card itself
+  // rather than showing its encoded ID.
+  const focusBoundaryCard = (id: string) => {
+    const card = (editor.getShape(nodeIdToShapeId(id))?.props as { nodeData?: ModelNodeData } | undefined)?.nodeData;
+    return card?.focusBoundary ? card : undefined;
   };
   const selectedLabel = focus.active && focus.selected.length === 1 ? label(focus.selected[0]) : undefined;
   const selected = focus.selected.length === 1 ? graphNodes.get().find(node => node.id === focus.selected[0]) : undefined;
@@ -70,7 +78,7 @@ export const GraphFocusOverlay = track(function GraphFocusOverlay() {
       }} />
     {!local && zoom < .55 && <button className="graph-readable" onClick={readable}>Zoom to readable detail ↗</button>}
     {focus.active && <section className="graph-focus-controls" aria-label="Connection focus">
-      <div className="graph-focus-caption"><strong>{focus.selected.length === 1 ? selectedLabel : `${focus.selected.length} layers`}</strong><span>{focus.edgeIds.size} connections{focus.truncated ? ' · limit reached' : ''}</span></div>
+      <div className="graph-focus-caption"><strong>{focus.selected.length === 1 ? selectedLabel : `${focus.selected.length} layers`}</strong><span>{`${focus.edgeIds.size} ${focus.edgeIds.size === 1 ? 'connection' : 'connections'}`}{focus.truncated ? ' · limit reached' : ''}</span></div>
       {selected && <>
         <BlockSummary node={selected} nodes={graphNodes.get()} edges={graphEdges.get()} showIdentity={false} />
         <NodeUnderstanding key={selected.id} node={selected} nodes={graphNodes.get()} edges={graphEdges.get()} onNavigate={id => {

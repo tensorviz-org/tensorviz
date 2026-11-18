@@ -10,7 +10,8 @@ import * as customCards from '../../canvas/customCard';
 import { selectedEdgeId } from '../../canvas/edgeSelection';
 import { nodeIdToShapeId } from '../../canvas/canvasShapeId';
 import { LocalBrowserContext } from '../../ide/localBrowserContext';
-import { ModelNode } from '../../types';
+import { ModelEdge, ModelNode } from '../../types';
+import { projectModuleFocus } from '../../services/moduleFocus';
 
 // This seam does not assert real camera events or reactive computed caching.
 // Each component owns its lazy index for one render; no shared cache is used.
@@ -23,7 +24,8 @@ jest.mock('tldraw', () => ({
 let mockFocus: any;
 let mockEdges = new Map<string, any>();
 const mockEditor = { getEfficientZoomLevel: () => 1, markEventAsHandled: jest.fn(),
-  getShapePageBounds: jest.fn(() => ({ x: 0, y: 0, w: 200, h: 100 })), select: jest.fn(), zoomToBounds: jest.fn() };
+  getShapePageBounds: jest.fn(() => ({ x: 0, y: 0, w: 200, h: 100 })), select: jest.fn(), zoomToBounds: jest.fn(),
+  getShape: jest.fn() };
 jest.mock('../../canvas/graphFocus', () => ({ graphFocus: () => ({
   focus: { get: () => mockFocus }, index: { get: () => ({ edges: mockEdges }) },
 }), setTraceDirection: jest.fn() }));
@@ -191,4 +193,52 @@ it('uses ready explanation titles lazily while preserving technical labels for o
   expect(screen.getByText('Score candidates → candidate scores')).toBeInTheDocument();
   expect(map).toHaveBeenCalledTimes(1);
   expect(get).toHaveBeenCalledTimes(1);
+});
+
+/** Module focus: the canvas draws the scope's children plus presentation-only boundary
+ *  cards, while graphNodes keeps the authoritative graph, which has no boundary nodes. */
+function focusedSqueezeExcitation() {
+  const module = node('se', 'SqueezeExcitation', { type: 'moduleNode' });
+  module.data = { ...module.data, layerType: { id: 'module', name: 'Module' } as any,
+    parameters: { name: 'se', _module_path: 'se' }, expanded: false, moduleInstanceId: 'se' };
+  const conv = node('se.expand', 'aten.convolution.default');
+  conv.data = { ...conv.data, parentId: 'se', parameters: { name: 'expand', _module_path: 'se.expand' } };
+  const nodes = [node('activation', 'activation'), module, conv, node('sigmoid', 'sigmoid')];
+  const edges: ModelEdge[] = [{ id: 'a>c', source: 'activation', target: 'se.expand' }, { id: 'c>s', source: 'se.expand', target: 'sigmoid' }];
+  const scene = projectModuleFocus(nodes, edges, 'se')!;
+  const shapes = new Map(scene.nodes.map(item => [nodeIdToShapeId(item.id), { props: { nodeData: item.data } }]));
+  mockEditor.getShape.mockImplementation((id: string) => shapes.get(id as any));
+  graphNodes.set(nodes);
+  const boundary = (direction: 'in' | 'out') => scene.nodes.find(item => item.data.focusBoundary?.direction === direction)!;
+  return { inbound: boundary('in'), outbound: boundary('out') };
+}
+
+it('labels a selected module-focus boundary card by its card, never its internal ID', () => {
+  const { inbound } = focusedSqueezeExcitation();
+  expect(inbound.id).toMatch(/^focus-boundary:/);
+  mockFocus = { ...mockFocus, active: true, selected: [inbound.id], edgeIds: new Set(['a>c']) };
+  render(<GraphFocusOverlay />);
+  const caption = screen.getByRole('region', { name: 'Connection focus' });
+  expect(within(caption).getAllByText(() => true, { selector: 'strong' })[0].textContent).toBe('From activation');
+  expect(within(caption).getByText('1 connection')).toBeInTheDocument();
+  expect(document.body.textContent).not.toContain('focus-boundary');
+});
+
+it('labels a selected connection that crosses the focused module boundary', () => {
+  const { inbound, outbound } = focusedSqueezeExcitation();
+  mockEdges.set('in', { source: inbound.id, target: 'se.expand' });
+  mockEdges.set('out', { source: 'se.expand', target: outbound.id });
+  selectedEdgeId.set('in');
+  const view = render(<GraphFocusOverlay />);
+  expect(screen.getByText('From activation → Convolution')).toBeInTheDocument();
+  selectedEdgeId.set('out'); view.rerender(<GraphFocusOverlay />);
+  expect(screen.getByText('Convolution → To sigmoid')).toBeInTheDocument();
+  expect(document.body.textContent).not.toContain('focus-boundary');
+});
+
+it('counts one connection in the singular and several in the plural', () => {
+  graphNodes.set([node('a', 'A')]);
+  mockFocus = { ...mockFocus, active: true, selected: ['a'], edgeIds: new Set(['e1', 'e2']) };
+  render(<GraphFocusOverlay />);
+  expect(screen.getByText('2 connections')).toBeInTheDocument();
 });

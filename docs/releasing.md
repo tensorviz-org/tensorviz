@@ -17,14 +17,6 @@ requires every native job and exact-source GitHub attestation. Unknown future
 release transitions are refused until their previous version and catalog are
 explicitly pinned in source.
 
-If a job fails, retry that job and its dependants with GitHub's normal rerun
-action. Admission checks the latest result for every required job across attempts
-of the same trusted workflow run and source revision. A newer failed, cancelled
-or skipped result cannot borrow an older success. The final attempt must build
-and attest the bundle itself; native checks, migration receipts and package hashes
-remain required even when their successful jobs are inherited from an earlier
-attempt.
-
 Successful candidate checks create the immutable `v1.0.1` source tag and dispatch
 the trusted publisher. Verify the downstream **Documentation** publication run
 and public assets before reporting success. Advance the canonical catalog in a

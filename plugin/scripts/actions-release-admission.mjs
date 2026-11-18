@@ -30,19 +30,7 @@ export function validateActionsReleaseRun(manifest, admission, policy, run, jobs
       || run.status !== 'completed' || run.conclusion !== 'success') throw Error('Candidate was not produced by a successful trusted main workflow');
   for (const name of requiredReleaseJobs) {
     const matching = jobs.filter(job => job.name === name);
-    const attempts = new Set();
-    for (const job of matching) {
-      if (job.run_id !== run.id || job.head_sha !== run.head_sha || !Number.isSafeInteger(job.run_attempt)
-          || job.run_attempt < 1 || job.run_attempt > run.run_attempt || attempts.has(job.run_attempt))
-        throw Error(`Required release job provenance differs: ${name}`);
-      attempts.add(job.run_attempt);
-    }
-    // GitHub reruns only selected jobs and their dependants. Successful jobs
-    // inherited from this same immutable run remain required evidence.
-    const latest = matching.reduce((selected, job) => !selected || job.run_attempt > selected.run_attempt ? job : selected, null);
-    if (!latest || latest.status !== 'completed' || latest.conclusion !== 'success'
-        || (name === 'bundle' && latest.run_attempt !== run.run_attempt))
-      throw Error(`Required release job did not succeed: ${name}`);
+    if (matching.length !== 1 || matching[0].conclusion !== 'success') throw Error(`Required release job did not succeed: ${name}`);
   }
 }
 
@@ -50,7 +38,7 @@ export async function verifyActionsReleaseAdmission(manifest, manifestBytes, adm
   const api = endpoint => JSON.parse(command('gh', ['api', '--hostname', 'github.com', `repos/tensorviz-org/tensorviz/${endpoint}`], {encoding: 'utf8', maxBuffer: 4 * 1024 * 1024}));
   if (!Number.isSafeInteger(admission?.runId) || admission.runId < 1 || !Number.isSafeInteger(admission.runAttempt) || admission.runAttempt < 1) throw Error('Invalid candidate run identity');
   const run = api(`actions/runs/${admission.runId}`);
-  const jobs = api(`actions/runs/${admission.runId}/jobs?filter=all&per_page=100`);
+  const jobs = api(`actions/runs/${admission.runId}/attempts/${admission.runAttempt}/jobs?per_page=100`);
   if (jobs.total_count > 100) throw Error('Unexpected release job inventory');
   validateActionsReleaseRun(manifest, admission, policy, run, jobs.jobs);
   if (release.version !== manifest.version || release.sourceRevision !== manifest.sourceRevision) throw Error('Migration release identity mismatch');

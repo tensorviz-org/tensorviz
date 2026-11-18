@@ -3,18 +3,18 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {contentHash} from '../../scripts/source-release-admission.mjs';
 import {requiredReleaseJobs,unifiedWorkflow,validateActionsReleaseRun,verifyActionsReleaseAdmission} from '../../scripts/actions-release-admission.mjs';
-function fixture(version='1.0.0'){
+function fixture(version='1.0.0',attempt=1){
  const sourceRevision='a'.repeat(40),digest='b'.repeat(64),repository='tensorviz-org/tensorviz';
- const manifest={schemaVersion:1,repository,version,sourceRevision,build:{workflow:unifiedWorkflow,runId:123,runAttempt:1},files:{}};
+ const manifest={schemaVersion:1,repository,version,sourceRevision,build:{workflow:unifiedWorkflow,runId:123,runAttempt:attempt},files:{}};
  const policy={schemaVersion:1,enabled:true,repository,version,previousVersion:version==='1.0.1'?'1.0.0':'0.1.48',previousCatalogCommit:version==='1.0.1'?'664d5615d71c10b5d9f84695c4c40011dddbdc7f':'8b0b539953c5abe693803c15854d953a00bcd5fe',evidence:{method:'github-actions',workflow:unifiedWorkflow}};
- const run={id:123,run_attempt:1,head_sha:sourceRevision,repository:{full_name:repository},head_repository:{full_name:repository},path:unifiedWorkflow,event:'workflow_dispatch',head_branch:'main',status:'completed',conclusion:'success'};
- const jobs=requiredReleaseJobs.map(name=>({name,conclusion:'success'}));
+ const run={id:123,run_attempt:attempt,head_sha:sourceRevision,repository:{full_name:repository},head_repository:{full_name:repository},path:unifiedWorkflow,event:'workflow_dispatch',head_branch:'main',status:'completed',conclusion:'success'};
+ const jobs=requiredReleaseJobs.map(name=>({name,run_id:123,head_sha:sourceRevision,run_attempt:name==='bundle'?attempt:1,status:'completed',conclusion:'success'}));
  const platforms=['darwin-arm64','darwin-x64','linux-x64','linux-arm64','win32-x64','win32-arm64'];
  const release={version,sourceRevision,files:Object.fromEntries(platforms.map(p=>[`tensorviz-runtime-${version}-${p}.tar.gz`,digest])),publication:{runtime:{runtimes:Object.fromEntries(platforms.map(p=>[p,{sha256:digest}]))}}};
  const migrationReceipts=['darwin-arm64','linux-x64'].map(platform=>({schemaVersion:1,fromVersion:policy.previousVersion,toVersion:version,previousExport:policy.previousCatalogCommit,sourceRevision,platform,runtimeSha256:digest,clients:Object.fromEntries(['codex','claude'].map((n,i)=>[n,{version:['0.165.0','2.1.308'][i],upgrade:true,rollback:true,nativeCapture:true,preservedSettings:true}]))}));
- const admission={schemaVersion:2,method:'github-actions',runId:123,runAttempt:1,migrationReceipts};
+ const admission={schemaVersion:2,method:'github-actions',runId:123,runAttempt:attempt,migrationReceipts};
  const bytes=Buffer.from(JSON.stringify(manifest));
- const proof={verificationResult:{statement:{subject:[{digest:{sha256:contentHash(bytes)}}],predicate:{runDetails:{metadata:{invocationId:`https://github.com/${repository}/actions/runs/123/attempts/1`}}}}}};
+ const proof={verificationResult:{statement:{subject:[{digest:{sha256:contentHash(bytes)}}],predicate:{runDetails:{metadata:{invocationId:`https://github.com/${repository}/actions/runs/123/attempts/${attempt}`}}}}}};
  const calls=[];const command=(tool,args)=>{calls.push(args);assert.equal(tool,'gh');if(args[0]==='attestation'){
   assert.deepEqual(fs.readFileSync(args[2]),bytes);assert.ok(args.includes('--deny-self-hosted-runners'));
   assert.equal(args[args.indexOf('--source-digest')+1],sourceRevision);assert.equal(args[args.indexOf('--signer-digest')+1],sourceRevision);
@@ -31,6 +31,31 @@ test('the reviewed 1.0.1 transition requires its own exact migration receipts an
  assert.equal((await verifyActionsReleaseAdmission(f.manifest,f.bytes,f.admission,f.policy,f.release,{command:f.command})).jobs,13);
  f.admission.migrationReceipts[0].fromVersion='0.1.48';
  await assert.rejects(verifyActionsReleaseAdmission(f.manifest,f.bytes,f.admission,f.policy,f.release,{command:f.command}),/Migration receipt provenance/);
+});
+test('job retries retain successful checks from the same immutable run and attest a new bundle',async()=>{
+ const f=fixture('1.0.1',2),intel=f.jobs.find(job=>job.name==='native-darwin-x64');
+ intel.conclusion='cancelled';
+ f.jobs.push({...intel,run_attempt:2,conclusion:'success'});
+ const result=await verifyActionsReleaseAdmission(f.manifest,f.bytes,f.admission,f.policy,f.release,{command:f.command});
+ assert.equal(result.jobs,13);assert.equal(result.runAttempt,2);
+ assert.match(f.calls[1][3],/\/jobs\?filter=all&per_page=100$/);
+});
+for(const conclusion of ['failure','cancelled','skipped',null])test(`a newer ${conclusion} cannot borrow an earlier successful check`,()=>{
+ const f=fixture('1.0.1',2),intel=f.jobs.find(job=>job.name==='native-darwin-x64');
+ f.jobs.push({...intel,run_attempt:2,status:conclusion===null?'in_progress':'completed',conclusion});
+ assert.throws(()=>validateActionsReleaseRun(f.manifest,f.admission,f.policy,f.run,f.jobs),/Required release job did not succeed/);
+});
+test('the final attempt must produce the attested bundle itself',()=>{
+ const f=fixture('1.0.1',2);f.jobs.find(job=>job.name==='bundle').run_attempt=1;
+ assert.throws(()=>validateActionsReleaseRun(f.manifest,f.admission,f.policy,f.run,f.jobs),/Required release job did not succeed: bundle/);
+});
+for(const [name,mutate] of [
+ ['another run',job=>job.run_id=999],['another source',job=>job.head_sha='c'.repeat(40)],
+ ['missing attempt',job=>delete job.run_attempt],['invalid attempt',job=>job.run_attempt=0],
+ ['future attempt',job=>job.run_attempt=3],
+])test(`inherited checks reject ${name}`,()=>{
+ const f=fixture('1.0.1',2);mutate(f.jobs[0]);
+ assert.throws(()=>validateActionsReleaseRun(f.manifest,f.admission,f.policy,f.run,f.jobs),/Required release job provenance differs/);
 });
 for(const [name,mutate] of [
  ['disabled policy',f=>f.policy.enabled=false],['wrong workflow',f=>f.run.path='untrusted.yml'],

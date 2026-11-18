@@ -216,7 +216,9 @@ export const NodeParametersPopover: React.FC = () => {
 
   if (!targetId || !shape || !isModelShape(shape) || !placement) return null;
   const data = (shape.props as { nodeData?: ModelNodeData }).nodeData;
-  if (!data) return null;
+  // A module-focus boundary card stands for a value outside the module; it has no
+  // parameters or source of its own to edit.
+  if (!data || data.focusBoundary) return null;
 
   if (local) return <div className="model-node-params" style={{ left: placement.x, top: placement.y, marginLeft: placement.flip ? -272 : 12 }}>
     <button aria-label="Close parameters" onClick={closeNodeParameters}>Close</button>

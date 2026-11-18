@@ -762,6 +762,8 @@ After **Refresh graph** completes a capture, output shapes can appear after the 
 
 Entering a module gives its immediate children the canvas. Ancestors stay in a breadcrumb. A module without recorded children does not open an empty scene. Focus is a display projection: it does not write positions or synthetic wires into the saved graph.
 
+A value that crosses the module's edge is drawn as a boundary card, **From** or **To** the layer outside. Selecting it shows its connections under that name. A boundary card has no parameter or source editor, because it stands for a layer outside the module.
+
 The compact navigation row is the only persistent scope identity: Back, Overview, ancestor and current breadcrumbs, sibling menus, and Flow. After navigation, keyboard focus moves to the current breadcrumb. Its tooltip keeps the module type and direct-child count. There is no second title banner and no bottom module-name bar.
 
 On first entry the canvas compares horizontal and vertical layouts and keeps the orientation that fits, staying with horizontal unless the other orientation is clearly better. Resizing does not rotate the graph. Entering, going back, changing layout, and finishing a recapture fit the destination after its shapes are committed. Selection, dragging, and pan or zoom keep the camera.

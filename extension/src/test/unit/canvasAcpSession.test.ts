@@ -12,7 +12,8 @@ suite('Canvas ACP wire and lifecycle', function () {
   this.timeout(10_000);
   let directory: string, executable: string;
   let sessions: CanvasAcpSession[], runtimes: CanvasAgentRuntime[];
-  const journal = async (): Promise<any[]> => (await readFile(path.join(directory, 'wire.jsonl'), 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+  // Polling can read an append in progress; only newline-terminated records are complete.
+  const journal = async (): Promise<any[]> => (await readFile(path.join(directory, 'wire.jsonl'), 'utf8')).split('\n').slice(0, -1).map(line => JSON.parse(line));
   setup(async () => {
     sessions = []; runtimes = [];
     directory = await mkdtemp(path.join(tmpdir(), 'canvas-acp-test-')); executable = path.join(directory, 'agent');

@@ -22,7 +22,7 @@ codex plugin marketplace add tensorviz-org/tensorviz
 codex plugin add tensorviz@tensorviz-standalone
 ```
 
-For a local catalog, extract `tensorviz-catalog-1.0.0.zip` into a persistent
+For a local catalog, extract `tensorviz-catalog-1.0.1.zip` into a persistent
 directory and use that absolute path instead. Do not substitute GitHub's source ZIP for the complete catalog ZIP. The compiled runtime downloads on the first
 connection. Updating the plugin selects its new pinned runtime; an existing chat
 keeps its session's resources. Start a new chat to use the new version.
@@ -44,7 +44,7 @@ these instructions do not claim marketplace acceptance.
 
 ## Tools and integration boundaries
 
-The 1.0.0 host registers **29 MCP tools**. Clients that hide app-only tools
+The 1.0.1 host registers **29 MCP tools**. Clients that hide app-only tools
 expose **25** to the agent. Discover the installed server's tools and
 `list_models` capabilities before use.
 
@@ -81,7 +81,7 @@ listing.
 
 ### Compiled platform matrix
 
-The 1.0.0 production pipeline assembles six independently validated native
+The 1.0.1 production pipeline assembles six independently validated native
 archives: `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `win32-x64`,
 and `win32-arm64`. Linux x64 targets glibc >=2.31; Linux ARM64 targets >=2.35.
 The CPython 3.12 ABI must match the target's pinned runtime lock. A working host
@@ -104,7 +104,7 @@ The local exporter reads `plugin/packaging/public/` and preserves version
 placeholders in these source templates. `PUBLICATION.json` records the exact
 integration inventory, hashes and runtime provenance. Both client locks must
 match the publication lock. The source repository native release workflow publishes
-runtime archives, client ZIPs, and the catalog ZIP under `v1.0.0`,
+runtime archives, client ZIPs, and the catalog ZIP under `v1.0.1`,
 in the canonical source repository. Release tags identify the reviewed source commit;
 PUBLICATION.json binds the generated integration to that build source. A subsequent
 catalog commit may reference it without changing the immutable source release tag.

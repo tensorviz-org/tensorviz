@@ -1,60 +1,60 @@
 {
   "formatVersion": 2,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "runtimes": {
     "darwin-arm64": {
       "formatVersion": 1,
-      "version": "1.0.0",
+      "version": "1.0.1",
       "platform": "darwin-arm64",
       "pythonABI": "cpython-312-darwin",
-      "sha256": "179e5621c435186b42ca935d6704b2c750b1bf7d88f953987afb98d14f41d942",
-      "bytes": 36309165,
-      "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.0/tensorviz-runtime-1.0.0-darwin-arm64.tar.gz"
+      "sha256": "3aa9ad07cd2f9daa8c4dd9b93153b063ef4445fcc43ff41921f3fc95e10a8c3d",
+      "bytes": 36309008,
+      "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.1/tensorviz-runtime-1.0.1-darwin-arm64.tar.gz"
     },
     "darwin-x64": {
       "formatVersion": 1,
-      "version": "1.0.0",
+      "version": "1.0.1",
       "platform": "darwin-x64",
       "pythonABI": "cpython-312-darwin",
-      "sha256": "1f875deb6d19e3fe2c69f0e6ebc98577c43bfa5d16b23705d347c91a9cd4a14f",
-      "bytes": 38417604,
-      "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.0/tensorviz-runtime-1.0.0-darwin-x64.tar.gz"
+      "sha256": "693d75d2191e116efd31dfb7dbe109558a94601bbbd4ddb579eec2a3efad6211",
+      "bytes": 38418040,
+      "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.1/tensorviz-runtime-1.0.1-darwin-x64.tar.gz"
     },
     "linux-arm64": {
       "formatVersion": 1,
-      "version": "1.0.0",
+      "version": "1.0.1",
       "platform": "linux-arm64",
       "pythonABI": "cpython-312-aarch64-linux-gnu",
-      "sha256": "4061a7962ffc36434a6a1e8e946a57e4360ec18a64a17454f10b6db05caa14e4",
-      "bytes": 42359973,
-      "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.0/tensorviz-runtime-1.0.0-linux-arm64.tar.gz"
+      "sha256": "ebe266b06be65e2db647ba0f3b28b3d9c36d005d18c8c1e26014fa4455a6f893",
+      "bytes": 42363870,
+      "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.1/tensorviz-runtime-1.0.1-linux-arm64.tar.gz"
     },
     "linux-x64": {
       "formatVersion": 1,
-      "version": "1.0.0",
+      "version": "1.0.1",
       "platform": "linux-x64",
       "pythonABI": "cpython-312-x86_64-linux-gnu",
-      "sha256": "cf5c7633f2e297b10181dbc4eddabc52554e6a0bc06ccc4d1e84a185645492d5",
-      "bytes": 43547213,
-      "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.0/tensorviz-runtime-1.0.0-linux-x64.tar.gz"
+      "sha256": "0c9b2ad430eade1cc8e3e1d63f620651458c3ee0ee32b63070b00553d5057359",
+      "bytes": 43550279,
+      "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.1/tensorviz-runtime-1.0.1-linux-x64.tar.gz"
     },
     "win32-arm64": {
       "formatVersion": 1,
-      "version": "1.0.0",
+      "version": "1.0.1",
       "platform": "win32-arm64",
       "pythonABI": "cp312-win_arm64",
-      "sha256": "85c28eda4e4ef7b15ce086b677be75705729cbc468a578b18b156970e9bea73e",
-      "bytes": 32813813,
-      "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.0/tensorviz-runtime-1.0.0-win32-arm64.tar.gz"
+      "sha256": "c7e79b3b42c2672b3e165b3c2f8b7a3326b391dabe0c39ab33c65538464a9c12",
+      "bytes": 32814425,
+      "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.1/tensorviz-runtime-1.0.1-win32-arm64.tar.gz"
     },
     "win32-x64": {
       "formatVersion": 1,
-      "version": "1.0.0",
+      "version": "1.0.1",
       "platform": "win32-x64",
       "pythonABI": "cp312-win_amd64",
-      "sha256": "6a31c6a148b7f62fd4218bd0c5e1d803f4ef1146d13676d46e7ce722aec79771",
-      "bytes": 35622885,
-      "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.0/tensorviz-runtime-1.0.0-win32-x64.tar.gz"
+      "sha256": "5b6751205955e92b1d6577990538e0303edfb80e5a7195dcc6d6ac43d5bd2f48",
+      "bytes": 35623733,
+      "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.1/tensorviz-runtime-1.0.1-win32-x64.tar.gz"
     }
   }
 }

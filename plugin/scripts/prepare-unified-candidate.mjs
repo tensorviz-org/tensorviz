@@ -9,7 +9,7 @@ import {verifyReleaseCandidate} from './release-candidate.mjs';
 import {contentHash} from './source-release-admission.mjs';
 import {prepareDocsArtifact} from './docs-release-artifact.mjs';
 import {stageCanonicalCatalog} from './canonical-catalog.mjs';
-import {verifyReleaseMigration} from './release-migration.mjs';
+import {canonicalReleaseMigration, verifyReleaseMigration} from './release-migration.mjs';
 import {unifiedWorkflow} from './actions-release-admission.mjs';
 
 export async function snapshotCandidateVsix(source, destination, version) {
@@ -24,10 +24,11 @@ export async function snapshotCandidateVsix(source, destination, version) {
 export async function prepareUnifiedCandidate({plugin, vsix, docs, migrations, output, sourceRevision, version, runId, runAttempt}) {
   if (!/^[1-9]\d*\.\d+\.\d+$/.test(version ?? '') || !/^[a-f0-9]{40}$/.test(sourceRevision ?? '')
       || !Number.isSafeInteger(runId) || runId < 1 || !Number.isSafeInteger(runAttempt) || runAttempt < 1) throw Error('Exact candidate build identity required');
+  const migration = canonicalReleaseMigration(version);
   const release = await verifyReleaseCandidate(plugin, {publishing: true});
   if (release.version !== version || release.sourceRevision !== sourceRevision) throw Error('Plugin candidate source/version mismatch');
   const migrationReceipts = await Promise.all(['darwin-arm64', 'linux-x64'].map(async p => JSON.parse(await fs.readFile(path.join(migrations, `${p}.json`), 'utf8'))));
-  verifyReleaseMigration({previous: {version: '0.1.48'}, initialMain: '8b0b539953c5abe693803c15854d953a00bcd5fe', release, receipts: migrationReceipts});
+  verifyReleaseMigration({previous: {version: migration.from}, initialMain: migration.previousExport, release, receipts: migrationReceipts});
   await fs.mkdir(output); // Never overwrite another candidate or an existing checkout.
   await fs.cp(plugin, path.join(output, 'plugin'), {recursive: true});
   const captured = await verifyReleaseCandidate(path.join(output, 'plugin'), {publishing: true});

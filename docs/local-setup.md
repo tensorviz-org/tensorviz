@@ -23,8 +23,8 @@ These are the versions in this source checkout. Published packages have their ow
 | --- | --- |
 | Development Node.js | 22. CI uses Node.js 22. The plugin host requires Node.js 22 or newer. |
 | Development Python | 3.12. CI uses Python 3.12. |
-| Extension | 1.0.0 candidate (`extension/package.json`) |
-| Plugin host | 1.0.0 candidate (`plugin/package.json`) |
+| Extension | 1.0.1 candidate (`extension/package.json`) |
+| Plugin host | 1.0.1 candidate (`plugin/package.json`) |
 | VS Code | 1.106 or newer (`engines.vscode` is `^1.106.0`). Cursor and VSCodium can install the same VSIX. |
 | Backend service | Python 3.11 or newer (`MIN_BACKEND_PYTHON` in `extension/src/runtime.ts`, `backend/extension_environment.py`) |
 | Capture interpreter | Python 3.10 or newer (`backend/capture_environment.py`). Expression-level source positions are not recorded on Python 3.10. |

@@ -1,9 +1,17 @@
-# TensorViz
+<p align="center">
+  <img src="docs/public/logo.svg" alt="TensorViz logo" width="120" height="120">
+</p>
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![VS Code 1.106+](https://img.shields.io/badge/VS%20Code-%3E%3D1.106-007ACC.svg)](docs/install.md#extension)
+<h1 align="center">TensorViz</h1>
 
-Explore your PyTorch or JAX/Flax model as an interactive graph. Follow tensor shapes, find the matching Python, and review changes alongside your code.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="docs/install.md#extension"><img src="https://img.shields.io/badge/VS%20Code-%3E%3D1.106-007ACC.svg" alt="VS Code 1.106+"></a>
+</p>
+
+<p align="center">
+  Explore your PyTorch or JAX/Flax model as an interactive graph. Follow tensor shapes, find the matching Python, and review changes alongside your code.
+</p>
 
 <a id="try-it"></a>
 

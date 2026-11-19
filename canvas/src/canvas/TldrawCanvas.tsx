@@ -37,15 +37,14 @@ import { GraphEdgeLike } from './connectivity';
 import { EDGE_HIT_PX, findEdgeAtPoint, findEdgeWithMidpoint, selectedEdgeId } from './edgeSelection';
 import { doubleClickedShapeId } from './doubleClickTarget';
 import { EdgeInsertLayer } from './EdgeInsertLayer';
-import { LocalBrowserContext } from '../ide/localBrowserContext';
-import { NodeParametersPopover } from './NodeParametersPopover';
-import { GraphFocusOverlay, GraphNavigationContext } from './GraphFocusOverlay';
+import { NodeParametersPopover, TemplateEditingContext } from './NodeParametersPopover';
+import { GraphActivationContext, GraphFocusOverlay, GraphNavigationContext } from './GraphFocusOverlay';
 import { setTraceDirection } from './graphFocus';
 import { cameraDuration } from './reducedMotion';
 import { registerGraphAccess } from './graphAccess';
 import { getCanvasTheme, onCanvasThemeChange } from '../styles/canvasTheme';
 import { isModelShape } from './canvasShapePolicy';
-import { closeNodeParameters, openNodeParameters, parameterTarget } from './nodeParameters';
+import { closeNodeParameters, parameterTarget } from './nodeParameters';
 import {
   EdgeInsertChannel,
   EdgeInsertContext,
@@ -149,11 +148,7 @@ const SelectionWatcher = track(function SelectionWatcher({
   onShapeClick,
   onShapeDoubleClick,
   onCanvasClick,
-  canEditParameters,
-}: Pick<TldrawCanvasProps, 'onSelectionChange' | 'onShapeClick' | 'onShapeDoubleClick' | 'onCanvasClick'> & {
-  /** False on the read-only page, where source is not the canvas's to change. */
-  canEditParameters: boolean;
-}) {
+}: Pick<TldrawCanvasProps, 'onSelectionChange' | 'onShapeClick' | 'onShapeDoubleClick' | 'onCanvasClick'>) {
   const editor = useEditor();
 
   // Watch selection changes reactively
@@ -174,7 +169,10 @@ const SelectionWatcher = track(function SelectionWatcher({
         setTraceDirection(editor, 'local'); selectedEdgeId.set(null); closeNodeParameters();
       } else if (event.key === 'Enter' && editor.getSelectedShapeIds().length === 1) {
         event.preventDefault(); event.stopPropagation();
-        onShapeDoubleClick?.(editor.getSelectedShapeIds()[0]);
+        const id = editor.getSelectedShapeIds()[0];
+        const shape = editor.getShape(id);
+        if (shape?.type === 'module-node') onShapeDoubleClick?.(id);
+        else if (isModelShape(shape)) editor.getContainer().dispatchEvent(new Event('tensorviz-inspect-selection'));
       } else if (event.key === '[' || event.key === ']') {
         const shapes = editor.getCurrentPageShapes().filter(isModelShape).sort((a, b) => a.x - b.x || a.y - b.y);
         if (!shapes.length) return;
@@ -212,18 +210,12 @@ const SelectionWatcher = track(function SelectionWatcher({
       const selected = editor.getSelectedShapeIds();
       if (selected.length !== 1) return;
       onShapeClick?.(selected[0]);
-      // Parameters open from THIS gesture rather than from the selection, which is
-      // what the docked Inspector got wrong: tldraw selects on pointer-down, so a
-      // selection-driven panel opened on every drag. See nodeParameters.ts.
-      if (canEditParameters && isModelShape(editor.getShape(selected[0]))) {
-        openNodeParameters(selected[0]);
-      }
     };
     editor.on('before-event', handleBeforeEvent);
     return () => {
       editor.off('before-event', handleBeforeEvent);
     };
-  }, [editor, onShapeClick, canEditParameters]);
+  }, [editor, onShapeClick]);
 
   // Report a finished double-click on a shape. tldraw's click detector reports it
   // on the canvas without naming the shape; doubleClickedShapeId resolves it the
@@ -231,7 +223,10 @@ const SelectionWatcher = track(function SelectionWatcher({
   useEffect(() => {
     const handleEvent = (info: TLEventInfo) => {
       const shapeId = doubleClickedShapeId(editor, info);
-      if (shapeId) onShapeDoubleClick?.(shapeId);
+      if (!shapeId) return;
+      const shape = editor.getShape(shapeId);
+      if (shape?.type === 'module-node') onShapeDoubleClick?.(shapeId);
+      else if (isModelShape(shape)) editor.getContainer().dispatchEvent(new Event('tensorviz-inspect-selection'));
     };
     editor.on('event', handleEvent);
     return () => {
@@ -345,7 +340,6 @@ export const TldrawCanvas: React.FC<TldrawCanvasProps> = ({
   onInsertOnEdge,
   children,
 }) => {
-  const local = React.useContext(LocalBrowserContext);
   const bundledAssets = React.useContext(CanvasAssetContext);
   // A REF, not a context value: ports read the graph only at pointerdown, so
   // passing it by value would re-render every port on every graph edit.
@@ -479,6 +473,7 @@ export const TldrawCanvas: React.FC<TldrawCanvasProps> = ({
       <ConnectionGraphContext.Provider value={connectionGraph}>
         <EdgeInsertContext.Provider value={edgeInsert}>
         <GraphNavigationContext.Provider value={navigation}>
+        <TemplateEditingContext.Provider value={!readOnly}>
         <Tldraw
           // The "Get a license for production" watermark is tldraw's unlicensed
           // notice, and it reads to a user as "this product is built on an unpaid
@@ -503,7 +498,6 @@ export const TldrawCanvas: React.FC<TldrawCanvasProps> = ({
           onMount={handleMount}
         >
           <SelectionWatcher
-            canEditParameters={!readOnly || !!local?.sourceEdits}
             onSelectionChange={onSelectionChange}
             onShapeClick={onShapeClick}
             onShapeDoubleClick={onShapeDoubleClick}
@@ -511,11 +505,14 @@ export const TldrawCanvas: React.FC<TldrawCanvasProps> = ({
           />
           <ToolWatcher onChange={onToolChange} />
           <div className="canvas-navigation-overlays">
-            <GraphFocusOverlay />
+            <GraphActivationContext.Provider value={onShapeDoubleClick}>
+              <GraphFocusOverlay />
+            </GraphActivationContext.Provider>
             <CanvasMinimap sidePanelOpen={sidePanelOpen} />
           </div>
           {children}
         </Tldraw>
+        </TemplateEditingContext.Provider>
         </GraphNavigationContext.Provider>
         </EdgeInsertContext.Provider>
       </ConnectionGraphContext.Provider>

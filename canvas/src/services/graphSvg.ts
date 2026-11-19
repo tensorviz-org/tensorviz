@@ -195,19 +195,21 @@ function annotationSvg(explanation: NodeExplanation | undefined, box: Box, heade
   const parts = [`<g data-agent-interpretation="true"><title>${escapeXml(explanation.purpose)}</title>`,
     `<line x1="${box.x}" x2="${box.x + box.w}" y1="${box.y + headerHeight}" y2="${box.y + headerHeight}" stroke="${COLOR.cardStroke}"/>`];
   let y = box.y + headerHeight + 10;
-  layout.titleLines.forEach((line, index) => { parts.push(text(box.x + 24, y + 12 + index * 16, line, COLOR.text, 12, 550)); });
+  layout.titleLines.forEach((line, index) => { parts.push(text(box.x + layout.textInset, y + 12 + index * 16, line, COLOR.text, 12, 550)); });
   y += layout.titleLines.length * 16;
   if (layout.purposeLines.length) {
     y += 6;
-    layout.purposeLines.forEach((line, index) => parts.push(text(box.x + 12, y + 13 + index * 17, line, COLOR.muted, 12)));
+    layout.purposeLines.forEach((line, index) => parts.push(text(box.x + layout.textInset, y + 13 + index * 17, line, COLOR.muted, 12)));
     y += layout.purposeLines.length * 17;
   }
+  let firstFlow = true;
   for (const [label, lines] of [['In', layout.inputLines], ['Out', layout.outputLines]] as const) {
     if (!lines.length) continue;
-    y += label === 'In' ? 6 : 4;
-    parts.push(text(box.x + 12, y + 11, label, COLOR.muted, 10));
+    y += firstFlow ? 6 : 4;
+    firstFlow = false;
+    parts.push(text(box.x + layout.labelInset, y + 11, label, COLOR.muted, 10));
     for (const [index, line] of lines.entries()) {
-      parts.push(text(box.x + 40, y + 11 + index * 15, line, COLOR.muted, 11));
+      parts.push(text(box.x + layout.textInset, y + 11 + index * 15, line, COLOR.muted, 11));
     }
     y += lines.length * 15;
   }

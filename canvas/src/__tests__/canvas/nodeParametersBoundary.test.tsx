@@ -23,7 +23,7 @@ jest.mock('tldraw', () => ({
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { parameterTarget } = require('../../canvas/nodeParameters');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { NodeParametersPopover } = require('../../canvas/NodeParametersPopover');
+const { NodeParametersPopover, TemplateEditingContext } = require('../../canvas/NodeParametersPopover');
 
 const layer = { type: 'layer', nodeData: { layerType: { id: 'conv2d', name: 'Conv2d', displayName: 'Conv2d' },
   parameters: { out_channels: 8 } } };
@@ -44,16 +44,16 @@ function open(card: { type: string; nodeData: unknown }, local: boolean) {
   };
   parameterTarget.set(id);
   const context = { page: { greyed: false, syncState: 'ready' } } as any;
-  return render(local
+  return render(<TemplateEditingContext.Provider value={true}>{local
     ? <LocalBrowserContext.Provider value={context}><NodeParametersPopover /></LocalBrowserContext.Provider>
-    : <NodeParametersPopover />);
+    : <NodeParametersPopover />}</TemplateEditingContext.Provider>);
 }
 
 afterEach(() => parameterTarget.set(null));
 
-it('opens the source editor for a layer in the local Canvas', () => {
-  open(layer, true);
-  expect(screen.getByRole('region', { name: 'Edit model source' })).toBeInTheDocument();
+it('opens the explicitly targeted template editor for a real layer outside the local Canvas', () => {
+  open(layer, false);
+  expect(screen.getByTestId('node-parameters')).toBeInTheDocument();
 });
 
 it.each([true, false])('opens nothing for a module-focus boundary card (local: %s)', local => {

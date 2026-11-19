@@ -31,6 +31,30 @@ describe('explanation reply watchdog', () => {
     expect(expire).not.toHaveBeenCalled();
   });
 
+  it('accepts a cached node result after unavailable without reopening generation', () => {
+    const expire = jest.fn(), pending = { timeoutMs: 60, expire };
+    watchdog.observe('node:n', 'selection', 'unavailable');
+    expect(watchdog.observe('node:n', 'selection', 'queued', pending)).toBe(false);
+    expect(watchdog.observe('node:n', 'selection', 'loading', pending)).toBe(false);
+    expect(watchdog.observe('node:n', 'selection', 'ready')).toBe(true);
+    expect(watchdog.observe('node:n', 'selection', 'unavailable')).toBe(false);
+    jest.advanceTimersByTime(60);
+    expect(expire).not.toHaveBeenCalled();
+  });
+
+  it('keeps cancelled, interrupted, superseded and unavailable model receipts terminal', () => {
+    watchdog.observe('node:cancelled', 'selection', 'cancelled');
+    expect(watchdog.observe('node:cancelled', 'selection', 'ready')).toBe(false);
+    watchdog.observe('node:interrupted', 'selection', 'loading', { timeoutMs: 60, expire: jest.fn() });
+    watchdog.interrupt();
+    expect(watchdog.observe('node:interrupted', 'selection', 'ready')).toBe(false);
+    watchdog.observe('node:n', 'old', 'unavailable');
+    watchdog.observe('node:n', 'new', 'unavailable');
+    expect(watchdog.observe('node:n', 'old', 'ready')).toBe(false);
+    watchdog.observe('model', 'pass', 'unavailable');
+    expect(watchdog.observe('model', 'pass', 'ready')).toBe(false);
+  });
+
   it('requires advancing model progress to renew an acknowledged run', () => {
     const expire = jest.fn();
     watchdog.observe('model', 'request', 'loading', { timeoutMs: 10, expire });

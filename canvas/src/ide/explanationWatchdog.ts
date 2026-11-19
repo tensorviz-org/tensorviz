@@ -37,6 +37,9 @@ export class ExplanationWatchdog {
     const previous = this.entries.get(key);
     if (!previous || previous.requestId !== requestId) return true;
     if (previous.status === 'expired') return false;
+    // Passive selections publish idle/unavailable before verified cache adoption.
+    // Only that node receipt may settle ready; it must never restart generation.
+    if (previous.status === 'unavailable' && key.startsWith('node:') && status === 'ready') return true;
     if (previous.status === 'ready' || previous.status === 'unavailable' || previous.status === 'cancelled') return previous.status === status;
     return previous.status !== 'loading' || status !== 'queued';
   }

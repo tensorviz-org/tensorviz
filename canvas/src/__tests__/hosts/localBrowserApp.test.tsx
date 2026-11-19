@@ -23,7 +23,10 @@ import deepDeclarationFixture from '../../test/fixtures/canvas/deepDeclarationRe
 import React from 'react';
 import { execFileSync } from 'child_process';
 import * as path from 'path';
-import { act, cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen, within, waitFor } from '@testing-library/react';
+import { NodeExplanationContext } from '../../canvas/NodeExplanationContext';
+import { NodeUnderstanding } from '../../canvas/NodeUnderstanding';
+import { useNodeExplanationAction } from '../../canvas/useNodeExplanationAction';
 import type { NodeExplanationContextValue } from '../../canvas/NodeExplanationContext';
 import { nodeExplanationRevision } from '../../ide/nodeExplanationRevision';
 
@@ -618,6 +621,307 @@ describe('LocalBrowserApp', () => {
     await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state: { ...state, requestId: 'new-request' } })));
     await act(async () => resolve('current-graph-revision'));
     expect(mockCapturedExplanationContext?.states.n.requestId).toBe('new-request');
+  });
+
+  describe('explanation button request lifecycle', () => {
+    let descriptor: PropertyDescriptor | undefined;
+    beforeEach(() => {
+      descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+      Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => 'button-request' } });
+    });
+    afterEach(() => {
+      if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+      else Reflect.deleteProperty(globalThis, 'crypto');
+    });
+  it.each([false, true])('retires superseded node preflight without cancelling B (B ready: %s)', async ready => {
+    let sequence = 0;
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => `owned-${++sequence}` } });
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const rig = readyValidationPage(netProjection({ spanmap: {
+      a: { file: 'models/net.py', start: [2, 0], end: [3, 0] },
+      b: { file: 'models/net.py', start: [4, 0], end: [5, 0] },
+    } }));
+    (rig.transport as { session: unknown }).session = { viewId: 'owned-view', capabilities: {} };
+    let finishA!: (revision: string) => void;
+    (nodeExplanationRevision as jest.Mock).mockImplementationOnce(() => new Promise(resolve => { finishA = resolve; }));
+    const wrapper = ({ children }: { children: React.ReactNode }) => <NodeExplanationContext.Provider value={mockCapturedExplanationContext}>{children}</NodeExplanationContext.Provider>;
+    const hook = renderHook(({ id }) => useNodeExplanationAction(id), { wrapper, initialProps: { id: 'a' } });
+    act(() => hook.result.current.run());
+    const cancelA = hook.result.current.run;
+    hook.rerender({ id: 'b' });
+    await act(async () => hook.result.current.run());
+    const currentId = mockCapturedExplanationContext!.model!.state!.requestId;
+    expect(currentId).toBe('owned-2');
+    if (ready) await act(async () => rig.emit(hostMessage('modelExplanation', { viewId: 'owned-view', target: netTarget(), state: {
+      requestId: currentId, revision: 'current-graph-revision', status: 'ready', completed: 1, total: 1,
+    } })));
+    await act(async () => finishA('current-graph-revision'));
+    hook.rerender({ id: 'a' });
+    expect(hook.result.current.phase).toBe('stopped');
+    act(() => cancelA());
+    // A delayed control callback must be harmless even when invoked outside the hook.
+    act(() => (mockCapturedExplanationContext!.model!.cancel as (requestId?: string) => void)('owned-1'));
+    expect((rig.transport.send as jest.Mock).mock.calls.map(([message]) => message)
+      .filter(message => message.type === 'modelExplanationRequest' && message.action === 'cancel' && message.requestId === currentId)).toEqual([]);
+    expect((rig.transport.send as jest.Mock).mock.calls.map(([message]) => message)
+      .filter(message => message.type === 'modelExplanationRequest' && message.action === 'start').map(message => message.requestId)).toEqual(['owned-2']);
+    expect(mockCapturedExplanationContext!.model!.state!.status).toBe(ready ? 'ready' : 'loading');
+  });
+
+  it.each([false, true])('binds completion and metadata to verified node provenance (node first: %s)', async nodeFirst => {
+    let sequence = 0;
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => `provenance-${++sequence}` } });
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+    (rig.transport as { session: unknown }).session = { viewId: 'provenance-view', capabilities: {} };
+    const old = { requestId: 'selection', nodeId: 'n', revision: 'current-graph-revision', status: 'ready', explanation: {
+      title: 'Prior reading', purpose: 'Previous verified purpose.', inputs: [], outputs: [], steps: [], uncertainties: [], citations: [] } };
+    const fresh = { ...old, explanation: { ...old.explanation, title: 'Fresh reading', purpose: 'New verified purpose.' } };
+    const emit = (state: Record<string, unknown>) => rig.emit(hostMessage('nodeExplanation', { viewId: 'provenance-view', target: netTarget(), state }));
+    await act(async () => emit(old));
+    const wrapper = ({ children }: { children: React.ReactNode }) => <NodeExplanationContext.Provider value={mockCapturedExplanationContext}>{children}</NodeExplanationContext.Provider>;
+    const hook = renderHook(() => useNodeExplanationAction('n'), { wrapper });
+    const node: any = { id: 'n', type: 'layerNode', position: { x: 0, y: 0 }, data: { layerType: { id: 'custom', name: 'ActualCall', category: 'misc' }, parameters: {} } };
+    const reading = () => <NodeExplanationContext.Provider value={mockCapturedExplanationContext}><NodeUnderstanding node={node} hideActions explanationExecution={hook.result.current.execution} /></NodeExplanationContext.Provider>;
+    const view = render(reading());
+    await act(async () => hook.result.current.run());
+    hook.rerender(); view.rerender(reading());
+    expect(screen.getByText(old.explanation.purpose)).toBeVisible();
+    const requestId = mockCapturedExplanationContext!.model!.state!.requestId;
+    const summary = () => rig.emit(hostMessage('modelExplanation', { viewId: 'provenance-view', target: netTarget(), state: {
+      requestId, revision: old.revision, status: 'ready', completed: 1, total: 1,
+      execution: { provider: 'codex', model: 'new-model', effort: 'high' },
+    } }));
+    if (nodeFirst) await act(async () => emit({ ...fresh, requestId }));
+    else await act(async () => summary());
+    hook.rerender(); view.rerender(reading());
+    expect(hook.result.current.phase).not.toBe('complete');
+    expect(screen.getByText(old.explanation.purpose)).toBeVisible();
+    expect(view.container.querySelector('.node-ai-metadata')).toBeNull();
+    if (nodeFirst) await act(async () => summary());
+    else await act(async () => emit({ ...fresh, requestId }));
+    hook.rerender(); view.rerender(reading());
+    expect(hook.result.current.phase).toBe('complete');
+    // The old selection reading still wins until the host adopts the new result.
+    expect(mockCapturedExplanationContext!.states.n.requestId).toBe('selection');
+    expect(screen.getByText(old.explanation.purpose)).toBeVisible();
+    expect(view.container.querySelector('.node-ai-metadata')).toBeNull();
+    await act(async () => emit(fresh));
+    hook.rerender(); view.rerender(reading());
+    expect(screen.getByText(fresh.explanation.purpose)).toBeVisible();
+    expect(view.container.querySelector('.node-ai-metadata')?.textContent).toBe('Codex · new-model · high');
+    expect(mockCapturedExplanationContext!.states.n.requestId).toBe('selection');
+    await act(async () => hook.result.current.run());
+    hook.rerender(); view.rerender(reading());
+    expect(screen.getByText(fresh.explanation.purpose)).toBeVisible();
+    expect(view.container.querySelector('.node-ai-metadata')?.textContent).toBe('Codex · new-model · high');
+    const failedId = mockCapturedExplanationContext!.model!.state!.requestId;
+    expect(failedId).not.toBe(requestId);
+    await act(async () => rig.emit(hostMessage('modelExplanation', { viewId: 'provenance-view', target: netTarget(), state: {
+      requestId: failedId, revision: old.revision, status: 'unavailable', completed: 0, total: 1, detail: 'Update failed.',
+      execution: { provider: 'codex', model: 'failed-model', effort: 'low' },
+    } })));
+    hook.rerender(); view.rerender(reading());
+    expect(hook.result.current.phase).toBe('error');
+    expect(screen.getByText(fresh.explanation.purpose)).toBeVisible();
+    expect(view.container.querySelector('.node-ai-metadata')?.textContent).toBe('Codex · new-model · high');
+    await act(async () => emit({ ...fresh, explanation: { ...fresh.explanation, purpose: 'Later visible replacement.' } }));
+    view.rerender(reading());
+    expect(screen.getByText('Later visible replacement.')).toBeVisible();
+    expect(view.container.querySelector('.node-ai-metadata')).toBeNull();
+  });
+
+  it('retires cancelled preflight in the hook and rejects node receipts immediately on Stop', async () => {
+    let sequence = 0;
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => `stop-${++sequence}` } });
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+    (rig.transport as { session: unknown }).session = { viewId: 'stop-view', capabilities: {} };
+    const wrapper = ({ children }: { children: React.ReactNode }) => <NodeExplanationContext.Provider value={mockCapturedExplanationContext}>{children}</NodeExplanationContext.Provider>;
+    const hook = renderHook(() => useNodeExplanationAction('n'), { wrapper });
+    let finish!: (revision: string) => void;
+    (nodeExplanationRevision as jest.Mock).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    act(() => hook.result.current.run());
+    hook.rerender();
+    act(() => mockCapturedExplanationContext!.model!.cancel());
+    await act(async () => finish('current-graph-revision'));
+    hook.rerender();
+    expect(hook.result.current.phase).toBe('stopped');
+    await act(async () => hook.result.current.run());
+    const requestId = mockCapturedExplanationContext!.model!.state!.requestId;
+    act(() => mockCapturedExplanationContext!.model!.cancel(requestId));
+    await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'stop-view', target: netTarget(), state: {
+      requestId, nodeId: 'n', revision: 'current-graph-revision', status: 'ready', explanation: {
+        title: 'Cancelled result', purpose: 'Must not be adopted.', inputs: [], outputs: [], steps: [], uncertainties: [], citations: [] },
+    } })));
+    expect(mockCapturedExplanationContext!.annotations).toEqual({});
+    expect(mockCapturedExplanationContext!.verifiedResults).toEqual({});
+  });
+
+  it('returns the exact explanation request identity before asynchronous revision verification', async () => {
+    let finish!: (revision: string) => void;
+    (nodeExplanationRevision as jest.Mock).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+    (rig.transport as { session: unknown }).session = { viewId: 'node-view', capabilities: {} };
+    let requestId: unknown;
+    act(() => { requestId = mockCapturedExplanationContext?.model?.start(['n']); });
+    expect(typeof requestId).toBe('string');
+    expect(mockCapturedExplanationContext!.model!.currentRequestId).toBe(requestId);
+    expect((rig.transport.send as jest.Mock).mock.calls.filter(([message]) => message.type === 'modelExplanationRequest' && message.action === 'start')).toHaveLength(0);
+    await act(async () => finish('current-graph-revision'));
+    expect(mockCapturedExplanationContext?.model?.state?.requestId).toBe(requestId);
+  });
+
+  it('cancels preparation without sending a delayed explanation start', async () => {
+    let finish!: (revision: string) => void;
+    (nodeExplanationRevision as jest.Mock).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+    (rig.transport as { session: unknown }).session = { viewId: 'node-view', capabilities: {} };
+    act(() => { mockCapturedExplanationContext?.model?.start(['n']); mockCapturedExplanationContext?.model?.cancel(); });
+    await act(async () => finish('current-graph-revision'));
+    expect((rig.transport.send as jest.Mock).mock.calls.filter(([message]) => message.type === 'modelExplanationRequest' && message.action === 'start')).toHaveLength(0);
+  });
+  });
+
+  it('accepts verified cached ready for the current node identity without starting generation', async () => {
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+    (rig.transport as { session: unknown }).session = { viewId: 'node-view', capabilities: {} };
+    const idle = { requestId: 'selection', nodeId: 'n', revision: 'current-graph-revision', status: 'unavailable' as const };
+    const ready = { ...idle, status: 'ready' as const, explanation: { title: 'Cached features', purpose: 'Extract features.', inputs: [], outputs: [],
+      steps: [], uncertainties: [], citations: [{ id: 'source', file: 'models/net.py', sourceDigest: 'a'.repeat(64), startLine: 2, endLine: 5 }] } };
+    const emit = (state: typeof idle | typeof ready, extra = {}) => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state, ...extra }));
+    await act(async () => emit(idle));
+    await act(async () => {
+      emit({ ...ready, nodeId: 'phantom' });
+      emit({ ...ready, revision: 'old-revision' });
+      emit(ready, { viewId: 'other-view' });
+      emit(ready, { target: { ...netTarget(), documentVersion: 99 } });
+    });
+    expect(mockCapturedExplanationContext?.states).toEqual({ n: idle });
+    await act(async () => emit(ready));
+    expect(mockCapturedExplanationContext?.states.n).toEqual(ready);
+    expect(mockCapturedExplanationContext?.annotations?.n).toEqual(ready);
+    await act(async () => emit({ ...idle, requestId: 'new-selection' }));
+    await act(async () => emit(ready));
+    expect(mockCapturedExplanationContext?.states.n.requestId).toBe('new-selection');
+    expect((rig.transport.send as jest.Mock).mock.calls.filter(([message]) => message.type === 'nodeExplanationRequest' || message.type === 'modelExplanationRequest')).toHaveLength(0);
+  });
+
+  it('keeps pass receipts separate so adoption and citations use the current selection identity', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => 'adoption-pass' } });
+    try {
+      (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+      const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+      (rig.transport as { session: unknown }).session = { viewId: 'node-view', capabilities: {} };
+      const idle = { requestId: 'selection', nodeId: 'n', revision: 'current-graph-revision', status: 'unavailable' as const };
+      const explanation = { title: 'Extract features', purpose: 'Produce features.', inputs: [], outputs: [], steps: [], uncertainties: [],
+        citations: [{ id: 'source', file: 'models/net.py', sourceDigest: 'a'.repeat(64), startLine: 2, endLine: 5 }] };
+      const emit = (state: Record<string, unknown>) => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state }));
+      await act(async () => emit(idle));
+      await act(async () => mockCapturedExplanationContext?.model?.start(['n']));
+      const requestId = mockCapturedExplanationContext!.model!.state!.requestId;
+      await act(async () => emit({ ...idle, requestId, status: 'loading' }));
+      await act(async () => emit({ ...idle, requestId, status: 'ready', explanation }));
+      expect(mockCapturedExplanationContext?.annotations?.n).toMatchObject({ requestId, explanation });
+      const adopted = { ...idle, status: 'ready' as const, explanation };
+      await act(async () => emit(adopted));
+      expect(mockCapturedExplanationContext?.states.n).toEqual(adopted);
+      expect(mockCapturedExplanationContext?.annotations?.n).toEqual(adopted);
+      const beforeReveal = (rig.transport.send as jest.Mock).mock.calls.length;
+      act(() => mockCapturedExplanationContext?.reveal({ ...adopted, requestId }, 'source'));
+      expect((rig.transport.send as jest.Mock).mock.calls).toHaveLength(beforeReveal);
+      act(() => mockCapturedExplanationContext?.reveal(adopted, 'source'));
+      expect(rig.transport.send).toHaveBeenLastCalledWith({ type: 'nodeExplanationRequest', viewId: 'node-view', target: netTarget(),
+        requestId: 'selection', nodeId: 'n', action: 'reveal', citationId: 'source' });
+      await act(async () => emit({ ...idle, requestId, status: 'ready', explanation }));
+      expect(mockCapturedExplanationContext?.states.n).toEqual(adopted);
+      expect(mockCapturedExplanationContext?.annotations?.n).toEqual(adopted);
+      expect((rig.transport.send as jest.Mock).mock.calls.filter(([message]) => message.type === 'modelExplanationRequest' && message.action === 'start')).toHaveLength(1);
+      expect((rig.transport.send as jest.Mock).mock.calls.filter(([message]) => message.type === 'nodeExplanationRequest' && message.action === 'retry')).toHaveLength(0);
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+      else Reflect.deleteProperty(globalThis, 'crypto');
+    }
+  });
+
+  it('rejects superseded pass results while the next pass verifies its revision', async () => {
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    let pass = 0;
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => `preflight-${++pass}` } });
+    try {
+      const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+      (rig.transport as { session: unknown }).session = { viewId: 'node-view', capabilities: {} };
+      const idle = { requestId: 'selection', nodeId: 'n', revision: 'current-graph-revision', status: 'unavailable' as const };
+      await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state: idle })));
+      await act(async () => mockCapturedExplanationContext?.model?.start(['n']));
+      const oldRequestId = mockCapturedExplanationContext!.model!.state!.requestId;
+      let finishRevision!: (revision: string) => void;
+      (nodeExplanationRevision as jest.Mock).mockImplementationOnce(() => new Promise(resolve => { finishRevision = resolve; }));
+      act(() => mockCapturedExplanationContext?.model?.start(['n']));
+      await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state: {
+        ...idle, requestId: oldRequestId, status: 'ready', explanation: { title: 'Superseded result', purpose: 'Must not replace selection.',
+          inputs: [], outputs: [], steps: [], uncertainties: [], citations: [] },
+      } })));
+      expect(mockCapturedExplanationContext?.states.n).toEqual(idle);
+      expect(mockCapturedExplanationContext?.annotations).toEqual({});
+      await act(async () => finishRevision('current-graph-revision'));
+      expect(mockCapturedExplanationContext?.model?.state?.requestId).not.toBe(oldRequestId);
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+      else Reflect.deleteProperty(globalThis, 'crypto');
+    }
+  });
+
+  it('refreshes pass-only cards on a later model pass', async () => {
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    let pass = 0;
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => `pass-${++pass}` } });
+    try {
+      const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+      (rig.transport as { session: unknown }).session = { viewId: 'node-view', capabilities: {} };
+      for (const title of ['First result', 'Updated result']) {
+        await act(async () => mockCapturedExplanationContext?.model?.start(['n']));
+        const requestId = mockCapturedExplanationContext!.model!.state!.requestId;
+        await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state: {
+          requestId, nodeId: 'n', revision: 'current-graph-revision', status: 'ready', explanation: {
+            title, purpose: 'Extract features.', inputs: [], outputs: [], steps: [], uncertainties: [],
+            citations: [{ id: 'source', file: 'models/net.py', sourceDigest: 'a'.repeat(64), startLine: 2, endLine: 5 }] },
+        } })));
+        expect(mockCapturedExplanationContext?.states.n.requestId).toBe(requestId);
+        expect(mockCapturedExplanationContext?.annotations?.n.explanation?.title).toBe(title);
+      }
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+      else Reflect.deleteProperty(globalThis, 'crypto');
+    }
+  });
+
+  it.each(['cancelled', 'unavailable'])('rejects late node receipts after a model pass settles %s', async status => {
+    (nodeExplanationRevision as jest.Mock).mockResolvedValue('current-graph-revision');
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: () => 'settled-pass' } });
+    try {
+      const rig = readyValidationPage(netProjection({ spanmap: { n: { file: 'models/net.py', start: [2, 0], end: [5, 0] } } }));
+      (rig.transport as { session: unknown }).session = { viewId: 'node-view', capabilities: {} };
+      await act(async () => mockCapturedExplanationContext?.model?.start(['n']));
+      await act(async () => rig.emit(hostMessage('modelExplanation', { viewId: 'node-view', target: netTarget(), state: {
+        requestId: 'settled-pass', revision: 'current-graph-revision', status, completed: 0, total: 1,
+      } })));
+      await act(async () => rig.emit(hostMessage('nodeExplanation', { viewId: 'node-view', target: netTarget(), state: {
+        requestId: 'settled-pass', nodeId: 'n', revision: 'current-graph-revision', status: 'ready', explanation: {
+          title: 'Late result', purpose: 'Extract features.', inputs: [], outputs: [], steps: [], uncertainties: [],
+          citations: [{ id: 'source', file: 'models/net.py', sourceDigest: 'a'.repeat(64), startLine: 2, endLine: 5 }] },
+      } })));
+      expect(mockCapturedExplanationContext?.states.n).toBeUndefined();
+      expect(mockCapturedExplanationContext?.annotations).toEqual({});
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+      else Reflect.deleteProperty(globalThis, 'crypto');
+    }
   });
 
   it('rejects phantom nodes and retains ready annotations during a new selection request', async () => {

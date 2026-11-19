@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import { NodeExplanationAnnotation } from '../../canvas/NodeExplanationAnnotation';
 import { explainedGraphPresentation, nodeAnnotationLayout } from '../../canvas/nodeExplanationPresentation';
 import { ioCardContent, ioCardHeight, nodeCardSize } from '../../canvas/cardMetrics';
+import { wrapCardText } from '../../canvas/cardIdentity';
 import type { ModelNode } from '../../types';
 import type { NodeExplanation, NodeExplanationState } from '../../ide/nodeExplanation.generated';
 
@@ -81,6 +82,30 @@ it('reserves every line of a long purpose at the actual card width', () => {
   expect(narrow.purposeLines.join('')).toBe(value.purpose);
   expect(narrow.purposeLines.length).toBeGreaterThan(wide.purposeLines.length);
   expect(narrow.height).toBeGreaterThan(wide.height);
+});
+
+it('wraps title, purpose and interpreted I/O within one shared text column', () => {
+  const value = { ...explanation, title: 'Update tokens using their preceding context',
+    purpose: 'Mix information from current and earlier tokens, then refine each token’s features while preserving the sequence shape.',
+    inputs: ['Token features x: [1, 8, 768] — one sequence of eight positions, each with 768 learned feature values.'],
+    outputs: ['Updated token features: [1, 8, 768], returned to GPT’s block loop before final normalization.'] };
+  for (const width of [200, 280, 420]) {
+    const layout = nodeAnnotationLayout(value, width);
+    const textWidth = width - 12 - 24 - 4 - 12;
+    expect(layout.titleLines).toEqual(wrapCardText(value.title, textWidth, 12));
+    expect(layout.purposeLines).toEqual(wrapCardText(value.purpose, textWidth, 12));
+    expect(layout.inputLines).toEqual(wrapCardText(value.inputs[0], textWidth, 11));
+    expect(layout.outputLines).toEqual(wrapCardText(value.outputs[0], textWidth, 11));
+  }
+});
+
+it('reserves the same first-row gap for output-only annotations as for input-only annotations', () => {
+  const empty = { ...explanation, inputs: [], outputs: [] };
+  const base = nodeAnnotationLayout(empty, 280);
+  const output = nodeAnnotationLayout({ ...empty, outputs: ['Updated features'] }, 280);
+  const input = nodeAnnotationLayout({ ...empty, inputs: ['Token features'] }, 280);
+  expect(output.height - base.height).toBe(6 + output.outputLines.length * 15);
+  expect(input.height - base.height).toBe(6 + input.inputLines.length * 15);
 });
 
 it('measures long root names and high-rank shapes at the actual card width', () => {

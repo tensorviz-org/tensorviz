@@ -424,21 +424,16 @@ describe('builder-chrome regressions', () => {
     expect(canvas.includes("registerAfterChangeHandler(\n      'instance_page_state'")).toBe(false);
   });
 
-  // The panel opened on the pointer-DOWN that begins a drag, because tldraw's
-  // SelectTool selects before it can know the gesture is a drag — so moving a card
-  // put a panel over the canvas you were moving it on. Parameters now open from
-  // the same drag-free click the shape-click channel already distinguishes, and
-  // from nothing else.
-  it('opens the parameter editor from a real node click, not from selection', () => {
+  // Selection and editing are separate gestures. The click callback remains,
+  // but opening an editor now requires an explicit action.
+  it('reports a real node click without automatically opening the parameter editor', () => {
     const canvas = read(TLDRAW_CANVAS);
     const start = canvas.indexOf("if (info.name !== 'pointer_up' || editor.getPath() !== 'select.pointing_shape') return;");
     expect(start).toBeGreaterThan(-1);
-    const handler = canvas.slice(start, start + 600);
-    expect(handler).toContain('openNodeParameters(selected[0])');
-    // Read-only pages do not edit source, and a non-model shape (the chat card)
-    // has no parameters to show.
-    expect(handler).toContain('canEditParameters && isModelShape(');
-    expect(canvas).toContain('canEditParameters={!readOnly || !!local?.sourceEdits}');
+    const end = canvas.indexOf("editor.on('before-event', handleBeforeEvent)", start);
+    const handler = canvas.slice(start, end);
+    expect(handler).toContain('onShapeClick?.(selected[0])');
+    expect(canvas).not.toContain('openNodeParameters');
     // It belongs to one card: any other selection takes it away.
     expect(canvas).toContain(
       "if (target && (selectedIds.length !== 1 || selectedIds[0] !== target)) closeNodeParameters();"

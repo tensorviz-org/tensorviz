@@ -14,10 +14,9 @@
  * offset) and it subscribes to the camera so it stays glued to its node while the
  * canvas moves.
  *
- * It opens on a drag-free click only — the gesture TldrawCanvas already
- * distinguishes for `onShapeClick` — which is what the docked panel got wrong:
- * tldraw's SelectTool selects on pointer-down, so a selection-driven panel opened
- * every time a card was picked up to be moved.
+ * This nonlocal template editor opens only through an explicit parameter action.
+ * Selection and ordinary node clicks never open it. Local source editing belongs
+ * to the inspector and is not rendered here.
  *
  * Writes go out as a `set-parameters` builder command, the same one the panel
  * sent, so the IDE still routes the edit into the .py rather than the canvas.
@@ -31,10 +30,11 @@ import { dispatchBuilderCommand } from '../components/ui2/builderCommand';
 import { inspectorDraftParameters } from '../utils/inspectorDraft';
 import { isModelShape } from './canvasShapePolicy';
 import { shapeIdToNodeId } from './canvasShapeId';
-import { closeNodeParameters, openNodeParameters, parameterTarget } from './nodeParameters';
+import { closeNodeParameters, parameterTarget } from './nodeParameters';
 import { ModelNodeData } from '../types';
 import { LocalBrowserContext } from '../ide/localBrowserContext';
-import { LocalSourceEditor } from './LocalSourceEditor';
+/** Explicit canvas capability; absence of a local host does not imply editability. */
+export const TemplateEditingContext = React.createContext(false);
 
 /** How long an edit rests before it is written, so dragging a range handle is one request. */
 const COMMIT_DEBOUNCE_MS = 450;
@@ -142,7 +142,7 @@ const Editor: React.FC<EditorProps> = ({ shapeId, data, screen, flip }) => {
           closeNodeParameters();
         } else {
           editor.select(hit.id);
-          openNodeParameters(hit.id);
+          closeNodeParameters();
         }
       }}
     >
@@ -183,6 +183,7 @@ const Editor: React.FC<EditorProps> = ({ shapeId, data, screen, flip }) => {
 export const NodeParametersPopover: React.FC = () => {
   const editor = useEditor();
   const local = React.useContext(LocalBrowserContext);
+  const templateEditing = React.useContext(TemplateEditingContext);
   const targetId = useValue(parameterTarget);
   // Outside the camera transform, so this has to re-project when the camera moves
   // or the popover drifts off its node.
@@ -218,12 +219,11 @@ export const NodeParametersPopover: React.FC = () => {
   const data = (shape.props as { nodeData?: ModelNodeData }).nodeData;
   // A module-focus boundary card stands for a value outside the module; it has no
   // parameters or source of its own to edit.
-  if (!data || data.focusBoundary) return null;
+  if (!data || data.focusBoundary || shape.type === 'input-node' || shape.type === 'output-node') return null;
 
-  if (local) return <div className="model-node-params" style={{ left: placement.x, top: placement.y, marginLeft: placement.flip ? -272 : 12 }}>
-    <button aria-label="Close parameters" onClick={closeNodeParameters}>Close</button>
-    <LocalSourceEditor key={shape.id} nodeId={shapeIdToNodeId(shape.id)} data={data} />
-  </div>;
+  // Local source editing belongs to the explicitly opened inspector, not an
+  // anchored popup. Keep this guard below the hooks for context changes.
+  if (local || !templateEditing) return null;
 
   return (
     <Editor

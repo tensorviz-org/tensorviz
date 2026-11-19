@@ -699,14 +699,24 @@ const ModelBuilder: React.FC<ModelBuilderProps> = ({
     // Seed from the mounted size so the observer's first delivery does not
     // replace a restored camera. Pan/zoom never changes this element's size.
     let { width, height } = container.getBoundingClientRect();
+    const surface = readOnlyLocalBrowser ? container.closest('.local-browser-canvas') : null;
+    let surfaceSize = surface?.getBoundingClientRect();
     if (readOnlyLocalBrowser) scheduleAutoDirection(width, height);
     let frame = 0;
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const next = container.getBoundingClientRect();
+        const nextSurface = surface?.getBoundingClientRect();
+        // Header/footer progress can take a row without resizing the host. That
+        // is chrome reflow, not a request to reframe or relayout the user's graph.
+        const chromeReflow = width === next.width && width > 0 && height > 0 && next.height > 0
+          && surfaceSize && nextSurface && nextSurface.width > 0 && nextSurface.height > 0
+          && surfaceSize.width === nextSurface.width && surfaceSize.height === nextSurface.height;
+        surfaceSize = nextSurface;
         if (next.width === width && next.height === height) return;
         width = next.width; height = next.height;
+        if (chromeReflow) return;
         if (readOnlyLocalBrowser) scheduleAutoDirection(width, height);
         if (width <= 0 || height <= 0 || !nodesRef.current.length) return;
         // Follow the drag without restarting a camera animation on every frame.

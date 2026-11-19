@@ -36,7 +36,7 @@ Captured edits check source limits against the selected model file and all files
 
 ## In the local browser
 
-Use Canvas chat to request a proposal. Nodes link to their source instead of opening inline editing forms. The Canvas agent can propose changes across up to 16 existing, graph-recorded workspace Python files; external MCP clients retain their supported `propose_edit` recipes.
+Use Canvas chat to request a proposal, or choose **Inspect → Edit…** when the host advertises a supported source edit. Selecting a node alone never opens an editing form. The form stays inside the inspector, and nodes retain their verified source links. The Canvas agent can propose changes across up to 16 existing, graph-recorded workspace Python files; external MCP clients retain their supported `propose_edit` recipes.
 
 [Compare changes](graph-diff-review/README.md) · [Open and run the model](graph-opening.md)
 

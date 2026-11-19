@@ -546,7 +546,10 @@ export class LocalBrowserGraph implements vscode.Disposable {
         read: (target, file) => this.sourceEdits.readModelSource(target, file),
         documentation: (request, nodeId, signal) => sourceDocumentation(request.target, nodeId, signal, () => modelCurrent(request)),
         publish: (viewId, target, state) => this.publish({ type: 'modelExplanation', viewId, target, state }),
-        publishNode: (viewId, target, state) => { this.publish({ type: 'nodeExplanation', viewId, target, state }); void this.nodeExplanation?.accept(viewId, target, state).catch(() => {}); },
+        publishNode: (viewId, target, state, authoritative = true) => {
+          this.publish({ type: 'nodeExplanation', viewId, target, state });
+          if (authoritative) void this.nodeExplanation?.accept(viewId, target, state).catch(() => {});
+        },
         changed: () => this.nodeExplanation?.refresh(),
       });
     }

@@ -5,6 +5,19 @@ describe('explanation reply watchdog', () => {
   beforeEach(() => { jest.useFakeTimers(); watchdog = new ExplanationWatchdog(); });
   afterEach(() => { watchdog.clear(); jest.useRealTimers(); });
 
+  it('retains every live request clock while passive selection receipts churn', () => {
+    const a = jest.fn(), b = jest.fn();
+    watchdog.observe('model:a', 'a', 'loading', { timeoutMs: 10, expire: a });
+    watchdog.observe('model:b', 'b', 'loading', { timeoutMs: 20, expire: b });
+    for (let i = 0; i < 300; i++) watchdog.observe(`node:${i}`, `selection-${i}`, 'unavailable');
+    jest.advanceTimersByTime(10);
+    expect(a).toHaveBeenCalledTimes(1);
+    expect(b).not.toHaveBeenCalled();
+    watchdog.observe('model:b', 'b', 'ready');
+    jest.advanceTimersByTime(20);
+    expect(b).not.toHaveBeenCalled();
+  });
+
   it('expires once and refuses late success or activity for the expired identity', () => {
     const expire = jest.fn();
     watchdog.observe('node:n', 'request', 'loading', { timeoutMs: 60, expire });

@@ -11,6 +11,23 @@ beforeEach(() => { value = { scope: 'scope-a', states: {}, annotations: {}, retr
   model: { start: jest.fn(() => 'pass-a'), cancel: jest.fn(), toggle: jest.fn() } }; });
 const wrapper = ({ children }: { children: React.ReactNode }) => <NodeExplanationContext.Provider value={value}>{children}</NodeExplanationContext.Provider>;
 
+it('restores independent in-flight node ownership after the action remounts', () => {
+  value = { ...value, nodeJobs: { currentRequestIds: { a: 'pass-a', b: 'pass-b' },
+    requests: {
+      'pass-a': { state: { requestId: 'pass-a', revision: 'revision', status: 'loading', completed: 0, total: 1 } },
+      'pass-b': { state: { requestId: 'pass-b', revision: 'revision', status: 'loading', completed: 0, total: 1 } },
+    }, start: jest.fn(), cancel: jest.fn() } };
+  const { result, rerender } = renderHook(({ id }) => useNodeExplanationAction(id), { wrapper, initialProps: { id: 'a' } });
+  expect(result.current.phase).toBe('working');
+  const stopA = result.current.run;
+  rerender({ id: 'b' });
+  expect(result.current.phase).toBe('working');
+  act(() => stopA());
+  expect(value.nodeJobs.cancel).toHaveBeenCalledWith('pass-a');
+  expect(result.current.phase).toBe('working');
+  expect(value.model.cancel).not.toHaveBeenCalled();
+});
+
 it('stays idle on selection and exposes preparation immediately only after a click', () => {
   const { result } = renderHook(() => useNodeExplanationAction('a'), { wrapper });
   expect(result.current.phase).toBe('idle'); expect(value.model.start).not.toHaveBeenCalled();

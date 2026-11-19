@@ -21,22 +21,193 @@ suite('Explicit model explanation', () => {
     let valid = true, revision = hash('revision');
     let route: CanvasAgentRoute = { provider: 'codex', resolvedModel: 'fixture', settings: { model: 'fixture' }, ready: true, busy: false };
     const target = { workspaceFolder: '/fixture', file: 'model.py', cls: 'Model', sourceDigest: hash(source), documentVersion: 1, backendRevision: 0 };
-    const states: ModelExplanationState[] = [], nodes: NodeExplanationState[] = [], inputs: AgentRunInput[] = [], toolsets: HostToolset[] = [], signals: AbortSignal[] = [];
+    const states: ModelExplanationState[] = [], nodes: NodeExplanationState[] = [], authoritativeNodes: NodeExplanationState[] = [], inputs: AgentRunInput[] = [], clearedInputs: AgentRunInput[] = [], toolsets: HostToolset[] = [], signals: AbortSignal[] = [];
     let clears = 0, changed = 0;
     const service = new CanvasModelExplanation({ route: settings => settings === undefined ? route : { ...route, settings: { ...settings }, resolvedModel: settings.model ?? route.resolvedModel }, current: (_request, rev) => valid && (!rev || rev === revision), reference: () => ({ modelId: 'model', revision }),
       prepare: async (_request, nodeId) => ({ context: { nodeId, callable: 'AudioVAE', edges: [{ sourceNodeId: nodeId, targetNodeId: 'decoder' }] }, source: { file: 'model.py', startLine: 10 } }),
       read: async (_target, file) => { if (file !== 'model.py') throw new Error('Not graph-recorded'); return { file, source, digest: hash(source) }; },
       tools: () => new Map([['request_project_command', { config: { inputSchema: {} }, handler: async () => { throw new Error('Execution leaked'); } }],
         ['query_source_context', { config: { inputSchema: { modelId: z.string(), revision: z.string(), file: z.string(), symbol: z.string() } }, handler: async () => ({ content: [], structuredContent: { items: [{ excerpt: 'def encode(audio)', anchor: { file: 'model.py', digest: hash(source), startLine: 10, endLine: 10 } }] } }) }]]),
-      runtime: load => ({ run: async (input, _emit, signal) => { const tools = load('isolated'); inputs.push(input); toolsets.push(tools); signals.push(signal);
-        if (run) await run(tools, input, signal); else { const context = JSON.parse(input.context); await call(tools, 'submit_model_explanations', { nodes: context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId])) }); } }, clear: () => { clears++; } }),
-      publish: (_view, _target, state) => states.push(state), publishNode: (_view, _target, state) => nodes.push(state), changed: () => { changed++; }, ...extras });
+      runtime: load => { let ownInput: AgentRunInput; return { run: async (input, _emit, signal) => { ownInput = input; const tools = load(`isolated-${inputs.length}`); inputs.push(input); toolsets.push(tools); signals.push(signal);
+        if (run) await run(tools, input, signal); else { const context = JSON.parse(input.context); await call(tools, 'submit_model_explanations', { nodes: context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId])) }); } }, clear: () => { clearedInputs.push(ownInput); clears++; } }; },
+      publish: (_view, _target, state) => states.push(state), publishNode: (_view, _target, state, authoritative) => { nodes.push(state); if (authoritative) authoritativeNodes.push(state); }, changed: () => { changed++; }, ...extras });
     services.push(service);
     const request: LocalBrowserModelExplanationRequest = { type: 'modelExplanationRequest', protocolVersion: 1, workspaceSessionId: 's', messageId: 'm', viewId: 'view', target, action: 'start', requestId: 'explain-one', nodeIds: ['encoder', 'decoder'] };
-    return { service, request, states, nodes, inputs, toolsets, signals, start: (changes: Partial<LocalBrowserModelExplanationRequest> = {}) => service.request({ ...request, ...changes }),
+    return { service, request, states, nodes, authoritativeNodes, inputs, clearedInputs, toolsets, signals, start: (changes: Partial<LocalBrowserModelExplanationRequest> = {}) => service.request({ ...request, ...changes }),
       done: () => until(() => !!states.length && states.at(-1)!.status !== 'loading'), get clears() { return clears; }, get changed() { return changed; }, get route() { return route; }, set route(value: CanvasAgentRoute) { route = value; },
       set valid(value: boolean) { valid = value; }, set revision(value: string) { revision = value; }, set source(value: string) { source = value; } };
   }
+  test('different nodes enter isolated runtimes before either resolves and publish independent metadata', async () => {
+    const finishes: (() => void)[] = [];
+    const r = rig(async (tools, input) => {
+      await new Promise<void>(resolve => { finishes.push(resolve); });
+      const context = JSON.parse(input.context);
+      await call(tools, 'submit_model_explanations', { nodes: context.nodes.map((node: any) => ({ ...result(node.nodeId, [node.evidenceId]), title: input.settings!.model! })) });
+    });
+    r.start({ requestId: 'A', nodeIds: ['encoder'], settings: { model: 'model-A', effort: 'low' } });
+    await until(() => finishes.length === 1);
+    r.start({ requestId: 'B', nodeIds: ['decoder'], settings: { model: 'model-B', effort: 'high' } });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(finishes.length, 2, 'B must enter its runtime while A is unresolved');
+    assert.equal(r.signals[0].aborted, false, 'starting B must not cancel A');
+    assert.notEqual(r.inputs[0].conversationId, r.inputs[1].conversationId);
+    finishes[1](); await until(() => r.states.some(state => state.requestId === 'B' && state.status === 'ready'));
+    assert.equal(r.service.busy, true, 'A still owns a live run');
+    finishes[0](); await until(() => !r.service.busy);
+    assert.deepEqual(r.nodes.map(node => [node.requestId, node.nodeId, node.explanation?.title]), [['B', 'decoder', 'model-B'], ['A', 'encoder', 'model-A']]);
+    assert.deepEqual(r.states.filter(state => state.status === 'ready').map(state => [state.requestId, state.completed, state.execution]), [
+      ['B', 1, { provider: 'codex', model: 'model-B', effort: 'high' }], ['A', 1, { provider: 'codex', model: 'model-A', effort: 'low' }],
+    ]);
+    assert.equal(r.clears, 2);
+  });
+  test('overlapping jobs finish independently but late older nodes and view caches cannot overwrite newer owners', async () => {
+    for (const sameScope of [false, true]) {
+      const finishes: (() => void)[] = [];
+      const r = rig(async (tools, input) => {
+        await new Promise<void>(resolve => { finishes.push(resolve); });
+        const context = JSON.parse(input.context), title = input.messages[0].id.startsWith('A-') ? 'Older' : 'Newer';
+        assert.equal((await call(tools, 'submit_model_explanations', {
+          nodes: context.nodes.map((node: any) => ({ ...result(node.nodeId, [node.evidenceId]), title })),
+          view: { summary: title, connections: [], callouts: [] },
+        })).isError, undefined);
+      }, { scope: request => ({ parent: { file: 'model.py', cls: 'Model' }, nodes: request.nodeIds.map(nodeId => ({ nodeId, kind: 'layer', operation: nodeId })), connections: [] }) });
+      r.start({ requestId: 'A' }); await until(() => finishes.length === 1);
+      r.start({ requestId: 'B', nodeIds: sameScope ? ['encoder', 'decoder'] : ['encoder'] }); await until(() => finishes.length === 2);
+      assert.ok(r.signals.every(signal => !signal.aborted));
+      finishes[1](); await until(() => r.states.some(state => state.requestId === 'B' && state.status === 'ready'));
+      finishes[0](); await until(() => !r.service.busy);
+      assert.deepEqual(r.authoritativeNodes.filter(node => node.nodeId === 'encoder').map(node => node.explanation!.title), ['Newer']);
+      assert.deepEqual(r.authoritativeNodes.filter(node => node.nodeId === 'decoder').map(node => node.explanation!.title), [sameScope ? 'Newer' : 'Older']);
+      assert.deepEqual(r.nodes.filter(node => node.requestId === 'A').map(node => node.nodeId), ['encoder', 'decoder'], 'Even non-authoritative successful jobs publish verified completion receipts.');
+      assert.equal(r.states.filter(state => state.requestId === 'A').at(-1)!.completed, 2, 'A keeps its own progress even for an overlapped node');
+      assert.equal(r.service.cached({ target: r.request.target, nodeIds: ['encoder'] } as LocalBrowserViewSelectionMessage,
+        { modelId: 'model', revision: hash('revision') }, r.route)?.title, 'Newer');
+      if (sameScope) {
+        r.start({ requestId: 'C' }); await until(() => !r.service.busy);
+        assert.equal(r.inputs.length, 2, 'newer view cache is reused without inference');
+        assert.equal(r.states.at(-1)!.view!.summary, 'Newer');
+      }
+    }
+  });
+  test('completed and cancelled request identities cannot be replayed into new work or node ownership', async () => {
+    const r = rig(); r.start(); await r.done();
+    const count = r.states.length;
+    r.start(); r.start({ nodeIds: ['another-node'] });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(r.states.length, count, 'terminal duplicate identity is a no-op, even with a changed payload');
+    let finish!: () => void;
+    const cancelled = rig(async () => new Promise<void>(resolve => { finish = resolve; }));
+    cancelled.start(); await until(() => !!finish);
+    cancelled.start({ action: 'cancel' }); await until(() => cancelled.clears === 1);
+    cancelled.start(); await new Promise(resolve => setImmediate(resolve));
+    assert.equal(cancelled.inputs.length, 1); assert.equal(cancelled.service.busy, false);
+    finish();
+  });
+  test('equal request IDs in different views have independent conversations and exact cancellation', async () => {
+    const finishes: (() => void)[] = [];
+    const r = rig(async (tools, input) => {
+      await new Promise<void>(resolve => { finishes.push(resolve); });
+      const context = JSON.parse(input.context);
+      await call(tools, 'submit_model_explanations', { nodes: context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId])) });
+    });
+    r.start({ requestId: 'shared', nodeIds: ['encoder'] }); await until(() => finishes.length === 1);
+    r.start({ requestId: 'shared', viewId: 'view-B', nodeIds: ['encoder'] }); await until(() => finishes.length === 2);
+    assert.notEqual(r.inputs[0].conversationId, r.inputs[1].conversationId);
+    r.start({ requestId: 'shared', action: 'cancel', target: { ...r.request.target, documentVersion: 2 } });
+    assert.ok(r.signals.every(signal => !signal.aborted));
+    r.start({ requestId: 'shared', action: 'cancel' }); await until(() => r.clears === 1);
+    assert.equal(r.clearedInputs[0], r.inputs[0], 'Stop clears only the cancelled runtime');
+    assert.equal(r.signals[0].aborted, true); assert.equal(r.signals[1].aborted, false);
+    assert.equal((await call(r.toolsets[0], 'submit_model_explanations', { nodes: [result('encoder', ['evidence-1'])] })).isError, true);
+    finishes[1](); await until(() => !r.service.busy);
+    const count = r.states.length; finishes[0](); await new Promise(resolve => setImmediate(resolve));
+    assert.equal(r.states.length, count); assert.equal(r.clears, 2);
+    assert.equal(r.states.filter(state => state.status === 'cancelled').length, 1);
+    assert.equal(r.states.filter(state => state.status === 'ready').length, 1);
+  });
+  test('one job timing out or failing leaves the other runtime live and able to finish', async () => {
+    const original = global.setTimeout;
+    const deadlines: (() => void)[] = [];
+    const timer = mock.method(global, 'setTimeout', ((fn: (...args: any[]) => void, ms: number, ...args: any[]) => {
+      if (ms === 12_345) deadlines.push(() => fn(...args));
+      return original(fn, ms, ...args);
+    }) as typeof setTimeout);
+    try {
+      for (const mode of ['timeout', 'failure']) {
+        deadlines.length = 0;
+        const finishes: ((error?: Error) => void)[] = [];
+        const r = rig(async (tools, input) => {
+          await new Promise<void>((resolve, reject) => { finishes.push(error => error ? reject(error) : resolve()); });
+          const context = JSON.parse(input.context);
+          await call(tools, 'submit_model_explanations', { nodes: context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId])) });
+        }, { timeoutMs: 12_345 });
+        r.start({ requestId: 'A', nodeIds: ['encoder'] }); await until(() => finishes.length === 1);
+        r.start({ requestId: 'B', nodeIds: ['decoder'] }); await until(() => finishes.length === 2);
+        if (mode === 'timeout') deadlines[0](); else finishes[0](new Error('A provider failed'));
+        await until(() => r.clears === 1);
+        assert.equal(r.clearedInputs[0], r.inputs[0]); assert.equal(r.signals[1].aborted, false); assert.equal(r.service.busy, true);
+        assert.match(r.states.filter(state => state.requestId === 'A').at(-1)!.detail!, mode === 'timeout' ? /timed out/ : /agent could not finish/);
+        finishes[1](); await until(() => !r.service.busy);
+        assert.equal(r.states.filter(state => state.requestId === 'B').at(-1)!.status, 'ready');
+        assert.deepEqual(r.nodes.map(node => node.nodeId), ['decoder']);
+        const count = r.states.length; finishes[0](); await new Promise(resolve => setImmediate(resolve));
+        assert.equal(r.states.length, count); assert.equal(r.clears, 2);
+      }
+    } finally { timer.mock.restore(); }
+  });
+  test('cancel during independent route preparation cannot retire or revive another request', async () => {
+    const prepared: { signal: AbortSignal; finish: (route: CanvasAgentRoute) => void }[] = [];
+    const r = rig(undefined, { prepareRoute: signal => new Promise(resolve => prepared.push({ signal, finish: resolve })) });
+    r.start({ requestId: 'A', nodeIds: ['encoder'] }); r.start({ requestId: 'B', nodeIds: ['decoder'] });
+    assert.equal(prepared.length, 2); r.start({ action: 'cancel', requestId: 'A' });
+    assert.equal(prepared[0].signal.aborted, true); assert.equal(prepared[1].signal.aborted, false);
+    prepared[1].finish(r.route); await until(() => !r.service.busy);
+    const count = r.states.length; prepared[0].finish(r.route); await new Promise(resolve => setImmediate(resolve));
+    assert.equal(r.states.length, count); assert.equal(r.inputs.length, 1); assert.equal(r.nodes[0].requestId, 'B');
+  });
+  test('disconnect and current-target refresh retire only affected jobs while provider changes and disposal retire all', async () => {
+    for (const mode of ['disconnect', 'target', 'provider', 'invalidate', 'dispose']) {
+      const finishes: (() => void)[] = []; let invalidView: string | undefined;
+      const r = rig(async (tools, input) => {
+        await new Promise<void>(resolve => { finishes.push(resolve); });
+        const context = JSON.parse(input.context);
+        await call(tools, 'submit_model_explanations', { nodes: context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId])) });
+      }, { current: request => request.viewId !== invalidView });
+      r.start({ requestId: 'A', nodeIds: ['encoder'] }); await until(() => finishes.length === 1);
+      r.start({ requestId: 'B', viewId: 'view-B', nodeIds: ['decoder'] }); await until(() => finishes.length === 2);
+      if (mode === 'disconnect') r.service.disconnect('view');
+      else if (mode === 'target') { invalidView = 'view'; r.service.refresh(); }
+      else if (mode === 'provider') { r.route = { ...r.route, provider: 'claude' }; r.service.refresh(); }
+      else if (mode === 'invalidate') r.service.invalidate();
+      else r.service.dispose();
+      const selective = mode === 'disconnect' || mode === 'target';
+      assert.equal(r.signals[0].aborted, true); assert.equal(r.signals[1].aborted, !selective);
+      finishes[1](); await until(() => !r.service.busy);
+      const count = r.states.length; finishes[0](); await new Promise(resolve => setImmediate(resolve));
+      assert.equal(r.states.length, count); assert.equal(r.nodes.length, selective ? 1 : 0); await until(() => r.clears === 2);
+    }
+  });
+  test('a stopped newer overlap never lets an older job reclaim its node while unrelated nodes still finish', async () => {
+    const finishes: (() => void)[] = [];
+    const r = rig(async (tools, input) => {
+      await new Promise<void>(resolve => { finishes.push(resolve); });
+      const context = JSON.parse(input.context);
+      await call(tools, 'submit_model_explanations', { nodes: context.nodes.map((node: any) => result(node.nodeId, [node.evidenceId])) });
+    });
+    r.start({ requestId: 'A' }); await until(() => finishes.length === 1);
+    r.start({ requestId: 'B', nodeIds: ['encoder'] }); await until(() => finishes.length === 2);
+    r.start({ requestId: 'B', action: 'cancel' }); await until(() => r.clears === 1);
+    assert.equal(r.signals[0].aborted, false); finishes[0](); await until(() => !r.service.busy);
+    assert.deepEqual(r.authoritativeNodes.map(node => node.nodeId), ['decoder']);
+    assert.deepEqual(r.nodes.map(node => [node.requestId, node.nodeId]), [['A', 'encoder'], ['A', 'decoder']]);
+    assert.equal(r.states.filter(state => state.requestId === 'A').at(-1)!.completed, 2);
+    assert.equal(r.service.cached({ target: r.request.target, nodeIds: ['encoder'] } as LocalBrowserViewSelectionMessage,
+      { modelId: 'model', revision: hash('revision') }, r.route), undefined);
+    r.start({ requestId: 'retry', nodeIds: ['encoder'] }); await until(() => finishes.length === 3);
+    finishes[2](); await until(() => !r.service.busy); finishes[1](); await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(r.authoritativeNodes.map(node => [node.requestId, node.nodeId]), [['A', 'decoder'], ['retry', 'encoder']]);
+    assert.equal(r.clears, 3);
+  });
   test('one explicit request shares source across nodes, preserves topology context and submits bounded typed results', async () => {
     const r = rig(); assert.equal(r.inputs.length, 0); r.start(); await r.done();
     assert.equal(r.inputs.length, 1); assert.equal(r.inputs[0].intent, 'model_explanation'); assert.equal(r.inputs[0].messages.length, 1);

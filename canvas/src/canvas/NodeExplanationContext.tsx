@@ -27,6 +27,19 @@ export interface NodeExplanationContextValue {
   verifiedResults?: Readonly<Record<string, NodeExplanationResultReceipt>>;
   /** Explicit model enrichment changes presentation only, never graph evidence. */
   annotationsVisible?: boolean;
+  /** Independent node attempts; the view controller below is a separate entry. */
+  nodeJobs?: {
+    currentRequestIds: Readonly<Record<string, string>>;
+    requests: Readonly<Record<string, {
+      cancelled?: boolean;
+      /** Verified completion for this job, independent of newer visible output. */
+      result?: NodeExplanationState;
+      state?: ModelExplanationState;
+      startFailure?: { requestId: string; detail: string };
+    }>>;
+    start(nodeId: string): string | void;
+    cancel(requestId: string): void;
+  };
   model?: {
     /** Owns the explicit attempt, including asynchronous revision preflight. */
     currentRequestId?: string;

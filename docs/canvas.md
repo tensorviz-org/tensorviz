@@ -82,6 +82,14 @@ on verified completion. A warning indicates failure; a stopped icon indicates ca
 Hover or focus it for the status and failure reason;
 click the working button to stop. There are no separate “Explanation ready” messages.
 The graph's Explain action stays on the graph instead of automatically opening inspection.
+You can explain different components in parallel, including while another component is
+preparing its request. Each component's button owns its progress and Stop action;
+stopping or failing one request does not stop another. Explaining the same component
+again replaces only that component's previous request. Provider availability and limits
+still apply. **Explain this view** is a separate request: its Stop action does not stop
+independent component explanations, even when only one component is visible. When
+requests overlap on a component, an older result cannot replace newer requested output
+or borrow its model metadata.
 Progress controls can wrap in a narrow sidebar without resetting the graph's pan,
 zoom or module view. A genuine sidebar/window resize retains responsive fitting.
 Selection and provider refresh do not generate AI

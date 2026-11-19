@@ -45,8 +45,8 @@ these instructions do not claim marketplace acceptance.
 
 ## Tools and integration boundaries
 
-The {{VERSION}} host registers **29 MCP tools**. Clients that hide app-only tools
-expose **25** to the agent. Discover the installed server's tools and
+The {{VERSION}} host registers **30 MCP tools**. Clients that hide app-only tools
+expose **26** to the agent. Discover the installed server's tools and
 `list_models` capabilities before use.
 
 | Purpose | Tools |
@@ -57,12 +57,14 @@ expose **25** to the agent. Discover the installed server's tools and
 | Saved setup | `get_graph_setup`, `suggest_graph_inputs`, `configure_graph_setup`, `configure_graph_environment` |
 | Validation runs | `validate_model`, `get_run`, `inspect_run`, `cancel_run`, `compare_runs` |
 | Graph display and source diff | `open_graph_view`, `open_graph_panel`, `open_graph_diff` |
+| Feedback to the tensorViz team | `send_feedback` |
 | Model graph app only | `graph_panel_read`, `graph_panel_exchange`, `detach_graph_panel`, `close_graph_panel` |
 
 The coding agent must not call the four app-only transport tools. Reading retained
 evidence does not recapture a model. A source diff does not measure either
 revision. Capture, display and model success each require their own evidence.
-The standalone host does not advertise source proposals, training diagnostics,
+`send_feedback` shows you the exact report and sends it to the tensorViz team only
+after you approve it. The standalone host does not advertise source proposals, training diagnostics,
 a native editor or analytics.
 
 Both catalog trees include the canonical `model-workflow` skill from the merged

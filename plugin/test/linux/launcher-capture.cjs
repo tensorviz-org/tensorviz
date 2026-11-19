@@ -7,6 +7,7 @@ const { createHash } = require('node:crypto');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
 const { ElicitRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
+const toolNames = require('../tool-names.cjs');
 
 // Uses the real compiled archive, never a source-development host. Only the
 // copied test launcher's curl command is injected; production has no file URL mode.
@@ -57,7 +58,7 @@ test('compiled Linux archive launches through verified local-file transport, cap
         env, cwd: root, stderr: 'pipe' });
       transport.stderr?.on('data', bytes => stderr += bytes);
       await client.connect(transport);
-      assert.equal((await client.listTools()).tools.length, 29);
+      assert.equal((await client.listTools()).tools.length, toolNames.length);
     };
     await connect();
     const call = async (name, args) => {

@@ -38,11 +38,11 @@ test('public integration export contains no core source, build tree or runtime p
         assert.equal(text, renderPublicDocument(template, version), `${prefix}${name} must preserve the complete guide`);
         assert.ok(!text.includes('{{VERSION}}'), `${prefix}${name} must substitute the release version`);
       }
-      assert.match(readme, /\*\*29\s+tools\*\*: 25 agent tools and four tools reserved for the Model graph app/);
+      assert.match(readme, /\*\*30\s+tools\*\*: 26 agent tools and four tools reserved for the Model graph app/);
       assert.match(readme, /macOS ARM64\/x64; Linux x64\s+glibc 2\.31\+ or ARM64 glibc 2\.35\+; Windows x64\/ARM64/);
       assert.match(readme, /installed 0\.3\.104 remains Darwin-only/);
-      assert.ok(build.includes(`The ${version} host registers **29 MCP tools**`));
-      assert.match(build, /expose \*\*25\*\* to the agent/);
+      assert.ok(build.includes(`The ${version} host registers **30 MCP tools**`));
+      assert.match(build, /expose \*\*26\*\* to the agent/);
       const inventory = build.split('\n').filter(line => line.startsWith('|'));
       const names = lines => [...lines.join('\n').matchAll(/`([a-z_]+)`/g)].map(match => match[1]).sort();
       assert.deepEqual(names(inventory), require('../tool-names.cjs').slice().sort(), 'Document every registered tool exactly once');

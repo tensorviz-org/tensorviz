@@ -201,8 +201,8 @@ Codex profiles and agent-session lifetime.
 
 ## Included integration
 
-The plugin ships the `model-workflow` skill and a local MCP server with **29
-tools**: 25 agent tools and four tools reserved for the Model graph app. See the
+The plugin ships the `model-workflow` skill and a local MCP server with **30
+tools**: 26 agent tools and four tools reserved for the Model graph app. See the
 [tool inventory and integration boundaries](BUILD.md#tools-and-integration-boundaries).
 There are no separate bundled slash commands. T3 uses the Codex integration;
 Claude Cowork and other clients have not been verified for this release.

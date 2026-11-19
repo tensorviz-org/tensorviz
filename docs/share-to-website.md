@@ -92,8 +92,8 @@ author.
 
 ## Send feedback
 
-The speech-bubble icon at the right end of the Canvas header (beside the model name in a
-narrow window) opens a short form: what kind of feedback, your words, and a box to
+The speech-bubble icon in the Canvas footer, beside the guide's info icon at the right
+end, opens a short form: what kind of feedback, your words, and a box to
 include the open model's class name and block count. In the
 coding-agent plugin you can also ask your agent to send feedback; its `send_feedback`
 tool shows you the exact report and sends it only after you approve it.

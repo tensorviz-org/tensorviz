@@ -318,9 +318,7 @@
 .local-canvas-control.local-canvas-publish-primary:hover:not(:disabled) { background: var(--tv-primary-bg); color: var(--tv-primary-ink); filter: brightness(1.08); }
 .local-canvas-publish-link { box-sizing: border-box; width: 100%; padding: 6px 8px; color: var(--canvas-text); background: var(--canvas-field); border: 1px solid var(--canvas-line); border-radius: 6px; font: 11px/1.5 var(--canvas-font); }
 .local-canvas-popover-heading strong { font-weight: 500; }
-/* Send feedback: the header's feedback icon opens this form beside it. In the compact
-   header the icon moves to the right end of the model name's row. */
-.local-browser-header-feedback { display: flex; flex: none; margin-left: auto; }
+/* Send feedback: the footer's feedback icon, beside the Canvas guide, opens this form above it. */
 .local-canvas-feedback-kinds { display: flex; flex-wrap: wrap; gap: 6px; }
 .local-canvas-feedback-kinds .local-canvas-control { border-color: var(--canvas-line); }
 .local-canvas-feedback-kinds .local-canvas-control.is-active { border-color: var(--canvas-accent); color: var(--canvas-text); background: var(--canvas-hover); }

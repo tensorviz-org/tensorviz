@@ -1014,6 +1014,7 @@ export default function LocalBrowserApp({
       } : undefined,
       sourceAction: standalone ? 'copy' as const : 'reveal' as const,
       reviewing: !!review,
+      feedback: feedback ? { client: feedback, graph: feedbackGraph } : null,
       navigation: { header: headerTools, footer: footerTools, compact: compactHeader,
         inputsOpen: showOpening,
         changeInputs: () => {
@@ -1053,7 +1054,7 @@ export default function LocalBrowserApp({
         },
         cancel: () => { if (openingBusy) openingAction({ kind: 'cancel' }); else validation?.cancel(); },
       } }),
-    [page, status, sourceEdits, captures, portableExports, publishing, codeFocus, validating, validationDisabledReason,
+    [page, status, sourceEdits, captures, portableExports, publishing, feedback, feedbackGraph, codeFocus, validating, validationDisabledReason,
      validationStatusLabel, validationReceipt, receiptIsCurrent, runValidation, validation, executionPending,
      review, guessedInput, projection, openingBusy, runReopens, showOpening, hasOpeningPanel, openingAction, headerTools, footerTools, compactHeader, standalone],
   );
@@ -1244,7 +1245,8 @@ export default function LocalBrowserApp({
       <p>Open a Python model to explore its layers and connections, or review the model changes in a pull request.</p>
     </CanvasStateScreen>;
   }
-  const feedbackControl = !review && feedback ? <FeedbackButton client={feedback} graph={feedbackGraph} /> : null;
+  // The plugin page before any model opens: no canvas, so no footer navigation to hold the feedback button.
+  const openFirstModel = standalone && !review && !projection && !(page.projectIndex && page.project);
   return (
     <div className={`local-browser-canvas${review ? ' graph-review-canvas' : ''}${nativeCanvasMode() ? ' native-canvas' : ''}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <header ref={setHeaderElement} className={`local-browser-header${compactHeader ? ' local-browser-header-compact' : ''}`} data-testid="local-browser-strip">
@@ -1280,8 +1282,6 @@ export default function LocalBrowserApp({
               onRunFresh={localContext.validation.runFresh}
               repeatDisabled={localContext.validation.running || !!localContext.validation.disabledReason}
               onRecovery={() => { setDismissedOpeningId(null); openingAction({ kind: 'change_inputs' }); }} />}
-            {/* With icons only, the controls row has no room left on a phone; the name's row does. */}
-            {compactHeader && feedbackControl && <div className="local-browser-header-feedback">{feedbackControl}</div>}
           </div>
           <div className="local-browser-header-actions" role="group" aria-label={review ? 'Review actions' : 'Model tools'}>
           {review && !review.proposal && <GraphReviewActions sourceAction={standalone ? 'copy' : undefined} onClose={closeReview} onRefresh={refreshReview} onSource={revealReviewSource} />}
@@ -1293,7 +1293,6 @@ export default function LocalBrowserApp({
             onClick={() => transportRef.current?.send({ type: 'graphReviewRequest', action: 'open' })}><GitCompareArrows size={15} aria-hidden="true" /><span className="local-canvas-control-label">Review changes</span></button>}
           {!review && (!standalone || publishing) && <PublishGraphButton disabled={showOpening || openingBusy || !canExportGraphFile(page)}
             publishing={publishing} openLink={openLink} />}
-          {!compactHeader && feedbackControl}
           </div>
         </div>
         {!review && <>
@@ -1426,7 +1425,7 @@ export default function LocalBrowserApp({
               ]}
             />
             </>
-          ) : standalone && !review && !projection ? (
+          ) : openFirstModel ? (
             <CanvasStateScreen embedded title="Open your first model" icon={<Workflow />}><p>No model is open.</p>
               <p>Ask your coding agent to open a model or compare saved Git changes.</p></CanvasStateScreen>
           ) : (
@@ -1478,7 +1477,9 @@ export default function LocalBrowserApp({
           )}
           {connection !== null && <span className="local-browser-connection">{connection}</span>}
         </div>
-        <div className="local-canvas-footer-tools" ref={setFooterTools} />
+        <div className="local-canvas-footer-tools" ref={setFooterTools}>
+          {openFirstModel && feedback && <FeedbackButton client={feedback} graph={feedbackGraph} />}
+        </div>
         {diagnosticsOpen && diagnostics.length > 0 && (
           <section
             ref={diagnosticsRef}

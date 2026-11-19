@@ -11,12 +11,14 @@ import { DEFAULT_CODE_FOCUS } from '../../ide/protocol.generated';
 beforeEach(() => { localStorage.clear(); configureCanvasTheme('host'); configureCodeFocusOn('host'); });
 
 function mount(selected = false, fullscreen = false, compact = false, running = false,
-  extra: Pick<React.ComponentProps<typeof LocalCanvasNavigation>, 'layout'> & { reviewing?: boolean; sourceAction?: 'copy'; codeFocus?: boolean } = {}) {
+  extra: Pick<React.ComponentProps<typeof LocalCanvasNavigation>, 'layout'> & { reviewing?: boolean; sourceAction?: 'copy'; codeFocus?: boolean;
+    feedback?: LocalBrowserContextValue['feedback'] } = {}) {
   const actions = { find: jest.fn(), reveal: jest.fn(), run: jest.fn(), cancel: jest.fn() };
   const context: LocalBrowserContextValue = {
     page: EMPTY_LOCAL_BROWSER_PAGE_STATE,
     reviewing: extra.reviewing,
     sourceAction: extra.sourceAction,
+    feedback: extra.feedback,
     codeFocus: extra.codeFocus ? { options: DEFAULT_CODE_FOCUS, parameter: false, detail: '', change: jest.fn() } : undefined,
     status: { phase: 'connected', hostLink: 'connected', error: null },
     validation: { running, disabledReason: null, statusLabel: 'Failed',
@@ -185,6 +187,22 @@ it('keeps source navigation available when selected and dispatches only camera c
     expect(commands).toEqual(['zoom-out', 'fit-view', 'zoom-in']);
     expect(actions.run).not.toHaveBeenCalled();
   } finally { window.removeEventListener('builder-command', listener); }
+});
+
+it('puts Send feedback in the footer just before the Canvas guide, also in full screen, and not while reviewing', () => {
+  const client = { state: { phase: 'idle' }, subscribe: () => () => {}, send: jest.fn(), reset: jest.fn(), dispose: jest.fn() };
+  const feedback = { client, graph: { model: 'Net', nodes: 12 } } as LocalBrowserContextValue['feedback'];
+  mount(false, false, true, false, { feedback });
+  const button = screen.getByRole('button', { name: 'Send feedback' });
+  expect(screen.getByTestId('footer')).toContainElement(button);
+  expect(button.closest('.canvas-tooltip-anchor')!.nextElementSibling)
+    .toContainElement(screen.getByRole('button', { name: 'Canvas guide and shortcuts' }));
+  cleanup();
+  mount(false, true, true, false, { feedback });
+  expect(screen.getByRole('button', { name: 'Send feedback' }).closest('.local-canvas-fullscreen-footer')).not.toBeNull();
+  cleanup();
+  mount(false, false, false, false, { reviewing: true, feedback });
+  expect(screen.queryByRole('button', { name: 'Send feedback' })).toBeNull();
 });
 
 it('keeps navigation reachable inside the fullscreen canvas instead of behind it', () => {

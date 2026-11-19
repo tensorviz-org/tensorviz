@@ -58,6 +58,20 @@ test('leaves the graph out when unticked and shows why a send failed', () => {
   expect(screen.getByLabelText('Your feedback')).toHaveValue('Edges overlap.');
 });
 
+test('opens the form above the button when it sits in the footer, within the room left', () => {
+  const r = rig();
+  render(<FeedbackButton client={r.client} graph={null} />);
+  const button = screen.getByRole('button', { name: 'Send feedback' });
+  // jsdom lays nothing out: place the button at the bottom of the window, where the footer is.
+  const top = window.innerHeight - 36;
+  button.getBoundingClientRect = () => ({ top, bottom: top + 28, left: 600, right: 631, width: 31, height: 28, x: 600, y: top, toJSON: () => ({}) });
+  fireEvent.click(button);
+  const form = screen.getByTestId('feedback-form');
+  expect(form.style.bottom).toBe('44px');
+  expect(form.style.top).toBe('');
+  expect(form.style.maxHeight).toBe(`${top - 16}px`);
+});
+
 test('ignores other replies and fails instead of waiting when the host goes away', () => {
   const r = rig();
   r.client.send({ kind: 'bug', message: 'Broken.', graph: null });

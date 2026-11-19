@@ -1,6 +1,7 @@
 import React, { useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { MessageSquare, X } from 'lucide-react';
+import CanvasTooltip from '../components/CanvasTooltip';
 import { LOCAL_BROWSER_FEEDBACK_MAX_LENGTH, type LocalBrowserFeedbackKind } from './protocol.generated';
 import type { FeedbackDraft, LocalBrowserFeedbackClient } from './localBrowserFeedbackClient';
 
@@ -8,8 +9,8 @@ const KINDS: Array<{ value: LocalBrowserFeedbackKind; label: string }> = [
   { value: 'bug', label: 'Something is wrong' }, { value: 'idea', label: 'Idea' }, { value: 'other', label: 'Other' },
 ];
 
-/** Feedback to the tensorViz team: an icon in the Canvas header and a short form beside it.
- *  Nothing leaves until the member presses Send; the graph details go only when ticked. */
+/** Feedback to the tensorViz team: an icon in the Canvas footer beside the guide, and a short
+ *  form above it. Nothing leaves until the member presses Send; the graph details go only when ticked. */
 export default function FeedbackButton({ client, graph }: {
   client: LocalBrowserFeedbackClient;
   /** The open model's class and block count, offered to include. */
@@ -17,13 +18,15 @@ export default function FeedbackButton({ client, graph }: {
 }) {
   const [open, setOpen] = React.useState(false);
   const button = React.useRef<HTMLButtonElement>(null);
-  // The compact header moves this button; a finished result never reopens in its new place.
+  // Entering or leaving full screen moves this button; a finished result never reopens in its new place.
   React.useEffect(() => () => client.reset(), [client]);
   return <>
-    <button ref={button} type="button" className="local-canvas-control" aria-label="Send feedback" aria-expanded={open}
-      title="Send feedback to the tensorViz team" data-testid="feedback-button" onClick={() => setOpen(value => !value)}>
-      <MessageSquare size={15} aria-hidden="true" />
-    </button>
+    <CanvasTooltip text="Tell the tensorViz team about a problem or an idea. Nothing is sent until you press Send.">
+      <button ref={button} type="button" className="local-canvas-control" aria-label="Send feedback" aria-expanded={open}
+        title="Send feedback to the tensorViz team" data-testid="feedback-button" onClick={() => setOpen(value => !value)}>
+        <MessageSquare size={15} aria-hidden="true" />
+      </button>
+    </CanvasTooltip>
     {open && <FeedbackForm anchor={button} client={client} graph={graph} close={() => { client.reset(); setOpen(false); }} />}
   </>;
 }
@@ -44,7 +47,11 @@ function FeedbackForm({ anchor, client, graph, close }: {
       const rect = anchor.current?.getBoundingClientRect();
       if (!rect) return;
       const width = Math.min(340, window.innerWidth - 16);
-      setPosition({ width, top: rect.bottom + 8, left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)) });
+      // From the footer the form opens upward, like the guide beside it.
+      const above = rect.top > window.innerHeight - rect.bottom;
+      setPosition({ width, left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)),
+        ...(above ? { bottom: window.innerHeight - rect.top + 8 } : { top: rect.bottom + 8 }),
+        maxHeight: Math.max(80, (above ? rect.top : window.innerHeight - rect.bottom) - 16) });
     };
     place();
     window.addEventListener('resize', place);

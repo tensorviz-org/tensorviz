@@ -8,6 +8,7 @@ import GraphDetailToggle from '../components/GraphDetailToggle';
 import type { GraphDetailLevel } from '../services/graphDetailLevels';
 import CanvasPopover from './CanvasPopover';
 import CanvasGuide from './CanvasGuide';
+import FeedbackButton from './FeedbackButton';
 import CanvasTooltip from '../components/CanvasTooltip';
 import { setCanvasThemePreference, useCanvasTheme } from '../styles/canvasTheme';
 import CodeFocusControls from './CodeFocusControls';
@@ -107,6 +108,7 @@ export default function LocalCanvasNavigation({ onFind, onReveal, hasSelection, 
         <CanvasTooltip text="Zoom in to read node labels and tensor shapes."><button type="button" className="local-canvas-control" aria-label="Zoom in" title="Zoom in"
           onClick={() => dispatchBuilderCommand('zoom-in')}><Plus size={14} aria-hidden="true" /></button></CanvasTooltip>
       </div>
+      {!context?.reviewing && context?.feedback && <FeedbackButton client={context.feedback.client} graph={context.feedback.graph} />}
       <CanvasGuide />
     </>;
   if (fullscreen) return <>

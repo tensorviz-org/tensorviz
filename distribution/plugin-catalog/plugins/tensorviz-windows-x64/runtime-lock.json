@@ -1,9 +1,9 @@
 {
   "formatVersion": 1,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "platform": "win32-x64",
   "pythonABI": "cp312-win_amd64",
-  "sha256": "5b6751205955e92b1d6577990538e0303edfb80e5a7195dcc6d6ac43d5bd2f48",
-  "bytes": 35623733,
-  "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.1/tensorviz-runtime-1.0.1-win32-x64.tar.gz"
+  "sha256": "14a0c7634a6737c0e09bc23ad43d7b89d607d4f6a79ab73d7135ba02bb010568",
+  "bytes": 35658699,
+  "url": "https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.2/tensorviz-runtime-1.0.2-win32-x64.tar.gz"
 }

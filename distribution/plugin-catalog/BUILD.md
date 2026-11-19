@@ -22,7 +22,7 @@ codex plugin marketplace add tensorviz-org/tensorviz
 codex plugin add tensorviz@tensorviz-standalone
 ```
 
-For a local catalog, extract `tensorviz-catalog-1.0.1.zip` into a persistent
+For a local catalog, extract `tensorviz-catalog-1.0.2.zip` into a persistent
 directory and use that absolute path instead. Do not substitute GitHub's source ZIP for the complete catalog ZIP. The compiled runtime downloads on the first
 connection. Updating the plugin selects its new pinned runtime; an existing chat
 keeps its session's resources. Start a new chat to use the new version.
@@ -44,8 +44,8 @@ these instructions do not claim marketplace acceptance.
 
 ## Tools and integration boundaries
 
-The 1.0.1 host registers **29 MCP tools**. Clients that hide app-only tools
-expose **25** to the agent. Discover the installed server's tools and
+The 1.0.2 host registers **30 MCP tools**. Clients that hide app-only tools
+expose **26** to the agent. Discover the installed server's tools and
 `list_models` capabilities before use.
 
 | Purpose | Tools |
@@ -56,12 +56,14 @@ expose **25** to the agent. Discover the installed server's tools and
 | Saved setup | `get_graph_setup`, `suggest_graph_inputs`, `configure_graph_setup`, `configure_graph_environment` |
 | Validation runs | `validate_model`, `get_run`, `inspect_run`, `cancel_run`, `compare_runs` |
 | Graph display and source diff | `open_graph_view`, `open_graph_panel`, `open_graph_diff` |
+| Feedback to the tensorViz team | `send_feedback` |
 | Model graph app only | `graph_panel_read`, `graph_panel_exchange`, `detach_graph_panel`, `close_graph_panel` |
 
 The coding agent must not call the four app-only transport tools. Reading retained
 evidence does not recapture a model. A source diff does not measure either
 revision. Capture, display and model success each require their own evidence.
-The standalone host does not advertise source proposals, training diagnostics,
+`send_feedback` shows you the exact report and sends it to the tensorViz team only
+after you approve it. The standalone host does not advertise source proposals, training diagnostics,
 a native editor or analytics.
 
 Both catalog trees include the canonical `model-workflow` skill from the merged
@@ -81,7 +83,7 @@ listing.
 
 ### Compiled platform matrix
 
-The 1.0.1 production pipeline assembles six independently validated native
+The 1.0.2 production pipeline assembles six independently validated native
 archives: `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `win32-x64`,
 and `win32-arm64`. Linux x64 targets glibc >=2.31; Linux ARM64 targets >=2.35.
 The CPython 3.12 ABI must match the target's pinned runtime lock. A working host
@@ -104,7 +106,7 @@ The local exporter reads `plugin/packaging/public/` and preserves version
 placeholders in these source templates. `PUBLICATION.json` records the exact
 integration inventory, hashes and runtime provenance. Both client locks must
 match the publication lock. The source repository native release workflow publishes
-runtime archives, client ZIPs, and the catalog ZIP under `v1.0.1`,
+runtime archives, client ZIPs, and the catalog ZIP under `v1.0.2`,
 in the canonical source repository. Release tags identify the reviewed source commit;
 PUBLICATION.json binds the generated integration to that build source. A subsequent
 catalog commit may reference it without changing the immutable source release tag.

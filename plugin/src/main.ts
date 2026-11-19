@@ -16,6 +16,8 @@ import { registerMcpViewTools } from '@tensorviz/graph-host/mcpViews';
 import { registerMcpCaptureTools } from '@tensorviz/graph-host/mcpCaptures';
 import { registerMcpGraphSetup } from '@tensorviz/graph-host/mcpGraphSetup';
 import { registerMcpValidationTools } from '@tensorviz/graph-host/mcpValidation';
+import { feedbackGraph, registerMcpFeedbackTool } from '@tensorviz/graph-host/mcpFeedback';
+import { pluginFeedbackReport } from './feedback';
 
 declare const TENSORVIZ_VERSION: string;
 const version = TENSORVIZ_VERSION;
@@ -76,6 +78,11 @@ async function start(): Promise<void> {
   registerMcpCaptureTools(server, host.graph, host.captures);
   registerMcpGraphSetup(server, host.opening, host.setup);
   registerMcpValidationTools(server, host.graph, host.runs, host.id, { diagnostics: false, progress: () => host.approvalProgress() });
+  registerMcpFeedbackTool(server, {
+    graph: () => feedbackGraph(host.currentModel),
+    report: input => pluginFeedbackReport(input, 'agent', host.workspace),
+    send: report => host.website.feedback(report),
+  });
   server.registerTool('open_graph_view', {
     description: 'Display the current graph in a browser. Open the returned private URL once, then poll handoffId for the exact display receipt. Does not recapture.',
     inputSchema: { ...modelRefSchema, handoffId: z.string().min(1).max(128).optional() },

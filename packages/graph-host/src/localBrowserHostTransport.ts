@@ -39,6 +39,7 @@ import {
   LocalBrowserCaptureExportResultMessage,
   LocalBrowserGraphPublishStateMessage,
   LocalBrowserGraphPublishResultMessage,
+  LocalBrowserFeedbackResultMessage,
   LocalBrowserValidationStateMessage,
   LocalBrowserGraphOpeningMessage,
   LocalBrowserErrorCode,
@@ -272,6 +273,7 @@ export type LocalBrowserHostPublish =
   | WithoutWire<LocalBrowserCaptureExportResultMessage>
   | WithoutWire<LocalBrowserGraphPublishStateMessage>
   | WithoutWire<LocalBrowserGraphPublishResultMessage>
+  | WithoutWire<LocalBrowserFeedbackResultMessage>
   | WithoutWire<LocalBrowserValidationStateMessage>
   | WithoutWire<LocalBrowserAcknowledgementMessage>
   | WithoutWire<LocalBrowserErrorMessage>;
@@ -509,6 +511,7 @@ export function createLocalBrowserHostTransport(
       parsed.type !== 'captureExportCancel' &&
       parsed.type !== 'graphPublishRequest' &&
       parsed.type !== 'graphPublishCancel' &&
+      parsed.type !== 'feedbackRequest' &&
       parsed.type !== 'validateRequest' &&
       parsed.type !== 'graphSetupRequest' &&
       parsed.type !== 'validateCancel' &&

@@ -6,4 +6,5 @@ module.exports = [
   'get_graph_setup', 'suggest_graph_inputs', 'configure_graph_setup', 'configure_graph_environment',
   'validate_model', 'get_run', 'inspect_run', 'cancel_run', 'compare_runs', 'open_graph_diff',
   'open_graph_panel', 'graph_panel_read', 'graph_panel_exchange', 'detach_graph_panel', 'close_graph_panel',
+  'send_feedback',
 ];

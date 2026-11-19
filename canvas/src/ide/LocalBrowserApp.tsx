@@ -70,6 +70,8 @@ import { nativeCanvasMode } from './nativeCanvasPresentation';
 import { canExportGraphFile } from './graphFileExport';
 import LocalBrowserModelMenu from './LocalBrowserModelMenu';
 import PublishGraphButton from './PublishGraphButton';
+import FeedbackButton from './FeedbackButton';
+import { createLocalBrowserFeedbackClient, type LocalBrowserFeedbackClient } from './localBrowserFeedbackClient';
 import { useCompactHeader } from './useCompactHeader';
 import { createLocalBrowserPortableClient, type LocalBrowserPortableClient } from './localBrowserPortableClient';
 import { createLocalBrowserPublishClient, type LocalBrowserPublishClient } from './localBrowserPublishClient';
@@ -369,6 +371,14 @@ export default function LocalBrowserApp({
   // click sink below outlives any single render of this state.
   const projectRef = React.useRef(page.project);
   projectRef.current = page.greyed ? null : page.project;
+  // What the feedback form offers to include: the open model's class and block count, nothing else.
+  const feedbackGraph = React.useMemo(() => {
+    const cls = page.activeTarget?.cls;
+    if (!cls) return null;
+    const document = page.projection?.cls === cls ? page.projection.document as { semantic?: { nodes?: unknown } } | null : null;
+    const nodes = document?.semantic?.nodes;
+    return { model: cls, nodes: Array.isArray(nodes) ? nodes.length : 0 };
+  }, [page.activeTarget?.cls, page.projection]);
   const targetRef = React.useRef(page.activeTarget);
   React.useEffect(() => {
     targetRef.current = review ? null : page.activeTarget;
@@ -420,6 +430,7 @@ export default function LocalBrowserApp({
   const [captures, setCaptures] = React.useState<LocalBrowserCaptureClient | null>(null);
   const [portableExports, setPortableExports] = React.useState<LocalBrowserPortableClient | null>(null);
   const [publishing, setPublishing] = React.useState<LocalBrowserPublishClient | null>(null);
+  const [feedback, setFeedback] = React.useState<LocalBrowserFeedbackClient | null>(null);
 
   // The default transport reads its link from this page's URL once. A new link
   // opened in the same tab changes only the fragment, so reload to read it.
@@ -446,6 +457,9 @@ export default function LocalBrowserApp({
     // The plugin host publishes to tensorviz.dev itself; the extension's page saves a file instead.
     const publishClient = standalone ? createLocalBrowserPublishClient(transport, () => targetRef.current) : null;
     setPublishing(publishClient);
+    // Both hosts send feedback to tensorviz.dev when the member presses Send.
+    const feedbackClient = createLocalBrowserFeedbackClient(transport);
+    setFeedback(feedbackClient);
     const offMessage = transport.onMessage(message => {
       if (message.type === 'modelCatalog' && message.viewId === transport.session?.viewId
         && !standalone && !reviewRef.current.state && !pageRef.current.greyed
@@ -773,6 +787,8 @@ export default function LocalBrowserApp({
       portableClient.dispose();
       publishClient?.dispose();
       setPublishing(null);
+      feedbackClient.dispose();
+      setFeedback(null);
       setCaptures(null);
       setValidation(null);
       setSourceEdits(null);
@@ -1228,6 +1244,7 @@ export default function LocalBrowserApp({
       <p>Open a Python model to explore its layers and connections, or review the model changes in a pull request.</p>
     </CanvasStateScreen>;
   }
+  const feedbackControl = !review && feedback ? <FeedbackButton client={feedback} graph={feedbackGraph} /> : null;
   return (
     <div className={`local-browser-canvas${review ? ' graph-review-canvas' : ''}${nativeCanvasMode() ? ' native-canvas' : ''}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <header ref={setHeaderElement} className={`local-browser-header${compactHeader ? ' local-browser-header-compact' : ''}`} data-testid="local-browser-strip">
@@ -1263,6 +1280,8 @@ export default function LocalBrowserApp({
               onRunFresh={localContext.validation.runFresh}
               repeatDisabled={localContext.validation.running || !!localContext.validation.disabledReason}
               onRecovery={() => { setDismissedOpeningId(null); openingAction({ kind: 'change_inputs' }); }} />}
+            {/* With icons only, the controls row has no room left on a phone; the name's row does. */}
+            {compactHeader && feedbackControl && <div className="local-browser-header-feedback">{feedbackControl}</div>}
           </div>
           <div className="local-browser-header-actions" role="group" aria-label={review ? 'Review actions' : 'Model tools'}>
           {review && !review.proposal && <GraphReviewActions sourceAction={standalone ? 'copy' : undefined} onClose={closeReview} onRefresh={refreshReview} onSource={revealReviewSource} />}
@@ -1274,6 +1293,7 @@ export default function LocalBrowserApp({
             onClick={() => transportRef.current?.send({ type: 'graphReviewRequest', action: 'open' })}><GitCompareArrows size={15} aria-hidden="true" /><span className="local-canvas-control-label">Review changes</span></button>}
           {!review && (!standalone || publishing) && <PublishGraphButton disabled={showOpening || openingBusy || !canExportGraphFile(page)}
             publishing={publishing} openLink={openLink} />}
+          {!compactHeader && feedbackControl}
           </div>
         </div>
         {!review && <>

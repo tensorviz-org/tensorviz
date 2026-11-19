@@ -57,6 +57,7 @@ def test_version_roles_messages_and_errors_match_the_frozen_contract():
         "captureInspectRequest", "captureInspectCancel", "captureInspectResult",
         "captureExportRequest", "captureExportCancel", "captureExportResult",
         "graphPublishRequest", "graphPublishCancel", "graphPublishState", "graphPublishResult",
+        "feedbackRequest", "feedbackResult",
         "validateRequest",
         "validateCancel",
         "validateResult",

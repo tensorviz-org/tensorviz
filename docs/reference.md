@@ -86,7 +86,7 @@ Palette titles use the category `tensorViz` plus the title, for example **tensor
 
 ## MCP tools
 
-Names below cover `registerTool`, `registerAppTool` and private agent tool-map registrations under `extension/src`, `packages/graph-host/src`, and `plugin/src`, excluding tests: 47 distinct names across the hosts. Shared toolsets show both **extension** and **plugin** where registered. **canvas agent** tools use only the private in-canvas agent endpoint: source review tools from `registerCanvasCodeTools`, permission explanation tools, reviewed project diagnostic tools and source-grounded node interpretation tools. They are not exposed by the standalone plugin or the external extension MCP endpoint. `configure_graph_environment` is a shared setup tool; each host retains its own environment capabilities and approval flow. **plugin panel** tools with app visibility are the panel transport; the model-workflow skill tells the agent not to call those transport tools. Behavior and arguments: [MCP tools](mcp-tools.md).
+Names below cover `registerTool`, `registerAppTool` and private agent tool-map registrations under `extension/src`, `packages/graph-host/src`, and `plugin/src`, excluding tests: 48 distinct names across the hosts. Shared toolsets show both **extension** and **plugin** where registered. **canvas agent** tools use only the private in-canvas agent endpoint: source review tools from `registerCanvasCodeTools`, permission explanation tools, reviewed project diagnostic tools and source-grounded node interpretation tools. They are not exposed by the standalone plugin or the external extension MCP endpoint. `configure_graph_environment` is a shared setup tool; each host retains its own environment capabilities and approval flow. **plugin panel** tools with app visibility are the panel transport; the model-workflow skill tells the agent not to call those transport tools. Behavior and arguments: [MCP tools](mcp-tools.md).
 
 | Tool | Registered for | Source |
 | --- | --- | --- |
@@ -133,6 +133,7 @@ Names below cover `registerTool`, `registerAppTool` and private agent tool-map r
 | `read_project_file` | canvas agent | `extension/src/canvasAgentProjectTools.ts` |
 | `request_project_command` | canvas agent | `extension/src/canvasAgentProjectTools.ts` |
 | `run_proposal_candidate` | extension | `extension/src/mcpProposals.ts` |
+| `send_feedback` | plugin | `packages/graph-host/src/mcpFeedback.ts` |
 | `submit_model_explanations` | canvas agent | `extension/src/canvasModelExplanation.ts` |
 | `submit_node_explanation` | canvas agent | `extension/src/canvasNodeExplanation.ts` |
 | `suggest_graph_inputs` | extension, plugin | `packages/graph-host/src/mcpGraphSetup.ts` |

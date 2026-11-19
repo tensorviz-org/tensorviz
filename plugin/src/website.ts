@@ -16,6 +16,7 @@ import { gunzipSync } from 'node:zlib';
 import { WebsiteAccount, WebsiteError, type AccountHost, type Cancellation, type WebsiteConfig,
   type WebsiteFetch, type WebsiteWording } from '@tensorviz/graph-host/websiteAccount';
 import { graphUrl, shareableGraph, shareGraph, SHARE_LIMITS } from '@tensorviz/graph-host/websiteShare';
+import { sendFeedback, type FeedbackReport } from '@tensorviz/graph-host/feedback';
 import type { LocalBrowserPublishedGraph } from '@tensorviz/contracts/protocol';
 import { applicationData } from './environment';
 
@@ -246,6 +247,10 @@ export class WebsitePublisher {
       return { id, title: graph.title, url: graphUrl(config, id), shareUrl: graphUrl(config, id, true) };
     } finally { this.busy = false; }
   }
+
+  /** Sends feedback the member approved to the tensorViz team, as them when signed in;
+   *  never starts a sign-in. */
+  async feedback(report: FeedbackReport): Promise<string> { return sendFeedback(this.account, report, this.options.fetch, this.options.env); }
 
   async signOut(): Promise<boolean> { return this.account.signOut(); }
 

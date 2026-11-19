@@ -179,6 +179,20 @@ suite('local browser protocol', () => {
     assert.equal(isGraphSetupAction({ kind: 'install_dependencies', command: 'arbitrary install' }), false);
   });
 
+  test('carries feedback as the member wrote it, with only the model class and block count', () => {
+    const envelope = { protocolVersion: 1, workspaceSessionId: 's', messageId: 'm' };
+    const request = { ...envelope, type: 'feedbackRequest', requestId: 'r', kind: 'bug', message: 'Edges overlap.', graph: { model: 'TinyNet', nodes: 3 } };
+    assert.ok(isLocalBrowserMessage(request));
+    assert.ok(isLocalBrowserMessage({ ...request, kind: 'idea', graph: null }));
+    for (const bad of [{ kind: 'praise' }, { message: '' }, { message: 'x'.repeat(4001) }, { graph: { model: '../x', nodes: 3 } },
+      { graph: { model: 'TinyNet', nodes: -1 } }, { graph: { model: 'TinyNet', nodes: 3, file: '/home/me/x.py' } }, { extra: true }]) {
+      assert.equal(isLocalBrowserMessage({ ...request, ...bad }), false, JSON.stringify(bad));
+    }
+    const result = { ...envelope, type: 'feedbackResult', requestId: 'r', status: 'sent', detail: 'Sent.' };
+    assert.ok(isLocalBrowserMessage(result));
+    assert.equal(isLocalBrowserMessage({ ...result, status: 'cancelled' }), false);
+  });
+
   test('exposes the frozen version, roles, messages, and error codes', () => {
     assert.equal(LOCAL_BROWSER_PROTOCOL_VERSION, 1);
     assert.deepEqual(LOCAL_BROWSER_ROLES, ['host', 'view']);
@@ -189,6 +203,7 @@ suite('local browser protocol', () => {
       'graphOpening', 'graphSetupRequest',
       'captureExportRequest', 'captureExportCancel', 'captureExportResult',
       'graphPublishRequest', 'graphPublishCancel', 'graphPublishState', 'graphPublishResult',
+      'feedbackRequest', 'feedbackResult',
       'captureInspectRequest', 'captureInspectCancel', 'captureInspectResult',
       'viewState', 'viewSelection', 'focusView', 'viewFocusResult',
       'connected',

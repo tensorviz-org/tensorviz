@@ -23,7 +23,7 @@ import { sameTargetIdentity } from '@tensorviz/graph-host/graphIdentity';
 import { type GraphEnvironmentRecovery, type GraphOpeningState, type LocalBrowserTargetIdentity,
   type ProjectionPayload, type LocalBrowserSnapshotState, type LocalBrowserValidationSummary,
   type LocalBrowserCaptureExportRequestMessage, type LocalBrowserGraphPublishRequestMessage,
-  type LocalBrowserPublishedGraph } from '@tensorviz/contracts/protocol';
+  type LocalBrowserPublishedGraph, type LocalBrowserFeedbackRequestMessage } from '@tensorviz/contracts/protocol';
 import type { LocalBrowserHostTransport } from '@tensorviz/graph-host/localBrowserHostTransport';
 import { PortableExportError } from '@tensorviz/graph-host/portableCapture';
 import { WebsiteError } from '@tensorviz/graph-host/websiteAccount';
@@ -43,6 +43,7 @@ import { ManagedRuntime } from './runtime';
 import { collectSourceSet, isNormalizedPythonPath } from '@tensorviz/graph-host/workspaceSourceCore';
 import { StandaloneReview } from './review';
 import { WebsitePublisher } from './website';
+import { pluginFeedbackReport } from './feedback';
 
 interface Selection {
   root: string;
@@ -733,6 +734,7 @@ export class StandaloneHost {
       if (message.type === 'captureExportCancel' && this.captureExport?.requestId === message.requestId) this.captureExport.controller.abort();
       if (message.type === 'graphPublishRequest') void this.publishGraph(transport, message);
       if (message.type === 'graphPublishCancel' && this.publishing?.requestId === message.requestId) this.publishing.controller.abort();
+      if (message.type === 'feedbackRequest') void this.sendFeedback(transport, message);
       if (!this.review.active && message.type === 'graphSetupRequest' && this.opening.state) {
         // Browser setup writes/capture still go through the same approval gate.
         const target = this.opening.state.target;
@@ -771,6 +773,18 @@ export class StandaloneHost {
       if (!pending.controller.signal.aborted) reply(null,
         error instanceof GraphToolError || error instanceof PortableExportError ? error.message : 'The retained capture could not be exported.');
     } finally { if (this.captureExport === pending) this.captureExport = undefined; }
+  }
+
+  /** Feedback from the view's button, sent as the member wrote it. */
+  private async sendFeedback(transport: LocalBrowserHostTransport, request: LocalBrowserFeedbackRequestMessage): Promise<void> {
+    const reply = (status: 'sent' | 'failed', detail: string) =>
+      transport.publish({ type: 'feedbackResult', requestId: request.requestId, status, detail: detail.slice(0, 512) });
+    try {
+      await this.website.feedback(pluginFeedbackReport({ kind: request.kind, message: request.message, graph: request.graph }, 'canvas', this.workspace));
+      reply('sent', 'Thanks. Your feedback reached the tensorViz team.');
+    } catch (error) {
+      reply('failed', error instanceof WebsiteError ? error.message : 'Could not send your feedback.');
+    }
   }
 
   /** Publish from the view: the graph file it would export, signed in and uploaded here. */
@@ -865,6 +879,9 @@ export class StandaloneHost {
   }
 
   get workspace(): string | undefined { return this.selected?.root; }
+
+  /** The open model, for a feedback report that includes the graph. */
+  get currentModel(): McpModel | undefined { return this.model; }
 
   dispose(): void {
     this.lifetime.abort(); this.authorized = false;

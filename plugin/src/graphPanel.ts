@@ -32,7 +32,7 @@ interface Panel {
 
 const VIEW_MESSAGES = new Set(['viewSelection', 'viewFocusResult', 'graphSetupRequest',
   'captureInspectRequest', 'captureInspectCancel', 'captureExportRequest', 'captureExportCancel',
-  'graphPublishRequest', 'graphPublishCancel', 'graphReviewRequest', 'graphReviewApplied']);
+  'graphPublishRequest', 'graphPublishCancel', 'feedbackRequest', 'graphReviewRequest', 'graphReviewApplied']);
 const VIEW_ID_MESSAGES = new Set(['viewSelection', 'viewFocusResult', 'graphReviewApplied']);
 // Publishing sends the graph to tensorviz.dev, so it is never a read.
 const READ_ONLY_MESSAGES = new Set(['viewSelection', 'viewFocusResult', 'captureInspectRequest', 'captureInspectCancel',

@@ -24,6 +24,7 @@ import type { TraceWorker } from './worker';
 import { createHash, randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { SEND_FEEDBACK } from './commandIds';
 import { CodeFocus } from './codeFocus';
 
 import { LocalBrowserSync, LocalBrowserTraceSupport, sameTargetIdentity } from './localBrowserSync';
@@ -1610,6 +1611,15 @@ export class LocalBrowserGraph implements vscode.Disposable {
     const transport = this.host?.transport;
     const reply = publish ?? ((message: LocalBrowserHostPublish) => transport?.publish(message));
     const reviews = native ? this.canvasReviews : this.browserReviews;
+    if (message.type === 'feedbackRequest') {
+      // websiteCommands.ts sends it; the view only shows the answer.
+      const { requestId, kind, message: text, graph } = message;
+      void Promise.resolve(vscode.commands.executeCommand<{ status: 'sent' | 'failed'; detail: string }>(SEND_FEEDBACK, { kind, message: text, graph }))
+        .then(result => result ?? { status: 'failed' as const, detail: 'Could not send your feedback.' },
+          () => ({ status: 'failed' as const, detail: 'Could not send your feedback.' }))
+        .then(({ status, detail }) => reply({ type: 'feedbackResult', requestId, status, detail: detail.slice(0, 512) }));
+      return;
+    }
     if (message.type === 'graphSetupRequest') {
       if (message.action.kind === 'edit_execution') {
         if (!isGraphSetupAction(message.action)) return;

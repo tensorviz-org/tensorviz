@@ -18,6 +18,7 @@ Start with a model open in TensorViz. The Canvas lets you explore its structure 
 | Change the example inputs | **Inputs** |
 | Capture again | **Run model** / **Run again** |
 | See more controls | **Expand toolbar** |
+| Tell the tensorViz team something | The speech-bubble icon, [**Send feedback**](share-to-website.md#send-feedback) |
 
 Pan and zoom to move around. Turn on [code focus](code-focus.md) to reveal a selected layer's source beside the graph.
 

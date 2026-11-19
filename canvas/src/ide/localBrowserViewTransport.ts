@@ -52,6 +52,8 @@ import {
   LocalBrowserGraphPublishCancelMessage,
   LocalBrowserGraphPublishStateMessage,
   LocalBrowserGraphPublishResultMessage,
+  LocalBrowserFeedbackRequestMessage,
+  LocalBrowserFeedbackResultMessage,
   LocalBrowserValidationStateMessage,
   LocalBrowserGraphOpeningMessage,
   LocalBrowserGraphSetupRequestMessage,
@@ -148,6 +150,7 @@ export type LocalBrowserViewSend =
   | WithoutWire<LocalBrowserCaptureExportCancelMessage>
   | WithoutWire<LocalBrowserGraphPublishRequestMessage>
   | WithoutWire<LocalBrowserGraphPublishCancelMessage>
+  | WithoutWire<LocalBrowserFeedbackRequestMessage>
   | WithoutWire<LocalBrowserValidateRequestMessage>
   | WithoutWire<LocalBrowserValidateCancelMessage>
   | WithoutWire<LocalBrowserAcknowledgementMessage>
@@ -179,6 +182,7 @@ export type LocalBrowserViewMessage =
   | LocalBrowserCaptureExportResultMessage
   | LocalBrowserGraphPublishStateMessage
   | LocalBrowserGraphPublishResultMessage
+  | LocalBrowserFeedbackResultMessage
   | LocalBrowserValidateResultMessage
   | LocalBrowserValidationStateMessage
   | LocalBrowserAcknowledgementMessage
@@ -618,6 +622,7 @@ export function createLocalBrowserViewTransport(
       case 'captureExportCancel':
       case 'graphPublishRequest':
       case 'graphPublishCancel':
+      case 'feedbackRequest':
       case 'validateRequest':
       case 'graphReviewRequest':
       case 'graphReviewApplied':

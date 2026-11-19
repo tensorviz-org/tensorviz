@@ -10,7 +10,7 @@
 - [Release export preservation — October 13, 2026](#release-export-preservation-october-13-2026)
 
 The [README](../README.md) contains the download links, client installation
-commands, and first-use prompts for the published 1.0.1 preview. This guide covers
+commands, and first-use prompts for the published 1.0.2 preview. This guide covers
 local repository installation, updates, and common setup problems.
 
 The release catalog pins macOS ARM64/x64, Linux x64 (glibc >=2.31), Linux ARM64
@@ -34,8 +34,8 @@ local launcher and Codex tests.
 
 ## Install from a local repository
 
-Download and extract [the 1.0.1 catalog ZIP](https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.1/tensorviz-catalog-1.0.1.zip)
-into a persistent folder, for example `~/tensorviz-catalog-1.0.1`.
+Download and extract [the 1.0.2 catalog ZIP](https://github.com/tensorviz-org/tensorviz/releases/download/v1.0.2/tensorviz-catalog-1.0.2.zip)
+into a persistent folder, for example `~/tensorviz-catalog-1.0.2`.
 It contains `.agents/plugins/marketplace.json`, `.claude-plugin/marketplace.json`,
 and the plugin directories with pinned runtime locks. The separate per-client
 plugin ZIPs do not contain the marketplace catalogs.
@@ -49,12 +49,12 @@ Then choose your client, replacing the example path with the absolute path to
 the extracted catalog:
 
 ```sh
-codex plugin marketplace add /absolute/path/to/tensorviz-catalog-1.0.1
+codex plugin marketplace add /absolute/path/to/tensorviz-catalog-1.0.2
 codex plugin add tensorviz@tensorviz-standalone
 ```
 
 ```sh
-claude plugin marketplace add /absolute/path/to/tensorviz-catalog-1.0.1
+claude plugin marketplace add /absolute/path/to/tensorviz-catalog-1.0.2
 claude plugin install tensorviz@tensorviz-standalone --scope user
 ```
 
@@ -70,7 +70,7 @@ Use the complete catalog ZIP above, extract it to a persistent directory, then
 run these commands in PowerShell with the matching native Codex installation:
 
 ```powershell
-codex plugin marketplace add C:\path\to\tensorviz-catalog-1.0.1
+codex plugin marketplace add C:\path\to\tensorviz-catalog-1.0.2
 codex plugin add tensorviz-windows-x64@tensorviz-standalone
 ```
 

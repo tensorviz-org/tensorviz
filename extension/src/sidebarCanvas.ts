@@ -37,7 +37,7 @@ const VIEW_REQUESTS = new Set([
   'validateRequest', 'validateCancel', 'projectFocus', 'projectExpand', 'projectDeclare',
   'viewSelection', 'viewFocusResult', 'ack', 'error',
   'candidateRequest', 'captureInspectRequest', 'captureExportRequest', 'captureExportCancel',
-  'graphSetupRequest',
+  'graphSetupRequest', 'feedbackRequest',
 ]);
 const SEQUENCED = new Set<string>(LOCAL_BROWSER_SEQUENCED_MESSAGE_TYPES);
 

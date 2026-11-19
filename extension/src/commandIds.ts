@@ -25,3 +25,7 @@ export const SIGN_OUT_OF_WEBSITE = 'tensorviz.signOutOfWebsite';
 /** Add to tensorViz: the Canvas bridge runs it with the graph file. Not contributed,
  *  so it never appears in the palette. */
 export const SHARE_GRAPH_FILE = 'tensorviz.shareGraphFile';
+
+/** Send feedback: the Canvas's feedback button runs it with the member's words and returns
+ *  whether it was sent. Not contributed, so it never appears in the palette. */
+export const SEND_FEEDBACK = 'tensorviz.sendFeedback';

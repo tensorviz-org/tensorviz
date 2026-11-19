@@ -25,6 +25,10 @@ LOCAL_BROWSER_PUBLISH_MAX_PACKED_BYTES: Final[int] = 23 * 1024 * 1024
 LOCAL_BROWSER_PUBLISH_FILE_MAX_LENGTH: Final[int] = 4 * math.ceil(LOCAL_BROWSER_PUBLISH_MAX_PACKED_BYTES / 3)
 _BASE64 = re.compile(r"[A-Za-z0-9+/]+={0,2}")
 _GRAPH_ID = re.compile(r"[A-Za-z0-9]+")
+#: Send feedback to the tensorViz team: the member's words, and the open model's class
+#: name (ASCII, as in JavaScript's ``\w``) and block count only when they include them.
+LOCAL_BROWSER_FEEDBACK_MAX_LENGTH: Final[int] = 4000
+_FEEDBACK_MODEL = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 LocalBrowserRole = Literal["host", "view"]
 LocalBrowserErrorCode = Literal[
@@ -70,6 +74,7 @@ LOCAL_BROWSER_MESSAGE_TYPES: Final[frozenset[str]] = frozenset(
         "captureInspectRequest", "captureInspectCancel", "captureInspectResult",
         "captureExportRequest", "captureExportCancel", "captureExportResult",
         "graphPublishRequest", "graphPublishCancel", "graphPublishState", "graphPublishResult",
+        "feedbackRequest", "feedbackResult",
         "validateRequest",
         "validateCancel",
         "validateResult",
@@ -991,6 +996,18 @@ def is_local_browser_message(value: Any, expected_workspace_session_id: str | No
                     and _is_bounded_string(graph["title"], 128)
                     and _web_page_url_is_valid(graph["url"]) and _web_page_url_is_valid(graph["shareUrl"]))
         return value.get("status") in {"failed", "cancelled"} and graph is None
+
+    if message_type == "feedbackRequest":
+        graph = value.get("graph")
+        return (len(value) == 8 and "graph" in value and _is_bounded_string(value.get("requestId"), 128)
+                and value.get("kind") in ("bug", "idea", "other")
+                and _is_bounded_string(value.get("message"), LOCAL_BROWSER_FEEDBACK_MAX_LENGTH)
+                and (graph is None or (isinstance(graph, dict) and set(graph) == {"model", "nodes"}
+                     and _is_bounded_string(graph["model"], 128) and _FEEDBACK_MODEL.fullmatch(graph["model"]) is not None
+                     and _is_non_negative_integer(graph["nodes"]))))
+    if message_type == "feedbackResult":
+        return (len(value) == 7 and _is_bounded_string(value.get("requestId"), 128)
+                and value.get("status") in ("sent", "failed") and _is_bounded_string(value.get("detail"), 512))
 
     if message_type in {"captureInspectRequest", "captureInspectCancel", "captureInspectResult"}:
         if not _target_is_valid(value.get("target")) or not _is_bounded_string(value.get("requestId"), 128):

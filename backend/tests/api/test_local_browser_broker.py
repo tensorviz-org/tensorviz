@@ -770,6 +770,38 @@ def test_publish_progress_and_result_reach_only_the_asking_view_and_cancel_when_
         assert other.receive_json()["type"] == "focusNode", "publish traffic never reaches another view"
 
 
+def test_feedback_answer_reaches_only_the_asking_view_and_a_departure_cancels_nothing(client):
+    session = mint(client)
+    sid = session["workspaceSessionId"]
+    host, _ = connect_host(client, session)
+    asking, _, _ = connect_view(client, cookie_key_of(bootstrap(client, session)), session, n=1900)
+    other, _, _ = connect_view(client, cookie_key_of(bootstrap(client, session)), session, n=1901)
+
+    def feedback(n, request_id, **fields):
+        return envelope("feedbackRequest", sid, n, **{"requestId": request_id, "kind": "bug", "message": "Edges overlap.",
+                                                      "graph": {"model": "Net", "nodes": 12}, **fields})
+
+    asking.send_json(feedback(1902, "feedback-a"))
+    forwarded = host.receive_json()
+    assert (forwarded["type"], forwarded["message"], forwarded["graph"]) == ("feedbackRequest", "Edges overlap.", {"model": "Net", "nodes": 12})
+    host.send_json(envelope("feedbackResult", sid, 1903, requestId="feedback-a", status="sent", detail="Thanks."))
+    answer = asking.receive_json()
+    assert (answer["type"], answer["status"], answer["detail"]) == ("feedbackResult", "sent", "Thanks.")
+    assert_valid(answer, sid)
+    asking.send_json(feedback(1904, "feedback-b", kind="praise"))
+    assert asking.receive_json()["code"] == "INVALID_MESSAGE"
+
+    # Feedback has no cancellation: a view that leaves with one in flight only misses the
+    # answer, which reaches no other view.
+    asking.send_json(feedback(1905, "feedback-left"))
+    assert host.receive_json()["requestId"] == "feedback-left"
+    asking.__exit__(None, None, None)
+    with entered(host, other):
+        host.send_json(envelope("feedbackResult", sid, 1906, requestId="feedback-left", status="sent", detail="Thanks."))
+        host.send_json(envelope("focusNode", sid, 1907, hostSequence=1, target=target(), nodeId="n"))
+        assert other.receive_json()["type"] == "focusNode", "feedback answers never reach another view"
+
+
 def test_publish_relays_the_largest_graph_file_the_website_takes(client):
     from services.ide.local_browser_wire import decode_message
     session = mint(client)

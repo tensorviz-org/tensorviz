@@ -6,7 +6,7 @@ test('canonical candidates retain all native and pinned installed migration gate
  const workflow=read('.github/workflows/release-unified.yml');
  for(const platform of ['darwin-arm64','darwin-x64','linux-arm64','linux-x64','win32-arm64','win32-x64'])assert.match(workflow,new RegExp(`platform: ${platform}`));
  assert.match(workflow,/TENSORVIZ_MIGRATION_TARGET_VERSION: \$\{\{ needs.configuration.outputs.version \}\}/);
- assert.match(workflow,/repository: tensorviz-org\/tensorviz\n\s+ref: 664d5615d71c10b5d9f84695c4c40011dddbdc7f/);
+ assert.match(workflow,/repository: tensorviz-org\/tensorviz\n\s+ref: fc654a7c77b1d30580438b69ab77ae88bdf9e1f7/);
  assert.match(workflow,/TENSORVIZ_MIGRATION_OLD_CATALOG:.*migration-old-catalog\/distribution\/plugin-catalog/);
  assert.match(workflow,/runtimeReleaseURL\(previous.from, process.env.MIGRATION_PLATFORM\)/);
  assert.match(workflow,/tensorviz-runtime-\$\{\{ needs.configuration.outputs.version \}\}-\$\{\{ matrix.platform \}\}.tar.gz/);

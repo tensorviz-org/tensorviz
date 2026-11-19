@@ -8,7 +8,7 @@ import {contentHash} from '../../scripts/source-release-admission.mjs';
 import {prepareUnifiedCandidate,snapshotCandidateVsix} from '../../scripts/prepare-unified-candidate.mjs';
 
 test('an unreviewed future release is rejected before reading or assembling candidate bytes',async()=>{
- await assert.rejects(prepareUnifiedCandidate({version:'1.0.2',sourceRevision:'a'.repeat(40),runId:1,runAttempt:1}),/reviewed canonical release migration/);
+ await assert.rejects(prepareUnifiedCandidate({version:'1.0.3',sourceRevision:'a'.repeat(40),runId:1,runAttempt:1}),/reviewed canonical release migration/);
 });
 
 async function fixture(t, identity={name:'tensorviz-vscode',publisher:'tensorviz',version:'1.0.0'}) {

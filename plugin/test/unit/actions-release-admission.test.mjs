@@ -6,7 +6,8 @@ import {requiredReleaseJobs,unifiedWorkflow,validateActionsReleaseRun,verifyActi
 function fixture(version='1.0.0'){
  const sourceRevision='a'.repeat(40),digest='b'.repeat(64),repository='tensorviz-org/tensorviz';
  const manifest={schemaVersion:1,repository,version,sourceRevision,build:{workflow:unifiedWorkflow,runId:123,runAttempt:1},files:{}};
- const policy={schemaVersion:1,enabled:true,repository,version,previousVersion:version==='1.0.1'?'1.0.0':'0.1.48',previousCatalogCommit:version==='1.0.1'?'664d5615d71c10b5d9f84695c4c40011dddbdc7f':'8b0b539953c5abe693803c15854d953a00bcd5fe',evidence:{method:'github-actions',workflow:unifiedWorkflow}};
+ const [previousVersion,previousCatalogCommit]={'1.0.0':['0.1.48','8b0b539953c5abe693803c15854d953a00bcd5fe'],'1.0.1':['1.0.0','664d5615d71c10b5d9f84695c4c40011dddbdc7f'],'1.0.2':['1.0.1','fc654a7c77b1d30580438b69ab77ae88bdf9e1f7']}[version];
+ const policy={schemaVersion:1,enabled:true,repository,version,previousVersion,previousCatalogCommit,evidence:{method:'github-actions',workflow:unifiedWorkflow}};
  const run={id:123,run_attempt:1,head_sha:sourceRevision,repository:{full_name:repository},head_repository:{full_name:repository},path:unifiedWorkflow,event:'workflow_dispatch',head_branch:'main',status:'completed',conclusion:'success'};
  const jobs=requiredReleaseJobs.map(name=>({name,conclusion:'success'}));
  const platforms=['darwin-arm64','darwin-x64','linux-x64','linux-arm64','win32-x64','win32-arm64'];
@@ -26,10 +27,10 @@ test('live trusted run, all native/migration jobs and signed exact-byte provenan
  const f=fixture();const result=await verifyActionsReleaseAdmission(f.manifest,f.bytes,f.admission,f.policy,f.release,{command:f.command});
  assert.equal(result.jobs,13);assert.equal(result.runId,123);assert.equal(f.calls.length,3);
 });
-test('the reviewed 1.0.1 transition requires its own exact migration receipts and attestation',async()=>{
- const f=fixture('1.0.1');
+for(const [version,stale] of [['1.0.1','0.1.48'],['1.0.2','1.0.0']])test(`the reviewed ${version} transition requires its own exact migration receipts and attestation`,async()=>{
+ const f=fixture(version);
  assert.equal((await verifyActionsReleaseAdmission(f.manifest,f.bytes,f.admission,f.policy,f.release,{command:f.command})).jobs,13);
- f.admission.migrationReceipts[0].fromVersion='0.1.48';
+ f.admission.migrationReceipts[0].fromVersion=stale;
  await assert.rejects(verifyActionsReleaseAdmission(f.manifest,f.bytes,f.admission,f.policy,f.release,{command:f.command}),/Migration receipt provenance/);
 });
 for(const [name,mutate] of [

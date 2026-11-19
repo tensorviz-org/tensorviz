@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2
+
+- Send feedback to the tensorViz team from the Canvas footer, beside the guide, or ask your coding agent to send it once you approve the exact report.
+- Show a keyboard-accessible action toolbar on the selected node, and open inspection, captured evidence and source editing from it.
+- Keep source documentation, recorded graph and capture facts, and AI interpretation separate in a compact node inspector.
+- Explain a node only when asked, with progress, Stop and failures on its Explain button; explanations for different nodes run in parallel.
+- Name module-focus boundary cards in Canvas panels instead of showing internal IDs.
+- Require native upgrade and rollback checks from 1.0.1 for the aligned extension, Canvas and plugin release.
+
 ## 1.0.1
 
 - Keep coding-agent graph panels available for one hour of inactivity, renewing the session when used.

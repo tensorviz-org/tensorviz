@@ -44,6 +44,11 @@ The full parameter list, including structured values and source expressions, gro
 with its content. Signatures, docstrings and connections also use the outer selection
 panel's scroll area rather than nested height limits. Review/source-assignment cards
 retain their evidence.
+Selection details show input/output names or recorded argument paths only when
+available. Internal port and boundary IDs are not display labels. Available shapes
+remain visible without an invented tensor name; absent input/output rows are
+omitted rather than filled with numbered names or “Not recorded” placeholders.
+Unavailable selection and connection titles are omitted instead of showing IDs.
 The local overlay is bounded by its Canvas container rather than window height,
 so details and bottom actions stay reachable in short embedded views. Component
 reading has its own activity label and never implies a tensor capture is running.
@@ -95,16 +100,31 @@ List delivery and indexing have bounded waits and a refresh path; standalone hos
 without catalogue support keep their existing file/setup utilities.
 Root I/O height follows actual rows; an output without boundary data has no body.
 
-The existing selection panel shows deterministic node identity, source documentation,
-source controls and known graph inputs/outputs. Internal Python graph
-IDs are omitted from card labels. Full calls and further details are expandable.
+Selection shows a compact screen-space icon toolbar attached to the selected card,
+following pan and zoom and clamping at viewport edges. It does not repeat identity or
+shapes. Hover/focus labels explain **Inspect**, **Explain this component**, **Discuss
+in chat**, **Captured calls & tensors**, **Open inside**, **Trace** and **More node actions**;
+unsupported actions are omitted and disabled actions retain their reason in a tooltip.
+**Inspect** deliberately opens a single docked reading surface; explanation and capture
+icons enter their respective flows directly, without first finding them inside details.
+The inspector replaces the graph with a full-width detail view in narrow containers,
+with a single **Back to graph** action preserving camera and selection. Overflow labels
+**Clear selection** explicitly; Escape and the toolbar's arrow-key navigation remain
+available. Connected-node rows separate readable operation names from exact code names
+and known source locations. Their reveal arrow (**Show in graph** for assistive tools)
+selects and frames the clicked peer; a narrow inspector closes before framing so the
+node is actually visible. Source names are not presented as measured tensor shapes.
+**More node actions → Edit source**, also available as a header pencil, replaces the same
+inspector body only for a supported source target; synthetic boundaries never gain
+source-edit authority. Captured record browsing is explicit and inline.
+Internal Python graph IDs are omitted from normal labels.
 
 Selecting a node also requests its declaration through the existing bounded lexical
 source index, independently of agent availability. A uniquely resolved function, method
 or class supplies a normalized declaration signature, its cleaned author-written
 docstring and an exact source citation. The summary comes from that docstring; a
 standard-layer catalogue description is only a fallback. Complete available text and
-the declared signature remain in **More details**. A class declaration is labeled as
+the declared signature remain in **Source and configuration**. A class declaration is labeled as
 such, rather than presented as a forward-call or runtime constructor signature.
 
 Resolution reads only the live model and graph-recorded Python dependencies, reuses the
@@ -115,23 +135,53 @@ documentation when agent settings change or an agent task fails. Source citation
 revalidated before navigation, and documentation is neither a shape observation nor
 an agent interpretation.
 
-An already connected agent can interpret a settled single-node selection in an isolated,
-read-only task. It uses the existing provider adapters with a versioned `node_explanation`
-prompt in `extension/src/canvasAgentPrompts.ts`, independently of chat history. The only
+Graph-card interpretations align the title, purpose and In/Out values in one content
+column, with the icon and labels in a shared gutter. Deterministic wrapping, measured
+card bounds and SVG export use the same horizontal insets and first-row spacing,
+including output-only annotations.
+
+Selecting a node or refreshing its provider never starts agent generation.
+**Explain this component** explicitly submits the selected ID through the existing
+model-explanation controller. Preparation, progress, completion, failure and cancellation
+are visual states of the original Explain button, bound to its exact request and graph
+identity. A working button remains usable as Stop; status and failure details are available
+on hover/focus, without standalone status paragraphs or cards. Explaining from a node's
+toolbar does not automatically open the inspector. Explicit retries of a retained single-node request use
+an isolated, read-only task with a versioned `node_explanation` prompt in `extension/src/canvasAgentPrompts.ts`, independently of chat history. The only
 tools available are bounded source reads, source-context queries and the private typed
 `submit_node_explanation` result tool. Selection never starts sign-in, environment setup,
 commands, model execution or source proposals. Foreground chat takes priority.
 
+Header/footer reflow inside an unchanged local Canvas surface preserves camera and
+layout, including narrow-sidebar explanation progress. This is distinct from an
+actual surface resize or canvas-width divider drag, which retains responsive fitting.
+Initial visibility, new graphs, explicit Fit and module navigation keep their existing
+camera behavior; explanation progress never requests a webview or editor restart.
+
 The host issues citation IDs for inspected source ranges, validates source digests again
 before publication/navigation, and accepts only a bounded structured result. An
 interpretation never supplies graph shapes, capture evidence or permission authority.
-The UI marks generated purpose and meaning as **Agent interpretation** and keeps exact
-callables and graph evidence accessible. Unknown domain meaning remains explicit.
+The inspector gives verified generated purpose and meaning a dedicated **AI explanation**
+reading surface, never an empty status card. Preparation, completion and errors are shown
+on the Explain action itself: spinner while working, the original AI sparkle with green
+completed styling, a warning or stopped icon, with details
+on hover/focus. A model-pass summary alone cannot establish successful node completion;
+a verified node result is required. Effective execution metadata appears only when provided
+for the result. Steps, concepts, uncertainties and source links stay within the AI reading
+section, separate from technical source/configuration and recorded graph evidence.
+Previous verified content survives a failed update; failure remains on the action button.
+This presentation does not increase the context budget.
+Exact callables and graph evidence remain accessible; unknown domain meaning stays explicit.
 
 Successful explanations use a bounded in-memory cache keyed by model/graph revision,
 node, provider, model, effort and prompt version. Source/capture changes, stale graphs,
 review, selection changes, disconnects and provider changes cancel obsolete work.
 The renderer independently checks the current view, complete target and graph revision.
+An unavailable passive node receipt can accept a subsequently verified cached result
+under the same selection identity, without reopening generation. Explicit model passes
+use separate receipt clocks, and host adoption restores the selection's citation and
+retry identity. Cancelled, expired and superseded passes remain terminal, including
+while a replacement pass verifies its revision.
 Generated text is neither persisted into graph metadata nor included in portable graph
 files or SVG exports; those retain deterministic technical names.
 

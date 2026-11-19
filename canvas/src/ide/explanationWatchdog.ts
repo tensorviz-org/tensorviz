@@ -37,6 +37,9 @@ export class ExplanationWatchdog {
     const previous = this.entries.get(key);
     if (!previous || previous.requestId !== requestId) return true;
     if (previous.status === 'expired') return false;
+    // Passive selections publish idle/unavailable before verified cache adoption.
+    // Only that node receipt may settle ready; it must never restart generation.
+    if (previous.status === 'unavailable' && key.startsWith('node:') && status === 'ready') return true;
     if (previous.status === 'ready' || previous.status === 'unavailable' || previous.status === 'cancelled') return previous.status === status;
     return previous.status !== 'loading' || status !== 'queued';
   }
@@ -68,8 +71,13 @@ export class ExplanationWatchdog {
       }, pending.timeoutMs);
     }
     while (this.entries.size > 256) {
-      // A large number of selected nodes must not evict the model's live clock.
-      const oldest = [...this.entries.keys()].find(key => key !== 'model')!;
+      // Receipt churn must not silently discard any in-flight request's clock.
+      // The cap bounds retained terminal history, not concurrent live work.
+      const oldest = [...this.entries.keys()].find(key => {
+        const entry = this.entries.get(key)!;
+        return entry.status !== 'queued' && entry.status !== 'loading';
+      });
+      if (oldest === undefined) break;
       this.retire(oldest, this.entries.get(oldest)!); this.entries.delete(oldest);
     }
     return true;

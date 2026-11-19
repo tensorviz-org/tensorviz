@@ -8,7 +8,7 @@ Select a layer in the graph to find the Python that defines it.
 
 ## Jump to source
 
-Switch **Code focus** on in the Canvas header. Selecting a node reveals its mapped source beside the graph; double-click or press **Enter** to navigate to it.
+Switch **Code focus** on in the Canvas header. Selecting a node reveals its mapped source beside the graph. Use its verified file:line link to navigate explicitly; double-click or **Enter** on a leaf opens inspection.
 
 With Code focus off, exploring the graph keeps the editor in place. You can still choose a node's file:line link to open its source explicitly. If the Canvas is maximized, showing source restores the split so the code appears beside it.
 

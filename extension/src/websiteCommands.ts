@@ -5,9 +5,10 @@
  */
 import * as vscode from 'vscode';
 import type { HostFile } from '@tensorviz/contracts/protocol';
-import { SHARE_GRAPH_FILE, SIGN_IN_TO_WEBSITE, SIGN_OUT_OF_WEBSITE } from './commandIds';
+import { SEND_FEEDBACK, SHARE_GRAPH_FILE, SIGN_IN_TO_WEBSITE, SIGN_OUT_OF_WEBSITE } from './commandIds';
 import { editorCallback, WebsiteAccount, WebsiteError, type WebsiteMember } from './websiteAccount';
 import { graphUrl, shareGraph, shareableGraph } from './websiteShare';
+import { feedbackReport, operatingSystem, sendFeedback, type FeedbackInput } from '@tensorviz/graph-host/feedback';
 
 const who = (member: WebsiteMember): string =>
   member.name && member.email ? `${member.name} (${member.email})` : member.name ?? member.email ?? 'your Google account';
@@ -79,6 +80,22 @@ export function registerWebsiteCommands(context: vscode.ExtensionContext, channe
     }
   };
 
+  /** The Canvas's feedback button: the member's words, as them when signed in. Never signs in. */
+  const feedback = async (input: FeedbackInput): Promise<{ status: 'sent' | 'failed'; detail: string }> => {
+    try {
+      const report = feedbackReport(input, 'canvas', { product: 'extension', version: String(context.extension.packageJSON.version ?? ''),
+        os: operatingSystem(), editor: `${vscode.env.appName} ${vscode.version}` },
+      (vscode.workspace.workspaceFolders ?? []).map(folder => folder.uri.fsPath));
+      const id = await sendFeedback(account, report);
+      channel.appendLine(`[website] sent feedback ${id}`);
+      return { status: 'sent', detail: 'Thanks. Your feedback reached the tensorViz team.' };
+    } catch (error) {
+      const detail = error instanceof WebsiteError ? error.message : 'Could not send your feedback.';
+      channel.appendLine(`[website] Could not send feedback. ${detail}`);
+      return { status: 'failed', detail };
+    }
+  };
+
   const signInCommand = async (): Promise<void> => {
     try {
       const member = await account.member();
@@ -111,5 +128,6 @@ export function registerWebsiteCommands(context: vscode.ExtensionContext, channe
       try { await signOut(); } catch (error) { await report('Could not sign out of tensorViz.', error); }
     }),
     vscode.commands.registerCommand(SHARE_GRAPH_FILE, share),
+    vscode.commands.registerCommand(SEND_FEEDBACK, feedback),
   );
 }

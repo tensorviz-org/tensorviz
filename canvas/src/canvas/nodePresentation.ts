@@ -1,16 +1,15 @@
 /** Deterministic identity shared by cards, selection and SVG exports.
  * Generated interpretations are supplied separately by React context. */
-import type { ModelNodeData } from '../types';
+import type { CapturePort, ModelNodeData } from '../types';
 import { customCardModel } from './customCard';
 import { operationDisplayName } from './operationDisplayName';
 import { tensorEvidence, tensorShapes } from './graphSemantics';
-import { portLabel } from './capturePorts';
 import { getLayerByType } from '../data/layerTypes';
 
 const text = (value: unknown): string | undefined => typeof value === 'string' && value.trim() ? value.trim() : undefined;
-const publicLabel = (value: unknown): string | undefined => {
+export const publicLabel = (value: unknown): string | undefined => {
   const label = text(value);
-  return label && !/^#?python@/.test(label) ? label : undefined;
+  return label && !/^(?:#?python@|port:|value:|invocation:|boundary:|focus-boundary:)/.test(label) ? label : undefined;
 };
 
 /** Quote the author's opening paragraph; never infer intent from a callable name. */
@@ -44,7 +43,7 @@ export function nodePresentation(data: ModelNodeData, nodeId: string) {
     ? callable : path && path !== title && path !== callable ? path : undefined;
   // Catalogue descriptions are reference information, not model-specific intent.
   const purpose = custom || !data.layerType?.id || data.layerType.id === 'module' ? undefined : text(getLayerByType(data.layerType.id)?.description);
-  return { title, callable, subtitle, rawCall, purpose };
+  return { title, callable, subtitle, rawCall, purpose, path };
 }
 
 export function nodeEvidenceLabel(data: ModelNodeData): string {
@@ -56,20 +55,43 @@ export function nodeEvidenceLabel(data: ModelNodeData): string {
     ? 'Read from code · tensor shapes not recorded' : data.captureRef ? 'Captured · tensor shapes not recorded' : 'Tensor shapes not recorded';
 }
 
+/** Semantic IDs are wiring keys, never display names. */
+const portName = (value: unknown): string | undefined => {
+  const name = text(value);
+  return name && !/^(?:port:|value:|invocation:|boundary:|focus-boundary:|#?python@)/.test(name) ? name : undefined;
+};
+
+/** Preserve recorded argument paths without inventing positional names. */
+function capturedPortName(port: CapturePort): string | undefined {
+  const name = portName(port.displayName);
+  if (name) return name;
+  const paths = port.paths.flatMap(path => {
+    if (!path.length || path.some((part, i) => part === 'entries' && typeof path[i + 1] === 'number' && path[i + 2] === 'value')) return [];
+    const parts = path[0] === 'arguments' || path[0] === 'inputs' ? path.slice(1) : path;
+    const label = parts.filter((part, i) => !(part === 'items' && typeof parts[i + 1] === 'number'))
+      .map((part, i) => typeof part === 'number' ? `[${part}]` : `${i ? '.' : ''}${part}`).join('');
+    return portName(label) ? [label] : [];
+  });
+  return paths.length ? paths.join(' / ') : undefined;
+}
+
 export function nodeInputOutput(data: ModelNodeData): { inputs: string[]; outputs: string[] } {
   const evidence = tensorEvidence(data);
   const shapes = tensorShapes(data);
   const values = (direction: 'in' | 'out'): string[] => {
     const ports = data.captureDisplayPorts ?? data.capturePorts;
     const recorded = ports?.filter(port => port.direction === direction && port.argumentKind === 'value');
-    if (recorded?.length) return recorded.map((port, index) => {
-      const shape = evidence !== 'unknown' && Array.isArray(port.shape) ? ` (${port.shape.join(', ')})` : '';
-      return `${portLabel(port, index)}${shape}`;
+    if (recorded?.length) return recorded.flatMap(port => {
+      const name = capturedPortName(port);
+      const shape = evidence !== 'unknown' && Array.isArray(port.shape) ? `(${port.shape.join(', ')})` : undefined;
+      const value = [name, shape].filter(Boolean).join(' ');
+      return value ? [value] : [];
     });
-    const names = direction === 'in' ? data.inputPorts : data.outputPorts;
+    const rawNames = direction === 'in' ? data.inputPorts : data.outputPorts;
+    const names = rawNames?.map(portName).filter((name): name is string => !!name);
     const shape = evidence !== 'unknown' ? direction === 'in' ? shapes.inputShape : shapes.outputShape : undefined;
-    if (names?.length) return names.map(name => `${name}${shape && names.length === 1 ? ` (${shape.join(', ')})` : ''}`);
-    return shape ? [`Tensor (${shape.join(', ')})`] : [];
+    if (names?.length) return names.map(name => `${name}${shape && rawNames?.length === 1 ? ` (${shape.join(', ')})` : ''}`);
+    return shape ? [`(${shape.join(', ')})`] : [];
   };
   return { inputs: values('in'), outputs: values('out') };
 }

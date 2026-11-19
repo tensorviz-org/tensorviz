@@ -121,6 +121,9 @@ def _audiences(path: Path, index: int, text: str) -> list[str]:
         "mcpGraph.ts", "mcpViews.ts", "mcpCaptures.ts", "mcpGraphSetup.ts", "mcpValidation.ts",
     }:
         return ["extension", "plugin"]
+    # Only plugin/src/main.ts registers send_feedback; the extension sends from its Canvas.
+    if "/packages/graph-host/src/" in rel and path.name == "mcpFeedback.ts":
+        return ["plugin"]
     return ["extension"]
 
 

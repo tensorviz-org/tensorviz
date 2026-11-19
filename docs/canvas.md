@@ -18,12 +18,15 @@ Start with a model open in TensorViz. The Canvas lets you explore its structure 
 | Change the example inputs | **Inputs** |
 | Capture again | **Run model** / **Run again** |
 | See more controls | **Expand toolbar** |
+| Tell the tensorViz team something | The speech-bubble icon, [**Send feedback**](share-to-website.md#send-feedback) |
 
 Pan and zoom to move around. Turn on [code focus](code-focus.md) to reveal a selected layer's source beside the graph.
 
 ## Read the shapes
 
 **IN** and **OUT** rows show the tensors recorded for that operation. **Not recorded** means TensorViz does not have a shape for it.
+Both directions use the same neutral row fill and left edge; labels identify direction,
+not a different border color that could be mistaken for a shape change or status.
 
 Named arguments and dictionary results keep their recorded names. Unnamed values use numbered labels; see [input and output names](capture-boundary-names.md).
 
@@ -43,23 +46,69 @@ identifies a class found without running it. Opening a class uses the normal gra
 and setup flow. File and setup utilities remain under their own disclosure.
 
 Cards keep the same content at every zoom level. Full class and function names wrap;
-long names can use a wider card. Click a node to inspect it without changing the camera.
-Constructor arguments stay in **More details**. The full list grows with its content
-and scrolls with the surrounding selection panel.
+long names can use a wider card. A single click selects a node and reveals a small
+icon toolbar attached to that card. Identity and tensor shapes stay on the card rather
+than being repeated in a second summary box. Hover or keyboard-focus an icon for its
+label. Selection and hovering never open an editor or request an AI explanation.
+The toolbar offers **Inspect**, **Explain this component**, **Discuss in chat**, and,
+when captured evidence exists, **Captured calls & tensors**. **Trace** opens connection
+controls; **Open inside** explores a module. Double-click or Enter also enters modules; on
+a leaf it opens inspection. **Back to graph** closes inspection without moving the camera.
+The inspector docks beside a wide canvas and becomes a full-width detail view in a
+narrow sidebar. Selecting another node updates it without carrying over an edit form.
+**More node actions** contains **Edit source** when supported in a local project,
+or **Edit parameters** on an editable template canvas, and **Clear selection**;
+Escape also clears selection. The inspector has
+one **Back to graph** action instead of duplicate back and close controls.
 Input and Output cards reserve only their visible rows; an empty output is header-only.
 
-Select a node to see its callable, source and available inputs and outputs. When the
-declaration can be resolved, its author's docstring appears as **Source documentation**.
-**More details** includes the declared signature and complete available docstring.
+Choose **Inspect** to see a node's callable, source and available inputs and outputs.
+Internal port and boundary IDs are never substituted for names. Recorded shapes remain
+visible without invented names; unavailable input/output rows are omitted. **Captured
+calls & tensors** deliberately opens retained evidence inside the inspector, without
+recapturing. Incoming and outgoing connection rows identify the connected operation,
+keep its exact code name and available source location, with a reveal arrow.
+Click a row to select and reveal that node; in a narrow sidebar this also returns to
+the graph. Source variable names are labelled separately from measured tensor shapes.
+When the declaration resolves, its author's docstring appears as **Source
+documentation**. **Source and configuration** includes the signature and available docstring.
 This works for custom classes and functions without an agent or catalogue entry;
 standard-layer reference descriptions are a fallback. A small code icon means the call was
 read from code; its hover explains that tensor shapes have not been recorded.
 
-With an agent connected in chat, selecting one node automatically requests a short
-source-based explanation in the selection panel. Graph cards retain their technical names.
-**Agent interpretation** distinguishes that explanation from recorded graph facts.
-Open **More details** for the complete call, steps, uncertainties and linked sources.
-**Discuss in chat** opens the existing chat with the current selection available.
+With an agent available, choose the **Explain this component** icon on the node to request
+an explanation for that component. The same button shows a spinner while preparing/generating,
+then returns to the recognizable AI sparkle with a green color and subtle tinted background
+on verified completion. A warning indicates failure; a stopped icon indicates cancellation.
+Hover or focus it for the status and failure reason;
+click the working button to stop. There are no separate “Explanation ready” messages.
+The graph's Explain action stays on the graph instead of automatically opening inspection.
+You can explain different components in parallel, including while another component is
+preparing its request. Each component's button owns its progress and Stop action;
+stopping or failing one request does not stop another. Explaining the same component
+again replaces only that component's previous request. Provider availability and limits
+still apply. **Explain this view** is a separate request: its Stop action does not stop
+independent component explanations, even when only one component is visible. When
+requests overlap on a component, an older result cannot replace newer requested output
+or borrow its model metadata.
+Progress controls can wrap in a narrow sidebar without resetting the graph's pan,
+zoom or module view. A genuine sidebar/window resize retains responsive fitting.
+Selection and provider refresh do not generate AI
+explanations; bounded author-written documentation can still be read without an agent.
+The **AI explanation** reading section appears only for a verified generated result,
+with effective provider/model metadata when available. Operation state stays on the
+Explain button, not in status cards or completion/error paragraphs. Successful content
+includes source links and **Explanation details** for steps, concepts and
+uncertainties. It stays separate from captured facts and author-written documentation;
+**Source and configuration** contains the technical call, parameters and documentation.
+An unsuccessful update keeps prior verified content available and marks failure on the button.
+On graph cards, the AI title, description and interpreted In/Out values share one text
+column; the icon and labels occupy a left gutter. Wrapping, card height and SVG export
+use the same column geometry so zooming does not change their alignment.
+**Discuss in chat** opens the existing chat with the current selection available,
+without first opening inspection. Compact header icons keep the same actions available
+while reading details; capture browsing and source editing replace the inspector body
+instead of adding stacked action panels or a large footer.
 
 Choose **Explain this view** in the toolbar to explain the nodes currently visible in
 the Canvas, including input and output boundaries. The click captures a scope; panning,
@@ -118,7 +167,14 @@ files and SVG exports retain full technical names.
 
 ## Edit the model
 
-Click a layer to edit supported constructor parameters, such as Linear `out_features` or Dropout `p`. Leave the field or press Enter to open a source draft through the same [review and Accept](source-editing.md) path as agent proposals. Accept writes Python and refreshes the model; the canvas does not change the model before review.
+On an editable template canvas, select a layer and choose **More node actions →
+Edit parameters** to open its catalogue parameter fields beside the card. Changes
+save after a short pause. Selection, ordinary clicks and dragging never open this
+editor. Read-only canvases, local project canvases, and input/output or module-focus
+boundary cards do not offer template parameter editing. Local project source edits
+stay in the inspector instead.
+
+Select a layer and choose **More node actions → Edit source**, or the pencil in the inspector header, to edit supported constructor parameters, such as Linear `out_features` or Dropout `p`. The form replaces the inspector body; no second popup opens. Boundary cards, unsupported nodes and stale/read-only views do not offer editing. Leave the field or press Enter to open a source draft through the same [review and Accept](source-editing.md) path as agent proposals. Accept writes Python and refreshes the model; the canvas does not change the model before review.
 
 Use the layer palette (Blocks), the inspector or the + on a supported connection to insert Linear, Dropout, LayerNorm, ReLU, GELU, SiLU, Sigmoid or Tanh after a declared layer. Set the new attribute name and constructor parameters, then choose **Review insertion**. **Review deletion** removes a declared layer or bypasses an activation with a supported deletion capability. A shared declaration affects all its calls; inspect the draft before Accept. Activation insertion on an exact captured operand uses its source capability. Declaration insertion on a connection is limited to single-output nodes. Insertion dimensions are explicit and are not inferred from recorded tensors.
 

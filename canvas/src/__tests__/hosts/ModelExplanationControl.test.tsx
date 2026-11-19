@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import ModelExplanationControl from '../../ide/ModelExplanationControl';
 import { NodeExplanationContext, type NodeExplanationContextValue } from '../../canvas/NodeExplanationContext';
@@ -20,21 +22,47 @@ it.each([false, true])('starts the visible graph request without selecting a nod
   window.removeEventListener('builder-command', listener);
 });
 
-it('shows real progress and lets the user stop without losing completed work', () => {
+it('turns the same primary button into a usable stop action with progress', () => {
   const context = value({ state: { requestId: 'run', revision: 'revision', status: 'loading', completed: 3, total: 7 } });
-  mount(context, true);
-  expect(screen.getByRole('button', { name: 'Explaining view · 3/7' })).toBeDisabled();
+  const view = mount(value(), true);
+  const primary = screen.getByRole('button', { name: 'Explain this view' });
+  expect(primary.querySelector('.lucide-sparkles')).toBeInTheDocument();
+  view.rerender(<NodeExplanationContext.Provider value={context}><ModelExplanationControl compact /></NodeExplanationContext.Provider>);
+  expect(screen.getByRole('button', { name: 'Stop explaining view · 3/7' })).toBe(primary);
+  expect(primary).toBeEnabled();
+  expect(primary).toHaveAttribute('aria-busy', 'true');
+  expect(primary.querySelector('.model-explanation-spinner')).toBeInTheDocument();
+  expect(screen.getAllByRole('button').filter(button => /Stop explaining view/.test(button.getAttribute('aria-label') ?? ''))).toEqual([primary]);
   expect(screen.getByRole('status')).toHaveTextContent('3 of 7');
-  fireEvent.click(screen.getByRole('button', { name: 'Stop explaining view' }));
+  fireEvent.click(primary);
   expect(context.model!.cancel).toHaveBeenCalledTimes(1);
+  expect(context.model!.cancel).toHaveBeenCalledWith();
 });
 
 it('explains the current viewport again after success and keeps hiding separate', () => {
   const context = value({ state: { requestId: 'run', revision: 'revision', status: 'ready', completed: 7, total: 7 } });
-  mount(context);
+  const view = mount(value());
+  const primary = screen.getByRole('button', { name: 'Explain this view' });
+  const overflow = screen.getByRole('button', { name: 'View explanation details' });
+  const sparkle = primary.querySelector('.lucide-sparkles');
+  expect(overflow).toBeDisabled();
+  view.rerender(<NodeExplanationContext.Provider value={context}><ModelExplanationControl compact={false} /></NodeExplanationContext.Provider>);
+  expect(screen.getByRole('button', { name: 'View explained · 7/7. Explain this view again' })).toBe(primary);
+  expect(primary.querySelector('.lucide-sparkles')).toBe(sparkle);
+  expect(sparkle).toHaveClass('model-explanation-complete');
+  expect(primary).toHaveAttribute('data-state', 'complete');
+  expect(primary.querySelector('.lucide-check')).not.toBeInTheDocument();
+  expect(primary).toHaveTextContent('Explained');
+  fireEvent.focus(primary);
+  expect(screen.getByRole('tooltip')).toHaveTextContent('7 of 7 components explained');
+  fireEvent.blur(primary);
+  expect(screen.getByRole('button', { name: 'View explanation details' })).toBe(overflow);
+  expect(overflow.querySelector('.lucide-ellipsis')).toBeInTheDocument();
+  expect(overflow).not.toHaveTextContent('7/7');
+  expect(screen.queryByText('Explanation ready')).not.toBeInTheDocument();
   const listener = jest.fn();
   window.addEventListener('builder-command', listener);
-  fireEvent.click(screen.getByRole('button', { name: 'Explain this view' }));
+  fireEvent.click(primary);
   expect(listener.mock.calls[0][0].detail.command).toBe('explain-model');
   window.removeEventListener('builder-command', listener);
   expect(context.model!.toggle).not.toHaveBeenCalled();
@@ -48,17 +76,26 @@ it('explains the current viewport again after success and keeps hiding separate'
 it('retains partial results and exposes the actual failure and retry path', () => {
   mount(value({ state: { requestId: 'run', revision: 'revision', status: 'unavailable', completed: 2, total: 7,
     detail: 'Connect an agent in chat to explain this model.' } }));
-  expect(screen.getByRole('button', { name: 'Retry explanations' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Explanations unavailable. Retry explanations' })).toBeEnabled();
   fireEvent.click(screen.getByRole('button', { name: 'View explanation details' }));
   expect(screen.getByText('Connect an agent in chat to explain this model.')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Open agent chat' })).toBeVisible();
 });
 
+it('shows preflight failure on the primary button without inventing a graph revision', () => {
+  mount(value({ startFailure: { requestId: 'preflight', detail: 'The graph revision could not be verified.' } }));
+  const button = screen.getByRole('button', { name: 'Explanations unavailable. Retry explanations' });
+  expect(button.querySelector('.lucide-circle-alert')).not.toBeNull();
+  fireEvent.focus(button);
+  expect(screen.getByRole('tooltip')).toHaveTextContent('The graph revision could not be verified.');
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
 it('shows the reason for a failed start instead of a misleading zero-completed count', () => {
   const detail = 'The configured agent needs sign-in. Open agent chat to connect.';
   mount(value({ state: { requestId: 'run', revision: 'revision', status: 'unavailable', completed: 0, total: 2, detail } }));
-  const trigger = screen.getByRole('button', { name: 'Retry explanations' });
+  const trigger = screen.getByRole('button', { name: 'Explanations unavailable. Retry explanations' });
   fireEvent.focus(trigger.parentElement!);
   expect(screen.getByRole('tooltip')).toHaveTextContent(detail);
   fireEvent.blur(trigger.parentElement!);
@@ -67,6 +104,46 @@ it('shows the reason for a failed start instead of a misleading zero-completed c
   expect(screen.queryByText('0 of 2 components explained.')).not.toBeInTheDocument();
   expect(screen.queryByText(/Up to 128 visible components/)).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Open agent chat' })).toBeVisible();
+});
+
+it.each([
+  ['unavailable', 'Explanations unavailable. Retry explanations', '.lucide-circle-alert', 'Retry explanations'],
+  ['cancelled', 'Explanations stopped. Retry explanations', '.lucide-square', 'Stopped · Retry'],
+] as const)('keeps %s feedback and diagnostics on the same primary button', (status, label, icon, copy) => {
+  const detail = status === 'cancelled' ? 'Stopped by you. Completed results are retained.' : 'Agent sign-in expired.';
+  const view = mount(value());
+  const primary = screen.getByRole('button', { name: 'Explain this view' });
+  const context = value({ state: { requestId: 'run', revision: 'revision', status, completed: 2, total: 7, detail } });
+  view.rerender(<NodeExplanationContext.Provider value={context}><ModelExplanationControl compact={false} /></NodeExplanationContext.Provider>);
+  expect(screen.getByRole('button', { name: label })).toBe(primary);
+  expect(primary.querySelector(icon)).toBeInTheDocument();
+  expect(primary.querySelector('.model-explanation-complete')).not.toBeInTheDocument();
+  expect(primary).not.toHaveAttribute('data-state', 'complete');
+  expect(primary).toHaveTextContent(copy);
+  fireEvent.focus(primary);
+  expect(screen.getByRole('tooltip')).toHaveTextContent(detail);
+  expect(screen.getByRole('tooltip')).toHaveTextContent('2 of 7 components explained');
+  fireEvent.blur(primary);
+  const overflow = screen.getByRole('button', { name: 'View explanation details' });
+  expect(overflow.querySelector('.lucide-ellipsis')).toBeInTheDocument();
+  expect(overflow.querySelector(icon)).not.toBeInTheDocument();
+  const listener = jest.fn();
+  window.addEventListener('builder-command', listener);
+  fireEvent.click(primary);
+  expect(listener.mock.calls[0][0].detail.command).toBe('explain-model');
+  window.removeEventListener('builder-command', listener);
+  fireEvent.click(overflow);
+  fireEvent.click(screen.getByRole('button', { name: 'Hide explanations' }));
+  expect(context.model!.toggle).toHaveBeenCalledTimes(1);
+});
+
+it('never claims success for a ready pass with no completed explanations', () => {
+  mount(value({ state: { requestId: 'empty', revision: 'revision', status: 'ready', completed: 0, total: 0,
+    detail: 'No visible components to explain.' } }));
+  const primary = screen.getByRole('button', { name: 'Explain this view' });
+  expect(primary.querySelector('.model-explanation-complete')).not.toBeInTheDocument();
+  expect(primary).not.toHaveAttribute('data-state', 'complete');
+  expect(primary.querySelector('.lucide-sparkles')).toBeInTheDocument();
 });
 
 it('does not offer unsupported hosts an action and explains why a disconnected view is disabled', () => {
@@ -111,7 +188,32 @@ it('keeps the running execution choice visible and disables configuration until 
   mount(value({ state: { requestId: 'run', revision: 'revision', status: 'loading', completed: 1, total: 4,
     execution: { provider: 'codex', model: 'running-model', effort: 'low' } },
     configuration: { settings: { model: 'next-model' }, followsChat: false, choose: jest.fn(), discover: jest.fn() } }));
-  expect(screen.getByRole('button', { name: 'Explaining view · 1/4' })).toHaveTextContent('running-model · Low');
+  expect(screen.getByRole('button', { name: 'Stop explaining view · 1/4' })).toHaveTextContent('running-model · Low');
   expect(screen.getByRole('button', { name: 'Choose explanation model and effort' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Stop explaining view' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Stop explaining view · 1/4' })).toBeEnabled();
+});
+
+it.each([false, true])('reserves a stable primary and overflow footprint, compact=%s', compact => {
+  const view = mount(value(), compact);
+  const primary = screen.getByRole('button', { name: 'Explain this view' });
+  expect(primary.closest('.model-explanation-control')).toHaveClass(compact ? 'model-explanation-compact' : 'model-explanation-control');
+  const css = readFileSync(join(__dirname, '../../ide/modelExplanation.css'), 'utf8');
+  const rule = css.match(/\.model-explanation-control \.model-explanation-start \{([^}]+)\}/)?.[1] ?? '';
+  expect(rule).toMatch(/width:\s*\d+px/);
+  expect(rule).toMatch(/height:\s*\d+px/);
+  const choiceRule = css.match(/\.model-explanation-choice \{([^}]+)\}/)?.[1] ?? '';
+  expect(choiceRule).toMatch(/white-space:\s*nowrap/);
+  expect(choiceRule).toMatch(/text-overflow:\s*ellipsis/);
+  const overflow = screen.getByRole('button', { name: 'View explanation details' });
+  view.rerender(<NodeExplanationContext.Provider value={value({ state: { requestId: 'run', revision: 'r', status: 'loading', completed: 1, total: 20 } })}>
+    <ModelExplanationControl compact={compact} />
+  </NodeExplanationContext.Provider>);
+  expect(screen.getByRole('button', { name: 'Stop explaining view · 1/20' })).toBe(primary);
+  expect(screen.getByRole('button', { name: 'View explanation details' })).toBe(overflow);
+  expect(overflow).toBeDisabled();
+});
+
+it('keeps progress readable without animation when reduced motion is requested', () => {
+  const css = readFileSync(join(__dirname, '../../ide/modelExplanation.css'), 'utf8');
+  expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.model-explanation-spinner\s*\{\s*animation:\s*none/);
 });

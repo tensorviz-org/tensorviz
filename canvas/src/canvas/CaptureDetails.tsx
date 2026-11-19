@@ -11,35 +11,42 @@ type Reference = NonNullable<ModelNodeData['captureRef']>;
 type Place = { entity?: CaptureInspectionQuery['entity']; path: Array<string | number>; offsets: number[] };
 
 /** Temporary read-only detail, separate from the source-edit form and canvas. */
-export function CaptureDetails({ reference, label, client, stale = false, buttonLabel = 'View captured details', initialQuery }: {
+export function CaptureDetails({ reference, label, client, stale = false, buttonLabel = 'View captured details', initialQuery, inline = false,
+  initiallyOpen = false, hideTrigger = false, onClose }: {
   reference: Reference; label: string; client: LocalBrowserCaptureClient; stale?: boolean;
-  buttonLabel?: string; initialQuery?: Pick<CaptureInspectionQuery, 'entity' | 'path'>;
+  buttonLabel?: string; initialQuery?: Pick<CaptureInspectionQuery, 'entity' | 'path'>; inline?: boolean;
+  initiallyOpen?: boolean; hideTrigger?: boolean; onClose?(): void;
 }) {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(initiallyOpen);
   const trigger = React.useRef<HTMLButtonElement>(null);
   const wasOpen = React.useRef(false);
   React.useEffect(() => {
     if (!open && wasOpen.current) trigger.current?.focus();
     wasOpen.current = open;
   }, [open]);
+  // A different selection must never reuse the previous record's path or page.
+  const selectionKey = JSON.stringify([reference.captureId, reference.sourceId, reference.kind, reference.semanticId,
+    initialQuery?.entity, initialQuery?.path]);
+  const browser = open ? <CaptureBrowser key={selectionKey} reference={reference} label={label} client={client}
+    stale={stale} initialQuery={initialQuery} inline={inline} close={() => { setOpen(false); onClose?.(); }} /> : null;
   return <>
-    <CanvasTooltip text="View recorded arguments, outputs and tensor details from this capture. This does not run the model.">
-      <button ref={trigger} type="button" className="capture-details-trigger" aria-haspopup="dialog" aria-expanded={open}
+    {!hideTrigger && <CanvasTooltip text="View recorded arguments, outputs and tensor details from this capture. This does not run the model.">
+      <button ref={trigger} type="button" className="capture-details-trigger" aria-haspopup={inline ? undefined : 'dialog'} aria-expanded={open}
         onClick={() => setOpen(true)}><ListTree size={15} aria-hidden="true" />{buttonLabel}</button>
-    </CanvasTooltip>
-    {open && createPortal(<CaptureDialog reference={reference} label={label} client={client} stale={stale} initialQuery={initialQuery} close={() => setOpen(false)} />, document.body)}
+    </CanvasTooltip>}
+    {browser && (inline ? browser : createPortal(browser, document.body))}
   </>;
 }
 
-function CaptureDialog({ reference, label, client, stale, initialQuery, close }: {
+function CaptureBrowser({ reference, label, client, stale, initialQuery, inline, close }: {
   reference: Reference; label: string; client: LocalBrowserCaptureClient; stale: boolean; close(): void;
-  initialQuery?: Pick<CaptureInspectionQuery, 'entity' | 'path'>;
+  initialQuery?: Pick<CaptureInspectionQuery, 'entity' | 'path'>; inline: boolean;
 }) {
   const dialog = React.useRef<HTMLDialogElement>(null);
   const selected = React.useMemo(() => initialQuery ?? { entity: { kind: reference.kind, id: reference.semanticId }, path: [] }, [initialQuery, reference.kind, reference.semanticId]);
   const [place, setPlace] = React.useState<Place>({ ...selected, offsets: [0] });
   const [result, setResult] = React.useState<CaptureInspectionResult | null>(null);
-  React.useEffect(() => { dialog.current?.showModal(); }, []);
+  React.useEffect(() => { if (!inline) dialog.current?.showModal(); }, [inline]);
   React.useEffect(() => {
     let active = true;
     setResult(null);
@@ -52,9 +59,7 @@ function CaptureDialog({ reference, label, client, stale, initialQuery, close }:
   const kind = page?.items.find(item => item.key === 'kind')?.value;
   const valueId = page?.items.find(item => item.key === 'id')?.value;
   const start = place.offsets[place.offsets.length - 1];
-  return <dialog ref={dialog} className="capture-details" aria-label={`Captured details: ${label}`} onCancel={close} onClose={close}
-    onClick={event => { if (event.target === event.currentTarget) close(); }}>
-    <div className="capture-details-content">
+  const content = <div className="capture-details-content">
       <header><div><h2>{label}</h2><p>Captured evidence · read only{stale ? ' · does not verify the current source' : ''}</p></div><button aria-label="Close captured details" onClick={close}>×</button></header>
       <nav aria-label="Capture sections">
         <button onClick={() => setPlace({ ...selected, offsets: [0] })}>Selected record</button>
@@ -67,7 +72,8 @@ function CaptureDialog({ reference, label, client, stale, initialQuery, close }:
       </nav>
       <div className="capture-details-path">
         <button disabled={!place.path.length} onClick={() => go(place.path.slice(0, -1))}>← Parent</button>
-        <code>{place.entity ? `${place.entity.kind} ${place.entity.id}` : 'Capture'}{place.path.map(key => typeof key === 'number' ? `[${key}]` : `.${key}`).join('')}</code>
+        <code>{place.entity ? (inline ? (place.entity.kind === selected.entity?.kind && place.entity.id === selected.entity.id
+          ? label : place.entity.kind === 'value' ? 'Captured tensor' : 'Captured record') : `${place.entity.kind} ${place.entity.id}`) : 'Capture'}{place.path.map(key => typeof key === 'number' ? `[${key}]` : `.${key}`).join('')}</code>
       </div>
       <div className="capture-details-body" aria-live="polite" aria-busy={!result}>
         {!result ? <p>Reading captured details…</p> : !page ? <p role="alert">{result.detail}</p> : <>
@@ -87,6 +93,8 @@ function CaptureDialog({ reference, label, client, stale, initialQuery, close }:
         <button disabled={!page || place.offsets.length < 2} onClick={() => setPlace({ ...place, offsets: place.offsets.slice(0, -1) })}>Previous page</button>
         <button disabled={!page || page.nextOffset === null} onClick={() => { if (page?.nextOffset != null) setPlace({ ...place, offsets: [...place.offsets, page.nextOffset] }); }}>Next page</button>
       </div></footer>
-    </div>
-  </dialog>;
+    </div>;
+  return inline ? <section className="capture-details capture-details-inline" aria-label={`Captured details: ${label}`}>{content}</section>
+    : <dialog ref={dialog} className="capture-details" aria-label={`Captured details: ${label}`} onCancel={close} onClose={close}
+      onClick={event => { if (event.target === event.currentTarget) close(); }}>{content}</dialog>;
 }

@@ -48,8 +48,8 @@
   --tv-hot: #f1f4f0;
   --tv-row: rgba(227, 232, 226, .03);
   --tv-row-bar: rgba(227, 232, 226, .16);
-  --tv-out-row: rgba(227, 232, 226, .05);
-  --tv-out-bar: rgba(227, 232, 226, .42);
+  --tv-out-row: var(--tv-row);
+  --tv-out-bar: var(--tv-row-bar);
   --tv-tile-line: rgba(227, 232, 226, .08);
   --tv-glyph: #a4ada5;
   --tv-glyph-compute: #a4ada5;
@@ -150,8 +150,8 @@
   --tv-hot: #16171b;
   --tv-row: #f6f6f4;
   --tv-row-bar: rgba(20, 22, 30, .16);
-  --tv-out-row: #f0f0ed;
-  --tv-out-bar: rgba(20, 22, 30, .45);
+  --tv-out-row: var(--tv-row);
+  --tv-out-bar: var(--tv-row-bar);
   --tv-tile-line: rgba(20, 22, 30, .06);
   --tv-glyph: #555a66;
   --tv-glyph-compute: #555a66;

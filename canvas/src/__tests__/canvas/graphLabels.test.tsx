@@ -1,9 +1,9 @@
 import React from 'react';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { NodeExplanationContext, type NodeExplanationContextValue } from '../../canvas/NodeExplanationContext';
 import { GraphFocusOverlay } from '../../canvas/GraphFocusOverlay';
 import { GraphQueryPanel } from '../../canvas/GraphQueryPanel';
-import { graphNodes, graphSearchQuery, graphSearchResult } from '../../canvas/graphQueryState';
+import { graphNodes, graphSceneNodes, graphSearchQuery, graphSearchResult } from '../../canvas/graphQueryState';
 import { searchGraph } from '../../canvas/graphSearch';
 import * as operationNames from '../../canvas/operationDisplayName';
 import * as customCards from '../../canvas/customCard';
@@ -24,8 +24,10 @@ jest.mock('tldraw', () => ({
 let mockFocus: any;
 let mockEdges = new Map<string, any>();
 const mockEditor = { getEfficientZoomLevel: () => 1, markEventAsHandled: jest.fn(),
-  getShapePageBounds: jest.fn(() => ({ x: 0, y: 0, w: 200, h: 100 })), select: jest.fn(), zoomToBounds: jest.fn(),
-  getShape: jest.fn() };
+  getShape: jest.fn(), getContainer: jest.fn(), selectNone: jest.fn(),
+  pageToViewport: (point: { x: number; y: number }) => point,
+  getViewportScreenBounds: () => ({ w: 900, h: 700 }), getSelectionPageBounds: () => ({ x: 0, y: 0, w: 200, h: 100 }),
+  getShapePageBounds: jest.fn(() => ({ x: 0, y: 0, w: 200, h: 100 })), select: jest.fn(), zoomToBounds: jest.fn() };
 jest.mock('../../canvas/graphFocus', () => ({ graphFocus: () => ({
   focus: { get: () => mockFocus }, index: { get: () => ({ edges: mockEdges }) },
 }), setTraceDirection: jest.fn() }));
@@ -45,10 +47,11 @@ const spyLookup = () => jest.spyOn(operationNames, 'operationDisplayName');
 const spyIndexBuild = (nodes: Pick<ModelNode[], 'map'>) => jest.spyOn(nodes, 'map');
 beforeEach(() => {
   mockFocus = { active: false, selected: [], edgeIds: new Set(), direction: 'local', truncated: false };
-  mockEdges = new Map(); graphNodes.set([]); graphSearchQuery.set(''); selectedEdgeId.set(null);
+  mockEdges = new Map(); graphNodes.set([]); graphSceneNodes.set([]); graphSearchQuery.set(''); selectedEdgeId.set(null);
   jest.clearAllMocks();
   // CRA resets mock implementations before each test, including this viewport seam.
   mockEditor.getShapePageBounds.mockReturnValue({ x: 0, y: 0, w: 200, h: 100 });
+  mockEditor.getContainer.mockReturnValue(document.createElement('div'));
 });
 afterEach(() => { cleanup(); jest.restoreAllMocks(); });
 
@@ -64,7 +67,122 @@ it('does not request the index or derive labels for empty UI, including repeated
   expect(screen.getByRole('searchbox', { name: 'Search the graph' })).toBeInTheDocument();
 });
 
-it('derives one selected-node label and reuses it for capture details, retaining first-node selection and last-node label semantics', () => {
+it('keeps selection compact until Inspect is explicitly requested', () => {
+  const selected = node('layer', 'projection'); selected.data.parameters.marker = 'Full node details';
+  graphNodes.set([selected]); mockFocus = { ...mockFocus, active: true, selected: ['layer'] };
+  render(<GraphFocusOverlay />);
+  expect(screen.getByRole('toolbar', { name: 'Node actions: projection' })).toBeVisible();
+  expect(screen.queryByTestId('selected-node')).not.toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: 'Trace direction' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Inspect' }));
+  expect(screen.getByRole('complementary', { name: 'Node inspector' })).toBeVisible();
+  expect(screen.getByTestId('selected-node')).toHaveTextContent('Full node details');
+  fireEvent.click(screen.getByRole('button', { name: 'Back to graph' }));
+  expect(screen.queryByRole('complementary', { name: 'Node inspector' })).not.toBeInTheDocument();
+  expect(mockEditor.zoomToBounds).not.toHaveBeenCalled();
+});
+
+it('exposes Explain and Chat directly without mounting the inspector or repeating known shapes', () => {
+  const selected = node('fc', 'projection');
+  selected.data.inputShape = [1, 8, 768]; selected.data.outputShape = [1, 8, 768]; selected.data.shapeEvidence = 'measured';
+  graphNodes.set([selected]); mockFocus = { ...mockFocus, active: true, selected: ['fc'] };
+  const start = jest.fn(() => 'node-pass'), compose = jest.fn();
+  window.addEventListener('tensorviz-agent-compose', compose);
+  render(<NodeExplanationContext.Provider value={{ states: {}, retry: jest.fn(), reveal: jest.fn(),
+    model: { start, cancel: jest.fn(), toggle: jest.fn() } }}><GraphFocusOverlay /></NodeExplanationContext.Provider>);
+  expect(screen.queryByLabelText('Known tensor shapes')).not.toBeInTheDocument();
+  expect(screen.queryByText('(1, 8, 768)')).not.toBeInTheDocument();
+  expect(screen.queryByRole('complementary', { name: 'Node inspector' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Discuss in chat' }));
+  expect(compose).toHaveBeenCalledTimes(1);
+  expect(start).not.toHaveBeenCalled();
+  const explain = screen.getByRole('button', { name: 'Explain this component' });
+  fireEvent.click(explain);
+  expect(start).toHaveBeenCalledTimes(1);
+  expect(start).toHaveBeenCalledWith(['fc']);
+  expect(screen.getByRole('button', { name: 'Stop explaining' })).toBe(explain);
+  expect(explain).toHaveAttribute('data-state', 'preparing');
+  expect(screen.queryByRole('complementary', { name: 'Node inspector' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Preparing explanation…')).not.toBeInTheDocument();
+  expect(mockEditor.zoomToBounds).not.toHaveBeenCalled();
+  window.removeEventListener('tensorviz-agent-compose', compose);
+});
+
+it('labels clearing the selection instead of showing an unexplained cross', () => {
+  graphNodes.set([node('fc', 'projection')]); mockFocus = { ...mockFocus, active: true, selected: ['fc'] };
+  render(<GraphFocusOverlay />);
+  fireEvent.click(screen.getByRole('button', { name: 'More node actions' }));
+  const clear = screen.getByRole('button', { name: 'Clear selection' });
+  expect(clear).toHaveTextContent('Clear selection');
+  fireEvent.click(clear);
+  expect(mockEditor.selectNone).toHaveBeenCalledTimes(1);
+});
+
+it('reveals an explicitly clicked connected node in the graph while keeping desktop inspection open', () => {
+  const source = node('source', 'Source'), peer = node('peer', 'Destination');
+  graphNodes.set([source, peer]); mockFocus = { ...mockFocus, active: true, selected: ['source'] };
+  mockEditor.getShape.mockReturnValue({ id: nodeIdToShapeId('peer') });
+  jest.spyOn(require('../../canvas/NodeUnderstanding'), 'NodeUnderstanding').mockImplementation(({ onNavigate }: any) =>
+    <button onClick={() => onNavigate('peer')}>Show destination in graph</button>);
+  render(<GraphFocusOverlay />);
+  fireEvent.click(screen.getByRole('button', { name: 'Inspect' }));
+  expect(mockEditor.zoomToBounds).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Show destination in graph' }));
+  expect(mockEditor.select).toHaveBeenCalledWith(nodeIdToShapeId('peer'));
+  expect(mockEditor.zoomToBounds).toHaveBeenCalledWith({ x: 0, y: 0, w: 200, h: 100 },
+    expect.objectContaining({ targetZoom: 1 }));
+  expect(screen.getByRole('complementary', { name: 'Node inspector' })).toBeVisible();
+});
+
+it('returns to the graph before revealing a connected node in a narrow inspector', () => {
+  graphNodes.set([node('source', 'Source'), node('peer', 'Destination')]);
+  mockFocus = { ...mockFocus, active: true, selected: ['source'] };
+  const host = document.createElement('div'); host.className = 'tldraw-canvas-wrapper'; document.body.appendChild(host);
+  jest.spyOn(host, 'getBoundingClientRect').mockReturnValue({ width: 480 } as DOMRect);
+  mockEditor.getContainer.mockReturnValue(host);
+  mockEditor.getShape.mockReturnValue({ id: nodeIdToShapeId('peer') });
+  let frame: FrameRequestCallback | undefined;
+  jest.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { frame = callback; return 1; });
+  jest.spyOn(require('../../canvas/NodeUnderstanding'), 'NodeUnderstanding').mockImplementation(({ onNavigate }: any) =>
+    <button onClick={() => onNavigate('peer')}>Show destination in graph</button>);
+  render(<GraphFocusOverlay />, { container: host });
+  fireEvent.click(screen.getByRole('button', { name: 'Inspect' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Show destination in graph' }));
+  expect(screen.queryByRole('complementary', { name: 'Node inspector' })).not.toBeInTheDocument();
+  expect(mockEditor.zoomToBounds).not.toHaveBeenCalled();
+  act(() => frame?.(0));
+  expect(mockEditor.zoomToBounds).toHaveBeenCalledTimes(1);
+});
+
+it('requires a separate Trace action and never changes the camera when revealing controls', () => {
+  graphNodes.set([node('fc', 'projection')]); mockFocus = { ...mockFocus, active: true, selected: ['fc'] };
+  render(<GraphFocusOverlay />);
+  expect(screen.queryByRole('group', { name: 'Trace direction' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Trace' }));
+  expect(screen.getByRole('group', { name: 'Trace direction' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Trace upstream inputs' }));
+  expect(require('../../canvas/graphFocus').setTraceDirection).toHaveBeenCalledWith(mockEditor, 'upstream');
+  expect(mockEditor.zoomToBounds).not.toHaveBeenCalled();
+});
+
+it('updates the open inspector but never carries an edit form to another selection', () => {
+  const first = node('fc', 'projection'), second = node('act', 'activation');
+  first.data.sourceLocation = { file: 'model.py', line: 4 }; first.data.parameters.out_features = 8;
+  second.data.sourceLocation = { file: 'model.py', line: 5 }; second.data.parameters.out_features = 16;
+  graphNodes.set([first, second]); mockFocus = { ...mockFocus, active: true, selected: ['fc'] };
+  const local = { page: {}, sourceEdits: { propose: jest.fn() } } as any;
+  const view = render(<LocalBrowserContext.Provider value={local}><GraphFocusOverlay /></LocalBrowserContext.Provider>);
+  fireEvent.click(screen.getByRole('button', { name: 'Inspect' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Edit source' }));
+  expect(screen.getByLabelText('out_features')).toHaveValue('8');
+  mockFocus = { ...mockFocus, selected: ['act'] };
+  view.rerender(<LocalBrowserContext.Provider value={local}><GraphFocusOverlay /></LocalBrowserContext.Provider>);
+  expect(screen.getByRole('complementary', { name: 'Node inspector' })).toHaveTextContent('activation');
+  expect(screen.queryByRole('region', { name: 'Edit model source' })).not.toBeInTheDocument();
+  expect(local.sourceEdits.propose).not.toHaveBeenCalled();
+});
+
+it('derives one label per render and reveals retained details only after inspection', () => {
   const first = node('same', 'first'); first.data.parameters.marker = 'first node';
   first.data.captureRef = { kind: 'operation', captureId: 'capture', semanticId: 'op', sourceId: 'source' } as any;
   const last = node('same', 'last'); last.data.parameters.marker = 'last node';
@@ -73,9 +191,14 @@ it('derives one selected-node label and reuses it for capture details, retaining
   const context = { captures: {}, page: { greyed: false, syncState: 'ready' } } as any;
   render(<LocalBrowserContext.Provider value={context}><GraphFocusOverlay /></LocalBrowserContext.Provider>);
   expect(get).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('toolbar', { name: 'Node actions: last' })).toBeVisible();
+  expect(screen.queryByTestId('capture-label')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Inspect' }));
   expect(screen.getByTestId('selected-node')).toHaveTextContent('first node');
+  expect(screen.queryByTestId('capture-label')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Captured calls & tensors' }));
   expect(screen.getByTestId('capture-label')).toHaveTextContent('last');
-  expect(within(screen.getByRole('region', { name: 'Connection focus' })).getAllByText(() => true, { selector: 'strong' })[0].textContent).toBe('last');
+  expect(get).toHaveBeenCalledTimes(2);
 });
 
 it('preserves custom-title and ATen label precedence and performs only two selected-edge lookups', () => {
@@ -90,21 +213,47 @@ it('preserves custom-title and ATen label precedence and performs only two selec
   expect(get).toHaveBeenCalledTimes(1); // Custom title short-circuits the operation label.
 });
 
-it('does no label lookup for multi-selection and preserves missing-ID and empty-string fallbacks', () => {
+it('does no label lookup for multi-selection and omits unavailable connection identities', () => {
   graphNodes.set([node('empty', '')]); mockFocus = { ...mockFocus, active: true, selected: ['a', 'b'] };
   const get = spyLookup(); const view = render(<GraphFocusOverlay />);
-  expect(screen.getByText('2 layers')).toBeInTheDocument(); expect(get).not.toHaveBeenCalled();
+  expect(screen.getByText('2 selected')).toBeInTheDocument(); expect(get).not.toHaveBeenCalled();
   mockFocus = { ...mockFocus, active: false }; mockEdges.set('edge', { source: 'empty', target: 'missing' }); selectedEdgeId.set('edge');
   view.rerender(<GraphFocusOverlay />);
-  expect(within(screen.getByRole('region', { name: 'Selected connection' })).getAllByText(() => true, { selector: 'strong' })[0].textContent).toBe(' → missing');
+  expect(within(screen.getByRole('region', { name: 'Selected connection' })).queryByText('missing')).not.toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Selected connection' })).not.toHaveTextContent('→');
   expect(get).toHaveBeenCalledTimes(1); // The missing node needs no derived label.
 });
 
 it('reads changed data at the same IDs and removed IDs on the next render', () => {
   graphNodes.set([node('a', 'Old')]); mockFocus = { ...mockFocus, active: true, selected: ['a'] };
-  const view = render(<GraphFocusOverlay />); expect(screen.getByText('Old')).toBeInTheDocument();
-  graphNodes.set([node('a', 'New')]); view.rerender(<GraphFocusOverlay />); expect(screen.getByText('New')).toBeInTheDocument();
-  graphNodes.set([]); view.rerender(<GraphFocusOverlay />); expect(screen.getByText('a')).toBeInTheDocument();
+  const view = render(<GraphFocusOverlay />); expect(screen.getByRole('toolbar', { name: 'Node actions: Old' })).toBeInTheDocument();
+  graphNodes.set([node('a', 'New')]); view.rerender(<GraphFocusOverlay />); expect(screen.getByRole('toolbar', { name: 'Node actions: New' })).toBeInTheDocument();
+  graphNodes.set([]); view.rerender(<GraphFocusOverlay />); expect(screen.queryByText('a')).not.toBeInTheDocument();
+});
+
+it('inspects a displayed boundary using its recorded scene data without adding model authority', () => {
+  const id = 'focus-boundary:%5B%22invocation%3Aprivate-id%22%5D';
+  const boundary = node(id, 'From activation', { type: 'inputNode' });
+  boundary.data.focusBoundary = { direction: 'in', externalNodeId: 'activation' };
+  boundary.data.layerType = { ...boundary.data.layerType, id: 'input', name: 'input' };
+  boundary.data.parameters.marker = 'Recorded boundary';
+  graphSceneNodes.set([boundary]);
+  mockFocus = { ...mockFocus, active: true, selected: [id] };
+  render(<GraphFocusOverlay />);
+  expect(screen.getByRole('toolbar', { name: 'Node actions: From activation' })).toBeVisible();
+  expect(screen.queryByText(id)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Inspect' }));
+  expect(screen.getByRole('complementary', { name: 'Node inspector' })).toHaveTextContent('From activation');
+  expect(screen.queryByRole('button', { name: 'Edit source' })).not.toBeInTheDocument();
+  expect(graphNodes.get()).toEqual([]);
+});
+
+it('never substitutes a missing boundary ID for its selection title', () => {
+  const id = 'focus-boundary:%5B%22invocation%3Aprivate-id%22%5D';
+  mockFocus = { ...mockFocus, active: true, selected: [id] };
+  render(<GraphFocusOverlay />);
+  expect(screen.queryByText(id)).not.toBeInTheDocument();
+  expect(screen.getByRole('toolbar', { name: 'Node actions' })).not.toHaveTextContent('Input 1');
 });
 
 it('limits search label lookups to eight groups and three inner hits, includes hidden nodes and retains click behavior', () => {
@@ -161,9 +310,11 @@ it('preserves an empty selected caption in local capture details without substit
   const get = spyLookup();
   const context = { captures: {}, page: { greyed: false, syncState: 'ready' } } as any;
   render(<LocalBrowserContext.Provider value={context}><GraphFocusOverlay /></LocalBrowserContext.Provider>);
-  expect(within(screen.getByRole('region', { name: 'Connection focus' })).getAllByText(() => true, { selector: 'strong' })[0].textContent).toBe('');
-  expect(screen.getByTestId('capture-label').textContent).toBe('');
+  expect(screen.getByRole('toolbar', { name: 'Node actions' })).toBeVisible();
   expect(get).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Captured calls & tensors' }));
+  expect(screen.getByTestId('capture-label').textContent).toBe('');
+  expect(get).toHaveBeenCalledTimes(2);
 });
 
 it('refreshes displayed query labels after graph replacement and clear', () => {
@@ -209,6 +360,7 @@ function focusedSqueezeExcitation() {
   const shapes = new Map(scene.nodes.map(item => [nodeIdToShapeId(item.id), { props: { nodeData: item.data } }]));
   mockEditor.getShape.mockImplementation((id: string) => shapes.get(id as any));
   graphNodes.set(nodes);
+  graphSceneNodes.set(scene.nodes);
   const boundary = (direction: 'in' | 'out') => scene.nodes.find(item => item.data.focusBoundary?.direction === direction)!;
   return { inbound: boundary('in'), outbound: boundary('out') };
 }
@@ -218,14 +370,19 @@ it('labels a selected module-focus boundary card by its card, never its internal
   expect(inbound.id).toMatch(/^focus-boundary:/);
   mockFocus = { ...mockFocus, active: true, selected: [inbound.id], edgeIds: new Set(['a>c']) };
   render(<GraphFocusOverlay />);
-  const caption = screen.getByRole('region', { name: 'Connection focus' });
-  expect(within(caption).getAllByText(() => true, { selector: 'strong' })[0].textContent).toBe('From activation');
-  expect(within(caption).getByText('1 connection')).toBeInTheDocument();
+  const toolbar = screen.getByRole('toolbar', { name: 'Node actions: From activation' });
+  fireEvent.click(within(toolbar).getByRole('button', { name: 'Trace' }));
+  expect(screen.getByText('1 connection')).toBeInTheDocument();
+  fireEvent.click(within(toolbar).getByRole('button', { name: 'Inspect' }));
+  expect(screen.getByRole('heading', { name: 'From activation' })).toBeInTheDocument();
+  expect(graphNodes.get().some(item => item.id === inbound.id)).toBe(false);
   expect(document.body.textContent).not.toContain('focus-boundary');
 });
 
 it('labels a selected connection that crosses the focused module boundary', () => {
   const { inbound, outbound } = focusedSqueezeExcitation();
+  // Keep #106's editor-card fallback covered independently of the scene index.
+  graphSceneNodes.set([]);
   mockEdges.set('in', { source: inbound.id, target: 'se.expand' });
   mockEdges.set('out', { source: 'se.expand', target: outbound.id });
   selectedEdgeId.set('in');
@@ -240,5 +397,6 @@ it('counts one connection in the singular and several in the plural', () => {
   graphNodes.set([node('a', 'A')]);
   mockFocus = { ...mockFocus, active: true, selected: ['a'], edgeIds: new Set(['e1', 'e2']) };
   render(<GraphFocusOverlay />);
+  fireEvent.click(screen.getByRole('button', { name: 'Trace' }));
   expect(screen.getByText('2 connections')).toBeInTheDocument();
 });

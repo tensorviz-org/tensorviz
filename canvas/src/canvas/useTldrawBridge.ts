@@ -25,7 +25,7 @@ import { portSides } from './portLayout';
 import { localBrowserMode } from '../ide/projection';
 import { nodeIdToShapeId, edgeIdToShapeId } from './canvasShapeId';
 import { updateFocusConnections } from './graphFocus';
-import { graphEdges, graphNodes } from './graphQueryState';
+import { graphEdges, graphNodes, graphSceneNodes } from './graphQueryState';
 import { graphIsReadOnly } from './graphAccess';
 import { NodeExplanationContext } from './NodeExplanationContext';
 import { explainedGraphPresentation } from './nodeExplanationPresentation';
@@ -120,7 +120,10 @@ export function useTldrawBridge({
   const nodes = presentation.nodes;
   const offsets = useRef(presentation.offsets); offsets.current = presentation.offsets;
   const synced = useRef(onNodesSynced); synced.current = onNodesSynced;
-  useEffect(() => { graphNodes.set(queryNodes ?? sourceNodes); }, [sourceNodes, queryNodes]);
+  useEffect(() => {
+    graphNodes.set(queryNodes ?? sourceNodes);
+    graphSceneNodes.set(sourceNodes);
+  }, [sourceNodes, queryNodes]);
   useEffect(() => { graphEdges.set(edges); }, [edges]);
   const editorRef = useRef<Editor | null>(null);
   const pendingFocusNodeRef = useRef<string | null>(null);

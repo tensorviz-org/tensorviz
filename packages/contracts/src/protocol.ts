@@ -461,6 +461,19 @@ export type LocalBrowserGraphPublishResultMessage = LocalBrowserEnvelope<'graphP
   graph: LocalBrowserPublishedGraph | null;
 };
 
+/** Send feedback from the view's feedback button to the tensorViz team. The view sends the
+ *  member's words, and the open model's class and block count only when they include it;
+ *  the host adds its version and operating system, hides local paths and posts it. */
+export const LOCAL_BROWSER_FEEDBACK_MAX_LENGTH = 4000;
+export type LocalBrowserFeedbackKind = 'bug' | 'idea' | 'other';
+export type LocalBrowserFeedbackRequestMessage = LocalBrowserEnvelope<'feedbackRequest'> & {
+  requestId: string; kind: LocalBrowserFeedbackKind; message: string;
+  graph: { model: string; nodes: number } | null;
+};
+export type LocalBrowserFeedbackResultMessage = LocalBrowserEnvelope<'feedbackResult'> & {
+  requestId: string; status: 'sent' | 'failed'; detail: string;
+};
+
 export type SourceEditValue = string | number | boolean | null | SourceEditValue[];
 export type LocalBrowserSourceEdit =
   | (CapturedSourceEdit & { nodeId: string })
@@ -1072,6 +1085,8 @@ export type LocalBrowserMessage =
   | LocalBrowserGraphPublishCancelMessage
   | LocalBrowserGraphPublishStateMessage
   | LocalBrowserGraphPublishResultMessage
+  | LocalBrowserFeedbackRequestMessage
+  | LocalBrowserFeedbackResultMessage
   | LocalBrowserCaptureInspectRequestMessage
   | LocalBrowserCaptureInspectCancelMessage
   | LocalBrowserCaptureInspectResultMessage
@@ -1117,6 +1132,7 @@ export const LOCAL_BROWSER_MESSAGE_TYPES = [
   'graphOpening', 'graphSetupRequest',
   'captureExportRequest', 'captureExportCancel', 'captureExportResult',
   'graphPublishRequest', 'graphPublishCancel', 'graphPublishState', 'graphPublishResult',
+  'feedbackRequest', 'feedbackResult',
   'captureInspectRequest', 'captureInspectCancel', 'captureInspectResult',
   'viewState', 'viewSelection', 'focusView', 'viewFocusResult',
   'connected',
@@ -2196,6 +2212,17 @@ export function isLocalBrowserMessage(
         && isBoundedString(record.requestId, LOCAL_BROWSER_REQUEST_ID_MAX_LENGTH) && isBoundedString(record.detail, 512)
         && (record.status === 'published' ? isLocalBrowserPublishedGraph(record.graph)
           : (record.status === 'failed' || record.status === 'cancelled') && record.graph === null);
+    case 'feedbackRequest': {
+      const graph = record.graph as Record<string, unknown> | null;
+      return Object.keys(record).length === 8 && isBoundedString(record.requestId, LOCAL_BROWSER_REQUEST_ID_MAX_LENGTH)
+        && (record.kind === 'bug' || record.kind === 'idea' || record.kind === 'other')
+        && isBoundedString(record.message, LOCAL_BROWSER_FEEDBACK_MAX_LENGTH)
+        && (graph === null || (typeof graph === 'object' && !Array.isArray(graph) && Object.keys(graph).length === 2
+          && isBoundedString(graph.model, 128) && /^[A-Za-z_]\w*$/.test(graph.model) && isNonNegativeInteger(graph.nodes)));
+    }
+    case 'feedbackResult':
+      return Object.keys(record).length === 7 && isBoundedString(record.requestId, LOCAL_BROWSER_REQUEST_ID_MAX_LENGTH)
+        && (record.status === 'sent' || record.status === 'failed') && isBoundedString(record.detail, 512);
     case 'captureInspectRequest':
       return Object.keys(record).length === 7 && isLocalBrowserTarget(record.target)
         && isBoundedString(record.requestId, 128) && isCaptureInspectionQuery(record.query);

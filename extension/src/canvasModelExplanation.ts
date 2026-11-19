@@ -17,13 +17,15 @@ export interface CanvasModelExplanationOptions extends Pick<CanvasNodeExplanatio
   refusal?(request: LocalBrowserModelExplanationRequest): { ref: ModelRef; detail: string } | undefined;
   prepare(request: LocalBrowserModelExplanationRequest, nodeId: string, signal: AbortSignal): Promise<{ context: unknown; source: { file: string; startLine: number } }>;
   publish(viewId: string, target: LocalBrowserTargetIdentity, state: ModelExplanationState): void;
-  publishNode(viewId: string, target: LocalBrowserTargetIdentity, state: NodeExplanationState): void;
+  /** Every verified job receives a receipt; only authoritative results may be adopted by selection. */
+  publishNode(viewId: string, target: LocalBrowserTargetIdentity, state: NodeExplanationState, authoritative?: boolean): void;
   documentation?(request: LocalBrowserModelExplanationRequest, nodeId: string, signal: AbortSignal): Promise<NodeSourceDocumentation | undefined>;
   changed(): void;
   /** Bounded batch deadline, injectable by deterministic host tests. */
   timeoutMs?: number;
 }
 interface Run {
+  generation: number;
   request: LocalBrowserModelExplanationRequest; ref: ModelRef; route: CanvasAgentRoute;
   controller: AbortController; preparingRoute: boolean; state: ModelExplanationState; documentation: Map<string, NodeSourceDocumentation>; ready: Map<string, NodeExplanation>;
   scope?: ModelExplanationScope;
@@ -120,13 +122,27 @@ export function modelExplanationScope(model: McpModel, nodeIds: readonly string[
 
 /** Explicit graph enrichment, with presentation-only authority and revision-scoped results. */
 export class CanvasModelExplanation {
-  private active?: Run;
+  private readonly runs = new Map<string, Run>();
+  private readonly seen = new Set<string>();
+  private generation = 0;
+  // Retain ownership after completion/cancellation so late older jobs never
+  // reclaim a node. View-local publication and shared caches have distinct owners.
+  private readonly owners = new Map<string, number>();
   private disposed = false;
-  private running: Promise<void> = Promise.resolve();
   private readonly cache = new Map<string, NodeExplanation>();
   private readonly viewCache = new Map<string, ViewExplanation>();
   constructor(private readonly options: CanvasModelExplanationOptions) {}
-  get busy(): boolean { return !!this.active; }
+  get busy(): boolean { return this.runs.size > 0; }
+  private requestKey(request: LocalBrowserModelExplanationRequest): string {
+    return JSON.stringify([request.viewId, targetKey(request.target), request.requestId]);
+  }
+  private owns(run: Run): boolean { return this.runs.get(this.requestKey(run.request)) === run; }
+  private ownershipKey(run: Run, nodeId?: string, viewId?: string): string {
+    return JSON.stringify([run.request.target, run.ref, nodeId ?? [...run.request.nodeIds].sort(), viewId]);
+  }
+  private latest(run: Run, nodeId?: string, viewId?: string): boolean {
+    return this.owners.get(this.ownershipKey(run, nodeId, viewId)) === run.generation;
+  }
   cached(selection: LocalBrowserViewSelectionMessage, ref: ModelRef, route: CanvasAgentRoute): NodeExplanation | undefined {
     return this.cache.get(this.key(selection.target, ref, selection.nodeIds[0], route));
   }
@@ -136,64 +152,69 @@ export class CanvasModelExplanation {
   private viewKey(run: Run): string { return this.key(run.request.target, run.ref, JSON.stringify([...run.request.nodeIds].sort()), run.route); }
   private current(run: Run): boolean {
     const route = this.options.route(run.request.settings);
-    return !this.disposed && this.active === run && !run.controller.signal.aborted && !route.busy
+    return !this.disposed && this.owns(run) && !run.controller.signal.aborted && !route.busy
       && (run.preparingRoute ? route.provider === run.route.provider : route.ready && routeKey(route) === routeKey(run.route))
       && this.options.current(run.request, run.ref.revision);
   }
   private check(batch: Batch): void { if (!this.current(batch.run)) throw new GraphToolError('STALE_TARGET', 'The model, source or agent changed.'); }
   private publish(run: Run): void { this.options.publish(run.request.viewId, run.request.target, structuredClone(run.state)); }
-  private stop(detail: string, status: 'cancelled' | 'unavailable' = 'cancelled'): void {
-    const run = this.active; if (!run) return;
-    run.state = { ...run.state, status, detail }; run.controller.abort(); this.active = undefined; this.publish(run); this.options.changed();
+  private stop(run: Run, detail: string, status: 'cancelled' | 'unavailable' = 'cancelled'): void {
+    if (!this.owns(run)) return;
+    run.state = { ...run.state, status, detail }; this.runs.delete(this.requestKey(run.request)); run.controller.abort(); this.publish(run); this.options.changed();
   }
-  invalidate(): void { this.stop('The graph changed. Explain the current model to continue.'); }
-  disconnect(viewId: string): void { if (this.active?.request.viewId === viewId) this.stop('The graph view disconnected.'); }
-  refresh(): void { if (this.active && !this.current(this.active)) this.stop('The model or agent changed. Explain again when the agent is available.', 'unavailable'); }
-  dispose(): void { this.stop('The graph closed.'); this.disposed = true; this.cache.clear(); this.viewCache.clear(); }
+  invalidate(): void { for (const run of this.runs.values()) this.stop(run, 'The graph changed. Explain the current model to continue.'); }
+  disconnect(viewId: string): void { for (const run of this.runs.values()) if (run.request.viewId === viewId) this.stop(run, 'The graph view disconnected.'); }
+  refresh(): void { for (const run of this.runs.values()) if (!this.current(run)) this.stop(run, 'The model or agent changed. Explain again when the agent is available.', 'unavailable'); }
+  dispose(): void { for (const run of this.runs.values()) this.stop(run, 'The graph closed.'); this.disposed = true; this.cache.clear(); this.viewCache.clear(); this.owners.clear(); this.seen.clear(); }
   request(request: LocalBrowserModelExplanationRequest): void {
     if (this.disposed) return;
     if (request.action === 'cancel') {
-      const run = this.active;
-      if (run && run.request.requestId === request.requestId && run.request.viewId === request.viewId && targetKey(run.request.target) === targetKey(request.target)) this.stop('Explanation stopped. Completed nodes remain available.');
+      const run = this.runs.get(this.requestKey(request));
+      if (run) this.stop(run, 'Explanation stopped. Completed nodes remain available.');
       return;
     }
-    if (this.active?.request.requestId === request.requestId && this.active.request.viewId === request.viewId && targetKey(this.active.request.target) === targetKey(request.target)) return;
+    if (this.seen.has(this.requestKey(request))) return;
     if (!request.nodeIds.length || request.nodeIds.length > 128 || new Set(request.nodeIds).size !== request.nodeIds.length) return;
     if (!this.options.current(request)) { this.refuse(request); return; }
-    this.stop('A new explanation started.');
+
     let ref: ModelRef, scope: ModelExplanationScope | undefined;
     try {
       ref = this.options.reference(request); scope = this.options.scope?.(request);
       if (scope && request.nodeIds.some(id => !scope!.nodes.some(node => node.nodeId === id))) throw new Error('The displayed graph changed.');
     } catch { this.refuse(request); return; }
+    this.seen.add(this.requestKey(request));
     const route = this.options.route(request.settings);
-    const run: Run = { request: structuredClone(request), ref, scope, route, controller: new AbortController(), preparingRoute: !!this.options.prepareRoute,
+    const run: Run = { generation: ++this.generation, request: structuredClone(request), ref, scope, route, controller: new AbortController(), preparingRoute: !!this.options.prepareRoute,
       documentation: new Map(), ready: new Map(), state: { requestId: request.requestId, revision: ref.revision, status: 'loading', completed: 0, total: request.nodeIds.length,
         ...(route.ready ? { execution: execution(route) } : {}),
         ...(!route.ready && this.options.prepareRoute ? { detail: 'Connecting to agent…' } : {}) } };
     if ((!route.ready && !this.options.prepareRoute) || route.busy) {
       run.state.status = 'unavailable'; run.state.detail = route.busy ? 'The agent is busy. Explain when its current task finishes.' : route.detail ?? 'Connect an agent in chat, then explain this model.'; this.publish(run); return;
     }
-    this.active = run; this.publish(run); this.options.changed();
-    const previous = this.running;
-    this.running = (async () => { await previous; if (this.current(run)) await this.start(run); else if (this.active === run) this.refresh(); })().catch(() => {});
+    for (const nodeId of run.request.nodeIds) {
+      this.owners.set(this.ownershipKey(run, nodeId), run.generation);
+      this.owners.set(this.ownershipKey(run, nodeId, run.request.viewId), run.generation);
+    }
+    this.owners.set(this.ownershipKey(run), run.generation);
+    this.runs.set(this.requestKey(request), run); this.publish(run); this.options.changed();
+    void this.start(run).catch(() => { this.stop(run, 'The agent could not finish the explanation.', 'unavailable'); });
   }
   private async start(run: Run): Promise<void> {
     if (this.options.prepareRoute) {
-      const timeout = setTimeout(() => { if (this.active === run) this.stop('The configured agent did not finish connecting. Check its sign-in and try again.', 'unavailable'); }, 45000);
+      const timeout = setTimeout(() => this.stop(run, 'The configured agent did not finish connecting. Check its sign-in and try again.', 'unavailable'), 45000);
       try {
         const route = await explanationAbortable(this.options.prepareRoute(run.controller.signal, run.request.settings), run.controller.signal);
-        if (!this.current(run)) { if (this.active === run) this.refresh(); return; }
+        if (!this.current(run)) { if (this.owns(run)) this.refresh(); return; }
         run.route = route; run.preparingRoute = false;
-        if (!route.ready || route.busy) { this.stop(route.detail ?? 'Check the configured agent connection, then explain again.', 'unavailable'); return; }
+        if (!route.ready || route.busy) { this.stop(run, route.detail ?? 'Check the configured agent connection, then explain again.', 'unavailable'); return; }
         run.state = { ...run.state, execution: execution(route), detail: 'Reading model components…' }; this.publish(run);
       } catch {
-        if (this.active === run) this.stop('The configured agent could not connect. Check its sign-in and try again.', 'unavailable');
+        this.stop(run, 'The configured agent could not connect. Check its sign-in and try again.', 'unavailable');
         return;
       } finally { clearTimeout(timeout); }
     }
     if (this.current(run)) await this.explain(run);
-    else if (this.active === run) this.refresh();
+    else if (this.owns(run)) this.refresh();
   }
   private refuse(request: LocalBrowserModelExplanationRequest): void {
     const refusal = this.options.refusal?.(request);
@@ -347,7 +368,8 @@ export class CanvasModelExplanation {
     return tools;
   }
   private node(run: Run, nodeId: string, explanation: NodeExplanation): void {
-    this.options.publishNode(run.request.viewId, run.request.target, { requestId: run.request.requestId, nodeId, revision: run.ref.revision, status: 'ready', explanation: structuredClone(explanation), ...(run.documentation.has(nodeId) ? { documentation: structuredClone(run.documentation.get(nodeId)!) } : {}) });
+    // Completion belongs to the job even when a newer pass owns visible/cache authority.
+    this.options.publishNode(run.request.viewId, run.request.target, { requestId: run.request.requestId, nodeId, revision: run.ref.revision, status: 'ready', explanation: structuredClone(explanation), ...(run.documentation.has(nodeId) ? { documentation: structuredClone(run.documentation.get(nodeId)!) } : {}) }, this.latest(run, nodeId, run.request.viewId));
     if (!run.ready.has(nodeId)) run.state.completed++;
     run.ready.set(nodeId, structuredClone(explanation)); this.publish(run);
   }
@@ -363,7 +385,7 @@ export class CanvasModelExplanation {
         }
         const batch: Batch = { run, scope: run.scope, nodeIds: new Set(), evidence: new Map(), reads: 0, bytes: 0, results: new Map(), exposed: new Set(), submitted: false, submissionAttempted: false };
         let runtime: ReturnType<CanvasModelExplanationOptions['runtime']> | undefined;
-        const timer = setTimeout(() => { if (this.active === run) this.stop('Explanation timed out. Completed nodes remain available; retry to continue.', 'unavailable'); }, this.options.timeoutMs ?? 60000);
+        const timer = setTimeout(() => this.stop(run, 'Explanation timed out. Completed nodes remain available; retry to continue.', 'unavailable'), this.options.timeoutMs ?? 60000);
         let stage: 'source' | 'provider' | 'validation' = 'source';
         try {
           if (offset === 0) {
@@ -429,15 +451,17 @@ export class CanvasModelExplanation {
           runtime = this.options.runtime(owner => this.tools(batch, owner));
           stage = 'provider';
           await explanationAbortable(runtime.run({ provider: run.route.provider, settings: run.route.settings, intent: 'model_explanation', cwd: run.request.target.workspaceFolder,
-            conversationId: hash(JSON.stringify([run.ref, run.request.requestId, offset])), context: JSON.stringify(context),
+            conversationId: hash(JSON.stringify([run.ref, this.requestKey(run.request), run.generation, offset])), context: JSON.stringify(context),
             messages: [{ id: `${run.request.requestId}-${offset}`, role: 'user', text: 'Explain this visible view so its inputs, components, connections and outputs are understandable without opening a sidebar. Submit node explanations ONLY for batchNodeIds, the IDs in nodes. visibleNodeIds and view describe the full view for context; do not submit additional node explanations for them. Keep node steps focused, usually one or two. Label new connections touching this batch and add only useful new callouts; do not repeat viewProgress relationships or its summary. Submit the structured node explanations and source-backed view additions.' }] }, () => {}, run.controller.signal), run.controller.signal);
           this.check(batch); stage = 'validation';
           if (!batch.submitted || batch.results.size < batch.nodeIds.size) failures.add(batch.submissionAttempted && !batch.submitted ? 'invalid_submission' : 'no_submission');
           if (batch.view) { this.mergeView(run, batch.view); this.publish(run); }
           for (const [nodeId, explanation] of batch.results) {
             if (!await this.valid(batch, explanation)) { failures.add('source_changed'); continue; }
-            const key = this.key(run.request.target, run.ref, nodeId, run.route); this.cache.delete(key); this.cache.set(key, structuredClone(explanation));
-            while (this.cache.size > 256) this.cache.delete(this.cache.keys().next().value!);
+            if (this.latest(run, nodeId)) {
+              const key = this.key(run.request.target, run.ref, nodeId, run.route); this.cache.delete(key); this.cache.set(key, structuredClone(explanation));
+              while (this.cache.size > 256) this.cache.delete(this.cache.keys().next().value!);
+            }
             this.node(run, nodeId, explanation);
           }
         } catch (error) {
@@ -448,13 +472,13 @@ export class CanvasModelExplanation {
       }
       if (this.current(run)) {
         const partial = run.state.completed < run.state.total;
-        if (run.state.view) {
+        if (run.state.view && this.latest(run)) {
           const key = this.viewKey(run); this.viewCache.delete(key); this.viewCache.set(key, structuredClone(run.state.view));
           while (this.viewCache.size > 32) this.viewCache.delete(this.viewCache.keys().next().value!);
         }
         run.state = { ...run.state, status: partial ? 'unavailable' : 'ready', ...(partial ? { detail: `${run.state.completed} of ${run.state.total} nodes explained. ${[...failures].slice(0, 2).map(reason => FAILURE_DETAILS[reason]).join(' ') || FAILURE_DETAILS.no_submission} Retry to continue.` } : { detail: undefined }) };
-        this.active = undefined; this.publish(run); this.options.changed();
+        this.runs.delete(this.requestKey(run.request)); this.publish(run); this.options.changed();
       }
-    } finally { clearInterval(guard); if (this.active === run && !this.current(run)) this.stop('The model or agent changed. Completed nodes remain available.', 'unavailable'); }
+    } finally { clearInterval(guard); if (this.owns(run) && !this.current(run)) this.stop(run, 'The model or agent changed. Completed nodes remain available.', 'unavailable'); }
   }
 }

@@ -106,6 +106,7 @@ start a fresh request for the same file and class. That is different from
 | `inspect_applied_proposal` | Proposal id; read confirmed Apply, current source/save state and later capture effects without execution. |
 | `cancel_run` | Run id; cancels only the calling session’s validation. |
 | `inspect_nodes` | Model id/revision and node ids; parameters, source references, shape provenance and paginated connected edges. |
+| `send_feedback` | Plugin only. The user's message, `kind` (`bug`, `idea`, `other`) and optional `includeGraph`; sends feedback to the tensorViz team only after the user approves the exact report, in the client's confirmation form or by a second call with `confirmationId`. See [send feedback](share-to-website.md#send-feedback). |
 
 ### Show local changes in the graph
 

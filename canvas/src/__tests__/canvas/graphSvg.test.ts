@@ -113,6 +113,18 @@ describe('graphToSvg', () => {
     expect(Number(boundaryName.getAttribute('y'))).toBeGreaterThan(lastAnnotationY);
     expect(graphSvgBounds([node], options)[0].h).toBeGreaterThan(graphSvgBounds([node])[0].h);
   });
+  it('aligns exported AI title, purpose and interpreted values to the same text column', () => {
+    const node = layer('aligned', undefined, { x: 0, y: 0 });
+    const explanation = { title: 'Update tokens', purpose: 'Preserve sequence shape.', inputs: ['Token features'],
+      outputs: ['Updated features'], steps: [], uncertainties: [], citations: [] };
+    const document = svgDocument(graphToSvg([node], [], { annotationsVisible: true, explanationStates: {
+      aligned: { requestId: 'request', nodeId: 'aligned', revision: 'revision', status: 'ready', explanation },
+    } }));
+    const annotation = document.querySelector('[data-agent-interpretation]')!;
+    const content = Array.from(annotation.querySelectorAll('text')).filter(element => !['In', 'Out'].includes(element.textContent!));
+    expect(content).toHaveLength(4);
+    expect(new Set(content.map(element => element.getAttribute('x'))).size).toBe(1);
+  });
   it.each(['layerNode', 'inputNode', 'outputNode', 'moduleNode'])('exports %s with the same connection-only label and color', type => {
     const node = type === 'moduleNode' ? moduleNode('a') : { ...layer('a', undefined, { x: 0, y: 0 }), type };
     node.data = { ...node.data, diffStatus: 'rewired', review: { status: 'rewired', params: {}, inputChanges: { added: 1, removed: 1 } } };
@@ -333,6 +345,17 @@ describe('graphToSvg', () => {
     const svg = graphToSvg([moduleNode('m', undefined, { moduleStatus: 'warning' })], []);
     expect([stroke(glyphs(svg)[0]), tile(glyphs(svg)[0])]).toEqual(['#848d85', '#303230']);
     expect(svg).toContain('r="4" fill="#f5c778"');
+  });
+
+  it.each([':root {', ":root[data-tv-theme='light'] {"])('uses identical neutral IN/OUT row edges and fills in %s', selector => {
+    const css = require('fs').readFileSync(require('path').join(__dirname, '../../styles/canvas.tokens.css'), 'utf8') as string;
+    const start = css.indexOf(selector);
+    expect(start).toBeGreaterThanOrEqual(0);
+    const block = css.slice(start, css.indexOf('}', start));
+    const tokens = Object.fromEntries(Array.from(block.matchAll(/(--[\w-]+):\s*([^;]+);/g), match => [match[1], match[2].trim()]));
+    const resolve = (name: string): string => tokens[name].startsWith('var(') ? resolve(tokens[name].slice(4, -1)) : tokens[name];
+    expect(resolve('--tv-out-bar')).toBe(resolve('--tv-row-bar'));
+    expect(resolve('--tv-out-row')).toBe(resolve('--tv-row'));
   });
 
   it('keeps the exported family palette identical to the Canvas tokens', () => {

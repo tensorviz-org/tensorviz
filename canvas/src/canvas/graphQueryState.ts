@@ -15,6 +15,8 @@ import type { ModelEdge, ModelNode } from '../types';
 import { searchGraph, SearchResult } from './graphSearch';
 
 export const graphNodes = atom<readonly ModelNode[]>('graphNodes', []);
+/** The rendered scope includes presentation-only boundary cards, never model authority. */
+export const graphSceneNodes = atom<readonly ModelNode[]>('graphSceneNodes', []);
 /** Published with the nodes so the inspector can order a module's children by data flow. */
 export const graphEdges = atom<readonly ModelEdge[]>('graphEdges', []);
 export const graphSearchQuery = atom<string>('graphSearchQuery', '');

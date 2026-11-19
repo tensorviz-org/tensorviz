@@ -7,6 +7,7 @@ import type { LocalBrowserValidationEvidence } from './protocol.generated';
 import type { LocalBrowserCaptureClient } from './localBrowserCaptureClient';
 import type { LocalBrowserPortableClient } from './localBrowserPortableClient';
 import type { LocalBrowserPublishClient } from './localBrowserPublishClient';
+import type { LocalBrowserFeedbackClient } from './localBrowserFeedbackClient';
 
 export interface LocalBrowserContextValue {
   codeFocus?: {
@@ -24,6 +25,9 @@ export interface LocalBrowserContextValue {
   portableExports?: LocalBrowserPortableClient | null;
   /** Publish through the plugin host; absent where the editor or a file download publishes. */
   publishing?: LocalBrowserPublishClient | null;
+  /** Send feedback from the footer, beside the Canvas guide. `graph` is the open model's
+   *  class and block count, which the form offers to include. */
+  feedback?: { client: LocalBrowserFeedbackClient; graph: { model: string; nodes: number } | null } | null;
   navigation?: {
     header: HTMLDivElement | null;
     footer: HTMLDivElement | null;

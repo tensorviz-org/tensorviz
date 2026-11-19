@@ -5,6 +5,19 @@ describe('explanation reply watchdog', () => {
   beforeEach(() => { jest.useFakeTimers(); watchdog = new ExplanationWatchdog(); });
   afterEach(() => { watchdog.clear(); jest.useRealTimers(); });
 
+  it('retains every live request clock while passive selection receipts churn', () => {
+    const a = jest.fn(), b = jest.fn();
+    watchdog.observe('model:a', 'a', 'loading', { timeoutMs: 10, expire: a });
+    watchdog.observe('model:b', 'b', 'loading', { timeoutMs: 20, expire: b });
+    for (let i = 0; i < 300; i++) watchdog.observe(`node:${i}`, `selection-${i}`, 'unavailable');
+    jest.advanceTimersByTime(10);
+    expect(a).toHaveBeenCalledTimes(1);
+    expect(b).not.toHaveBeenCalled();
+    watchdog.observe('model:b', 'b', 'ready');
+    jest.advanceTimersByTime(20);
+    expect(b).not.toHaveBeenCalled();
+  });
+
   it('expires once and refuses late success or activity for the expired identity', () => {
     const expire = jest.fn();
     watchdog.observe('node:n', 'request', 'loading', { timeoutMs: 60, expire });
@@ -29,6 +42,30 @@ describe('explanation reply watchdog', () => {
     expect(watchdog.observe('node:n', 'request', 'loading', pending)).toBe(false);
     jest.advanceTimersByTime(60);
     expect(expire).not.toHaveBeenCalled();
+  });
+
+  it('accepts a cached node result after unavailable without reopening generation', () => {
+    const expire = jest.fn(), pending = { timeoutMs: 60, expire };
+    watchdog.observe('node:n', 'selection', 'unavailable');
+    expect(watchdog.observe('node:n', 'selection', 'queued', pending)).toBe(false);
+    expect(watchdog.observe('node:n', 'selection', 'loading', pending)).toBe(false);
+    expect(watchdog.observe('node:n', 'selection', 'ready')).toBe(true);
+    expect(watchdog.observe('node:n', 'selection', 'unavailable')).toBe(false);
+    jest.advanceTimersByTime(60);
+    expect(expire).not.toHaveBeenCalled();
+  });
+
+  it('keeps cancelled, interrupted, superseded and unavailable model receipts terminal', () => {
+    watchdog.observe('node:cancelled', 'selection', 'cancelled');
+    expect(watchdog.observe('node:cancelled', 'selection', 'ready')).toBe(false);
+    watchdog.observe('node:interrupted', 'selection', 'loading', { timeoutMs: 60, expire: jest.fn() });
+    watchdog.interrupt();
+    expect(watchdog.observe('node:interrupted', 'selection', 'ready')).toBe(false);
+    watchdog.observe('node:n', 'old', 'unavailable');
+    watchdog.observe('node:n', 'new', 'unavailable');
+    expect(watchdog.observe('node:n', 'old', 'ready')).toBe(false);
+    watchdog.observe('model', 'pass', 'unavailable');
+    expect(watchdog.observe('model', 'pass', 'ready')).toBe(false);
   });
 
   it('requires advancing model progress to renew an acknowledged run', () => {

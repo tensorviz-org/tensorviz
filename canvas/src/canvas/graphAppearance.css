@@ -313,7 +313,7 @@
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .ui2-node-value { font-weight: 500; font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--tv-text); }
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper .ui2-node-axis-hot { color: var(--tv-hot); font-weight: 700; font-style: normal; }
 
-/* Shape rows: label, mono value, dtype on the right; output rows carry the accent bar. */
+/* Shape rows share a neutral fill and edge; IN/OUT labels distinguish direction. */
 .tldraw-canvas-wrapper.tldraw-canvas-wrapper :is(.ui2-node-tensor-row, .operation-tensor-rows > div, .graph-shape-flow > span, .capture-boundary-row, .module-node .module-boundary-row) {
   border-left: 0; border-radius: 4px; background: var(--tv-row); box-shadow: inset 2px 0 0 var(--tv-row-bar);
 }

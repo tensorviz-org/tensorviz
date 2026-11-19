@@ -29,3 +29,11 @@
 .capture-details footer { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 20px 20px; border-top: 1px solid var(--tv-hairline); }
 .capture-details footer small { flex: 1; min-width: 200px; color: var(--tv-text-2); }
 .capture-details footer div { display: flex; gap: 8px; }
+.capture-details-inline { width: 100%; min-width: 0; max-height: none; box-sizing: border-box; margin-top: 10px; box-shadow: none; }
+.capture-details-inline .capture-details-content { max-height: none; }
+.capture-details-inline header { padding: 12px 12px 8px; gap: 8px; }
+.capture-details-inline nav, .capture-details-inline .capture-details-path { padding: 8px 12px; gap: 6px; }
+.capture-details-inline .capture-details-body { padding: 10px 12px; min-height: 0; }
+.capture-details-inline footer { padding: 10px 12px 12px; }
+.capture-details-inline footer small { min-width: 0; flex-basis: 100%; }
+.capture-details-inline footer div { flex-wrap: wrap; }

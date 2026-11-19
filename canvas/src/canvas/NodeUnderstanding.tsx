@@ -1,25 +1,34 @@
 import React from 'react';
-import { FileText, LoaderCircle, MessageCircle, Sparkles } from 'lucide-react';
+import { ArrowDownToLine, ArrowRight, ArrowUpFromLine, FileText, LoaderCircle } from 'lucide-react';
 import type { ModelEdge, ModelNode } from '../types';
-import type { NodeExplanationCitation, NodeExplanationState, NodeSourceDocumentation } from '../ide/nodeExplanation.generated';
+import type { ModelExplanationState, NodeExplanationCitation, NodeExplanationState, NodeSourceDocumentation } from '../ide/nodeExplanation.generated';
 import { sourceParameterValues } from '../ide/cardParams';
-import { LocalBrowserContext } from '../ide/localBrowserContext';
-import { NodeExplanationContext } from './NodeExplanationContext';
+import { NodeExplanationContext, sameNodeExplanationResult } from './NodeExplanationContext';
+import { NodeAIExplanation } from './NodeAIExplanation';
 import { nodeEvidenceLabel, nodeInputOutput, nodePresentation, sourceDocumentationSummary } from './nodePresentation';
 import { NodeSourceLink } from './NodeSourceControls';
 import { customCardModel } from './customCard';
 import { moduleContents } from '../services/modulePresentation';
+import { tensorEvidence } from './graphSemantics';
 import './nodeUnderstanding.css';
 
-function InputOutput({ inputs, outputs, label }: { inputs: string[]; outputs: string[]; label: string }) {
-  return <dl className="node-understanding-io" aria-label={label}>
-    <div><dt>In</dt><dd>{inputs.length ? inputs.join(' · ') : 'Not recorded'}</dd></div>
-    <span aria-hidden="true">→</span>
-    <div><dt>Out</dt><dd>{outputs.length ? outputs.join(' · ') : 'Not recorded'}</dd></div>
-  </dl>;
+function InputOutput({ inputs, outputs, label, description }: { inputs: string[]; outputs: string[]; label: string; description?: string }) {
+  const descriptionId = React.useId();
+  if (!inputs.length && !outputs.length) return null;
+  return <div className="node-understanding-io-group">
+    {description && <span className="node-understanding-attribution" id={descriptionId}>{description}</span>}
+    <dl className="node-understanding-io" aria-label={label} aria-describedby={description ? descriptionId : undefined}>
+      {inputs.length > 0 && <div><dt>Inputs</dt><dd>{inputs.join(' · ')}</dd></div>}
+      {inputs.length > 0 && outputs.length > 0 && <span aria-hidden="true">→</span>}
+      {outputs.length > 0 && <div><dt>Outputs</dt><dd>{outputs.join(' · ')}</dd></div>}
+    </dl>
+  </div>;
 }
 
 const format = (value: unknown): string => typeof value === 'string' ? value : JSON.stringify(value) ?? String(value);
+const wrappedCode = (value: string) => value.split(/([._])/).map((part, index) => <React.Fragment key={index}>
+  {part}{(part === '.' || part === '_') && <wbr />}
+</React.Fragment>);
 
 const DOCUMENTATION_REASONS: Record<Extract<NodeSourceDocumentation, { status: 'unavailable' }>['reason'], string> = {
   ambiguous: 'Several source definitions match this call.',
@@ -45,16 +54,27 @@ function sourceScrollKey(event: React.KeyboardEvent) {
 }
 
 /** A selected node's overview; interpretation and source/capture facts stay distinct. */
-export function NodeUnderstanding({ node, nodes = [], edges = [], onNavigate }: {
+export function NodeUnderstanding({ node, nodes = [], edges = [], onNavigate, detailsLabel = 'More details', hideActions = false }: {
   node: ModelNode;
   nodes?: readonly ModelNode[];
   edges?: readonly ModelEdge[];
   onNavigate?(nodeId: string): void;
+  detailsLabel?: string;
+  hideActions?: boolean;
+  /** Compatibility only: display attribution comes from verified context provenance. */
+  explanationExecution?: ModelExplanationState['execution'];
 }) {
   const context = React.useContext(NodeExplanationContext);
-  const local = React.useContext(LocalBrowserContext);
   const state = context?.states[node.id];
-  const explanation = state?.status === 'ready' ? state.explanation : undefined;
+  const retained = context?.annotations?.[node.id];
+  // Interpretation and current source documentation have independent request/citation identities.
+  const interpretationState = state?.status === 'ready' && state.explanation ? state
+    : retained?.status === 'ready' && retained.nodeId === node.id && (!state || retained.revision === state.revision) ? retained : undefined;
+  const explanation = interpretationState?.explanation;
+  const receipt = context?.verifiedResults?.[node.id];
+  // A pass summary (or an action prop) alone cannot attribute the visible reading.
+  const execution = receipt && (sameNodeExplanationResult(interpretationState, receipt.result)
+    || sameNodeExplanationResult(interpretationState, receipt.adoption)) ? receipt.execution : undefined;
   const documentation = state?.documentation;
   const source = documentation?.status === 'resolved' ? documentation : undefined;
   const sourceSummary = sourceDocumentationSummary(source?.docstring);
@@ -62,25 +82,46 @@ export function NodeUnderstanding({ node, nodes = [], edges = [], onNavigate }: 
   const custom = customCardModel(node.data.layerType?.id, node.data.parameters);
   const contents = node.type === 'moduleNode' ? moduleContents(node.data) : undefined;
   const io = nodeInputOutput(node.data);
+  const evidence = tensorEvidence(node.data);
+  const ioDescription = evidence === 'measured' ? 'Names · recorded shapes'
+    : evidence === 'inferred' ? 'Names · inferred shapes' : evidence === 'stale' ? 'Names · previous shapes'
+      : node.data.debugEvidence === 'source' || node.data.sourceLocation || facts.rawCall ? 'Source names' : 'Recorded names';
   const params = Object.entries(sourceParameterValues(node.data.parameters ?? {})).filter(([name]) => !name.startsWith('_'));
-  const loading = state?.status === 'queued' || state?.status === 'loading';
+  const loading = !hideActions && (state?.status === 'queued' || state?.status === 'loading');
   const connected = (direction: 'in' | 'out') => [...new Set(edges.filter(edge => direction === 'in'
     ? edge.target === node.id : edge.source === node.id).map(edge => direction === 'in' ? edge.source : edge.target))]
     .map(id => nodes.find(peer => peer.id === id)).filter((peer): peer is ModelNode => !!peer);
   const upstream = connected('in'), downstream = connected('out');
-  const peers = (items: ModelNode[]) => items.map(peer => {
-    const generated = context?.annotations?.[peer.id] ?? context?.states[peer.id];
-    const role = generated?.status === 'ready' ? generated.explanation?.title : undefined;
-    const identity = nodePresentation(peer.data, peer.id);
-    return <button type="button" key={peer.id} disabled={!onNavigate} onClick={() => onNavigate?.(peer.id)}>
-      {role && <span>{role}</span>}<code>{identity.callable || identity.title}</code>
+  const peers = (items: ModelNode[], direction: 'in' | 'out') => items.map(peer => {
+    // Wiring IDs never become a visible fallback identity.
+    const identity = nodePresentation(peer.data, '');
+    const params = peer.data.parameters;
+    // Keep each file paired with its own line; declaration and call-site evidence differ.
+    const location = [peer.data.sourceLocation,
+      { file: params?._source_file, line: params?._source_line ?? params?._lineno },
+      { file: params?._decl_file, line: params?._decl_line },
+    ].find(candidate => typeof candidate?.file === 'string' && candidate.file.trim()
+      && typeof candidate.line === 'number' && Number.isInteger(candidate.line) && candidate.line > 0);
+    const technical = [...new Set([identity.callable, identity.path].filter((value): value is string => !!value))];
+    return <button type="button" key={peer.id} className="node-understanding-connection" disabled={!onNavigate}
+      aria-label={`Show in graph: ${direction === 'in' ? 'Incoming from' : 'Outgoing to'} ${identity.path || identity.callable || identity.title}`}
+      title={identity.rawCall}
+      onClick={() => onNavigate?.(peer.id)}>
+      <span className="node-understanding-connection-body">
+        <span className="node-understanding-connection-title">{identity.title}</span>
+        {technical.filter(value => value !== identity.title).map(value => <code key={value}>{wrappedCode(value)}</code>)}
+        {location && <span className="node-understanding-connection-location">{`${location.file}:${location.line}`}</span>}
+      </span>
+      <ArrowRight size={12} className="node-understanding-connection-action" aria-hidden="true" />
     </button>;
   });
-  const unavailableNotice = state?.status === 'unavailable' && <div className="node-understanding-unavailable">
-    <span title={state.detail}>{state.detail || 'Explanation unavailable.'}</span>
-    {context && <button type="button" onClick={() => context.retry(state)}>Retry explanation</button>}
+  const unavailableNotice = !hideActions && state?.status === 'unavailable' && state.detail && <div className="node-understanding-unavailable">
+    <span title={state.detail}>{state.detail}</span>
+    {!hideActions && context && <button type="button" onClick={() => context.retry(state)}>Retry explanation</button>}
   </div>;
   return <div className="node-understanding" aria-label="About this node">
+    <NodeAIExplanation result={interpretationState} execution={execution}
+      onReveal={citationId => { if (interpretationState) context?.reveal(interpretationState, citationId); }} />
     <div className="node-understanding-evidence">
       <span>{nodeEvidenceLabel(node.data)}</span>
     </div>
@@ -89,30 +130,32 @@ export function NodeUnderstanding({ node, nodes = [], edges = [], onNavigate }: 
       <LoaderCircle size={13} className="node-understanding-loading" aria-hidden="true" />Reading component
     </span>}
     {facts.callable && facts.callable !== (explanation?.title ?? facts.title)
-      && <code className="node-understanding-callable" title={facts.callable}>{facts.callable}</code>}
+      && <code className="node-understanding-callable" title={facts.callable}>{wrappedCode(facts.callable)}</code>}
     <NodeSourceLink nodeId={node.id} data={node.data} />
-    {explanation ? <div className="node-understanding-interpretation">
-      <span className="node-understanding-attribution"><Sparkles size={12} aria-hidden="true" />Agent interpretation</span>
-      <p>{explanation.purpose}</p>
-      <InputOutput inputs={explanation.inputs} outputs={explanation.outputs} label="Interpreted inputs and outputs" />
-    </div> : <>
+    {!explanation && <>
       {sourceSummary && source && state ? <div className="node-source-documentation" aria-label="Source documentation overview">
         <span className="node-understanding-attribution"><FileText size={12} aria-hidden="true" />Source documentation</span>
         <p className="node-source-summary">{sourceSummary}</p>
         <DocumentationCitation state={state} citation={source.citation} compact />
       </div> : facts.purpose && <p className="node-understanding-reference" title="Layer reference">{facts.purpose}</p>}
-      <InputOutput {...io} label="Graph inputs and outputs" />
+      <InputOutput {...io} description={ioDescription} label="Graph inputs and outputs" />
     </>}
     {(upstream.length > 0 || downstream.length > 0) && <section className="node-understanding-connections" aria-label="Connected components">
       <span className="node-understanding-detail-label">Connected components · from graph</span>
       <div className="node-understanding-neighbors" aria-label="Upstream and downstream components">
-        {upstream.length > 0 && <div><span>Receives from</span>{peers(upstream)}</div>}
-        {downstream.length > 0 && <div><span>Provides to</span>{peers(downstream)}</div>}
+        {upstream.length > 0 && <section aria-label="Incoming connections">
+          <div className="node-understanding-flow-heading"><ArrowDownToLine size={14} aria-hidden="true" /><strong>Incoming</strong><span>To selected node</span></div>
+          {peers(upstream, 'in')}
+        </section>}
+        {downstream.length > 0 && <section aria-label="Outgoing connections">
+          <div className="node-understanding-flow-heading"><ArrowUpFromLine size={14} aria-hidden="true" /><strong>Outgoing</strong><span>From selected node</span></div>
+          {peers(downstream, 'out')}
+        </section>}
       </div>
     </section>}
     {!documentation && unavailableNotice}
     <details className="node-understanding-details" key={`${node.id}:${state?.revision ?? ''}`}>
-      <summary>More details</summary>
+      <summary>{detailsLabel}</summary>
       <div className="node-understanding-detail-body">
         {source && state && <section className="node-source-documentation" aria-label="Source documentation details">
           <span className="node-understanding-attribution"><FileText size={12} aria-hidden="true" />Source documentation</span>
@@ -131,12 +174,12 @@ export function NodeUnderstanding({ node, nodes = [], edges = [], onNavigate }: 
         </div>}
         <dl className="node-understanding-facts">
           <div><dt>Identity</dt><dd><code>{facts.callable || node.data.layerType.name}</code></dd></div>
-          {node.data.captureLabel && node.data.captureLabel !== facts.callable && !/^#?python@/.test(node.data.captureLabel)
-            && <div><dt>Graph path</dt><dd><code>{node.data.captureLabel}</code></dd></div>}
+          {facts.path && facts.path !== facts.callable
+            && <div><dt>Graph path</dt><dd><code>{facts.path}</code></dd></div>}
         </dl>
         {contents?.detail && <p>{contents.detail}</p>}
         {(facts.rawCall || custom?.snippet) && <div><span className="node-understanding-detail-label">Source call</span><pre>{facts.rawCall || custom?.snippet}</pre></div>}
-        {explanation && <div><span className="node-understanding-detail-label">Graph evidence</span><InputOutput {...io} label="Graph inputs and outputs" /></div>}
+        {explanation && (io.inputs.length > 0 || io.outputs.length > 0) && <div><span className="node-understanding-detail-label">Graph evidence</span><InputOutput {...io} description={ioDescription} label="Graph inputs and outputs" /></div>}
         {params.length > 0 && <section aria-label="Parameters">
           <span className="node-understanding-detail-label">Parameters · {params.length}</span>
           <div className="node-understanding-parameters" role="region" aria-label="Parameter values" tabIndex={0} onKeyDown={sourceScrollKey}>
@@ -153,27 +196,7 @@ export function NodeUnderstanding({ node, nodes = [], edges = [], onNavigate }: 
         {(['_act_stats', '_grad_stats'] as const).map((key, index) => node.data.parameters?.[key]
           ? <section key={key}><span className="node-understanding-detail-label">{index === 0 ? 'Activation' : 'Gradient'} statistics</span><pre>{format(node.data.parameters[key])}</pre></section> : null)}
         {documentation && unavailableNotice}
-        {explanation && state && <div className="node-understanding-interpretation">
-          <span className="node-understanding-attribution"><Sparkles size={12} aria-hidden="true" />Agent interpretation</span>
-          {explanation.steps.length > 0 && <ol aria-label="How it works">{explanation.steps.map((step, index) => <li key={index}>{step}</li>)}</ol>}
-          {!!explanation.concepts?.length && <section aria-label="Related concepts">
-            <span className="node-understanding-detail-label">Concepts · agent explanation</span>
-            {explanation.concepts.map((concept, index) => <details className="node-understanding-concept" key={index}>
-              <summary>{concept.term}</summary><p>{concept.explanation}</p>
-            </details>)}
-          </section>}
-          {explanation.uncertainties.length > 0 && <div><span className="node-understanding-detail-label">Uncertainties</span>
-            <ul>{explanation.uncertainties.map((uncertainty, index) => <li key={index}>{uncertainty}</li>)}</ul></div>}
-          <div className="node-understanding-sources" aria-label="Explanation sources">
-            {explanation.citations.map(citation => <button type="button" key={citation.id} title={`${citation.file}:${citation.startLine}–${citation.endLine}`}
-              onClick={() => context?.reveal(state, citation.id)}>{citation.file}:{citation.startLine}{citation.endLine !== citation.startLine ? `–${citation.endLine}` : ''}</button>)}
-          </div>
-        </div>}
       </div>
     </details>
-    {context && local?.sourceAction !== 'copy' && <button type="button" className="node-understanding-discuss" onClick={() => {
-      window.dispatchEvent(new CustomEvent('builder-command', { detail: { command: 'report-selection' } }));
-      window.dispatchEvent(new CustomEvent('tensorviz-agent-compose'));
-    }}><MessageCircle size={13} aria-hidden="true" />Discuss in chat</button>}
   </div>;
 }

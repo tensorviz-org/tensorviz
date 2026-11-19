@@ -60,9 +60,27 @@ suite('Source-only node explanations', () => {
     return tool.handler(z.object(tool.config.inputSchema).strict().parse(args), { signal: new AbortController().signal });
   }
 
-  test('a settled selection produces typed evidence without borrowing the user conversation', async () => {
-    const r = rig(); r.start(); await r.done();
-    assert.deepEqual(r.states.map(state => state.status), ['queued', 'loading', 'ready']);
+  test('selection and provider refresh never generate over the debounce while literal documentation remains available', async () => {
+    let prepared = 0, calls = 0;
+    const r = rig(undefined, { debounceMs: 5,
+      prepare: async () => { prepared++; throw new Error('Selection must not prepare generation.'); },
+      documentation: async () => { calls++; return documentation(); } });
+    r.start();
+    await until(() => r.states.at(-1)?.documentation?.status === 'resolved');
+    await new Promise(resolve => setTimeout(resolve, 15));
+    assert.equal(r.inputs.length, 0); assert.equal(prepared, 0);
+    assert.ok(r.states.every(state => state.status !== 'queued' && state.status !== 'loading'));
+    r.route = { ...r.route, provider: 'claude', ready: false }; r.service.refresh();
+    r.route = { ...r.route, ready: true }; r.service.refresh(); r.start();
+    await new Promise(resolve => setTimeout(resolve, 15));
+    assert.equal(r.inputs.length, 0); assert.equal(prepared, 0); assert.equal(calls, 1);
+    assert.deepEqual(r.states.at(-1)!.documentation, documentation());
+    await r.request('reveal', { citationId: 'documentation-fixture' }); assert.equal(r.reveals.length, 1);
+  });
+
+  test('explicit retry produces typed evidence without borrowing the user conversation', async () => {
+    const r = rig(); r.start(); await r.request('retry'); await r.done();
+    assert.deepEqual(r.states.map(state => state.status), ['unavailable', 'queued', 'loading', 'ready']);
     assert.ok(r.states.every(state => state.revision === hash('revision-one')));
     assert.equal(r.inputs[0].intent, 'node_explanation'); assert.equal(r.inputs[0].messages.length, 1);
     assert.equal(r.inputs[0].cwd, '/fixture'); assert.deepEqual(r.inputs[0].settings, r.route.settings);
@@ -70,10 +88,42 @@ suite('Source-only node explanations', () => {
     assert.deepEqual([...r.toolsets[0].keys()].sort(), ['query_source_context', 'read_model_source', 'submit_node_explanation']);
   });
 
+  test('ready source annotations survive provider changes without generation or pending statuses', async () => {
+    const r = rig(); r.start(); await r.request('retry'); await r.done();
+    const ready = structuredClone(r.states.at(-1)!); const count = r.states.length;
+    r.route = { ...r.route, provider: 'claude', ready: false }; r.service.refresh();
+    r.route = { ...r.route, ready: true, busy: true }; r.service.refresh();
+    r.route = { ...r.route, busy: false }; r.service.refresh();
+    await new Promise(resolve => setTimeout(resolve, 15));
+    assert.equal(r.inputs.length, 1); assert.deepEqual(r.states.at(-1)!.explanation, ready.explanation);
+    assert.ok(r.states.slice(count).every(state => state.status === 'ready'));
+    await r.request('reveal'); assert.equal(r.reveals.length, 1);
+  });
+
+  test('only matching active selection and request IDs authorize explicit retry', async () => {
+    const r = rig(undefined, { debounceMs: 5 }); r.start();
+    for (const changes of [{ requestId: 'stale' }, { viewId: 'other-view' }, { nodeId: 'other-node' },
+      { target: { ...r.selection.target, sourceDigest: hash('different source') } }]) await r.request('retry', changes);
+    await new Promise(resolve => setTimeout(resolve, 15)); assert.equal(r.inputs.length, 0);
+    await r.request('retry'); await r.done(); assert.equal(r.inputs.length, 1);
+    r.service.select({ ...r.selection, nodeIds: [] }); await r.request('retry');
+    await new Promise(resolve => setTimeout(resolve, 15)); assert.equal(r.inputs.length, 1);
+  });
+
+  test('a provider change cancels requested generation without restarting when availability returns', async () => {
+    const r = rig(async () => new Promise(() => {}), { debounceMs: 5 });
+    r.start(); await r.request('retry'); await until(() => r.inputs.length === 1);
+    r.route = { ...r.route, provider: 'claude', busy: true }; r.service.refresh();
+    await until(() => r.clears === 1); assert.equal(r.signals[0].aborted, true);
+    r.route = { ...r.route, busy: false }; r.service.refresh(); r.start();
+    await new Promise(resolve => setTimeout(resolve, 15)); assert.equal(r.inputs.length, 1);
+    assert.ok(!['queued', 'loading'].includes(r.states.at(-1)!.status));
+  });
+
   test('model-enriched interpretations are reusable and revealable while foreground work is busy', async () => {
     const explanation = { ...payload(), citations: [{ id: 'model-evidence', file: 'model.py', sourceDigest: hash(fixtureSource()), startLine: 1, endLine: 5 }] };
     const { citationIds, ...cached } = explanation;
-    const r = rig(undefined, { cached: () => cached }); r.route = { ...r.route, busy: true }; r.start(); await r.done();
+    const r = rig(undefined, { cached: () => cached }); r.route = { ...r.route, busy: true }; r.start(); await until(() => r.states.at(-1)?.status === 'ready');
     assert.equal(r.inputs.length, 0); assert.equal(r.states.at(-1)!.status, 'ready');
     assert.equal(r.states.at(-1)!.explanation!.title, 'Score candidates'); await r.request('reveal', { citationId: 'model-evidence' }); assert.equal(r.reveals.length, 1);
   });
@@ -126,12 +176,12 @@ suite('Source-only node explanations', () => {
 
   test('source documentation remains visible when generated interpretation fails or times out', async () => {
     const failed = rig(async () => { throw new Error('Provider unavailable'); }, { documentation: async () => documentation() });
-    failed.start(); await failed.done(); assert.deepEqual(failed.states.at(-1)!.documentation, documentation());
+    failed.start(); await failed.request('retry'); await failed.done(); assert.deepEqual(failed.states.at(-1)!.documentation, documentation());
     const original = global.setTimeout;
     global.setTimeout = ((handler: (...args: any[]) => void, delay?: number, ...args: any[]) => original(handler, delay === 45000 ? 8 : delay, ...args)) as typeof setTimeout;
     try {
       const timed = rig(async (_tools, _input, signal) => { await new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true })); }, { documentation: async () => documentation() });
-      timed.start(); await until(() => timed.clears === 1); assert.deepEqual(timed.states.at(-1)!.documentation, documentation());
+      timed.start(); await timed.request('retry'); await until(() => timed.clears === 1); assert.deepEqual(timed.states.at(-1)!.documentation, documentation());
       await timed.request('reveal', { citationId: 'documentation-fixture' }); assert.equal(timed.reveals.length, 1);
     } finally { global.setTimeout = original; }
   });
@@ -199,17 +249,17 @@ suite('Source-only node explanations', () => {
   });
 
   test('selection deduplicates active work and successful cache is reused after reselection', async () => {
-    const r = rig(); r.start(); r.start(); await r.done();
-    r.service.select({ ...r.selection, nodeIds: [] }); r.start(); await r.done();
+    const r = rig(); r.start(); await r.request('retry'); r.start(); await r.done();
+    r.service.select({ ...r.selection, nodeIds: [] }); r.start(); await until(() => r.states.at(-1)?.status === 'ready');
     assert.equal(r.inputs.length, 1); assert.equal(r.states.at(-1)!.status, 'ready');
   });
 
   test('model or full graph revision changes cannot reuse a previous explanation', async () => {
-    const r = rig(); r.start(); await r.done();
-    r.revision = hash('revision-two'); r.start(); await r.done(); assert.equal(r.inputs.length, 2);
+    const r = rig(); r.start(); await r.request('retry'); await r.done();
+    r.revision = hash('revision-two'); r.start(); await r.request('retry'); await r.done(); assert.equal(r.inputs.length, 2);
     assert.equal(r.states.at(-1)!.revision, hash('revision-two'));
-    r.route = { ...r.route, resolvedModel: 'other-model', settings: { model: 'other-model' } }; r.service.refresh(); await r.done();
-    assert.equal(r.inputs.length, 3);
+    r.route = { ...r.route, resolvedModel: 'other-model', settings: { model: 'other-model' } }; r.service.refresh();
+    await r.request('retry'); await r.done(); assert.equal(r.inputs.length, 3);
   });
 
   test('a helper outside the initial callsite window can be read and cited exactly', async () => {
@@ -218,7 +268,7 @@ suite('Source-only node explanations', () => {
       assert.equal(source.isError, undefined); assert.match((source.structuredContent as any).source, /def score/);
       const result = await call(tools, 'submit_node_explanation', payload([(source.structuredContent as any).citation.id])); assert.equal(result.isError, undefined);
     });
-    r.start(); await r.done(); assert.equal(r.states.at(-1)!.explanation!.citations[0].startLine, 150);
+    r.start(); await r.request('retry'); await r.done(); assert.equal(r.states.at(-1)!.explanation!.citations[0].startLine, 150);
   });
 
   test('query tools pin the current model and revision and cannot enable hypothetical edits', async () => {
@@ -228,7 +278,7 @@ suite('Source-only node explanations', () => {
       }
       await call(tools, 'submit_node_explanation', payload());
     });
-    r.start(); await r.done(); assert.equal(r.queries.length, 0); assert.equal(r.states.at(-1)!.status, 'ready');
+    r.start(); await r.request('retry'); await r.done(); assert.equal(r.queries.length, 0); assert.equal(r.states.at(-1)!.status, 'ready');
   });
 
   test('bounded source queries create host-owned citation IDs and smaller defaults', async () => {
@@ -238,7 +288,7 @@ suite('Source-only node explanations', () => {
       const citation = (result.structuredContent as any).citations[0];
       assert.equal(citation.startLine, 150); await call(tools, 'submit_node_explanation', payload([citation.id]));
     });
-    r.start(); await r.done(); assert.deepEqual(r.queries[0], { modelId: 'model-one', revision: hash('revision-one'), file: 'model.py', symbol: 'score', limit: 16, maxEntities: 32, depth: 2 });
+    r.start(); await r.request('retry'); await r.done(); assert.deepEqual(r.queries[0], { modelId: 'model-one', revision: hash('revision-one'), file: 'model.py', symbol: 'score', limit: 16, maxEntities: 32, depth: 2 });
   });
 
   test('read windows and shared read count enforce bounded tools', async () => {
@@ -248,14 +298,14 @@ suite('Source-only node explanations', () => {
       assert.equal((await call(tools, 'read_model_source', { file: 'model.py' })).isError, true);
       assert.equal((await call(tools, 'read_model_source', { file: '../outside.py' })).isError, true);
       await call(tools, 'submit_node_explanation', payload());
-    }); r.start(); await r.done(); assert.equal(r.states.at(-1)!.status, 'ready');
+    }); r.start(); await r.request('retry'); await r.done(); assert.equal(r.states.at(-1)!.status, 'ready');
   });
 
   test('unseen, duplicated or model-supplied citation authority cannot produce a result', async () => {
     for (const args of [payload(['invented']), payload(['evidence-1', 'evidence-1']), { ...payload(), citations: [{ file: '/private/key', startLine: 1, endLine: 2 }] }]) {
       const r = rig(async tools => {
         const result = await tools.get('submit_node_explanation')!.handler(args, {}); assert.equal(result.isError, true);
-      }); r.start(); await r.done(); assert.equal(r.states.at(-1)!.status, 'unavailable');
+      }); r.start(); await r.request('retry'); await r.done(); assert.equal(r.states.at(-1)!.status, 'unavailable');
     }
   });
 
@@ -272,21 +322,21 @@ suite('Source-only node explanations', () => {
       assert.equal((await call(toolset, 'submit_node_explanation', payload(['evidence-3']))).isError, true);
       assert.equal((await call(toolset, 'submit_node_explanation', payload())).isError, undefined);
     }, { tools: () => tools });
-    r.start(); await r.done(); assert.equal(r.states.at(-1)!.status, 'ready');
+    r.start(); await r.request('retry'); await r.done(); assert.equal(r.states.at(-1)!.status, 'ready');
     assert.deepEqual(r.states.at(-1)!.explanation!.citations.map(citation => citation.id), ['evidence-1']);
   });
 
   test('changed evidence cannot be submitted or used to navigate', async () => {
     const first = rig(async tools => { first.source = 'changed after evidence was read'; assert.equal((await call(tools, 'submit_node_explanation', payload())).isError, true); });
-    first.start(); await first.done(); assert.equal(first.states.at(-1)!.status, 'unavailable');
-    const second = rig(); second.start(); await second.done(); second.source = 'changed after publication'; await second.request('reveal'); assert.equal(second.reveals.length, 0);
+    first.start(); await first.request('retry'); await first.done(); assert.equal(first.states.at(-1)!.status, 'unavailable');
+    const second = rig(); second.start(); await second.request('retry'); await second.done(); second.source = 'changed after publication'; await second.request('reveal'); assert.equal(second.reveals.length, 0);
   });
 
   test('source freshness and foreground activity abort an in-flight run and suppress late results', async () => {
     let release!: () => void;
     const r = rig(async (tools, _input, signal) => { await new Promise<void>(resolve => { release = resolve; signal.addEventListener('abort', () => resolve(), { once: true }); });
       assert.equal((await call(tools, 'submit_node_explanation', payload())).isError, true); });
-    r.start(); await until(() => r.inputs.length === 1); r.route = { ...r.route, busy: true }; r.service.refresh();
+    r.start(); await r.request('retry'); await until(() => r.inputs.length === 1); r.route = { ...r.route, busy: true }; r.service.refresh();
     await until(() => r.clears === 1); assert.equal(r.signals[0].aborted, true); release();
     assert.equal(r.states.some(state => state.status === 'ready'), false);
     r.route = { ...r.route, busy: false }; r.valid = false; r.service.refresh();
@@ -294,13 +344,13 @@ suite('Source-only node explanations', () => {
   });
 
   test('unstructured provider prose is not accepted as a structured result', async () => {
-    const r = rig(async () => {}); r.start(); await r.done(); assert.equal(r.states.at(-1)!.status, 'unavailable');
+    const r = rig(async () => {}); r.start(); await r.request('retry'); await r.done(); assert.equal(r.states.at(-1)!.status, 'unavailable');
   });
 
   test('optional literal documentation never blocks generation and has its own bounded deadline', async () => {
     let signal!: AbortSignal;
     const r = rig(undefined, { documentationTimeoutMs: 10, documentation: async (_selection, value) => { signal = value; return new Promise(() => {}); } });
-    r.start(); await r.done(); assert.equal(r.inputs.length, 1); assert.equal(r.states.at(-1)!.status, 'ready');
+    r.start(); await r.request('retry'); await r.done(); assert.equal(r.inputs.length, 1); assert.equal(r.states.at(-1)!.status, 'ready');
     await until(() => signal.aborted); assert.equal(r.states.at(-1)!.status, 'ready');
   });
 
@@ -310,16 +360,16 @@ suite('Source-only node explanations', () => {
       if (stage === 'prepare') extras.prepare = async () => new Promise(() => {});
       if (stage === 'read') extras.read = async () => new Promise(() => {});
       const r = rig(stage === 'provider' ? async () => new Promise(() => {}) : undefined, extras);
-      r.start(); await r.done(); assert.equal(r.states.at(-1)!.status, 'unavailable'); assert.match(r.states.at(-1)!.detail!, /timed out/);
+      r.start(); await r.request('retry'); await r.done(); assert.equal(r.states.at(-1)!.status, 'unavailable'); assert.match(r.states.at(-1)!.detail!, /timed out/);
       if (stage === 'provider') await until(() => r.clears === 1);
       await r.request('retry'); await until(() => r.states.at(-1)!.status === 'unavailable' && r.states.at(-1)!.requestId !== r.states[0].requestId);
     }
   });
 
   test('source or trust invalidation settles queued work instead of leaving its last pending state visible', async () => {
-    const r = rig(async () => new Promise(() => {})); r.start(); await until(() => r.inputs.length === 1);
+    const r = rig(async () => new Promise(() => {})); r.start(); await r.request('retry'); await until(() => r.inputs.length === 1);
     r.valid = false; r.service.refresh(); assert.equal(r.states.at(-1)!.status, 'unavailable'); assert.equal(r.signals[0].aborted, true);
-    const queued = rig(undefined, { timeoutMs: 5 }); queued.start(); queued.route = { ...queued.route, busy: true };
+    const queued = rig(undefined, { timeoutMs: 5 }); queued.start(); await queued.request('retry'); queued.route = { ...queued.route, busy: true };
     await queued.done(); assert.equal(queued.states.at(-1)!.status, 'unavailable'); assert.equal(queued.inputs.length, 0);
   });
 
@@ -328,7 +378,7 @@ suite('Source-only node explanations', () => {
     global.setTimeout = ((handler: (...args: any[]) => void, delay?: number, ...args: any[]) => original(handler, delay === 45000 ? 8 : delay, ...args)) as typeof setTimeout;
     try {
       const r = rig(async (_tools, _input, signal) => { await new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true })); });
-      r.start(); await until(() => r.clears === 1);
+      r.start(); await r.request('retry'); await until(() => r.clears === 1);
       assert.equal(r.signals[0].aborted, true); assert.equal(r.states.at(-1)!.status, 'unavailable');
       assert.match(r.states.at(-1)!.detail!, /timed out/);
       const id = r.states.at(-1)!.requestId; await r.request('retry'); await until(() => r.clears === 2);
@@ -337,12 +387,12 @@ suite('Source-only node explanations', () => {
   });
 
   test('oversized source previews fail closed before starting a provider', async () => {
-    const r = rig(); r.source = 'x'.repeat(13 * 1024); r.start(); await r.done();
+    const r = rig(); r.source = 'x'.repeat(13 * 1024); r.start(); await r.request('retry'); await r.done();
     assert.equal(r.inputs.length, 0); assert.equal(r.states.at(-1)!.status, 'unavailable');
   });
 
   test('only a current ready request can reveal evidence and retry produces a fresh request', async () => {
-    const r = rig(); r.start(); await r.done(); const requestId = r.states.at(-1)!.requestId;
+    const r = rig(); r.start(); await r.request('retry'); await r.done(); const requestId = r.states.at(-1)!.requestId;
     await r.request('reveal', { requestId: 'other-request' }); await r.request('reveal', { citationId: 'unknown' });
     await r.request('reveal'); assert.equal(r.reveals.length, 1);
     await r.request('retry'); await r.done(); assert.notEqual(r.states.at(-1)!.requestId, requestId); assert.equal(r.inputs.length, 2);
@@ -355,8 +405,11 @@ suite('Source-only node explanations', () => {
       else assert.ok(r.clears >= 1, 'the cancelled runtime must be cleared before another one starts');
       if (!signal.aborted) await call(tools, 'submit_node_explanation', payload());
     });
-    r.start(); await until(() => r.inputs.length === 1);
-    r.service.select({ ...r.selection, nodeIds: [] }); r.start(); await r.done();
+    r.start(); await r.request('retry'); await until(() => r.inputs.length === 1);
+    r.service.select({ ...r.selection, nodeIds: [] }); r.start();
+    await until(() => r.clears === 1); await new Promise(resolve => setTimeout(resolve, 15));
+    assert.equal(r.inputs.length, 1); assert.equal(r.states.at(-1)!.status, 'unavailable');
+    await r.request('retry'); await r.done();
     assert.equal(r.inputs.length, 2); assert.equal(r.signals[0].aborted, true); assert.equal(r.states.at(-1)!.status, 'ready');
     finish(); await new Promise(resolve => setImmediate(resolve)); assert.equal(r.states.at(-1)!.status, 'ready');
   });

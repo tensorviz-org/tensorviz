@@ -203,7 +203,8 @@ it('keeps technical card identity stable while a cached interpretation appears i
   expect(technical.querySelector('.ui2-node-title')).toHaveTextContent('compare');
   expect(technical.querySelector('.ui2-node-subtitle')).toBeNull();
   expect(screen.getByText('Compare the representations.')).toBeVisible();
-  expect(screen.getAllByText('Agent interpretation')[0]).toBeVisible();
+  expect(screen.getByRole('region', { name: 'AI explanation' })).toBeVisible();
+  expect(screen.getByText('AI-generated interpretation · verify against source')).toBeVisible();
   expect(screen.getByRole('img', { name: 'Read from code; tensor shapes have not been recorded.' })).toHaveAttribute('title', 'Read from code; tensor shapes have not been recorded.');
   expect(technical.querySelector('.ui2-node-title')).toHaveAttribute('title', 'compare');
   expect(technical).not.toHaveTextContent('Compare the representations.');

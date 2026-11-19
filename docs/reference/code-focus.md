@@ -4,7 +4,7 @@
 
 For the short walkthrough, see [the user guide](../code-focus.md). This page keeps the detailed behavior and implementation notes.
 
-Open a model's Canvas and switch **Code focus** on in the header. Selecting a node reveals its mapped source beside Canvas; double-click or Enter navigates to it. With Code focus off, graph exploration keeps the editor in place, while explicit file:line links still open source. The adjacent **Code focus options** menu controls **Dim unrelated code**, scope, parameter references and opacity. Both the native sidebar and the extension's browser view offer these controls.
+Open a model's Canvas and switch **Code focus** on in the header. Selecting a node reveals its mapped source beside Canvas; a verified source link navigates explicitly. Double-click or Enter on a leaf opens inspection; on a module it enters the module. With Code focus off, graph exploration keeps the editor in place, while explicit file:line links still open source. The adjacent **Code focus options** menu controls **Dim unrelated code**, scope, parameter references and opacity. Both the native sidebar and the extension's browser view offer these controls.
 
 | Scope | Source kept readable |
 | --- | --- |

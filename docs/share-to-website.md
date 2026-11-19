@@ -90,6 +90,21 @@ upload API, `tensorviz.dev/api/graphs`, with your sign-in. The website checks th
 stores it, draws its card preview, and records your Google account's name and photo as its
 author.
 
+## Send feedback
+
+The speech-bubble icon in the Canvas footer, beside the guide's info icon at the right
+end, opens a short form: what kind of feedback, your words, and a box to
+include the open model's class name and block count. In the
+coding-agent plugin you can also ask your agent to send feedback; its `send_feedback`
+tool shows you the exact report and sends it only after you approve it.
+
+Nothing is sent until you press **Send** or approve the agent's report. The host posts
+your words, the kind, the tensorViz version and your operating system (and, in VS Code,
+the editor's name and version) to the tensorViz team at `feedback.tensorviz.dev/api/feedback`.
+Paths to your workspace and home folder are replaced, and no source code or graph file is
+sent. When you are signed in on tensorviz.dev, your sign-in goes with it and only your
+account's ID is kept, so the team can reply; sending feedback never asks you to sign in.
+
 ## Limits
 
 - Graph files up to 96 MB with 1 to 20,000 blocks, the website's limits. The file travels

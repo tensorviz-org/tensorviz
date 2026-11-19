@@ -112,7 +112,10 @@ export class CanvasNodeExplanation {
     if (!this.selected || this.disposed) return;
     if (!this.options.current(this.selected, this.active?.ref?.revision)) { this.invalidate(); return; }
     const next = routeKey(this.options.route());
-    if (next !== this.lastRoute) { this.cancel(); this.schedule(); }
+    if (next !== this.lastRoute) {
+      if (this.active?.state.status === 'queued' || this.active?.state.status === 'loading') { this.cancel(); this.schedule(); }
+      else this.lastRoute = next; // Retained source facts and documentation do not depend on provider availability.
+    }
   }
 
   /** Adopt a verified model-pass result for the current selection without starting another provider. */
@@ -212,23 +215,26 @@ export class CanvasNodeExplanation {
       work.controller.abort();
     }, this.options.timeoutMs ?? 45000);
   }
-  private schedule(): void {
+  private schedule(generate = false): void {
     const selection = this.selected!;
     const route = this.options.route(); this.lastRoute = routeKey(route);
     let ref: ModelRef;
     try { ref = this.options.reference(selection); } catch { this.invalidate(); return; }
+    // The protocol has no idle status: keep a retryable identity without implying generation is queued.
     const work: Work = { selection, controller: new AbortController(), evidence: new Map(), exposed: new Set(), reads: 0, bytes: 0,
-      ref, state: { requestId: randomUUID(), nodeId: selection.nodeIds[0], revision: ref.revision, status: 'queued' } };
+      ref, state: { requestId: randomUUID(), nodeId: selection.nodeIds[0], revision: ref.revision, status: 'unavailable' } };
     this.active = work;
     const documentation = this.ensureDocumentation(selection, ref);
     if (documentation?.value) work.state.documentation = structuredClone(documentation.value);
-    const enriched = this.options.cached?.(selection, ref, route);
+    const key = work.key = JSON.stringify([selection.target.workspaceFolder, ref, selection.target.sourceDigest,
+      work.state.nodeId, route.provider, route.resolvedModel, route.settings, CANVAS_AGENT_PROMPTS.node_explanation.version]);
+    const enriched = this.options.cached?.(selection, ref, route) ?? this.cache.get(key);
     if (enriched) {
       this.deadline(work); this.publish(work);
       void (async () => {
         try {
           if (await this.validate(work, enriched) && this.current(work)) {
-            work.state = { ...work.state, status: 'ready', explanation: structuredClone(enriched) }; clearTimeout(work.timeout); this.publish(work); return;
+            work.state = { ...work.state, status: 'ready', explanation: structuredClone(enriched), detail: undefined }; clearTimeout(work.timeout); this.publish(work); return;
           }
         } catch { /* The graph may have changed while its evidence was read. */ }
         if (this.current(work)) {
@@ -237,10 +243,12 @@ export class CanvasNodeExplanation {
       })();
       return;
     }
+    if (!generate) { this.publish(work); return; }
     if (!route.ready || route.busy) {
       work.state.status = 'unavailable'; work.state.detail = route.busy ? 'Available when the agent finishes its current task.' : 'Connect an agent in chat for a source explanation.';
       this.publish(work); return;
     }
+    work.state = { ...work.state, status: 'queued', detail: undefined };
     this.deadline(work); this.publish(work);
     this.timer = setTimeout(() => {
       const previous = this.running;
@@ -377,7 +385,7 @@ export class CanvasNodeExplanation {
     if (message.action === 'retry') {
       if (work.key) this.cache.delete(work.key);
       if (this.documentation && !this.documentation.value) this.cancelDocumentation();
-      this.cancel(); this.schedule(); return;
+      this.cancel(); this.schedule(true); return;
     }
     const documentation = work.state.documentation;
     if (documentation?.status === 'resolved' && documentation.citation.id === message.citationId) {

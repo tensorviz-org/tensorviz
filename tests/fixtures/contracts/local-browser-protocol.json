@@ -129,6 +129,47 @@
     {
       "protocolVersion": 1,
       "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request",
+      "requestId": "feedback-one",
+      "kind": "bug",
+      "message": "Edges overlap when the encoder block is expanded.",
+      "graph": {
+        "model": "Net",
+        "nodes": 12
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request-without-graph",
+      "requestId": "feedback-one",
+      "kind": "idea",
+      "message": "Pin a layer while I scroll.",
+      "graph": null
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackResult",
+      "messageId": "feedback-result-sent",
+      "requestId": "feedback-one",
+      "status": "sent",
+      "detail": "Thanks. Your feedback reached the tensorViz team."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackResult",
+      "messageId": "feedback-result-failed",
+      "requestId": "feedback-one",
+      "status": "failed",
+      "detail": "tensorViz is not answering. Try again shortly."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
       "messageId": "environment-library-failure",
       "type": "graphOpening",
       "hostSequence": 1,
@@ -6230,6 +6271,195 @@
       "requestId": "publish-one",
       "status": "failed",
       "detail": "tensorViz takes graphs with 1 to 20,000 blocks."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request-unknown-kind",
+      "requestId": "feedback-one",
+      "kind": "praise",
+      "message": "Edges overlap when the encoder block is expanded.",
+      "graph": {
+        "model": "Net",
+        "nodes": 12
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request-kind-list",
+      "requestId": "feedback-one",
+      "kind": [
+        "bug"
+      ],
+      "message": "Edges overlap when the encoder block is expanded.",
+      "graph": {
+        "model": "Net",
+        "nodes": 12
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request-missing-graph",
+      "requestId": "feedback-one",
+      "kind": "bug",
+      "message": "Edges overlap when the encoder block is expanded."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request-empty-message",
+      "requestId": "feedback-one",
+      "kind": "bug",
+      "message": "",
+      "graph": {
+        "model": "Net",
+        "nodes": 12
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request-long-message",
+      "requestId": "feedback-one",
+      "kind": "bug",
+      "message": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "graph": {
+        "model": "Net",
+        "nodes": 12
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request-spaced-model",
+      "requestId": "feedback-one",
+      "kind": "bug",
+      "message": "Edges overlap when the encoder block is expanded.",
+      "graph": {
+        "model": "Tiny Net",
+        "nodes": 3
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request-unicode-model",
+      "requestId": "feedback-one",
+      "kind": "bug",
+      "message": "Edges overlap when the encoder block is expanded.",
+      "graph": {
+        "model": "R\u00e9sum\u00e9",
+        "nodes": 3
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request-model-newline",
+      "requestId": "feedback-one",
+      "kind": "bug",
+      "message": "Edges overlap when the encoder block is expanded.",
+      "graph": {
+        "model": "Net\n",
+        "nodes": 3
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request-negative-nodes",
+      "requestId": "feedback-one",
+      "kind": "bug",
+      "message": "Edges overlap when the encoder block is expanded.",
+      "graph": {
+        "model": "Net",
+        "nodes": -1
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request-fractional-nodes",
+      "requestId": "feedback-one",
+      "kind": "bug",
+      "message": "Edges overlap when the encoder block is expanded.",
+      "graph": {
+        "model": "Net",
+        "nodes": 1.5
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request-graph-path",
+      "requestId": "feedback-one",
+      "kind": "bug",
+      "message": "Edges overlap when the encoder block is expanded.",
+      "graph": {
+        "model": "Net",
+        "nodes": 3,
+        "path": "/Users/me/net.py"
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackRequest",
+      "messageId": "feedback-request-with-target",
+      "requestId": "feedback-one",
+      "kind": "bug",
+      "message": "Edges overlap when the encoder block is expanded.",
+      "graph": {
+        "model": "Net",
+        "nodes": 12
+      },
+      "target": {
+        "workspaceFolder": "workspace-a",
+        "file": "model.py",
+        "cls": "Net",
+        "documentVersion": 3,
+        "sourceDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "backendRevision": 7
+      }
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackResult",
+      "messageId": "feedback-result-unknown-status",
+      "requestId": "feedback-one",
+      "status": "queued",
+      "detail": "Thanks. Your feedback reached the tensorViz team."
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackResult",
+      "messageId": "feedback-result-missing-detail",
+      "requestId": "feedback-one",
+      "status": "sent"
+    },
+    {
+      "protocolVersion": 1,
+      "workspaceSessionId": "session-1",
+      "type": "feedbackResult",
+      "messageId": "feedback-result-long-detail",
+      "requestId": "feedback-one",
+      "status": "sent",
+      "detail": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     },
     {
       "protocolVersion": 1,

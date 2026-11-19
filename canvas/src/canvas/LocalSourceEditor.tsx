@@ -40,9 +40,9 @@ export function LocalSourceEditor({ nodeId, data, structuralOnly = false, insert
           if (JSON.stringify(value) !== JSON.stringify(data.parameters[param])) void propose(() => parameterSourceEdit(nodeId, data, param, value));
         }} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }} />
     </label>)}
-    {!structuralOnly && !parameters.length && <p>{sourceEditLimitation(data)}</p>}
-    <details><summary>{insertion ? "Blocks · insert on this operand" : "Blocks · insert after selected layer"}</summary>
-      {declaration || insertion ? <>
+    {!structuralOnly && !parameters.length && !declaration && !deletable && !insertion && <p>{sourceEditLimitation(data)}</p>}
+    {(declaration || insertion) && <details><summary>{insertion ? "Blocks · insert on this operand" : "Blocks · insert after selected layer"}</summary>
+      <>
         <select aria-label="Layer to insert" value={layer} disabled={disabled} onChange={event => {
           setLayer(event.target.value);
           setParams(event.target.value === 'linear' ? '{"in_features":8,"out_features":8}' : event.target.value === 'layernorm' ? '{"normalized_shape":[8]}' : event.target.value === 'dropout' ? '{"p":0.5}' : '{}');
@@ -56,9 +56,11 @@ export function LocalSourceEditor({ nodeId, data, structuralOnly = false, insert
           if (!values || Array.isArray(values) || typeof values !== 'object') throw new Error('Enter a JSON object of constructor parameters.');
           return addSourceEdit(nodeId, data, layer, name, values);
         })}>Review insertion</button>
-      </> : <p>{sourceEditLimitation(data)}</p>}
-    </details>
-    <button disabled={disabled || !deletable} onClick={() => void propose(() => removeSourceEdit(nodeId, data))}>Review deletion</button>
+      </>
+    </details>}
+    {deletable && <details><summary>More source actions</summary>
+      <button disabled={disabled} onClick={() => void propose(() => removeSourceEdit(nodeId, data))}>Review deletion</button>
+    </details>}
     <p role="status">{detail}</p>
   </section>;
 }

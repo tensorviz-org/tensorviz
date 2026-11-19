@@ -289,9 +289,10 @@ describe('responsive graph fit', () => {
     jest.restoreAllMocks();
   });
 
-  const mountCanvas = (svg = false) => {
+  const mountCanvas = (svg = false, chrome = false) => {
     act(() => receiveProjection(projection(goodNet())));
-    const view = render(<ModelBuilder enableExternalCommands />);
+    const builder = <ModelBuilder enableExternalCommands />;
+    const view = render(chrome ? <div className="local-browser-canvas">{builder}</div> : builder);
     if (svg) command('toggle-expanded-svg', { active: true });
     act(() => { jest.advanceTimersByTime(400); });
     mockEditor.zoomToFit.mockClear();
@@ -389,6 +390,33 @@ describe('responsive graph fit', () => {
     command('validation-complete', { projection: { ...completed, revision: 1 } });
     act(() => { jest.advanceTimersByTime(400); });
     expect(fit).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])('preserves the graph when header or footer chrome changes the inner height (SVG: %s)', svg => {
+    size = { width: 350, height: 560 };
+    let surface = { width: 350, height: 800 };
+    jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return (this.classList.contains('local-browser-canvas') ? surface : size) as DOMRect;
+    });
+    const { observer, fit } = mountCanvas(svg, true);
+    command('set-layout-direction', { choice: 'horizontal' });
+    act(() => { jest.advanceTimersByTime(400); });
+    fit.mockClear();
+    const shapes = mockEditor.getCurrentPageShapes();
+    for (const height of [530, 560]) {
+      size = { ...size, height };
+      act(() => observer.callback()); settle();
+      expect(fit).not.toHaveBeenCalled();
+      expect(mockEditor.getCurrentPageShapes()).toEqual(shapes);
+    }
+    // An actual sidebar/window height resize must still perform the existing fit.
+    surface = { ...surface, height: 700 }; size = { ...size, height: 460 };
+    act(() => observer.callback()); settle();
+    expect(fit).toHaveBeenCalledTimes(1);
+    // And a canvas divider can still change width inside the same outer surface.
+    size = { ...size, width: 300 };
+    act(() => observer.callback()); settle();
+    expect(fit).toHaveBeenCalledTimes(2);
   });
 
   it.each([false, true])('fits the displayed graph on width and height changes (SVG: %s)', svg => {

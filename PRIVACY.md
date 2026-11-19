@@ -15,13 +15,23 @@ The plugin does not operate a TensorViz cloud ingestion service, and its browser
 and panel builds exclude TensorViz's hosted authentication and analytics modules.
 The browser viewer uses a local connection. Keep private viewer links private.
 
-Nothing reaches tensorviz.dev unless you click **Publish** in the graph. Then the
-plugin signs you in with Google through tensorviz.dev and uploads that graph file,
+Nothing reaches tensorviz.dev unless you click **Publish** in the graph or send
+feedback. When you click **Publish**, the plugin signs you in with Google through
+tensorviz.dev and uploads that graph file,
 including its detached capture, to your account as private. The website records your
 Google account's name and photo as its author; tensorviz.dev's own privacy policy applies
 to it. The plugin keeps only a refresh token, in a private `website/session.json` in its
 data folder. Run `sh scripts/launch.sh --sign-out` from the installed plugin directory
 (Windows: `.\scripts\tensorviz-bootstrap.exe --sign-out`) to delete it.
+
+Feedback goes to the tensorViz team at `feedback.tensorviz.dev` only when you press
+**Send** in the graph's feedback form, or approve the report the agent's `send_feedback`
+tool shows you. It holds your words and their kind (bug, idea or other), whether it came
+from the form or the agent, the tensorViz version and your operating system, and the open
+model's class name and block count only if you include them. Paths to your workspace and
+home folder are replaced before it is sent. If you are signed in on tensorviz.dev, your
+sign-in goes with it and only your account's ID is kept, so the team can reply.
+
 The tldraw renderer has separate license-validation behavior; trial licenses can
 send license-usage information to tldraw. See
 [tldraw's licensing and data collection documentation](https://tldraw.dev/community/license).

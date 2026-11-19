@@ -9,15 +9,18 @@ function roleSummary(values: readonly string[]): string | undefined {
 }
 
 export function nodeAnnotationLayout(explanation: NodeExplanation, width: number) {
-  const titleLines = wrapCardText(explanation.title, Math.max(80, width - 48), 12);
-  const purposeLines = wrapCardText(explanation.purpose, Math.max(60, width - 24), 12);
+  // The icon / In / Out labels share a gutter; every prose line starts after it.
+  const labelInset = 12, textInset = 40;
+  const textWidth = Math.max(1, width - textInset - labelInset);
+  const titleLines = wrapCardText(explanation.title, textWidth, 12);
+  const purposeLines = wrapCardText(explanation.purpose, textWidth, 12);
   const input = roleSummary(explanation.inputs), output = roleSummary(explanation.outputs);
-  const inputLines = input ? wrapCardText(input, Math.max(60, width - 64), 11) : [];
-  const outputLines = output ? wrapCardText(output, Math.max(60, width - 64), 11) : [];
-  return { titleLines, purposeLines, input, output, inputLines, outputLines,
+  const inputLines = input ? wrapCardText(input, textWidth, 11) : [];
+  const outputLines = output ? wrapCardText(output, textWidth, 11) : [];
+  return { labelInset, textInset, titleLines, purposeLines, input, output, inputLines, outputLines,
     height: 21 + titleLines.length * 16 + (purposeLines.length ? 6 + purposeLines.length * 17 : 0)
       + (inputLines.length ? 6 + inputLines.length * 15 : 0)
-      + (outputLines.length ? 4 + outputLines.length * 15 : 0) };
+      + (outputLines.length ? (inputLines.length ? 4 : 6) + outputLines.length * 15 : 0) };
 }
 
 export function nodeAnnotation(node: ModelNode, states: Readonly<Record<string, NodeExplanationState>>, visible: boolean) {

@@ -11,8 +11,10 @@ const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
 const { ElicitRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
 // Only reviewed immutable transitions are accepted; callers cannot substitute arbitrary old binaries.
+// `canonical` marks an old catalog published under distribution/plugin-catalog/ in this repository.
 const transitions = {
-  '1.0.1': { fromVersion: '1.0.0', previousExport: '664d5615d71c10b5d9f84695c4c40011dddbdc7f' },
+  '1.0.2': { fromVersion: '1.0.1', previousExport: 'fc654a7c77b1d30580438b69ab77ae88bdf9e1f7', canonical: true },
+  '1.0.1': { fromVersion: '1.0.0', previousExport: '664d5615d71c10b5d9f84695c4c40011dddbdc7f', canonical: true },
   '1.0.0': { fromVersion: '0.1.48', previousExport: '8b0b539953c5abe693803c15854d953a00bcd5fe' },
   '0.1.48': { fromVersion: '0.1.47', previousExport: '9c20428f515dda38b25d1b9436b7681969e41472' },
   '0.1.47': { fromVersion: '0.1.46', previousExport: '3d311272047e649a9ba9829c6e1b21ca95fc0655' },
@@ -23,7 +25,7 @@ const transitions = {
 };
 const toVersion = process.env.TENSORVIZ_MIGRATION_TARGET_VERSION || '0.1.43';
 assert.ok(Object.hasOwn(transitions, toVersion), 'Unreviewed migration target');
-const { fromVersion, previousExport } = transitions[toVersion];
+const { fromVersion, previousExport, canonical } = transitions[toVersion];
 const digest = b => createHash('sha256').update(b).digest('hex');
 const json = async p => JSON.parse(await fs.readFile(p, 'utf8'));
 const required = name => { const value = process.env[name]; assert.ok(value && path.isAbsolute(value), `${name} must be an absolute path`); return value; };
@@ -69,7 +71,7 @@ test('released native plugin upgrades to aligned version and rolls back in both 
   const diagnostics = [];
   try {
     const cleanOld = path.join(root, 'audited-old');
-    if (fromVersion === '1.0.0') {
+    if (canonical) {
       // Canonical catalogs preserve the original export under a namespace.
       // Verify the complete overlay before removing its added metadata from the test copy.
       const {canonicalCatalog,catalogPrefix} = await import('../../scripts/canonical-catalog.mjs');
@@ -81,7 +83,7 @@ test('released native plugin upgrades to aligned version and rolls back in both 
         assert.deepEqual(await fs.readFile(path.join(checkout,name)),value.bytes,`Canonical catalog differs: ${name}`);
     }
     await fs.cp(oldCatalog, cleanOld, {recursive:true,filter:source=>path.basename(source)!=='.git'
-      && !(fromVersion==='1.0.0'&&source===path.join(oldCatalog,'CANONICAL.json'))});
+      && !(canonical&&source===path.join(oldCatalog,'CANONICAL.json'))});
     const oldPublication = await auditIntegration(cleanOld,{allowPrevious:true});
     const newPublication = await auditIntegration(newCatalog);
     assert.equal(oldPublication.version,fromVersion); assert.equal(newPublication.version,toVersion);

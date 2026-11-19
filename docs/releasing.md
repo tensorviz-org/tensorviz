@@ -1,7 +1,8 @@
 # Releasing TensorViz
 
-The source candidate is **1.0.1**, including graph-panel session recovery. After
-review and merge into `main`, use the unified candidate and exact-byte publisher:
+The source candidate is **1.0.2**, including Send feedback and the reworked node
+inspection and AI explanations. After review and merge into `main`, use the
+unified candidate and exact-byte publisher:
 
 ```sh
 gh workflow run release-unified.yml --repo tensorviz-org/tensorviz --ref main \
@@ -9,19 +10,19 @@ gh workflow run release-unified.yml --repo tensorviz-org/tensorviz --ref main \
 ```
 
 The candidate builds all six native targets, the extension and documentation.
-Upgrade/rollback checks use the published **1.0.0** catalog pinned to source
-commit `664d5615d71c10b5d9f84695c4c40011dddbdc7f`, under
+Upgrade/rollback checks use the published **1.0.1** catalog pinned to source
+commit `fc654a7c77b1d30580438b69ab77ae88bdf9e1f7`, under
 `distribution/plugin-catalog/`. Both macOS ARM64 and Linux x64 must produce real
-Codex/Claude migration receipts for 1.0.0 → 1.0.1 → 1.0.0. Release admission still
+Codex/Claude migration receipts for 1.0.1 → 1.0.2 → 1.0.1. Release admission still
 requires every native job and exact-source GitHub attestation. Unknown future
 release transitions are refused until their previous version and catalog are
 explicitly pinned in source.
 
-Successful candidate checks create the immutable `v1.0.1` source tag and dispatch
+Successful candidate checks create the immutable `v1.0.2` source tag and dispatch
 the trusted publisher. Verify the downstream **Documentation** publication run
 and public assets before reporting success. Advance the canonical catalog in a
 separate additive PR using the new candidate's `catalog-overlay/`; keep the 1.0.0
-tag, assets and publication journal unchanged. The
+and 1.0.1 tags, assets and publication journals unchanged. The
 [public launch operations](public-launch/launch-operations.md) describe the shared
 publication and recovery process, with historical 1.0.0 source and catalog pins.
 

@@ -54,6 +54,7 @@ test('source plugin: registers node launch.cjs and the skill, idempotently', () 
   const first = run(dir, args);
   assert.equal(first.status, 0, first.stderr);
   assert.match(first.stdout, /Node\.js 22 or newer on its own PATH/);
+  assert.doesNotMatch(first.stdout, /prepare-runtime/);
   assert.deepEqual(readJson(project, 'opencode.json').mcp.tensorviz, { type: 'local', command: ['node', path.join(root, 'scripts/launch.cjs')] });
   assert.equal(fs.readlinkSync(skillLink(project)), path.join(root, 'skills/model-workflow'));
   const second = run(dir, args);
@@ -70,6 +71,7 @@ test('published catalog plugin: registers /bin/sh launch.sh without needing node
   assert.deepEqual(readJson(project, 'opencode.json').mcp.tensorviz.command, ['/bin/sh', path.join(catalog, 'scripts/launch.sh')]);
   assert.equal(fs.readlinkSync(skillLink(project)), path.join(catalog, 'skills/model-workflow'));
   assert.doesNotMatch(result.stdout, /Node\.js/);
+  assert.ok(result.stdout.includes(`sh ${JSON.stringify(path.join(catalog, 'scripts/launch.sh'))} --prepare-runtime`), result.stdout);
 }));
 
 test('an unbuilt source plugin, or no Node 22 on PATH, is refused before any change', () => sandbox(dir => {

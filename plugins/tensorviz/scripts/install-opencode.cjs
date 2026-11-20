@@ -89,6 +89,9 @@ function resolveLaunch(pluginRoot, probe) {
   if (path.basename(launcher) === 'launch.cjs' && !fs.existsSync(path.join(root, 'runtime', 'host.cjs'))) {
     throw new InstallError(`${root} has no built runtime. Build it with \`npm run build --prefix plugin\`, or pass --plugin-root <clone>/distribution/plugin-catalog/plugins/tensorviz to use the published plugin.`);
   }
+  if (path.basename(launcher) === 'launch.sh' && fs.readFileSync(launcher, 'utf8').includes('--prepare-runtime')) {
+    notes.push(`Before the first connection, and after updating this plugin, fetch and verify its runtime: sh ${JSON.stringify(launcher)} --prepare-runtime (opencode gives a local server 30 seconds to start, which a first download can exceed).`);
+  }
   if (command[0] === 'node') {
     const major = probe('node');
     if (major === null) throw new InstallError('opencode starts this plugin with `node` from its PATH, but no `node` was found on this PATH.');

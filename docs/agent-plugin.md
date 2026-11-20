@@ -28,14 +28,6 @@ claude plugin install tensorviz@tensorviz-standalone --scope user
 
 Cursor: follow [Install in Cursor](https://github.com/tensorviz-org/tensorviz#install-in-cursor).
 
-opencode is not a packaged install target. From a complete local plugin release, register the MCP server and the model-workflow skill for one project. The script dry-runs unless `--write` is passed:
-
-```sh
-node /path/to/release/plugins/tensorviz/scripts/install-opencode.cjs --project /path/to/your/model --write
-```
-
-It writes `opencode.json` in that project with a local `tensorviz` server that runs `node` from your PATH (Node.js 22 or newer), and links the skill under `.opencode/skills/`. Use `--global` instead of `--project` for `~/.config/opencode`, and `--remove` to undo only the entries it created. Restart opencode, then run `opencode mcp list` to confirm the server is connected.
-
 For a local source archive, see [Codex and Cursor local installation](reference/agent-plugin.md#install).
 Non-interactive Codex installation needs
 `sh /path/to/tensorviz/plugins/tensorviz/scripts/install.sh --apply --host plugin`.
@@ -47,6 +39,17 @@ T3 Code uses your Codex profile. See the [public catalog](https://github.com/ten
 Start a new chat afterward. Platform limits and source builds are on the [Install](install.md) page.
 
 Windows support is through native Codex entries; Windows Claude Code/Cursor and musl are outside the published acceptance scope. Runtime availability does not guarantee every client GUI, OS version, or model dependency works. See [Linux SSH runtime](linux-ssh-runtime.md) for execution-host requirements and the limits of local validation. Published platform availability does not establish real SSH-network or installed-client acceptance.
+
+### opencode
+
+opencode is not a packaged install target, and the published plugin does not include an opencode installer. From a clone of this repository, register the published plugin for one model project. Like the other clients, it downloads the verified compiled runtime on first connection:
+
+```sh
+git clone https://github.com/tensorviz-org/tensorviz.git
+node tensorviz/plugins/tensorviz/scripts/install-opencode.cjs --plugin-root tensorviz/distribution/plugin-catalog/plugins/tensorviz --project /path/to/your/model --write
+```
+
+The script dry-runs unless `--write` is passed. It adds a local `tensorviz` server, using the plugin's own launch command, to the project's opencode config file, and links the model-workflow skill under `.opencode/skills/`. A config file with comments, or a project with several config files, is left unchanged and the entry to add is printed instead. Use `--global` for your user config (`$XDG_CONFIG_HOME/opencode`, by default `~/.config/opencode`), and `--remove` to delete only TensorViz entries and links. Without `--plugin-root` it uses the source plugin, which needs a build and Node.js 22 or newer on opencode's PATH. This route covers macOS and Linux; Windows catalog plugins are not supported. Restart opencode, then run `opencode mcp list` to confirm the server is connected.
 
 ## Update an existing Codex installation
 

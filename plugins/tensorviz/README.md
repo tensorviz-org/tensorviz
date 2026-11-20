@@ -31,6 +31,10 @@ enabled per agent. Start a new chat and ask the agent to open the model.
 Cursor can install the VS Code extension from this repository instead. See
 [docs/agent-plugin.md](../../docs/agent-plugin.md).
 
+### opencode
+
+opencode is not a packaged install target. From a complete release, run `node "/path/to/release/plugins/tensorviz/scripts/install-opencode.cjs" --project <model-project> --write` (omit `--write` to preview). It adds a `tensorviz` MCP server to that project's `opencode.json` and links the model-workflow skill into `.opencode/skills/`. Use `--global` for `~/.config/opencode`, and `--remove` to undo only what it created. Restart opencode and check with `opencode mcp list`.
+
 ## Permissions
 
 The installer asks once before model execution and dependency setup. Python

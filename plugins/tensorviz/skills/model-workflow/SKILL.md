@@ -25,12 +25,16 @@ graph the user didn't ask for.
 
 1. **Find the target.** If `tensorviz.toml` exists, pick the profile for the model in
    question. Its `model = "pkg.module:Class"` gives `file` (`pkg/module.py`) and `cls`.
-   A `factory` profile still names its class in `model`.
+   A `factory` profile builds the model with a function, but `cls` is still the class
+   from `model`, never the factory function: for `model = "models.vit:VisionTransformer"`
+   with `factory = { file = "recipes.py", callable = "make_vit" }`, pass
+   `file: "models/vit.py"`, `cls: "VisionTransformer"` and the profile name.
 2. **Capture.** Call `open_graph` with `workspaceRoot`, `file`, `cls`, `profile`, and
    `interpreter` set to `<workspaceRoot>/.venv/bin/python` when that exists (or the
    Python the project clearly uses). With a saved profile and an interpreter this
    usually returns `status: "ready"` in one call. Otherwise follow `nextAction`: call
-   `open_graph` with exactly its `arguments`, filling only its `requiredArguments`.
+   `open_graph` with exactly its `arguments` (they carry the `requestId`), filling only
+   its `requiredArguments`. Don't start a new request for the same model.
    - `poll`: repeat only while the status stays `opening`.
    - `select_environment`: when the model's folder has one environment, the
      arguments already include its `candidateId`.

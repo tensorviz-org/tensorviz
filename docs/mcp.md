@@ -51,7 +51,7 @@ Every local window is discoverable before it has a graph. Setup, execution, focu
 
 On a fresh installation, `open_graph` can return `awaiting_runtime_install` with an `approve_runtime_install` next action. The user must approve **Install tensorViz’s runtime** in VS Code; **tensorViz: Repair runtime** also opens runtime setup. Poll the returned `requestId` after the user responds. Polling does not approve installation or start another opening.
 
-For project pin mismatches, the extension can return `use_installed_versions`. Send `open_graph` with `action: "use_installed_versions"` and the returned `requestId`, `openingId`, and `sourceDigest`. This is the Canvas **Try with installed versions** action: it changes no packages and still requires a compatible capture worker. It is available only when `opening.environment.declaredPins` is present. See [Python environments](environment-recovery.md).
+For project pin mismatches, the extension and the standalone plugin can return `use_installed_versions`. Send `open_graph` with `action: "use_installed_versions"` and the returned `requestId`, `openingId`, and `sourceDigest`. This is the Canvas **Try with installed versions** action: it changes no packages and still requires a compatible capture worker. It is available only when `opening.environment.declaredPins` is present. See [Python environments](environment-recovery.md).
 
 At session capacity, the endpoint replaces the least recently used session with no active request. Requests in progress remain protected. If all sessions are busy, close unused sessions or run **tensorViz: Disconnect coding agents (MCP)**, then **tensorViz: Connect coding agent (MCP)**.
 

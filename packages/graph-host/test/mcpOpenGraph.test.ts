@@ -1,6 +1,6 @@
 import * as assert from 'node:assert/strict';
 import { McpOpenGraph } from '@tensorviz/graph-host/mcpOpenGraph';
-import type { GraphOpeningState } from '@tensorviz/contracts/protocol';
+import type { GraphEnvironmentCandidate, GraphEnvironmentRecovery, GraphOpeningState } from '@tensorviz/contracts/protocol';
 
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
@@ -77,5 +77,76 @@ suite('opening completion and immediate retry', () => {
     await tick();
     assert.throws(() => service.invoke('panel', {}), /opening is in progress/);
     service.cancelOwner('panel');
+  });
+});
+
+suite('agent continuations for environment choice and model failures', () => {
+  type Next = { kind: string; instruction: string; arguments: Record<string, unknown>; requiredArguments: string[] };
+  const target = { workspaceFolder: '/w', file: 'model.py', cls: 'Tiny', sourceDigest: 'a'.repeat(64), documentVersion: 0, backendRevision: 1 };
+  const candidate = (id: string, interpreter: string, extra: Partial<GraphEnvironmentCandidate> = {}): GraphEnvironmentCandidate =>
+    ({ id, interpreter, source: 'Known Python environment', status: 'libraries_present', ...extra });
+  async function continuation(state: GraphOpeningState): Promise<Next> {
+    const service = new McpOpenGraph({ open: async () => state, state: () => state, model: () => ({}), action: async () => true });
+    const started = service.invoke('agent', { file: '/w/model.py', cls: 'Tiny' });
+    await tick();
+    return service.invoke('agent', { requestId: started.requestId as string }).nextAction as Next;
+  }
+  const choosing = (environment: Omit<GraphEnvironmentRecovery, 'detail'>): GraphOpeningState =>
+    ({ id: 'opening', target, phase: 'needs_setup', hasCapture: false, detail: 'Choose Python.', environment: { detail: 'Choose Python.', ...environment } });
+
+  test('a single environment inside the model folder is offered with its candidateId', async () => {
+    const next = await continuation(choosing({ reason: 'selection_required',
+      candidates: [candidate('project', '/w/.venv/bin/python'), candidate('conda', '/opt/conda/bin/python'), candidate('managed', '/w/.venv2/bin/python', { managed: true })] }));
+    assert.equal(next.kind, 'select_environment');
+    assert.equal(next.arguments.action, 'select_environment');
+    assert.equal(next.arguments.candidateId, 'project');
+    assert.deepEqual(next.requiredArguments, []);
+    assert.match(next.instruction, /\/w\/\.venv\/bin\/python/);
+  });
+
+  test('a saved choice, several project environments or a lookalike folder still need an explicit candidate', async () => {
+    for (const environment of [
+      { reason: 'selection_required' as const, candidates: [candidate('project', '/w/.venv/bin/python'), candidate('saved', '/opt/conda/bin/python', { selected: true })] },
+      { reason: 'selection_required' as const, candidates: [candidate('venv', '/w/.venv/bin/python'), candidate('env', '/w/env/bin/python')] },
+      { reason: 'selection_required' as const, candidates: [candidate('sibling', '/w2/.venv/bin/python')] },
+      { reason: 'unavailable' as const, candidates: [candidate('project', '/w/.venv/bin/python'), candidate('gone', '/old/bin/python', { selected: true, status: 'unavailable' })] },
+    ]) {
+      const next = await continuation(choosing(environment));
+      assert.equal(next.kind, 'select_environment');
+      assert.equal(next.arguments.candidateId, undefined);
+      assert.deepEqual(next.requiredArguments, ['candidateId']);
+    }
+  });
+
+  test('a continuation may repeat its own target, but a different target needs a new request', async () => {
+    const state = choosing({ reason: 'incompatible', selectedId: 'project', declaredPins: ['torch==2.0.0'],
+      candidates: [candidate('project', '/w/.venv/bin/python', { selected: true, status: 'incompatible' })] });
+    let actions = 0;
+    const service = new McpOpenGraph({ open: async () => state, state: () => state, model: () => ({}), action: async () => { actions++; return true; } });
+    const target = { workspaceRoot: '/w', file: 'model.py', cls: 'Tiny', interpreter: '/w/.venv/bin/python' };
+    const started = service.invoke('agent', target);
+    await tick();
+    const next = service.invoke('agent', { requestId: started.requestId as string }).nextAction as Next;
+    assert.equal(next.kind, 'use_installed_versions');
+    assert.throws(() => service.invoke('agent', { ...target, ...next.arguments, interpreter: '/opt/other/bin/python' }), /Start a new request/);
+    assert.throws(() => service.invoke('agent', { ...target, ...next.arguments, managedRuntime: true }), /Start a new request/);
+    assert.throws(() => service.invoke('agent', { action: 'use_installed_versions' }), /send the arguments of its nextAction/);
+    service.invoke('agent', { ...target, ...next.arguments });
+    await tick();
+    assert.equal(actions, 1);
+  });
+
+  test('a forward failure points at the partial capture instead of dependency repair', async () => {
+    const failed = (failure: GraphOpeningState['failure'], hasCapture: boolean): GraphOpeningState =>
+      ({ id: 'opening', target, phase: 'failed', hasCapture, detail: 'RuntimeError: mat1 and mat2 shapes cannot be multiplied', failure });
+    const model = await continuation(failed({ kind: 'execution' }, true));
+    assert.equal(model.kind, 'inspect_failure');
+    assert.match(model.instruction, /not a setup or dependency problem/);
+    assert.match(model.instruction, /get_model_context/);
+    assert.doesNotMatch(model.instruction, /install_dependencies/);
+    const uncaptured = await continuation(failed({ kind: 'execution' }, false));
+    assert.doesNotMatch(uncaptured.instruction, /get_model_context/);
+    const environment = await continuation(failed({ kind: 'environment' }, false));
+    assert.match(environment.instruction, /install_dependencies/);
   });
 });

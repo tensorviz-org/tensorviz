@@ -152,6 +152,9 @@ test('copied plugin captures and connects the Canvas bridge with exact selection
     assert.equal(failure.validated, false);
     assert.equal(failure.opening.hasCapture, true, 'a failing forward retains the observed graph');
     assert.match(failure.opening.detail, /shapes|multipl/i);
+    assert.equal(failure.opening.failure.kind, 'execution');
+    assert.match(failure.nextAction.instruction, /get_model_context/, 'a model error points at the partial capture, not dependency repair');
+    assert.doesNotMatch(failure.nextAction.instruction, /install_dependencies/);
     const captures = await call('list_captures', { modelId: failure.models[0].modelId });
     assert.equal(captures.latestAttempt.status, 'failed');
     await writeFile(path.join(project, 'model.py'), model('Sigmoid'));

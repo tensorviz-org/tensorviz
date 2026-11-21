@@ -1,86 +1,80 @@
 ---
 name: model-workflow
-description: Create, understand, modify or debug local PyTorch nn.Module models with a current TensorViz graph. Use for local model architecture, forward-pass tensor flow, shape errors and activation or layer changes. Exclude unrelated Python work, conceptual questions without local code and requests to avoid graphing or execution.
+description: Get measured facts about a local PyTorch nn.Module from a TensorViz capture - tensor shapes entering and leaving any submodule, per-module parameter counts, and where a shape mismatch starts - without writing forward hooks or reading every file. Use when debugging shape errors, answering architecture questions, or checking what a model change did. Skip it for text, docstring or config edits that don't affect tensors, conceptual questions, and code with no local model.
 ---
 
 # TensorViz model workflow
 
-Read the user's request first. Do not run anything on startup. Explicit opt-outs,
-read-only instructions and the client's native execution/edit approvals take
-priority. Work only on projects relevant to the user's request.
+TensorViz runs one forward pass and records every submodule call: its input and
+output shapes and its parameter count. Use it **instead of** writing your own hook
+script or reading every file to trace shapes, not on top of that. Trust the facts it
+reports; don't re-derive them by hand or re-run Python to double-check them.
 
-Discover the advertised TensorViz tools and host capabilities once. Use the exact
-workspace checkout, model file and class from the current task. Do not infer a
-workspace from the launcher's directory or silently use another worktree.
+## When it pays off
 
-If discovery reports the relevant current graph, use `get_model_context` when
-advertised before requesting another capture. Reuse complete retained facts for
-the same captured source/setup; omitted unrelated modules do not invalidate an
-included module's complete retained call list. Counts are unique registered
-parameter elements at call entry, not trainable-only counts or memory. Respect
-unknowns and capture omissions; retained input/state identity does not reverify
-current inputs, weights or dependencies. Use exact `focus`/a larger `maxBytes` for
-omitted modules and `inspect_capture` for oversized call lists. Reading context
-never refreshes execution. New source/setup or missing required measurements need
-an explicit capture through the host's existing permission flow.
+- "What shape goes into X?", "How many parameters does Y have?" for a model spread
+  over several files or with configs that derive sizes.
+- A shape error whose cause isn't obvious from the traceback.
+- After a change: did the shapes or parameter counts you care about change?
 
-Graph recording uses `limits.max_capture_bytes` (16 MiB by default, 1024–16777216
-bytes). `max_record_bytes` is a separate validation-record budget capped at 4 MiB;
-raising it cannot expand a graph. Preserve explicit smaller capture limits. When a
-capture reports `byte_limit`, inspect its resolved capture limits and coverage
-before changing the saved recipe. A passing forward is not a complete recording.
+Skip it when the traceback or a quick read already gives the answer, for edits that
+don't touch tensor code, and for conceptual questions. Don't capture only to show a
+graph the user didn't ask for.
 
-Use `open_graph` when a capture is needed and the tool is advertised. It waits briefly for completion and yields early
-for permission or setup. Poll the same requestId only while it remains pending;
-never start duplicate captures or sleep repeatedly in the agent. Continue its returned next action until a
-current capture succeeds, a model failure has evidence, the user cancels, or a
-concrete blocker requires their input. Inspect repository evidence for missing
-setup; ask about unresolved domain choices or assets. A source preview, connected
-server or tool call is not a successful capture. Do not change inputs to hide a
-model failure or retry an unchanged failed action.
+## Fast path (usually 2–3 tool calls)
 
-Use the environment reported by tensorViz. The tensorViz plugin remembers the
-saved/project environment and offers available previously used interpreters when
-there is no project choice. Start without `managedRuntime`; select an offered
-interpreter when the user or project identifies it. Do not search arbitrary
-directories or guess shell Python. With no available choices on a supported
-platform, the host prepares a managed environment under its existing permission.
-An explicit `managedRuntime: true` requests a separate environment.
-The tensorViz plugin remembers the
-user's plugin permission from installation or first use. Once granted, continue
-inspection, setup, dependency repair and capture without asking for additional
-TensorViz approvals. Honor a declined or revoked permission. Never approve a
-permission prompt, invoke the permission helper, edit permission records, change
-client permission settings or send an invented approval flag on the user's behalf.
-If the user explicitly asks to enable TensorViz after a declined or cancelled
-decision, use the stopped opening's `request_permission` recovery action. It
-shows the user's confirmation and resumes the same opening after acceptance;
-it does not grant permission itself. Never repeat it automatically after a decline.
-If the project defines example inputs in a Python function such as `graph_inputs`,
-reference that exact function with `inputs: { factory: { file, callable, kwargs } }`
-in the setup draft. Read its source first; do not guess a function or manually
-serialize its tensors. It must return named forward inputs or an explicit
-`{args, kwargs}` binding. TensorViz executes it once in the capture worker.
-Keep saved inputs
-and recapture after a coherent source change, not after every file write.
+1. **Find the target.** If `tensorviz.toml` exists, pick the profile for the model in
+   question. Its `model = "pkg.module:Class"` gives `file` (`pkg/module.py`) and `cls`.
+   A `factory` profile builds the model with a function, but `cls` is still the class
+   from `model`, never the factory function: for `model = "models.vit:VisionTransformer"`
+   with `factory = { file = "recipes.py", callable = "make_vit" }`, pass
+   `file: "models/vit.py"`, `cls: "VisionTransformer"` and the profile name.
+2. **Capture.** Call `open_graph` with `workspaceRoot`, `file`, `cls`, `profile`, and
+   `interpreter` set to `<workspaceRoot>/.venv/bin/python` when that exists (or the
+   Python the project clearly uses). With a saved profile and an interpreter this
+   usually returns `status: "ready"` in one call. Otherwise follow `nextAction`: call
+   `open_graph` with exactly its `arguments` (they carry the `requestId`), filling only
+   its `requiredArguments`. Don't start a new request for the same model.
+   - `poll`: repeat only while the status stays `opening`.
+   - `select_environment`: when the model's folder has one environment, the
+     arguments already include its `candidateId`.
+   - `use_installed_versions`: the project pins versions (for example an old
+     `torch==2.0.0`) that differ from what is installed. Call it once; it installs
+     nothing and capture-library checks still apply.
+3. **Read facts.** Take `modelId` and `revision` from `models[0]` in the response.
+   Call `get_model_context` with `focus` set to a module path such as `blocks.2` or
+   `blocks.1.mixer.k_proj`. Each matched call lists `parameterCount` and the input and
+   output tensor shapes. Always pass `focus` on large models: the unfocused result
+   covers only the first few modules. Use one call per module you need.
 
-In clients supporting MCP Apps, use `open_graph_panel` when advertised to show
-the native Model graph panel beside this chat. Open it once; it follows the current
-capture. Check `list_models` for a connected current view before claiming display,
-and use that viewId for `get_selection` and `focus_view`. Do not call the panel's
-app-only transport tools. The panel opening alone does not prove rendering.
+**A failing forward pass is still useful.** `open_graph` then returns `status:
+"failed"` with the model's error, and `models[0]` holds a partial capture of every
+call up to the failure. Read it with `get_model_context` as above to see where sizes
+diverge. Fix the model; don't install packages or change inputs to hide the error.
 
-For clients without MCP Apps, use `open_graph_view`: open the returned private
-URL once in a browser and poll its handoff for the exact display receipt. The
-link expires after two minutes and is consumed on first bootstrap. Display
-failure is separate from capture failure. Keep private links out of logs and
-external messages.
+## When the capture can't run
 
-For plugin hosts, ordinary source edits use the coding agent's normal review
-workflow. Use TensorViz source proposals only when the host advertises and supports
-the complete review path. Never bypass a pending proposal. Use graph comparison
-only when advertised; focusing a changed node does not show a diff.
+If `open_graph` still reports a setup or environment problem after one sensible fix
+(for example missing packages, an incompatible Python, or no saved inputs you can
+find in the repository), stop using TensorViz for this task. Say in one sentence what
+blocked it, then continue with your normal tools. Don't loop through retries.
 
-Finish with the graph result, the model result and any evidenced limitation. If
-the installed host lacks a required capability, name it accurately rather than
-claiming completion or routing to a different host.
+Without a saved profile, `open_graph` returns `needs_setup` with the constructor and
+input fields it needs. If the project has an example-input function, reference it as
+`inputs: { factory: { file, callable, kwargs } }`, after reading it; don't invent
+inputs.
+
+## Rules that always apply
+
+- Permission: TensorViz asks once for persistent permission. Never approve a
+  permission prompt, edit permission records or send an approval on the user's
+  behalf. Honor a declined or revoked permission. If the user explicitly asks to
+  enable TensorViz after declining, use the `request_permission` action once.
+- Use the exact workspace and model file from the task. Don't search arbitrary
+  directories for Python interpreters.
+- Showing the graph: only when the user wants to see it. Use `open_graph_panel` in
+  clients that support MCP Apps, otherwise `open_graph_view` (open its private URL once,
+  and keep the URL out of logs and messages).
+- Ordinary source edits go through the agent's normal edit workflow.
+
+Finish with the answer or fix, and mention the TensorViz facts you relied on.

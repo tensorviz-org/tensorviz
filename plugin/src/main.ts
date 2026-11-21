@@ -108,7 +108,7 @@ async function start(): Promise<void> {
       profile: z.string().min(1).max(64).optional(),
       waitMs: z.number().int().min(0).max(25000).optional().describe('Bounded completion wait; default 20000 ms. Use 0 for an immediate progress snapshot.'),
       requestId: z.string().uuid().optional(), openingId: z.string().min(1).max(128).optional(), sourceDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
-      draft: z.record(z.string(), z.json()).optional(), action: z.enum(['retry', 'cancel', 'request_permission', 'select_environment', 'refresh_environments', 'install_dependencies', 'report_blocker']).optional(),
+      draft: z.record(z.string(), z.json()).optional(), action: z.enum(['retry', 'cancel', 'request_permission', 'select_environment', 'refresh_environments', 'install_dependencies', 'use_installed_versions', 'report_blocker']).optional(),
       candidateId: z.string().min(1).max(64).optional().describe('Use a candidate ID from this opening; arbitrary environment paths are not accepted as selection actions.'),
       packages: z.array(z.string().min(1).max(200)).min(1).max(32).optional(),
       blocker: z.object({ reason: z.string().min(1).max(1024), evidence: z.string().min(1).max(2048), nextStep: z.string().min(1).max(1024) }).strict().optional() },

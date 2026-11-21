@@ -118,6 +118,24 @@ suite('agent continuations for environment choice and model failures', () => {
     }
   });
 
+  test('a continuation may repeat its own target, but a different target needs a new request', async () => {
+    const state = choosing({ reason: 'incompatible', selectedId: 'project', declaredPins: ['torch==2.0.0'],
+      candidates: [candidate('project', '/w/.venv/bin/python', { selected: true, status: 'incompatible' })] });
+    let actions = 0;
+    const service = new McpOpenGraph({ open: async () => state, state: () => state, model: () => ({}), action: async () => { actions++; return true; } });
+    const target = { workspaceRoot: '/w', file: 'model.py', cls: 'Tiny', interpreter: '/w/.venv/bin/python' };
+    const started = service.invoke('agent', target);
+    await tick();
+    const next = service.invoke('agent', { requestId: started.requestId as string }).nextAction as Next;
+    assert.equal(next.kind, 'use_installed_versions');
+    assert.throws(() => service.invoke('agent', { ...target, ...next.arguments, interpreter: '/opt/other/bin/python' }), /Start a new request/);
+    assert.throws(() => service.invoke('agent', { ...target, ...next.arguments, managedRuntime: true }), /Start a new request/);
+    assert.throws(() => service.invoke('agent', { action: 'use_installed_versions' }), /send the arguments of its nextAction/);
+    service.invoke('agent', { ...target, ...next.arguments });
+    await tick();
+    assert.equal(actions, 1);
+  });
+
   test('a forward failure points at the partial capture instead of dependency repair', async () => {
     const failed = (failure: GraphOpeningState['failure'], hasCapture: boolean): GraphOpeningState =>
       ({ id: 'opening', target, phase: 'failed', hasCapture, detail: 'RuntimeError: mat1 and mat2 shapes cannot be multiplied', failure });

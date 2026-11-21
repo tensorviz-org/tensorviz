@@ -88,7 +88,7 @@ export class McpOpenGraph {
     if (args.candidateId && args.action !== 'select_environment') throw new GraphToolError('INVALID_REQUEST', 'A candidateId needs action: select_environment.');
     let request = this.requests.get(owner);
     if (!args.requestId) {
-      if (args.draft || args.action) throw new GraphToolError('REQUEST_REQUIRED', 'Continue the requestId returned by open_graph.');
+      if (args.draft || args.action) throw new GraphToolError('REQUEST_REQUIRED', 'Continue the requestId returned by open_graph: send the arguments of its nextAction.');
       const state = this.host.state();
       // A completed capture may still be inspecting dependencies. Its visible
       // retry must supersede that read instead of being rejected as busy.
@@ -111,7 +111,10 @@ export class McpOpenGraph {
       });
     } else {
       if (!request || request.id !== args.requestId) throw new GraphToolError('UNKNOWN_REQUEST', 'This opening belongs to another connection or has expired. Start open_graph again.');
-      if (args.file || args.cls || args.workspaceRoot || args.interpreter || args.profile || args.managedRuntime != null) throw new GraphToolError('INVALID_REQUEST', 'Start a new request to select another model, workspace, interpreter or profile.');
+      // Agents often repeat the original target next to a continuation. Only a different target needs a new request.
+      const retargeted = (['file', 'cls', 'workspaceRoot', 'interpreter', 'profile'] as const).some(key => args[key] != null && args[key] !== request!.target[key])
+        || args.managedRuntime != null && args.managedRuntime !== !!request.target.managedRuntime;
+      if (retargeted) throw new GraphToolError('INVALID_REQUEST', 'Start a new request to select another model, workspace, interpreter or profile.');
       if (args.action === 'cancel') {
         this.cancelOwner(owner);
         return { requestId: request.id, status: 'cancelled', validated: false, continuationRequired: false,

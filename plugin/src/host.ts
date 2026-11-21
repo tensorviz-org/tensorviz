@@ -53,6 +53,7 @@ interface Selection {
   managedRequested?: boolean;
   profile?: string;
 }
+const pinKey = (root: string, interpreter: string) => `${root}\0${interpreter}`;
 interface ProjectionResponse {
   graph_id: string; cls: string; source_digest: string; traced: boolean;
   document: unknown; spanmap: Record<string, unknown>; projection_digest: string;
@@ -103,6 +104,9 @@ export class StandaloneHost {
   private revision = 0;
   private readonly lifetime = new AbortController();
   private readonly inspectedEnvironments = new Map<string, { interpreter: string; fingerprint: string }>();
+  /** Project pins accepted with `use_installed_versions`, per workspace and interpreter, for this
+   * host session. Selecting an environment again starts a fresh check, as in the editor host. */
+  private readonly acceptedPins = new Map<string, string[]>();
   private discovering = false;
   private watcher?: ReturnType<typeof setInterval>;
   private checking?: Promise<void>;
@@ -305,7 +309,8 @@ export class StandaloneHost {
       source: selected.environment.source === 'managed' ? 'tensorViz-managed fallback' : 'Selected for this folder', selected: true,
       ...(selected.environment.source === 'managed' ? { managed: true } : {}) }], { backendDir: this.directory, managerPython, signal });
     const { compatibilityPackages: _copy, ...checked } = await inspectModelEnvironment(candidate, {
-      target, backendDir: this.directory, managerPython, signal, workerCache: this.workerCache, ...evidence });
+      target, backendDir: this.directory, managerPython, signal, workerCache: this.workerCache, ...evidence,
+      offerPins: true, acceptedPins: this.acceptedPins.get(pinKey(selected.root, candidate.interpreter)) });
     signal.throwIfAborted();
     if (!this.current(target) || this.selected !== selected || (await savedFile(selected.root, selected.file)).digest !== target.sourceDigest) {
       throw new HostError('SOURCE_CHANGED', 'The selected model changed. Open its current saved source again.');
@@ -340,8 +345,17 @@ export class StandaloneHost {
       }
       selected.environment = { interpreter: candidate.interpreter, source: candidate.managed ? 'managed' : 'explicit' };
       await this.environments.remember(selected.root, candidate.interpreter, !!candidate.managed);
+      this.acceptedPins.delete(pinKey(selected.root, candidate.interpreter));
       this.worker.cancel(); this.executionCurrent = undefined; this.executionSetupDigest = undefined;
       return true;
+    }
+    if (action.kind === 'use_installed_versions') {
+      // Only the project's own pins are accepted; capture-library conflicts and an observed
+      // import failure still stop the opening (see inspectModelEnvironment).
+      const current = environment.candidates.find(item => item.id === environment.selectedId);
+      if (!current || environment.reason !== 'incompatible' || !environment.declaredPins?.length) return false;
+      this.acceptedPins.set(pinKey(selected.root, current.interpreter), [...environment.declaredPins]);
+      return this.checkEnvironment(target, signal);
     }
     if (environment.reason !== 'missing_libraries' || !environment.requirements?.length) return false;
     try {
@@ -424,7 +438,7 @@ export class StandaloneHost {
     this.lastError = undefined;
     this.profileChoices = [];
     const root = await workspaceRoot(args.workspaceRoot);
-    if (!args.file || !args.cls) throw new HostError('TARGET_REQUIRED', 'Supply the saved model file and class explicitly.');
+    if (!args.file || !args.cls) throw new HostError('TARGET_REQUIRED', 'Supply the saved model file and class explicitly. A saved profile’s model = "package.module:Class" names them: file package/module.py and cls Class.');
     if (args.managedRuntime && args.interpreter) throw new HostError('ENVIRONMENT_AMBIGUOUS', 'Select managedRuntime or an explicit interpreter, not both.');
     const source = await savedFile(root, args.file);
     const resolution = args.managedRuntime ? undefined : await this.environments.resolve(root, args.interpreter);

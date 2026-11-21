@@ -260,10 +260,22 @@ export class McpOpenGraph {
       if (environment.reason === 'incompatible' && environment.declaredPins?.length) return call('use_installed_versions',
         'Project pins differ from installed libraries. Call this action to try the installed versions without installing or downgrading packages. Capture-worker checks still apply; model compatibility is not guaranteed.',
         { ...identity, action: 'use_installed_versions' });
-      if (environment.reason === 'selection_required' || environment.reason === 'unavailable') return call('select_environment',
-        'Read opening.environment candidates and choose the model’s intended project Python. Submit its candidateId, or request the native environment chooser. Do not infer Python from your shell or silently substitute a missing saved choice.',
-        { ...identity, action: environment.candidates.some(candidate => candidate.status !== 'unavailable') ? 'select_environment' : 'environment' },
-        environment.candidates.some(candidate => candidate.status !== 'unavailable') ? ['candidateId'] : []);
+      if (environment.reason === 'selection_required' || environment.reason === 'unavailable') {
+        // With no saved choice, a single environment inside the model's own folder is the likely
+        // project Python. It stays a suggestion: the agent still sends the selection.
+        const inside = (interpreter: string) => { const relative = path.relative(current.target.workspaceFolder, interpreter);
+          return !!relative && !relative.startsWith('..') && !path.isAbsolute(relative); };
+        const project = environment.candidates.filter(candidate => candidate.status !== 'unavailable' && !candidate.managed && inside(candidate.interpreter));
+        if (environment.reason === 'selection_required' && !environment.candidates.some(candidate => candidate.selected) && project.length === 1) {
+          return call('select_environment',
+            `The model’s project folder has one Python environment (${project[0].interpreter}). This call selects it; compatibility is checked before capture. Choose another listed candidateId instead only if the project evidently uses a different Python. Do not infer Python from your shell.`,
+            { ...identity, action: 'select_environment', candidateId: project[0].id });
+        }
+        return call('select_environment',
+          'Read opening.environment candidates and choose the model’s intended project Python. Submit its candidateId, or request the native environment chooser. Do not infer Python from your shell or silently substitute a missing saved choice.',
+          { ...identity, action: environment.candidates.some(candidate => candidate.status !== 'unavailable') ? 'select_environment' : 'environment' },
+          environment.candidates.some(candidate => candidate.status !== 'unavailable') ? ['candidateId'] : []);
+      }
       if (environment.reason === 'missing_libraries' && environment.requirements?.length) return call('review_dependencies',
         'These requirements were established from capture libraries and model imports. Request native review of the exact additive plan, then continue this same opening. Existing Torch/build and packages are preserved. Do not repeat declined or unsuccessful repair unchanged.',
         { ...identity, action: 'install_dependencies', packages: environment.requirements });
@@ -275,6 +287,10 @@ export class McpOpenGraph {
     }
     if (status === 'needs_setup') return call('complete_setup', 'Read opening.requirements, unresolved, discovery and the model source. Complete the returned draft using inputContract, then make this call with draft. Missing values are work to resolve, not a final answer. If a required choice or asset cannot be determined, report_blocker with the specific evidence and question or asset needed.', identity, ['draft']);
     if (status === 'source_only') return call('retry', 'Only source is visible. Continue the requested capture through setup; a source-only preview does not complete this task.', { ...identity, action: 'retry' });
+    if (status === 'failed' && current.failure?.kind === 'execution') return call('inspect_failure',
+      'The model raised an error during its forward pass. This is evidence about the model, not a setup or dependency problem: do not install packages, switch Python or change inputs to hide it. opening.detail has the error.'
+      + (current.hasCapture ? ' The calls before the error were captured: read them with get_model_context on this model, with focus set to a module path, to see where tensor shapes diverge.' : '')
+      + ' If the task is to fix the model, edit its source and start open_graph again for this model; otherwise report the error with this evidence.');
     return call('inspect_failure', 'Inspect error, failure, environment and opening.detail. Use get_execution_environment if needed; install required dependencies with install_dependencies in this same capture environment. Do not switch interpreters or open the environment picker just because installation failed. Correct the supported setup or dependency problem before retrying. If capture cannot proceed, report_blocker with reason, observed evidence and nextStep.');
   }
 

@@ -68,7 +68,9 @@ suite('MCP unified opening', () => {
     r.state = { ...r.state!, environment };
     const requestId = started.requestId as string;
     const choice = r.service.invoke('one', { requestId });
-    assert.equal(next(choice).kind, 'select_environment'); assert.deepEqual(next(choice).requiredArguments, ['candidateId']);
+    assert.equal(next(choice).kind, 'select_environment'); assert.deepEqual(next(choice).requiredArguments, []);
+    assert.equal(next(choice).arguments.candidateId, 'project', 'the only environment in the model folder is offered, not selected');
+    assert.equal(r.actions, 0);
     assert.match(choice.helpRequest as string, /2.6.0\+cu124|environmentRecovery/);
     assert.throws(() => r.service.invoke('one', { ...next(choice).arguments, candidateId: '/caller/python' }), /listed available candidateId/);
     r.service.invoke('one', { ...next(choice).arguments, candidateId: 'project' }); await tick();

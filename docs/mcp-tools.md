@@ -48,11 +48,19 @@ another capture. When inputs are missing, submit `draft` with `requestId`,
 going in the same task while that flag is true. A source-only preview is not a
 completed capture. `nextAction` names the tool, arguments, and any values you
 still have to supply. `action: select_environment` uses a listed `candidateId`.
-`action: refresh_environments` only refreshes the list. `action: install_dependencies`
-uses the returned requirements; the editor still asks before it installs.
-`action: cancel` stops this connection's opening. `action: retry` resolves setup
-again. After an error, change the setup or environment before retrying the same
-arguments.
+With no saved choice and exactly one environment inside the model's folder,
+`nextAction` already includes that candidate's ID; sending it is still the
+selection. `action: refresh_environments` only refreshes the list.
+`action: install_dependencies` uses the returned requirements; the editor still
+asks before it installs. `action: use_installed_versions` continues with installed
+versions when only the project's own pins differ. `action: cancel` stops this
+connection's opening. `action: retry` resolves setup again. After an error, change
+the setup or environment before retrying the same arguments.
+
+When the model raises an error during its forward pass, the opening fails with
+`opening.failure.kind: "execution"` and keeps a partial capture of the calls before
+the error. `nextAction` then points at that evidence (`get_model_context` with a
+module `focus`) and the model source, not at dependency repair.
 
 If you cannot proceed, call `open_graph` with `action: report_blocker`, the
 current request identity, and `blocker: { reason, evidence, nextStep }`. A
